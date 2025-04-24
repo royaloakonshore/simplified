@@ -6,3 +6,4 @@
 - Fixed dynamic route warning by adding force-dynamic config to root page
 - Added Storybook with Button component and stories, updated .cursorrules with Storybook guidelines
 - Captured screenshot of Button component stories in Storybook
+- Verified starter template and made changes to adapt it for the ERP system: installed nuqs and xmlbuilder2, set up monochrome theme, created directory structure, and configured Supabase integration.

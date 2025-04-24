@@ -1,11 +1,13 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["public", "auth"]
 }
 
 model User {
@@ -22,6 +24,8 @@ model User {
   isAdmin        Boolean   @default(false)
   accounts       Account[]
   sessions       Session[]
+
+  @@schema("public")
 }
 
 model Account {
@@ -40,6 +44,7 @@ model Account {
   User              User    @relation(fields: [userId], references: [id])
 
   @@unique([provider, providerAccountId])
+  @@schema("public")
 }
 
 model Session {
@@ -49,17 +54,23 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
 }
 
 enum UserRole {
   user
   admin
+
+  @@schema("public")
 }
 
 model Allowlist {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
+
+  @@schema("public")
 }
 
 model VerificationToken {
@@ -68,4 +79,198 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+  @@schema("public")
+}
+
+enum AddressType {
+  billing
+  shipping
+
+  @@schema("public")
+}
+
+model Address {
+  id          String      @id @default(cuid())
+  customerId  String
+  type        AddressType
+  street      String
+  city        String
+  postalCode  String
+  country     String
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model Customer {
+  id            String    @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  vatId         String?   // Y-tunnus in Finland
+  ovtId         String?   // OVT/EDI identifier
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  addresses     Address[]
+  orders        Order[]
+  invoices      Invoice[]
+
+  @@schema("public")
+}
+
+model InventoryItem {
+  id            String                @id @default(cuid())
+  sku           String                @unique
+  name          String
+  description   String?
+  unitOfMeasure String                // e.g., 'kpl', 'ltr'
+  costPrice     Decimal               @db.Decimal(10, 2)
+  salesPrice    Decimal               @db.Decimal(10, 2)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  transactions  InventoryTransaction[]
+  orderItems    OrderItem[]
+  invoiceItems  InvoiceItem[]
+
+  @@schema("public")
+}
+
+enum TransactionType {
+  purchase
+  sale
+  adjustment
+
+  @@schema("public")
+}
+
+model InventoryTransaction {
+  id            String          @id @default(cuid())
+  itemId        String
+  quantity      Decimal         @db.Decimal(10, 2)
+  type          TransactionType
+  reference     String?         // Optional reference to order or invoice
+  note          String?
+  createdAt     DateTime        @default(now())
+  item          InventoryItem   @relation(fields: [itemId], references: [id])
+
+  @@schema("public")
+}
+
+enum OrderStatus {
+  draft
+  confirmed
+  picking
+  packing
+  ready
+  shipped
+  delivered
+  cancelled
+
+  @@schema("public")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  customerId    String
+  orderNumber   String      @unique
+  status        OrderStatus @default(draft)
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  items         OrderItem[]
+  invoices      Invoice[]
+
+  @@schema("public")
+}
+
+model OrderItem {
+  id            String        @id @default(cuid())
+  orderId       String
+  itemId        String
+  quantity      Decimal       @db.Decimal(10, 2)
+  unitPrice     Decimal       @db.Decimal(10, 2)
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item          InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@schema("public")
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+  cancelled
+
+  @@schema("public")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  customerId    String
+  orderId       String?       // Optional link to originating order
+  status        InvoiceStatus @default(draft)
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  vatAmount     Decimal       @db.Decimal(10, 2)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  order         Order?        @relation(fields: [orderId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@schema("public")
+}
+
+model InvoiceItem {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  itemId        String
+  description   String?
+  quantity      Decimal       @db.Decimal(10, 2)
+  unitPrice     Decimal       @db.Decimal(10, 2)
+  vatRate       Decimal       @db.Decimal(5, 2)
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item          InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@schema("public")
+}
+
+model Payment {
+  id            String    @id @default(cuid())
+  invoiceId     String
+  amount        Decimal   @db.Decimal(10, 2)
+  paymentDate   DateTime
+  reference     String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  invoice       Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model Settings {
+  id                     String  @id @default(cuid())
+  companyName            String
+  vatId                  String  // Y-tunnus
+  ovtId                  String? // OVT identifier
+  streetAddress          String
+  postalCode             String
+  city                   String
+  country                String
+  phone                  String?
+  email                  String?
+  bankName               String?
+  bankAccountIban        String
+  bankSwiftBic           String
+  finvoiceIntermediator  String?
+  finvoiceIntermediatorId String?
+
+  @@schema("public")
 }
