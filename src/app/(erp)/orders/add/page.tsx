@@ -1,49 +1,71 @@
+'use client'; // Need client component for hooks
+
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { useRouter } from 'next/navigation'; // Use hooks
+import { api } from "@/lib/trpc/react"; // Import tRPC hooks
 import OrderForm from '@/components/orders/OrderForm';
-import { MaterialType } from '@/lib/types/inventory.types'; // Import local MaterialType enum
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
-export default async function AddOrderPage() {
-  // Fetch customers and inventory items for the form
-  // @ts-ignore - Prisma client types issue
-  const customers = await prisma.customer.findMany({
-    orderBy: {
-      name: 'asc',
-    },
-  });
-  
-  // @ts-ignore - Prisma client types issue
-  const prismaInventoryItems = await prisma.inventoryItem.findMany({
-    orderBy: {
-      name: 'asc',
-    },
-  });
+// Removed unused imports: prisma, MaterialType
 
-  // Map Prisma types to form types for inventory items
-  type PrismaItemType = (typeof prismaInventoryItems)[number];
-  const inventoryItems = prismaInventoryItems.map((item: PrismaItemType) => ({
-    ...item,
-    costPrice: item.costPrice.toNumber(),
-    salesPrice: item.salesPrice.toNumber(),
-    minimumStockLevel: item.minimumStockLevel.toNumber(),
-    reorderLevel: item.reorderLevel.toNumber(),
-    materialType: item.materialType as MaterialType,
-  }));
-  
+export default function AddOrderPage() {
+  const router = useRouter();
+
+  // Fetch customers for dropdown
+  const { data: customerData, error: customerError, isLoading: isLoadingCustomers } = api.customer.list.useQuery({});
+
+  // Fetch inventory items for dropdown
+  const { data: inventoryData, error: inventoryError, isLoading: isLoadingInventory } = api.inventory.list.useQuery({ limit: 1000 });
+
+  const isLoading = isLoadingCustomers || isLoadingInventory;
+  const error = customerError || inventoryError;
+
+  if (isLoading) {
+    return (
+        <div className="p-6 space-y-4">
+            <Skeleton className="h-8 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
+        </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <Alert variant="destructive">
+           <Terminal className="h-4 w-4" />
+           <AlertTitle>Error Loading Data</AlertTitle>
+           <AlertDescription>
+             {error.message || 'An unknown error occurred while loading data for the form.'}
+             <div className="mt-4">
+                <Button onClick={() => router.back()} variant="secondary">Go Back</Button>
+             </div>
+           </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Data fetched successfully
+  const customers = customerData?.items ?? [];
+  const inventoryItems = inventoryData?.items ?? [];
+
   return (
     <div className="p-6">
       <div className="flex items-center mb-6">
-        <Link
-          href="/orders"
-          className="mr-4 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          ← Back to Orders
-        </Link>
-        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
+         <Button variant="outline" size="sm" asChild className="mr-4">
+            <Link href="/orders">← Back to Orders</Link>
+         </Button>
+        <h1 className="text-2xl font-bold">
           Create New Order
         </h1>
       </div>
-      
+
+      {/* Pass fetched data directly - OrderForm placeholder expects Prisma types */}
       <OrderForm customers={customers} inventoryItems={inventoryItems} />
     </div>
   );

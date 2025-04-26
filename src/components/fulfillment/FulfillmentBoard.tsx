@@ -3,12 +3,24 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Order, OrderStatus } from '@/lib/types/order.types';
-import { updateOrderStatus } from '@/lib/actions/order.actions';
+import { type Order, OrderStatus, type Customer, type OrderItem, Prisma } from "@prisma/client"; // Import Prisma types
+import { api } from "@/lib/trpc/react"; // Import tRPC hook
+import type { AppRouter } from "@/lib/api/root";
+import type { TRPCClientErrorLike } from "@trpc/client";
+import { toast } from 'react-toastify';
+import { Button } from "@/components/ui/button"; // Use Shadcn button
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
+import { Terminal } from 'lucide-react'; // Icons
+
+// Simplified Order type for props, assuming necessary includes are done by the caller
+type BoardOrder = Order & {
+    customer: Pick<Customer, 'id' | 'name'>;
+    items: Pick<OrderItem, 'id'>[]; // Just need count
+};
 
 type FulfillmentBoardProps = {
-  confirmedOrders: Order[];
-  productionOrders: Order[];
+  confirmedOrders: BoardOrder[];
+  productionOrders: BoardOrder[];
 };
 
 export default function FulfillmentBoard({
@@ -16,17 +28,37 @@ export default function FulfillmentBoard({
   productionOrders,
 }: FulfillmentBoardProps) {
   const router = useRouter();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const utils = api.useUtils();
   const [error, setError] = useState<string | null>(null);
-  
-  // Format currency
-  const formatCurrency = (amount: number) => {
+
+  // --- tRPC Mutation for Status Update ---
+  // Note: Assumes an `updateStatus` procedure exists in the order router
+  const updateStatusMutation = api.order.updateStatus.useMutation({ // TODO: Implement updateStatus in tRPC router
+    onSuccess: (data: Order) => {
+      toast.success(`Order ${data.orderNumber} status updated to ${data.status}`);
+      setError(null);
+      // Invalidate relevant queries to refresh data
+      utils.order.list.invalidate(); // Or more specific query if available
+      // Potentially invalidate queries used to fetch data for this board
+      router.refresh(); // Simple way to refetch server component data
+    },
+    onError: (err: TRPCClientErrorLike<AppRouter>) => {
+      // Handle specific errors (like insufficient stock) if the API returns them
+      const message = err.message ?? 'Failed to update order status.';
+      setError(message);
+      toast.error(message);
+      console.error("Error updating order status:", err);
+    },
+  });
+
+  // Format currency (assuming Decimal is handled)
+  const formatCurrency = (amount: number | string | Prisma.Decimal) => {
     return new Intl.NumberFormat('fi-FI', {
       style: 'currency',
       currency: 'EUR',
-    }).format(amount);
+    }).format(Number(amount)); // Convert Decimal to number
   };
-  
+
   // Format date
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('fi-FI', {
@@ -35,44 +67,21 @@ export default function FulfillmentBoard({
       day: 'numeric',
     });
   };
-  
-  // Handle order status update
-  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    setIsUpdating(true);
-    setError(null);
-    
-    try {
-      const result = await updateOrderStatus(orderId, { status: newStatus });
-      
-      if (!result.success) {
-        // Handle different error shapes that can come from the server action
-        const errorMessage = 'error' in result 
-          ? result.error 
-          : 'data' in result && result.data && typeof result.data === 'object' && 'hasInsufficientStock' in result.data 
-            ? 'Insufficient stock for one or more items' 
-            : 'An unknown error occurred';
-        
-        throw new Error(errorMessage);
-      }
-      
-      // Refresh page to show updated data
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error updating order status:', err);
-    } finally {
-      setIsUpdating(false);
-    }
+
+  // Handle order status update trigger
+  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
+    setError(null); // Clear previous errors
+    updateStatusMutation.mutate({ id: orderId, status: newStatus });
   };
-  
+
   // Function to render a single order card
-  const renderOrderCard = (order: Order, nextStatus?: OrderStatus) => (
-    <div 
-      key={order.id.toString()} 
+  const renderOrderCard = (order: BoardOrder, nextStatus?: OrderStatus) => (
+    <div
+      key={order.id}
       className="bg-white dark:bg-neutral-800 rounded-md shadow-sm p-4 mb-3"
     >
       <div className="flex justify-between items-start mb-2">
-        <Link 
+        <Link
           href={`/orders/${order.id}`}
           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
         >
@@ -82,38 +91,43 @@ export default function FulfillmentBoard({
           {formatDate(order.updatedAt)}
         </span>
       </div>
-      
+
       <div className="text-sm text-neutral-600 dark:text-neutral-300 mb-2">
         {order.customer.name}
       </div>
-      
+
       <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-        {order.items.length} items · {formatCurrency(Number(order.totalAmount))}
+        {order.items.length} items · {formatCurrency(order.totalAmount)}
       </div>
-      
+
       {nextStatus && (
-        <button
-          onClick={() => handleUpdateStatus(order.id.toString(), nextStatus)}
-          disabled={isUpdating}
-          className="w-full px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60"
+        <Button
+          onClick={() => handleUpdateStatus(order.id, nextStatus)}
+          disabled={updateStatusMutation.isPending && updateStatusMutation.variables?.id === order.id}
+          className="w-full"
+          size="sm"
         >
-          {nextStatus === OrderStatus.IN_PRODUCTION && 'Start Production'}
-          {nextStatus === OrderStatus.SHIPPED && 'Mark as Shipped'}
-          {nextStatus === OrderStatus.CANCELLED && 'Cancel Order'}
-        </button>
+          {updateStatusMutation.isPending && updateStatusMutation.variables?.id === order.id ? 'Updating...' :
+           (nextStatus === OrderStatus.in_production ? 'Start Production' :
+            nextStatus === OrderStatus.shipped ? 'Mark as Shipped' :
+            nextStatus === OrderStatus.cancelled ? 'Cancel Order' : 'Update Status')
+          }
+        </Button>
       )}
     </div>
   );
-  
+
   // Render board columns
   return (
     <div className="w-full">
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-4">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Update Failed</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Confirmed Column */}
         <div className="bg-neutral-100 dark:bg-neutral-900 rounded-md p-4">
@@ -124,18 +138,18 @@ export default function FulfillmentBoard({
               ({confirmedOrders.length})
             </span>
           </h3>
-          
+
           <div className="overflow-y-auto max-h-[70vh]">
             {confirmedOrders.length === 0 ? (
               <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center p-4">
                 No orders waiting for production
               </p>
             ) : (
-              confirmedOrders.map(order => renderOrderCard(order, OrderStatus.IN_PRODUCTION))
+              confirmedOrders.map(order => renderOrderCard(order, OrderStatus.in_production))
             )}
           </div>
         </div>
-        
+
         {/* In Production Column */}
         <div className="bg-neutral-100 dark:bg-neutral-900 rounded-md p-4">
           <h3 className="text-lg font-medium mb-4 text-neutral-900 dark:text-white flex items-center">
@@ -145,14 +159,14 @@ export default function FulfillmentBoard({
               ({productionOrders.length})
             </span>
           </h3>
-          
+
           <div className="overflow-y-auto max-h-[70vh]">
             {productionOrders.length === 0 ? (
               <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center p-4">
                 No orders currently in production
               </p>
             ) : (
-              productionOrders.map(order => renderOrderCard(order, OrderStatus.SHIPPED))
+              productionOrders.map(order => renderOrderCard(order, OrderStatus.shipped))
             )}
           </div>
         </div>

@@ -16,3 +16,4 @@
 - Implement Add/Edit Customer functionality (Schema, tRPC Mutations, Form, Pages).
 - Implement Inventory list view (Schema, tRPC router, Table, Page).
 - Implement Add/Edit Inventory Item functionality (Form, Pages) - NOTE: Known TS type errors in InventoryItemForm.
+- Implemented initial Order Management tRPC router and schemas; refactored dependent components/pages to use tRPC.
