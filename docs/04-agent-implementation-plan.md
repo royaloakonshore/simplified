@@ -42,6 +42,13 @@ This plan outlines the step-by-step implementation process for the AI agent buil
         *   Implement Customer detail view (`src/app/(erp)/customers/[id]/page.tsx`) displaying full customer details and potentially related orders/invoices later.
         *   Write basic unit/integration tests (Vitest/RTL) for Server Actions, form validation, and core component rendering.
 
+**Step 2b: Enhance Customer List & UI (Lower Priority)**
+    *   **Goal:** Improve usability and appearance of the customer list.
+    *   **Tasks:**
+        *   Implement robust filtering and sorting options in the `CustomerTable` component, managed by URL state (`nuqs`). Update the `customer.list` tRPC procedure to accept filter/sort parameters.
+        *   Refine pagination controls in `CustomerTable`/`CustomersPage` (e.g., Previous/Next buttons, page number display).
+        *   Implement Skeleton Loaders (using Shadcn `Skeleton`) in `CustomerTable` for a better loading state experience.
+
 **Step 3: Inventory Management Module**
     *   **Goal:** Implement core CRUD for inventory items and basic stock transaction tracking.
     *   **Tasks:**
@@ -94,11 +101,25 @@ This plan outlines the step-by-step implementation process for the AI agent buil
         *   Implement a form (`SettingsForm`) to capture and save **Seller Party details** required for Finvoice headers (Company Name, VAT ID, OVT, Bank Account IBAN/BIC, Intermediator details). Store these securely (e.g., in a dedicated `settings` table or potentially user/profile metadata if appropriate).
         *   Ensure the `finvoice.service` reads these settings when generating XML.
         *   Create a simple Dashboard overview page (`src/app/(erp)/dashboard/page.tsx`) showing key metrics (optional).
+        *   Implement Admin User Management UI within the Settings page or a dedicated Admin section:
+            *   List existing users (from Prisma `User` model).
+            *   Form/modal to invite/create new users (handle password setup securely, e.g., invite link or temporary password).
+            *   Ability for Admin to update user roles (`UserRole` enum in Prisma).
+            *   Ability to activate/deactivate users.
+            *   Implement corresponding tRPC procedures (mutations) for these admin actions, ensuring proper authorization checks (only Admins can perform).
         *   Conduct comprehensive testing (review unit/integration tests, consider manual E2E flows for critical paths like order-to-invoice-to-finvoice).
         *   Perform UI polishing, ensure responsiveness and adherence to the monochrome theme.
         *   Update project README with setup, usage, and deployment instructions.
         *   Prepare for deployment (configure environment variables for production Supabase, check Vercel build settings).
 
+**Step 7: UI Polish & Shadcn Blocks Integration (Lower Priority)**
+    *   **Goal:** Enhance the overall UI/UX using Shadcn Blocks and common patterns.
+    *   **Tasks:**
+        *   Integrate Shadcn Sidebar 07 (`npx shadcn add sidebar-07`) for the main application navigation as specified in initial requirements, replacing any existing sidebar from the starter template.
+        *   Implement Shadcn Breadcrumbs (`npx shadcn add breadcrumb`) consistently across pages for navigation context.
+        *   Review and refactor existing Tables, Forms, Pagination controls, and other core UI elements to align better with styles and examples found in Shadcn Blocks (e.g., improve density, layout, consistency).
+        *   Ensure consistent application of the monochrome theme throughout.
+
 --- --- ---
 
-**Agent Starting Point:** Begin with **Step 1: Verify & Adapt Starter Template** after User completes Phase 0.
+**Agent Starting Point:** Begin with **Step 1: Verify & Adapt Starter Template** after User completes Phase 0. (Current state: Completed Step 1, Started Step 2 - Customer List implemented). Next logical step is completing Step 2 (Add/Edit Customer Form/Pages).

@@ -24,6 +24,7 @@ This document outlines the requirements for the Simplified ERP System, a web app
 - User registration (optional, configurable).
 - Password reset functionality.
 - Role-based access control (e.g., Admin, Sales, Inventory, Finance).
+- Admin interface for managing users (create, update roles, activate/deactivate) within the chosen auth system (NextAuth/Prisma).
 
 ### 4.2. Customer Management (CRM)
 - Create, Read, Update, Delete (CRUD) customer records (businesses and individuals).

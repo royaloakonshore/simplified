@@ -13,3 +13,4 @@
 - Created FulfillmentBoard component for the fulfillment page and fixed TypeScript errors related to Prisma models and type definitions across multiple order-related pages
 - Refactor to use tRPC for API layer instead of Server Actions
 - Implement initial Customer List page and tRPC procedures
+- Implement Add/Edit Customer functionality (Schema, tRPC Mutations, Form, Pages).
