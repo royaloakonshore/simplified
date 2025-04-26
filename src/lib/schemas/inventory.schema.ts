@@ -1,28 +1,43 @@
 import { z } from 'zod';
 import { MaterialType, TransactionType } from '../types/inventory.types';
+import { MaterialType as PrismaMaterialType } from '@prisma/client'; // Import enum from Prisma Client
 
-// Schema for inventory item validation
-export const inventoryItemSchema = z.object({
+// Base schema for inventory item fields
+export const inventoryItemBaseSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().nullable().optional(),
-  unitOfMeasure: z.string().min(1, 'Unit of measure is required'),
-  costPrice: z.coerce.number().min(0, 'Cost price must be a positive number'),
-  salesPrice: z.coerce.number().min(0, 'Sales price must be a positive number'),
-  materialType: z.nativeEnum(MaterialType, {
-    errorMap: () => ({ message: 'Invalid material type' }),
-  }),
-  minimumStockLevel: z.coerce.number().min(0, 'Minimum stock level must be a positive number'),
-  reorderLevel: z.coerce.number().min(0, 'Reorder level must be a positive number'),
+  name: z.string().min(1, 'Item name is required'),
+  description: z.string().optional(),
+  unitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
+  // Use refine for Decimal type represented as string or number
+  costPrice: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({ invalid_type_error: 'Cost price must be a number' })
+       .nonnegative('Cost price must be non-negative')
+  ),
+  salesPrice: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({ invalid_type_error: 'Sales price must be a number' })
+       .nonnegative('Sales price must be non-negative')
+  ),
+  materialType: z.nativeEnum(PrismaMaterialType).default(PrismaMaterialType.raw_material),
+  minimumStockLevel: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({ invalid_type_error: 'Min stock level must be a number' })
+       .nonnegative('Min stock level must be non-negative').optional().default(0)
+  ),
+  reorderLevel: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({ invalid_type_error: 'Reorder level must be a number' })
+       .nonnegative('Reorder level must be non-negative').optional().default(0)
+  ),
 });
 
-// Schema for inventory item creation
-export const createInventoryItemSchema = inventoryItemSchema;
+// Schema for creating an inventory item
+export const createInventoryItemSchema = inventoryItemBaseSchema;
 
-// Schema for inventory item update
-export const updateInventoryItemSchema = z.object({
+// Schema for updating an inventory item (requires ID)
+export const updateInventoryItemSchema = inventoryItemBaseSchema.extend({
   id: z.string(),
-  ...inventoryItemSchema.shape,
 });
 
 // Schema for inventory transaction
@@ -38,17 +53,16 @@ export const inventoryTransactionSchema = z.object({
   note: z.string().nullable().optional(),
 });
 
-// Schema for stock adjustment
-export const stockAdjustmentSchema = z.object({
-  itemId: z.string(),
-  quantity: z.coerce.number().refine(val => val !== 0, {
-    message: 'Quantity cannot be zero',
-  }),
-  note: z.string().nullable().optional(),
+// Schema for adjusting stock
+export const adjustStockSchema = z.object({
+    itemId: z.string(),
+    quantityChange: z.preprocess(
+        (val) => (typeof val === 'string' ? parseFloat(val) : val),
+        z.number({ invalid_type_error: 'Quantity change must be a number' })
+    ),
+    // Optional: Add type (purchase, sale, adjustment) and reference if needed
+    note: z.string().optional(),
 });
-
-// Schema for bulk stock adjustment
-export const bulkStockAdjustmentSchema = z.array(stockAdjustmentSchema);
 
 // Schema for inventory list filtering and pagination
 export const listInventoryItemsSchema = z.object({
@@ -64,6 +78,5 @@ export const listInventoryItemsSchema = z.object({
 export type CreateInventoryItemInput = z.infer<typeof createInventoryItemSchema>;
 export type UpdateInventoryItemInput = z.infer<typeof updateInventoryItemSchema>;
 export type InventoryTransactionInput = z.infer<typeof inventoryTransactionSchema>;
-export type StockAdjustmentInput = z.infer<typeof stockAdjustmentSchema>;
-export type BulkStockAdjustmentInput = z.infer<typeof bulkStockAdjustmentSchema>;
+export type AdjustStockInput = z.infer<typeof adjustStockSchema>;
 export type ListInventoryItemsInput = z.infer<typeof listInventoryItemsSchema>; 

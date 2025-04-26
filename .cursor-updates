@@ -14,3 +14,5 @@
 - Refactor to use tRPC for API layer instead of Server Actions
 - Implement initial Customer List page and tRPC procedures
 - Implement Add/Edit Customer functionality (Schema, tRPC Mutations, Form, Pages).
+- Implement Inventory list view (Schema, tRPC router, Table, Page).
+- Implement Add/Edit Inventory Item functionality (Form, Pages) - NOTE: Known TS type errors in InventoryItemForm.

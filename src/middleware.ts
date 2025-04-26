@@ -1,13 +1,10 @@
-import { NextResponse, type NextRequest } from 'next/server'
+export { default } from "next-auth/middleware"
 
-// This is a placeholder middleware that will be expanded in future steps
-// with proper Supabase auth integration
-export async function middleware(request: NextRequest) {
-  // For now, we'll just pass through all requests
-  return NextResponse.next()
-}
-
-// Only run middleware on auth-required routes
+// See "Matching Paths" below to learn more
 export const config = {
-  matcher: ['/dashboard/:path*', '/(erp)/:path*'],
-} 
+  matcher: [
+    '/dashboard/:path*',
+    '/(main)/:path*', // Protect routes under the (main) group
+    // Add other protected routes here
+  ],
+}; 
