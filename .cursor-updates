@@ -7,3 +7,9 @@
 - Added Storybook with Button component and stories, updated .cursorrules with Storybook guidelines
 - Captured screenshot of Button component stories in Storybook
 - Verified starter template and made changes to adapt it for the ERP system: installed nuqs and xmlbuilder2, set up monochrome theme, created directory structure, and configured Supabase integration.
+- Fixed TypeScript errors in inventory actions by regenerating Prisma client to include inventory models
+- Created development journal to document technical details and implementation notes for better knowledge sharing
+- Fixed error handling in OrderDetail component to properly handle different result shapes from updateOrderStatus action
+- Created FulfillmentBoard component for the fulfillment page and fixed TypeScript errors related to Prisma models and type definitions across multiple order-related pages
+- Refactor to use tRPC for API layer instead of Server Actions
+- Implement initial Customer List page and tRPC procedures

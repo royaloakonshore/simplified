@@ -8,10 +8,10 @@ export enum AddressType {
 export interface Address {
   id?: string;
   type: AddressType;
-  street: string;
+  streetAddress: string;
   city: string;
   postalCode: string;
-  country: string;
+  countryCode: string;
 }
 
 export interface Customer {
@@ -20,7 +20,8 @@ export interface Customer {
   email?: string | null;
   phone?: string | null;
   vatId?: string | null; // Y-tunnus in Finland
-  ovtId?: string | null; // OVT/EDI identifier
+  ovtIdentifier?: string | null;
+  intermediatorAddress?: string | null;
   addresses?: Address[];
   createdAt?: Date;
   updatedAt?: Date;
