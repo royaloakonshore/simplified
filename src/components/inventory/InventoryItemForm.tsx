@@ -25,6 +25,7 @@ import { api } from "@/lib/trpc/react";
 import { inventoryItemBaseSchema } from "@/lib/schemas/inventory.schema";
 
 // Define the form schema type
+// Keep this type definition for potential future use or clarity, though it won't directly type useForm anymore.
 type InventoryItemFormData = z.infer<typeof inventoryItemBaseSchema>;
 
 interface InventoryItemFormProps {
@@ -35,21 +36,27 @@ export function InventoryItemForm({ initialData }: InventoryItemFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
 
-  // Using the first working structure for useForm
-  const form = useForm<InventoryItemFormData>({
+  // Let the type be inferred from the resolver
+  const form = useForm({
     resolver: zodResolver(inventoryItemBaseSchema),
     defaultValues: initialData
       ? {
-          ...initialData,
-          costPrice: Number(initialData.costPrice ?? 0),
-          salesPrice: Number(initialData.salesPrice ?? 0),
-          minimumStockLevel: Number(initialData.minimumStockLevel ?? 0),
-          reorderLevel: Number(initialData.reorderLevel ?? 0),
+          // Explicitly map fields to ensure correct types
+          sku: initialData.sku,
+          name: initialData.name,
+          description: initialData.description ?? undefined,
+          unitOfMeasure: initialData.unitOfMeasure,
+          costPrice: initialData.costPrice?.toNumber() ?? 0,
+          salesPrice: initialData.salesPrice?.toNumber() ?? 0,
+          materialType: initialData.materialType,
+          minimumStockLevel: initialData.minimumStockLevel?.toNumber() ?? 0,
+          reorderLevel: initialData.reorderLevel?.toNumber() ?? 0,
+          // Note: createdAt and updatedAt are usually handled by the DB
         }
       : {
           sku: '',
           name: '',
-          description: '',
+          description: undefined,
           unitOfMeasure: 'kpl',
           costPrice: 0,
           salesPrice: 0,
@@ -84,8 +91,8 @@ export function InventoryItemForm({ initialData }: InventoryItemFormProps) {
     },
   });
 
-  // Explicitly type the values parameter to match the validated output
-  function onSubmit(values: InventoryItemFormData) {
+  // Let handleSubmit infer the type for 'values'
+  function onSubmit(values: z.infer<typeof inventoryItemBaseSchema>) { // Explicitly type values based on schema inference
     if (initialData) {
       updateItem.mutate({ ...values, id: initialData.id });
     } else {

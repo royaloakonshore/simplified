@@ -8,28 +8,23 @@ export const inventoryItemBaseSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
   description: z.string().optional(),
   unitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
-  // Use refine for Decimal type represented as string or number
-  costPrice: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number({ invalid_type_error: 'Cost price must be a number' })
-       .nonnegative('Cost price must be non-negative')
-  ),
-  salesPrice: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number({ invalid_type_error: 'Sales price must be a number' })
-       .nonnegative('Sales price must be non-negative')
-  ),
+  costPrice: z.coerce
+    .number({ invalid_type_error: 'Cost price must be a number' })
+    .nonnegative('Cost price must be non-negative'),
+  salesPrice: z.coerce
+    .number({ invalid_type_error: 'Sales price must be a number' })
+    .nonnegative('Sales price must be non-negative'),
   materialType: z.nativeEnum(PrismaMaterialType).default(PrismaMaterialType.raw_material),
-  minimumStockLevel: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number({ invalid_type_error: 'Min stock level must be a number' })
-       .nonnegative('Min stock level must be non-negative').optional().default(0)
-  ),
-  reorderLevel: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number({ invalid_type_error: 'Reorder level must be a number' })
-       .nonnegative('Reorder level must be non-negative').optional().default(0)
-  ),
+  minimumStockLevel: z.coerce
+    .number({ invalid_type_error: 'Min stock level must be a number' })
+    .nonnegative('Min stock level must be non-negative')
+    .optional()
+    .default(0),
+  reorderLevel: z.coerce
+    .number({ invalid_type_error: 'Reorder level must be a number' })
+    .nonnegative('Reorder level must be non-negative')
+    .optional()
+    .default(0),
 });
 
 // Schema for creating an inventory item

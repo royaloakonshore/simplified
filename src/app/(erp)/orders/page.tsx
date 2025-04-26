@@ -17,10 +17,8 @@ import { Terminal } from 'lucide-react'; // Icon for alert
 // NOTE: Removed complex mapping and branded types. Components should handle Prisma types.
 // Removed unused imports: MaterialType, FormOrder, FormOrderItem, FormInventoryItem, FormAddress, AddressType, UUID, Decimal, createUUID, createDecimal
 
-// Define props if needed, but search params are handled by the hook now
-// type OrdersPageProps = { ... };
-
-export default function OrdersPage() {
+// New component to handle search params and data fetching
+function OrderListContent() {
   const searchParams = useSearchParams(); // Use hook to get search params
 
   // Extract pagination/filter parameters from URL
@@ -75,6 +73,36 @@ export default function OrdersPage() {
   // 3. isLoading/isFetching state for displaying skeletons
 
   return (
+    <>
+        {/* <Suspense fallback={<div>Loading filters...</div>}> */}
+        {/*   <OrderFilter /> */}
+        {/* </Suspense> */}
+
+        <div className="mt-6">
+            {isLoading || isFetching ? (
+                <TableLoadingSkeleton />
+            ) : (
+                <OrderTable
+                    orders={orders}
+                    nextCursor={nextCursor}
+                />
+            )}
+        </div>
+    </>
+  );
+}
+
+// Define props if needed, but search params are handled by the hook now
+// type OrdersPageProps = { ... };
+
+export default function OrdersPage() {
+  // REMOVED: Logic that used useSearchParams directly
+
+  // NOTE: Removed complex mapping and branded types. Components should handle Prisma types.
+  // Removed unused imports: MaterialType, FormOrder, FormOrderItem, FormInventoryItem, FormAddress, AddressType, UUID, Decimal, createUUID, createDecimal
+
+  // Render the main page structure and wrap OrderListContent in Suspense
+  return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Orders</h1>
@@ -83,20 +111,9 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* <Suspense fallback={<div>Loading filters...</div>}> */}
-      {/*   <OrderFilter /> */}
-      {/* </Suspense> */}
-
-      <div className="mt-6">
-          {isLoading || isFetching ? (
-              <TableLoadingSkeleton />
-          ) : (
-              <OrderTable
-                  orders={orders}
-                  nextCursor={nextCursor}
-              />
-          )}
-      </div>
+      <Suspense fallback={<div>Loading orders...</div>}>
+        <OrderListContent />
+      </Suspense>
     </div>
   );
 } 
