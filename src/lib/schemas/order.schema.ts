@@ -1,4 +1,4 @@
-'use client'; // NOTE: Added 'use client' based on user feedback, but schemas are usually server-side. Re-evaluate if needed.
+// NOTE: Removed 'use client' directive as schemas are used server-side in tRPC.
 
 import { z } from "zod";
 import { OrderStatus } from "@prisma/client"; // Import OrderStatus enum from Prisma
