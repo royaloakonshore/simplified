@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'; // Hook for accessing search params
 
 import { api } from "@/lib/trpc/react"; // Import tRPC client hook
-// import OrderTable from '@/components/orders/OrderTable'; // Assuming this component exists - COMMENTED OUT FOR NOW
-// import { OrderFilter } from '@/components/orders/OrderFilter'; // Assuming this component exists - COMMENTED OUT FOR NOW - Changed to default import style as per lint suggestion, then commented.
+import OrderTable from '@/components/orders/OrderTable'; // UNCOMMENTED
+// import { OrderFilter } from '@/components/orders/OrderFilter'; // Keep commented
 // import OrderFilter from '@/components/orders/OrderFilter'; // Assuming this component exists - COMMENTED OUT FOR NOW
 import { OrderStatus } from "@prisma/client"; // Import directly from prisma
 import { Button } from "@/components/ui/button"; // Use Shadcn button
@@ -69,7 +69,7 @@ export default function OrdersPage() {
   const orders = data?.items ?? [];
   const nextCursor = data?.nextCursor;
 
-  // TODO: Uncomment and adapt OrderTable/OrderFilter to handle:
+  // TODO: Uncomment and adapt OrderFilter to handle:
   // 1. Prisma types directly (especially Decimal values from tRPC response)
   // 2. Cursor-based pagination (using nextCursor to fetch next page)
   // 3. isLoading/isFetching state for displaying skeletons
@@ -90,20 +90,11 @@ export default function OrdersPage() {
       <div className="mt-6">
           {isLoading || isFetching ? (
               <TableLoadingSkeleton />
-          ) : orders.length === 0 ? (
-              <p>No orders found.</p>
           ) : (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Orders Data (Raw)</h2>
-                <pre className="bg-gray-100 p-4 rounded dark:bg-gray-800 dark:text-gray-200">
-                  {JSON.stringify({ orders, nextCursor }, null, 2)}
-                </pre>
-                {/* <OrderTable */} 
-                {/*     orders={orders} // Pass Prisma data directly */}
-                {/*     nextCursor={nextCursor} // Pass cursor for pagination */}
-                {/*     // Adapt OrderTable to use these props */} 
-                {/* /> */}
-              </div>
+              <OrderTable
+                  orders={orders}
+                  nextCursor={nextCursor}
+              />
           )}
       </div>
     </div>
