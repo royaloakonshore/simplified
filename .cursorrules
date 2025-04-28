@@ -5,7 +5,7 @@ Components & Naming
 - Use functional components with `"use client"` if needed.
 - Name in PascalCase under `src/components/`.
 - Keep them small, typed with interfaces.
-- Use Tailwind for common UI components like textarea, button, etc. Never use radix or shadcn.
+- Use shadcn and Tailwind for common UI components like textarea, button, etc. 
 
 Prisma
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { InvoiceStatus } from '@/lib/types/invoice.types'; // Assuming local enum is sufficient for validation
+// import { InvoiceStatus } from '@/lib/types/invoice.types'; // Comment out local enum import
+import { InvoiceStatus } from '@prisma/client'; // Import Prisma enum
 
 // Base schema for Invoice Item Input
 const invoiceItemInputSchema = z.object({
@@ -32,7 +33,7 @@ export const createManualInvoiceSchema = z.object({
 
 // Schema for updating invoice status
 export const updateInvoiceStatusSchema = z.object({
-  status: z.nativeEnum(InvoiceStatus),
+  status: z.nativeEnum(InvoiceStatus), // Use Prisma enum here
 });
 
 // Schema for recording payment
@@ -44,7 +45,7 @@ export const recordPaymentSchema = z.object({
 // Basic filter schema (expand as needed)
 export const invoiceFilterSchema = z.object({
   customerId: z.string().uuid().optional(),
-  status: z.nativeEnum(InvoiceStatus).optional(),
+  status: z.nativeEnum(InvoiceStatus).optional(), // Use Prisma enum here
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
   searchTerm: z.string().optional(),

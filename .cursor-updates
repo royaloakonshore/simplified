@@ -2,3 +2,4 @@
 
 - Temporarily remove OrderForm and Invoices page to resolve build errors
 - Refactored `OrdersPage` to wrap the part using `useSearchParams` in `<Suspense>`, fixing the build error.
+- Implemented initial Invoice list page (`/invoices`) with tRPC backend, Shadcn DataTable, filtering, sorting, and pagination.

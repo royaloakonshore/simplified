@@ -21,3 +21,20 @@ export function formatCurrency(amount: number | string | Decimal): string {
     currency: 'EUR',
   }).format(numericAmount);
 }
+
+// Basic date formatter
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) {
+    return "-";
+  }
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  // Check if dateObj is a valid date
+  if (isNaN(dateObj.getTime())) {
+      return "-";
+  }
+  return new Intl.DateTimeFormat('fi-FI', { // Finnish locale
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).format(dateObj);
+}

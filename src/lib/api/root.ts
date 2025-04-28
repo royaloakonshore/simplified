@@ -2,6 +2,7 @@ import { createCallerFactory, createTRPCRouter } from "./trpc";
 import { customerRouter } from "./routers/customer";
 import { inventoryRouter } from "./routers/inventory";
 import { orderRouter } from "./routers/order";
+import { invoiceRouter } from "./routers/invoice";
 // import all routers here
 
 /**
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   customer: customerRouter, // Add customer router here
   inventory: inventoryRouter, // Add inventory router
   order: orderRouter,
+  invoice: invoiceRouter,
   // add routers here
 });
 
