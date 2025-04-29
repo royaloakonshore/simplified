@@ -3,3 +3,9 @@
 - Temporarily remove OrderForm and Invoices page to resolve build errors
 - Refactored `OrdersPage` to wrap the part using `useSearchParams` in `<Suspense>`, fixing the build error.
 - Implemented initial Invoice list page (`/invoices`) with tRPC backend, Shadcn DataTable, filtering, sorting, and pagination.
+- Restored OrderForm component (`src/components/orders/OrderForm.tsx`) using separate form instances for create/edit modes to handle type complexity.
+- Added Order creation page (`src/app/(erp)/orders/add/page.tsx`) using Server Component pattern to fetch data.
+- Added Order edit page (`src/app/(erp)/orders/[id]/edit/page.tsx`) using Server Component pattern.
+- Fixed `order.list` tRPC endpoint to handle optional status filter correctly.
+- Added `order.update` tRPC endpoint.
+- Added webpack fallbacks to `next.config.mjs` to resolve `nodemailer` build issues.

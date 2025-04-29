@@ -9,122 +9,145 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
+import { getServerAuthSession } from "@/lib/auth";
+import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
 // Removed unused imports: notFound, prisma, getOrderById, MaterialType, FormOrder, FormOrderItem, FormInventoryItem, FormAddress, AddressType, UUID, Decimal, createUUID, createDecimal
 
-export default function EditOrderPage() {
-  const params = useParams();
-  const router = useRouter();
-  const orderId = params.id as string;
+// Fetch data required for the form (customers, inventory, specific order)
+async function getEditFormData(orderId: string) {
 
-  // Fetch order data
-  const { data: orderData, error: orderError, isLoading: isLoadingOrder } = api.order.getById.useQuery(
-    { id: orderId },
-    { enabled: !!orderId } // Only run query if orderId is available
-  );
-
-  // Fetch customers for dropdown
-  // TODO: Adjust input if filtering/pagination needed, or fetch all?
-  const { data: customerData, error: customerError, isLoading: isLoadingCustomers } = api.customer.list.useQuery({});
-
-  // Fetch inventory items for dropdown
-  // TODO: Adjust input if filtering/pagination needed, or fetch all?
-  // Fetching with a large limit to approximate getting all items for selection
-  const { data: inventoryData, error: inventoryError, isLoading: isLoadingInventory } = api.inventory.list.useQuery({ limit: 1000 });
-
-  const isLoading = isLoadingOrder || isLoadingCustomers || isLoadingInventory;
-  const error = orderError || customerError || inventoryError;
-
-  if (isLoading) {
-    return (
-        <div className="p-6 space-y-4">
-            <Skeleton className="h-8 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-64 w-full" />
-        </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <Alert variant="destructive">
-           <Terminal className="h-4 w-4" />
-           <AlertTitle>Error Loading Data</AlertTitle>
-           <AlertDescription>
-             {error.message || 'An unknown error occurred while loading data for the order form.'}
-             <div className="mt-4">
-                <Button onClick={() => router.back()} variant="secondary">Go Back</Button>
-             </div>
-           </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  // Data fetched successfully
-  const order = orderData;
-  const customers = customerData?.items ?? [];
-  const inventoryItems = inventoryData?.items ?? [];
+  // Fetch the specific order including items and related item details
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+        items: {
+            include: {
+                item: true, // Include InventoryItem details for each OrderItem
+            },
+        },
+    },
+  });
 
   if (!order) {
-    // Handle case where order specifically wasn't found (but other data might have loaded)
-     return (
-      <div className="p-6">
-        <Alert variant="destructive">
-           <Terminal className="h-4 w-4" />
-           <AlertTitle>Order Not Found</AlertTitle>
-           <AlertDescription>
-             The requested order could not be found.
-             <div className="mt-4">
-                <Button asChild variant="secondary">
-                    <Link href="/orders">Return to Orders</Link>
-                </Button>
-             </div>
-           </AlertDescription>
-        </Alert>
-      </div>
-    );
+    notFound(); // Trigger 404 if order doesn't exist
   }
 
-  // Check if order status allows editing
-  if (order.status !== OrderStatus.draft) {
-    return (
-      <div className="p-6">
-        <Alert variant="default">
-          <Terminal className="h-4 w-4" />
-          <AlertTitle>Cannot Edit Order</AlertTitle>
-          <AlertDescription>
-            Only orders in "Draft" status can be edited. This order is currently "{order.status}".
-             <div className="mt-4">
-                 <Button asChild variant="secondary">
-                    <Link href={`/orders/${orderId}`}>View Order</Link>
-                 </Button>
-             </div>
-          </AlertDescription>
-        </Alert>
-      </div>
+  // Fetch customers (only need id and name for select)
+  const customers = await prisma.customer.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
+  // Fetch inventory items (id, name, price, unit for select and auto-price)
+  const inventoryItems = await prisma.inventoryItem.findMany({
+    select: {
+        id: true,
+        name: true,
+        salesPrice: true,
+        unitOfMeasure: true
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  // Remove the conversion logic - pass Prisma types directly
+  /*
+   const orderForForm = {
+    ...order,
+    items: order.items.map(item => ({
+        ...item,
+        quantity: item.quantity.toNumber(), // Convert for form
+        unitPrice: item.unitPrice.toNumber(), // Convert for form
+    }))
+  };
+  */
+
+  // Type definition remains useful for clarity if needed elsewhere,
+  // but not strictly required for the return value here.
+  /*
+  type OrderForFormType = Prisma.OrderGetPayload<{
+      include: {
+          items: { include: { item: true } }
+      }
+  }>;
+  */
+
+  return {
+      order: order, // Return the raw order object with Decimal types
+      customers,
+      inventoryItems
+    };
+}
+
+// Reuse Skeleton from add page or create specific one
+function OrderFormSkeleton() {
+    // ... (Same skeleton as in add/page.tsx)
+     return (
+        <div className="space-y-4 p-4">
+            <Skeleton className="h-10 w-1/3" />
+            <Skeleton className="h-8 w-1/4" />
+            <div className="border rounded-md p-4">
+                <Skeleton className="h-6 w-1/5 mb-2" />
+                <Skeleton className="h-10 w-full mb-4" />
+                <Skeleton className="h-6 w-1/5 mb-2" />
+                <Skeleton className="h-20 w-full mb-4" />
+                <Skeleton className="h-6 w-1/5 mb-2" />
+                 <div className="flex space-x-2">
+                    <Skeleton className="h-10 flex-1" />
+                    <Skeleton className="h-10 w-20" />
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-16" />
+                 </div>
+            </div>
+            <div className="flex justify-end">
+                <Skeleton className="h-10 w-28" />
+            </div>
+        </div>
     );
+}
+
+// Define props inline using standard Next.js convention
+export default async function EditOrderPage({ params }: {
+    params: { id: string };
+    searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const session = await getServerAuthSession();
+  if (!session?.user) {
+    redirect('/api/auth/signin');
   }
+
+  const orderId = params.id;
+  if (!orderId) {
+      notFound(); // Should have ID from dynamic route
+  }
+
+  // Fetch data in the Server Component
+  const formDataPromise = getEditFormData(orderId);
 
   return (
-    <div className="p-6">
-      <div className="flex items-center mb-6">
-        <Button variant="outline" size="sm" asChild className="mr-4">
-             <Link href={`/orders/${orderId}`}>← Back to Order</Link>
-        </Button>
-        <h1 className="text-2xl font-bold">
-          Edit Order {order.orderNumber}
-        </h1>
-      </div>
-
-      {/* Pass fetched data directly - OrderForm needs to handle Prisma types */}
-      <OrderForm
-        customers={customers}
-        inventoryItems={inventoryItems}
-        order={order}
-        isEditMode={true}
-      />
+    <div className="container mx-auto py-8">
+      {/* Add breadcrumbs or back button here? */}
+       <Suspense fallback={<OrderFormSkeleton />}>
+          <EditOrderFormWrapper formDataPromise={formDataPromise} />
+       </Suspense>
     </div>
   );
+}
+
+// Wrapper component to handle awaited promise inside Suspense
+async function EditOrderFormWrapper({ formDataPromise }: { formDataPromise: ReturnType<typeof getEditFormData> }) {
+    const { order, customers, inventoryItems } = await formDataPromise;
+
+    return (
+        <OrderForm
+            order={order} // Pass the specific order
+            customers={customers}
+            inventoryItems={inventoryItems}
+            isEditMode={true} // Set form to edit mode
+        />
+    );
 } 

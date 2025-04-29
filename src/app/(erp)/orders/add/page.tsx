@@ -8,65 +8,93 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
+import { getServerAuthSession } from "@/lib/auth"; // Use correct export
+import { prisma } from '@/lib/db';
 
 // Removed unused imports: prisma, MaterialType
 
-export default function AddOrderPage() {
-  const router = useRouter();
+// Fetch data required for the form (customers, inventory)
+async function getFormData() {
+  // Fetch customers (only need id and name for select)
+  const customers = await prisma.customer.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
 
-  // Fetch customers for dropdown
-  const { data: customerData, error: customerError, isLoading: isLoadingCustomers } = api.customer.list.useQuery({});
+  // Fetch inventory items (id, name, price, unit for select and auto-price)
+  const inventoryItems = await prisma.inventoryItem.findMany({
+    select: {
+        id: true,
+        name: true,
+        salesPrice: true,
+        unitOfMeasure: true
+    },
+    orderBy: { name: 'asc' },
+  });
 
-  // Fetch inventory items for dropdown
-  const { data: inventoryData, error: inventoryError, isLoading: isLoadingInventory } = api.inventory.list.useQuery({ limit: 1000 });
+  return { customers, inventoryItems };
+}
 
-  const isLoading = isLoadingCustomers || isLoadingInventory;
-  const error = customerError || inventoryError;
-
-  if (isLoading) {
+// Loading component for Suspense boundary
+function OrderFormSkeleton() {
     return (
-        <div className="p-6 space-y-4">
+        <div className="space-y-4 p-4">
+            <Skeleton className="h-10 w-1/3" />
             <Skeleton className="h-8 w-1/4" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-64 w-full" />
+            <div className="border rounded-md p-4">
+                <Skeleton className="h-6 w-1/5 mb-2" />
+                <Skeleton className="h-10 w-full mb-4" />
+                <Skeleton className="h-6 w-1/5 mb-2" />
+                <Skeleton className="h-20 w-full mb-4" />
+                <Skeleton className="h-6 w-1/5 mb-2" />
+                 <div className="flex space-x-2">
+                    <Skeleton className="h-10 flex-1" />
+                    <Skeleton className="h-10 w-20" />
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-16" />
+                 </div>
+            </div>
+            <div className="flex justify-end">
+                <Skeleton className="h-10 w-28" />
+            </div>
         </div>
     );
+}
+
+// Add this line to force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+// Add Order Page Component (Server Component)
+export default async function AddOrderPage() {
+  const session = await getServerAuthSession(); // Call the correct function
+  if (!session?.user) {
+    redirect('/api/auth/signin');
   }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <Alert variant="destructive">
-           <Terminal className="h-4 w-4" />
-           <AlertTitle>Error Loading Data</AlertTitle>
-           <AlertDescription>
-             {error.message || 'An unknown error occurred while loading data for the form.'}
-             <div className="mt-4">
-                <Button onClick={() => router.back()} variant="secondary">Go Back</Button>
-             </div>
-           </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  // Data fetched successfully
-  const customers = customerData?.items ?? [];
-  const inventoryItems = inventoryData?.items ?? [];
+  // Fetch data in the Server Component
+  const formDataPromise = getFormData();
 
   return (
-    <div className="p-6">
-      <div className="flex items-center mb-6">
-         <Button variant="outline" size="sm" asChild className="mr-4">
-            <Link href="/orders">← Back to Orders</Link>
-         </Button>
-        <h1 className="text-2xl font-bold">
-          Create New Order
-        </h1>
-      </div>
-
-      {/* Pass fetched data directly - OrderForm placeholder expects Prisma types */}
-      <OrderForm customers={customers} inventoryItems={inventoryItems} />
+    <div className="container mx-auto py-8">
+       <Suspense fallback={<OrderFormSkeleton />}>
+         {/* Await data inside Suspense boundary */}
+          <AddOrderFormWrapper formDataPromise={formDataPromise} />
+       </Suspense>
     </div>
   );
+}
+
+// Wrapper component to handle awaited promise inside Suspense
+async function AddOrderFormWrapper({ formDataPromise }: { formDataPromise: ReturnType<typeof getFormData> }) {
+    const { customers, inventoryItems } = await formDataPromise;
+
+    return (
+        <OrderForm
+            customers={customers}
+            inventoryItems={inventoryItems}
+            isEditMode={false}
+        />
+    );
 } 

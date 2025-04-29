@@ -10,17 +10,11 @@ export const orderItemSchema = z.object({
   id: z.string().cuid().optional(), // Optional for creation
   orderId: z.string().cuid().optional(), // Optional, will be set when linked to Order
   itemId: z.string().cuid({ message: 'Inventory item must be selected' }),
-  quantity: z.preprocess(
-    (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
-    z.number({ invalid_type_error: 'Quantity must be a number' })
-       .int({ message: 'Quantity must be a whole number' })
-       .positive({ message: 'Quantity must be positive' })
-  ),
-  pricePerUnit: z.preprocess( // Price at the time of order
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number({ invalid_type_error: 'Price must be a number' })
-       .nonnegative({ message: 'Price cannot be negative' })
-  ),
+  quantity: z.number({ required_error: 'Quantity is required', invalid_type_error: 'Quantity must be a number' })
+             .int({ message: 'Quantity must be a whole number' })
+             .positive({ message: 'Quantity must be positive' }),
+  unitPrice: z.number({ required_error: 'Unit price is required', invalid_type_error: 'Unit price must be a number' })
+             .nonnegative({ message: 'Price cannot be negative' }),
   // Optional: Add other fields if needed, like discounts specific to the line item
 });
 
@@ -46,11 +40,10 @@ export const createOrderSchema = orderBaseSchema;
  */
 export const updateOrderSchema = orderBaseSchema.extend({
   id: z.string().cuid(),
-  // Allow updating specific fields like status, notes, maybe items
-  // Exclude fields that shouldn't be updated directly (e.g., orderNumber, customerId?)
-}).partial({ // Make fields optional for update, except ID
-  customerId: true,
-  status: true,
+  // customerId remains required from orderBaseSchema
+}).partial({ // Make only fields intended for update optional
+  // customerId: true, // Keep customerId required
+  status: true, // Keep status optional (managed by updateStatus procedure)
   notes: true,
   items: true,
 });
