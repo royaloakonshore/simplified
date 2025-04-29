@@ -23,7 +23,7 @@ const calculateOrderTotal = async (items: OrderItemInput[], tx: Prisma.Transacti
     // const inventoryItem = await tx.inventoryItem.findUnique({ where: { id: item.itemId } });
     // if (!inventoryItem) throw new Error(`Item with ID ${item.itemId} not found`);
     // const price = item.pricePerUnit ?? inventoryItem.salesPrice; // Or use current price
-    const price = new Prisma.Decimal(item.pricePerUnit);
+    const price = new Prisma.Decimal(item.unitPrice);
     const quantity = new Prisma.Decimal(item.quantity);
     total = total.add(price.mul(quantity));
   }
@@ -64,7 +64,7 @@ async function checkAndAllocateStock(orderId: string, tx: Prisma.TransactionClie
       const itemTransactions = await tx.inventoryTransaction.findMany({
         where: { itemId: orderItem.itemId },
       });
-      const quantityOnHand = itemTransactions.reduce((total, transaction) => {
+      const quantityOnHand = itemTransactions.reduce((total: Prisma.Decimal, transaction: { quantity: Prisma.Decimal }) => {
           return total.add(transaction.quantity); // quantity is Decimal, positive for purchase/adjust-in, negative for sale/adjust-out
       }, new Prisma.Decimal(0));
 
@@ -107,18 +107,19 @@ export const orderRouter = createTRPCRouter({
   list: protectedProcedure
     .input(listOrdersSchema)
     .query(async ({ input }) => {
-      const { cursor, customerId, status } = input;
-      const limit = input.limit ?? 10; // Explicitly provide default again
+      console.log("[order.list] Raw input:", input); // Log raw input
+      const { limit: limitInput, cursor, customerId, status } = input;
+      const limit = limitInput ?? 10; // Default limit if nullish
 
       const whereClause: Prisma.OrderWhereInput = {
-        customerId: customerId,
-        // Only include status in the where clause if it's not null or undefined
-        ...(status && { status: status }), 
-        // Add other filters here
+        customerId: customerId, // Prisma handles undefined correctly
+        // Explicitly map null to undefined for Prisma, keep actual statuses
+        status: status === null ? undefined : status, 
       };
+      console.log("[order.list] Using whereClause:", whereClause); // Log constructed clause
 
       const items = await prisma.order.findMany({
-        take: limit + 1,
+        take: limit + 1, // Use the limit from input (already defaulted)
         cursor: cursor ? { id: cursor } : undefined,
         where: whereClause,
         orderBy: {
@@ -175,25 +176,27 @@ export const orderRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const { customerId, items, notes, status } = input;
 
-      // Validate that unitPrice is provided for all items
-      if (items.some(item => item.unitPrice === undefined || item.unitPrice === null)) {
+      // Add explicit type for some parameter
+      if (items.some((item: OrderItemInput) => item.unitPrice === undefined || item.unitPrice === null)) {
            throw new TRPCError({
                code: 'BAD_REQUEST',
                message: 'Unit price must be provided for all order items.',
            });
       }
 
-      return await prisma.$transaction(async (tx) => {
+      // Add explicit type for transaction client
+      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const orderNumber = await generateOrderNumber(tx);
 
-        // Map items to include unitPrice and calculate total
-        const mappedItems = items.map(item => ({
+        // Add explicit type for map parameter
+        const mappedItems = items.map((item: OrderItemInput) => ({
           itemId: item.itemId,
           quantity: new Prisma.Decimal(item.quantity),
-          unitPrice: new Prisma.Decimal(item.unitPrice!),
+          unitPrice: new Prisma.Decimal(item.unitPrice!), // Already validated not null
         }));
 
-        const totalAmount = mappedItems.reduce((sum, item) => {
+        // Add explicit types for reduce parameters
+        const totalAmount = mappedItems.reduce((sum: Prisma.Decimal, item: { quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => {
             return sum.add(item.quantity.mul(item.unitPrice));
         }, new Prisma.Decimal(0));
 
@@ -205,7 +208,8 @@ export const orderRouter = createTRPCRouter({
             totalAmount,
             notes,
             items: {
-              create: mappedItems.map(item => ({
+              // Add explicit type for map parameter
+              create: mappedItems.map((item: { itemId: string, quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => ({
                 itemId: item.itemId,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
@@ -230,7 +234,8 @@ export const orderRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const { id, status: newStatus } = input;
 
-      return await prisma.$transaction(async (tx) => {
+      // Add explicit type for transaction client
+      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // 1. Fetch the current order
         const order = await tx.order.findUnique({
           where: { id },
@@ -306,39 +311,45 @@ export const orderRouter = createTRPCRouter({
            });
       }
 
-      // Validate unitPrice for any new/updated items
-      if (items && items.some(item => item.unitPrice === undefined || item.unitPrice === null)) {
+      // Add explicit type for some parameter
+      if (items && items.some((item: OrderItemInput) => item.unitPrice === undefined || item.unitPrice === null)) {
           throw new TRPCError({
               code: 'BAD_REQUEST',
               message: 'Unit price must be provided for all order items.',
           });
       }
 
-      return await prisma.$transaction(async (tx) => {
+      // Add explicit type for transaction client
+      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         let totalAmount = existingOrder.totalAmount;
+        // Add explicit type for update data
         const updateData: Prisma.OrderUpdateInput = {
             notes: notes, // Update notes if provided
         };
 
         if (items) {
-            const mappedItems = items.map(item => ({
+            // Add explicit type for map parameter
+            const mappedItems = items.map((item: OrderItemInput) => ({
                 id: item.id, // Include id for identifying existing items
                 itemId: item.itemId,
                 quantity: new Prisma.Decimal(item.quantity),
-                unitPrice: new Prisma.Decimal(item.unitPrice!),
+                unitPrice: new Prisma.Decimal(item.unitPrice!), // Already validated
             }));
 
-            // Calculate new total based on the submitted items
-            totalAmount = mappedItems.reduce((sum, item) => {
+            // Add explicit types for reduce parameters
+            totalAmount = mappedItems.reduce((sum: Prisma.Decimal, item: { quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => {
                 return sum.add(item.quantity.mul(item.unitPrice));
             }, new Prisma.Decimal(0));
 
             updateData.totalAmount = totalAmount;
 
             // Complex logic for updating items: delete removed, update existing, create new
-            const existingItemIds = existingOrder.items.map(item => item.id);
-            const newItemIds = mappedItems.map(item => item.id).filter(Boolean); // Filter out undefined IDs for new items
-            const itemIdsToDelete = existingItemIds.filter(id => !newItemIds.includes(id));
+            // Add explicit type for map parameter
+            const existingItemIds = existingOrder.items.map((item: { id: string }) => item.id);
+            // Add explicit type for map parameter
+            const newItemIds = mappedItems.map((item: { id?: string }) => item.id).filter(Boolean);
+            // Add explicit type for filter parameter
+            const itemIdsToDelete = existingItemIds.filter((id: string) => !newItemIds.includes(id));
 
             // Perform deletions first
             if (itemIdsToDelete.length > 0) {
@@ -347,7 +358,8 @@ export const orderRouter = createTRPCRouter({
 
             // Upsert items (update existing or create new)
             updateData.items = {
-                upsert: mappedItems.map(item => ({
+                // Add explicit type for map parameter
+                upsert: mappedItems.map((item: { id?: string, itemId: string, quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => ({
                     where: { id: item.id ?? '' }, // Use empty string if ID is null/undefined for create
                     create: { itemId: item.itemId, quantity: item.quantity, unitPrice: item.unitPrice },
                     update: { itemId: item.itemId, quantity: item.quantity, unitPrice: item.unitPrice },

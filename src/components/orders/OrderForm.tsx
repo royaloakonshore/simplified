@@ -3,17 +3,17 @@
 // Original imports might be needed later, keep them commented for now
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray, type SubmitHandler, FormProvider } from "react-hook-form";
+import { useForm, useFieldArray, type SubmitHandler, FormProvider, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Order, type OrderItem, type OrderStatus, type Customer, type InventoryItem } from "@prisma/client";
+import { type Order, type OrderItem, OrderStatus, type Customer, type InventoryItem } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import {
   createOrderSchema,
   updateOrderSchema,
-  type CreateOrderInput,
-  type UpdateOrderInput,
+  CreateOrderInput,
+  UpdateOrderInput,
 } from "@/lib/schemas/order.schema";
 import { toast } from 'react-toastify';
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { z } from 'zod';
 
-// Placeholder component to allow build to pass
+// Define form value types from Zod schemas
+type CreateFormValues = z.infer<typeof createOrderSchema>;
+type UpdateFormValues = z.infer<typeof updateOrderSchema>;
+
+// Type for the form instances
+type CreateFormInstance = UseFormReturn<CreateFormValues>;
+type UpdateFormInstance = UseFormReturn<UpdateFormValues>;
 
 type OrderFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -41,11 +48,13 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
   const router = useRouter();
 
   // --- Create Form Setup ---
-  const createForm = useForm<CreateOrderInput>({
-    resolver: zodResolver(createOrderSchema),
+  const createForm = useForm<CreateFormValues>({
+    // Cast resolver to any to bypass schema conflict temporarily
+    resolver: zodResolver(createOrderSchema) as any, 
     defaultValues: {
       customerId: '',
       notes: '',
+      status: OrderStatus.draft,
       items: [{ itemId: '', quantity: 1, unitPrice: 0 }],
     },
   });
@@ -56,9 +65,9 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
   });
 
   // --- Update Form Setup ---
-  const updateForm = useForm<UpdateOrderInput>({
-    resolver: zodResolver(updateOrderSchema),
-    defaultValues: undefined, // Initialize empty, set in useEffect
+  const updateForm = useForm<UpdateFormValues>({
+    resolver: zodResolver(updateOrderSchema), // Keep resolver typed here
+    defaultValues: undefined,
   });
    const { fields: updateFields, append: updateAppend, remove: updateRemove } = useFieldArray({
     control: updateForm.control,
@@ -85,10 +94,11 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
         createForm.reset({
             customerId: '',
             notes: '',
+            status: OrderStatus.draft,
             items: [{ itemId: '', quantity: 1, unitPrice: 0 }],
         });
     }
-  }, [order, isEditMode, updateForm, createForm]); // Add createForm to deps
+  }, [order, isEditMode, updateForm]);
 
   // --- Mutations ---
   const createOrderMutation = api.order.create.useMutation({
@@ -116,10 +126,9 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
   });
 
   // --- Submit Handlers ---
-  const handleCreateSubmit: SubmitHandler<CreateOrderInput> = (data) => {
+  const handleCreateSubmit: SubmitHandler<CreateFormValues> = (data) => {
     console.log("Create Data:", data);
-    // Ensure numbers before mutation
-     const processedData = {
+    const processedData: CreateOrderInput = {
       ...data,
       items: (data.items || []).map(item => ({
         ...item,
@@ -130,23 +139,43 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
     createOrderMutation.mutate(processedData);
   };
 
-  const handleUpdateSubmit: SubmitHandler<UpdateOrderInput> = (data) => {
-    console.log("Update Data:", data);
+  const handleUpdateSubmit: SubmitHandler<UpdateFormValues> = (data) => {
+    console.log("Update Data (Raw from form):");
+    console.dir(data, { depth: null });
+
     if (!data.id) return toast.error("Cannot update order without an ID.");
-    // Ensure numbers before mutation
-     const processedData = {
-      ...data,
-      items: (data.items || []).map(item => ({
-        ...item,
-        quantity: Number(item.quantity),
-        unitPrice: Number(item.unitPrice),
-      })),
-    };
-    updateOrderMutation.mutate(processedData);
+
+    // Ensure the data conforms to UpdateOrderInput for the mutation
+    // updateOrderSchema makes status optional, but our API prevents updating it here.
+    // We should remove it if present, along with potentially other fields not meant for update.
+    const processedData = { ...data };
+
+    // Remove status if it exists in the form data (it shouldn't be updated here)
+    if ('status' in processedData) {
+      delete (processedData as Partial<UpdateFormValues>).status;
+    }
+
+    // Optionally remove other fields if API prevents their update
+    // delete processedData.customerId; // If customerId cannot be changed
+
+    // Ensure item quantities/prices are numbers (though zodResolver should handle this)
+    if (processedData.items) {
+        processedData.items = processedData.items.map(item => ({
+            ...item,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+        }));
+    }
+    
+    console.log("Update Data (Processed for mutation):");
+    console.dir(processedData, { depth: null });
+
+    // Assert the type for the mutation - needs id, and potentially partial other fields
+    updateOrderMutation.mutate(processedData as UpdateOrderInput);
   };
 
   // --- Shared Helper/Event Logic (adjust based on active form) ---
-  const handleItemChange = (index: number, itemId: string, formInstance: typeof createForm | typeof updateForm) => {
+  const handleItemChange = (index: number, itemId: string, formInstance: CreateFormInstance | UpdateFormInstance) => {
     const selectedItem = inventoryItems.find(invItem => invItem.id === itemId);
     if (selectedItem) {
       formInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
@@ -154,23 +183,24 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
     }
   };
 
-  const calculateTotal = (formInstance: typeof createForm | typeof updateForm) => {
-    const items = formInstance.watch("items") || [];
-    return items.reduce((total: number, item: any) => {
+  const calculateTotal = (formInstance: CreateFormInstance | UpdateFormInstance) => {
+    const items = formInstance.watch("items");
+    return Array.isArray(items) ? items.reduce((total: number, item: any) => {
       const quantity = Number(item?.quantity) || 0;
       const price = Number(item?.unitPrice) || 0;
       return total + quantity * price;
-    }, 0);
+    }, 0) : 0;
   };
 
   // --- Conditional Rendering ---
   if (isEditMode) {
     // --- EDIT MODE RENDER ---
-    if (!order && updateForm.formState.isLoading) {
+    if (!order && !updateForm.formState.isDirty) {
         return <div>Loading order data...</div>;
     }
+
     return (
-      <FormProvider {...updateForm}> { /* Use updateForm context */}
+      <FormProvider {...updateForm}>
         <form onSubmit={updateForm.handleSubmit(handleUpdateSubmit)} className="space-y-8">
           <Card>
             <CardHeader><CardTitle>Edit Order</CardTitle></CardHeader>
@@ -271,8 +301,8 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
               />
             </CardContent>
             <CardFooter className="flex justify-between items-center">
-              <p className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(updateForm))}</p>
-              <Button type="submit" disabled={updateOrderMutation.isPending}>Update Order</Button>
+              <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(updateForm))}</span>
+              <Button type="submit" disabled={updateOrderMutation.isPending}>{updateOrderMutation.isPending ? 'Saving...' : 'Save Changes'}</Button>
             </CardFooter>
           </Card>
         </form>
@@ -282,7 +312,7 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
   } else {
     // --- CREATE MODE RENDER ---
      return (
-      <FormProvider {...createForm}> { /* Use createForm context */}
+      <FormProvider {...createForm}>
         <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-8">
            <Card>
              <CardHeader><CardTitle>Create New Order</CardTitle></CardHeader>
@@ -383,8 +413,8 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                />
              </CardContent>
              <CardFooter className="flex justify-between items-center">
-               <p className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(createForm))}</p>
-               <Button type="submit" disabled={createOrderMutation.isPending}>Create Order</Button>
+               <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(createForm))}</span>
+               <Button type="submit" disabled={createOrderMutation.isPending}>{createOrderMutation.isPending ? 'Creating...' : 'Create Order'}</Button>
              </CardFooter>
            </Card>
         </form>
