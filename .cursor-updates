@@ -9,3 +9,5 @@
 - Fixed `order.list` tRPC endpoint to handle optional status filter correctly.
 - Added `order.update` tRPC endpoint.
 - Added webpack fallbacks to `next.config.mjs` to resolve `nodemailer` build issues.
+- Replaced basic ERP layout sidebar with collapsible shadcn/ui Sidebar component.
+- Created `AppSidebar` component for sidebar structure and navigation items.
