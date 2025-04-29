@@ -11,3 +11,4 @@
 - Added webpack fallbacks to `next.config.mjs` to resolve `nodemailer` build issues.
 - Replaced basic ERP layout sidebar with collapsible shadcn/ui Sidebar component.
 - Created `AppSidebar` component for sidebar structure and navigation items.
+- Updated listOrdersSchema to use .nullish() for status filter to fix tRPC errors.

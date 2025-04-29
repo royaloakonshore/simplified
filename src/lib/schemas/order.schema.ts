@@ -94,7 +94,7 @@ export const listOrdersSchema = z.object({
   limit: z.number().min(1).max(100).nullish(),
   cursor: z.string().nullish(),
   customerId: z.string().cuid().optional(),
-  status: z.nativeEnum(OrderStatus).optional(),
+  status: z.nativeEnum(OrderStatus).nullish(),
   // Add other filters: date range, search term?
 });
 
