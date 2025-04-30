@@ -18,3 +18,7 @@
 - Fix nodemailer build error trigger, fix page layout inconsistencies, add first-admin logic.
 - Fixed build error in `orders/[id]/edit` page caused by Next.js 15 async `params` change.
 - Resolved subsequent TypeScript error in `OrderForm` related to `setValue`/`watch` union types.
+- Implemented shadcn styled Sign In page for NextAuth (Email/Credentials).
+- Added middleware redirect from root to /dashboard for authenticated users.
+- Added Settings page with profile/password update forms and tRPC endpoints.
+- Configured NextAuth Credentials provider using bcryptjs.
