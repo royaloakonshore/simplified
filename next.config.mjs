@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Restore the webpack configuration section
     webpack: (config, { isServer }) => {
         // Fixes npm packages that depend on 'fs', 'net', 'dns', etc.
         // See: https://github.com/vercel/next.js/issues/7755
