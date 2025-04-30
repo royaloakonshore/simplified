@@ -34,6 +34,7 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      firstName?: string | null;
       login?: string;
       role?: UserRole;
       dashboardEnabled?: boolean;
@@ -51,6 +52,7 @@ declare module "next-auth" {
   interface User {
     role?: UserRole;
     login?: string;
+    firstName?: string | null;
     expires?: string;
     isTeamAdmin?: boolean;
     isAdmin?: boolean;
@@ -104,14 +106,18 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, user }) {
       try {
+        const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
+
         return {
           ...session,
           user: {
             ...session.user,
             id: user.id,
-            role: user.role,
-            login: user.login,
-            isAdmin: user.isAdmin,
+            name: fullUser?.name ?? session.user?.name,
+            firstName: fullUser?.firstName ?? undefined,
+            role: fullUser?.role ?? user.role,
+            login: fullUser?.login ?? user.login,
+            isAdmin: fullUser?.isAdmin ?? user.isAdmin,
           },
         };
       } catch (error) {

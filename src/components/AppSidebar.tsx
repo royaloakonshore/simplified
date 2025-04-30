@@ -33,7 +33,7 @@ const navItems = [
     { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Orders', href: '/orders', icon: ShoppingCart },
     { name: 'Invoices', href: '/invoices', icon: FileText },
-    { name: 'Fulfillment', href: '/fulfillment', icon: Truck },
+    { name: 'Production', href: '/production', icon: Truck },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

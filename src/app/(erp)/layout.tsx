@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 
 export default async function ERPLayout({
   children,
@@ -18,14 +19,13 @@ export default async function ERPLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen bg-background">
+      <div className="flex h-screen bg-background group/sidebar">
         <AppSidebar />
 
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="p-4 border-b border-border bg-card flex justify-between items-center shrink-0">
+        <main className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ml-64 group-data-[collapsed=true]/sidebar:ml-20">
+          <header className="p-4 border-b border-border bg-card flex justify-between items-center shrink-0 h-16">
             <div className="flex items-center">
-              <SidebarTrigger className="mr-4 lg:hidden" />
-              <h2 className="text-lg font-medium">Welcome, {user.email}</h2>
+              <Breadcrumbs className="ml-4" />
             </div>
             <div className="flex items-center space-x-4">
               <form action="/api/auth/signout" method="post">

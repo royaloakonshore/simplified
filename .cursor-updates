@@ -13,3 +13,4 @@
 - Created `AppSidebar` component for sidebar structure and navigation items.
 - Updated listOrdersSchema to use .nullish() for status filter to fix tRPC errors.
 - Add explicit types for form values/instances in OrderForm.tsx and attempt to fix react-hook-form conflicts.
+- Fix order list tRPC null status query, implement breadcrumbs, rename fulfillment to production, add firstName to user, implement Kanban board.

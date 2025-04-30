@@ -1,14 +1,18 @@
 import React from "react";
+import { getServerAuthSession } from "@/lib/auth"; // Import session utility
 
 export const metadata = {
   title: "Dashboard | ERP System",
   description: "ERP System Dashboard",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await getServerAuthSession();
+  const userName = session?.user?.firstName ?? session?.user?.name ?? 'User'; // Get name
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6">Welcome, {userName}!</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <DashboardCard title="Customers" value="0" description="Total customers" />
