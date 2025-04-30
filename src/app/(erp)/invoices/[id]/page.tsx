@@ -10,10 +10,10 @@ import { Order as LocalOrder } from '@/lib/types/order.types'; // Assuming basic
 import { UUID, Decimal as LocalDecimal, createUUID } from '@/lib/types/branded'; 
 
 // Define standard Props type for App Router pages
-// type Props = {
-//   params: { id: string };
-//   searchParams: { [key: string]: string | string[] | undefined };
-// };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
 // --- Top-level Mapping Function ---
 // Use 'any' for input type due to persistent inference issues
@@ -63,9 +63,10 @@ const mapPrismaInvoiceToLocal = (prismaInvoice: any): LocalInvoice => {
 };
 // --- End Mapping Function ---
 
-// @ts-ignore - Temporary workaround for page props
-export default async function InvoicePage(props: any) { 
-  const { id } = props.params;
+// Use the correct Props type
+export default async function InvoicePage({ params }: Props) { 
+  // Await params before accessing id
+  const { id } = await params;
 
   if (!id) {
     notFound();
