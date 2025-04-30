@@ -178,14 +178,29 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
   const handleItemChange = (index: number, itemId: string, formInstance: CreateFormInstance | UpdateFormInstance) => {
     const selectedItem = inventoryItems.find(invItem => invItem.id === itemId);
     if (selectedItem) {
-      formInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
-      formInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice.toNumber(), { shouldValidate: true });
+      // Cast formInstance based on mode to resolve setValue union type issue
+      if (isEditMode) {
+        const updateFormInstance = formInstance as UpdateFormInstance;
+        updateFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
+        updateFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice.toNumber(), { shouldValidate: true });
+      } else {
+        const createFormInstance = formInstance as CreateFormInstance;
+        createFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
+        createFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice.toNumber(), { shouldValidate: true });
+      }
     }
   };
 
   const calculateTotal = (formInstance: CreateFormInstance | UpdateFormInstance) => {
-    const items = formInstance.watch("items");
-    return Array.isArray(items) ? items.reduce((total: number, item: any) => {
+    // Cast formInstance based on mode to resolve watch union type issue
+    let items: CreateFormValues['items'] | UpdateFormValues['items'] = [];
+    if (isEditMode) {
+      items = (formInstance as UpdateFormInstance).watch("items");
+    } else {
+      items = (formInstance as CreateFormInstance).watch("items");
+    }
+
+    return Array.isArray(items) ? items.reduce((total: number, item: any) => { // Keep 'any' here for now, focus on build error
       const quantity = Number(item?.quantity) || 0;
       const price = Number(item?.unitPrice) || 0;
       return total + quantity * price;

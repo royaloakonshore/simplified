@@ -16,3 +16,5 @@
 - Fix order list tRPC null status query, implement breadcrumbs, rename fulfillment to production, add firstName to user, implement Kanban board.
 - Resolve parallel pages error, restore customer page, update docs, draft multi-tenancy plan.
 - Fix nodemailer build error trigger, fix page layout inconsistencies, add first-admin logic.
+- Fixed build error in `orders/[id]/edit` page caused by Next.js 15 async `params` change.
+- Resolved subsequent TypeScript error in `OrderForm` related to `setValue`/`watch` union types.
