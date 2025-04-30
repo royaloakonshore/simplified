@@ -79,26 +79,42 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, profile, email, credentials }) {
       try {
-        const email = user?.email;
-        if (!email) return false;
-
-        /*
-        // Enable this to restrict sign-ins to certain domains or allowlist
-        const domainCheck = ALLOWED_DOMAINS.some((d) => email.endsWith(d));
-        if (!domainCheck) {
-          const inAllowlist = await prisma.allowlist.findUnique({
-            where: { email },
-          });
-
-          if (!inAllowlist) {
-            return false;
-          }
+        const userEmail = user?.email;
+        if (!userEmail) {
+           console.error("SignIn callback: No email found for user.");
+           return false; // Cannot proceed without email
         }
-        */
 
-        return true;
+        // Check if user exists (adapter might have already created one via email link)
+        let existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
+        
+        // If user doesn't exist yet (e.g., first time sign in with OAuth? Less likely with Email provider)
+        // This check might be redundant if adapter always creates user before signIn
+        if (!existingUser) {
+            console.warn("SignIn callback: User not found by email, adapter should have created one.");
+            // Optionally try finding by user.id if available from OAuth provider
+            if (user.id) {
+                existingUser = await prisma.user.findUnique({ where: { id: user.id }});
+            }
+            if (!existingUser) {
+                 console.error("SignIn callback: Cannot find or verify user.");
+                 return false;
+            }
+        }
+
+        // Check if this is the very first user
+        const userCount = await prisma.user.count();
+        if (userCount === 1 && existingUser.role !== UserRole.admin) {
+          console.log(`First user detected (${userEmail}). Promoting to admin.`);
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { role: UserRole.admin },
+          });
+        }
+
+        return true; // Allow sign in
       } catch (error) {
         console.error("SignIn callback error:", error);
         return false;

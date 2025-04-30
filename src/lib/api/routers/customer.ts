@@ -10,43 +10,48 @@ import {
   updateCustomerSchema,
 } from "@/lib/schemas/customer.schema";
 import type { Address } from '@prisma/client';
+import { listCustomersSchema } from "@/lib/schemas/customer.schema";
+import { Prisma } from '@prisma/client';
 
 export const customerRouter = createTRPCRouter({
   list: protectedProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).nullish(),
-        cursor: z.string().nullish(), // <-- "cursor" needs to exist, but can be any type
-        // Add filters here, e.g.:
-        // name: z.string().optional(),
-        // email: z.string().optional(),
-      })
-    )
+    .input(listCustomersSchema)
     .query(async ({ input }) => {
-      const limit = input.limit ?? 10;
-      const { cursor } = input;
+      const { page, perPage, search, sortBy, sortDirection } = input;
+
+      const whereClause: Prisma.CustomerWhereInput = {};
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const skip = (page - 1) * perPage;
+
       const items = await prisma.customer.findMany({
-        take: limit + 1, // get an extra item to know if there's a next page
-        cursor: cursor ? { id: cursor } : undefined,
+        skip: skip,
+        take: perPage,
+        where: whereClause,
         orderBy: {
-          createdAt: "desc",
+          [sortBy]: sortDirection,
         },
-        // Add where clause for filters if needed
-        // where: {
-        //   name: input.name ? { contains: input.name, mode: 'insensitive' } : undefined,
-        //   email: input.email ? { contains: input.email, mode: 'insensitive' } : undefined,
-        // },
       });
 
-      let nextCursor: typeof cursor | undefined = undefined;
-      if (items.length > limit) {
-        const nextItem = items.pop();
-        nextCursor = nextItem!.id;
-      }
+      const totalCount = await prisma.customer.count({
+        where: whereClause,
+      });
+
+      const totalPages = Math.ceil(totalCount / perPage);
 
       return {
         items,
-        nextCursor,
+        pagination: {
+          page,
+          perPage,
+          totalCount,
+          totalPages,
+        },
       };
     }),
 

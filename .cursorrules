@@ -88,3 +88,10 @@ IMPORTANT:
 - Always add a one-sentence summary of changes to `.cursor-updates` file in markdown format at the end of every agent interaction.
 - If you forget, the user can type the command "finish" and you will run the build and update `.cursor-updates`.
 - Finally, update git with `git add . && git commit -m "..."`. Don't push.
+
+## Multi-Tenancy (When Implemented)
+
+- **Data Scoping:** All Prisma queries (find, create, update, delete) for company-scoped models (Customer, Order, Invoice, InventoryItem, Settings, etc.) MUST include a `where: { companyId: ctx.companyId, ... }` clause.
+- **Context:** Use the `companyProtectedProcedure` for tRPC routes accessing company-scoped data. This procedure ensures the user has an active company selected and injects `userId` and `companyId` into the context (`ctx`).
+- **Client Input:** Do NOT require `companyId` in client-side input schemas (Zod); it should always come from the server-side context.
+- **Admin Checks:** Use `ctx.session.user.role === UserRole.admin` for global admin actions. Company-specific admin roles (`CompanyRole`) are deferred.

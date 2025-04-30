@@ -95,6 +95,7 @@ function OrderListContent() {
 // Define props if needed, but search params are handled by the hook now
 // type OrdersPageProps = { ... };
 
+// Main page component
 export default function OrdersPage() {
   // REMOVED: Logic that used useSearchParams directly
 
@@ -103,7 +104,8 @@ export default function OrdersPage() {
 
   // Render the main page structure and wrap OrderListContent in Suspense
   return (
-    <div className="p-6">
+    // Add container class like Invoices page
+    <div className="container mx-auto py-6 px-4 md:px-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Orders</h1>
         <Button asChild>

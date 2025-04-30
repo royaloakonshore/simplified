@@ -4,7 +4,7 @@ export { default } from "next-auth/middleware"
 export const config = {
   matcher: [
     '/dashboard/:path*',
-    '/(main)/:path*', // Protect routes under the (main) group
+    '/(erp)/:path*', // Protect routes under the (erp) group
     // Add other protected routes here
   ],
 }; 

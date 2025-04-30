@@ -19,10 +19,10 @@ export default async function ERPLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen bg-background group/sidebar">
+      <div className="flex h-screen bg-background">
         <AppSidebar />
 
-        <main className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ml-64 group-data-[collapsed=true]/sidebar:ml-20">
+        <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-4 border-b border-border bg-card flex justify-between items-center shrink-0 h-16">
             <div className="flex items-center">
               <Breadcrumbs className="ml-4" />
