@@ -23,3 +23,4 @@
 - Added Settings page with profile/password update forms and tRPC endpoints.
 - Configured NextAuth Credentials provider using bcryptjs.
 - Re-added webpack fallbacks for Node built-ins in `next.config.mjs` to resolve build errors caused by NextAuth Email provider dependency.
+- Performed clean install (`rm -rf .next node_modules && npm install`) to resolve persistent build errors related to Node built-ins.
