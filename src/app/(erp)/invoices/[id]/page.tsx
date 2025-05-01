@@ -67,6 +67,7 @@ const mapPrismaInvoiceToLocal = (prismaInvoice: any): LocalInvoice => {
 export default async function InvoicePage({ params }: Props) { 
   // Await params before accessing id
   const { id } = await params;
+  console.log(`>>> Invoice [id] page rendered. Received id: ${id}`);
 
   if (!id) {
     notFound();
