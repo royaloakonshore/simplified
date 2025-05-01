@@ -1,5 +1,3 @@
-'use client'; // Need client component for hooks
-
 import Link from 'next/link';
 import { useRouter } from 'next/navigation'; // Use hooks
 import { api } from "@/lib/trpc/react"; // Import tRPC hooks
@@ -63,10 +61,10 @@ function OrderFormSkeleton() {
     );
 }
 
-// Add this line to force dynamic rendering
-export const dynamic = 'force-dynamic';
-
 // Add Order Page Component (Server Component)
+// NOTE: This component MUST remain a Server Component (no 'use client') 
+// because it uses async/await for data fetching (getFormData, getServerAuthSession).
+// Data is passed as props (or promise) down to Client Components via the wrapper.
 export default async function AddOrderPage() {
   const session = await getServerAuthSession(); // Call the correct function
   if (!session?.user) {

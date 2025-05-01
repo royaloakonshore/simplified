@@ -71,3 +71,31 @@ When working with Prisma in this project, remember these important steps:
 **Next Steps:**
 
 *   Prioritize fixing the remaining TypeScript errors, starting with the persistent Prisma client access errors and the missing `FulfillmentBoard` import. 
+
+## [YYYY-MM-DD] - Invoice Form Implementation & Debugging
+
+**Goal:** Implement the "Create Invoice" form and backend logic.
+
+**Summary:**
+- Implemented `InvoiceForm.tsx` using `react-hook-form`, Zod validation (`CreateInvoiceSchema`), and Shadcn UI components.
+- Added `invoice.create` tRPC mutation (`src/lib/api/routers/invoice.ts`) to handle invoice creation, including basic sequential numbering (needs improvement for multi-tenancy/concurrency) and total calculations.
+- Connected the form to the tRPC mutation.
+- Updated the `/invoices/add` page (`src/app/(erp)/invoices/add/page.tsx`) to fetch necessary `customers` and `inventoryItems` data as a Server Component and pass it down.
+- Added the `shadcn/ui` Calendar component.
+
+**Debugging & Fixes:**
+- Resolved multiple build/type errors:
+    - **`nodemailer` Build Error:** Temporarily worked around persistent build errors related to `next-auth`'s Email provider by commenting out the provider configuration in `src/lib/auth/index.ts`. Credentials-based login remains functional. This needs further investigation, possibly related to Webpack/Next.js 15 build process interactions.
+    - **`async/await`/`headers` Errors:** Fixed runtime errors on `/orders/add` page by removing an incorrect `'use client'` directive, ensuring the page functions correctly as a Server Component.
+    - **`InvoiceListContent` Type Errors:** Corrected several TypeScript errors in the invoice list component (`src/components/invoices/InvoiceListContent.tsx`) related to data types returned by the `invoice.list` tRPC procedure and TanStack Table configuration (`useReactTable` data/column mismatch, `Badge` variant error, etc.).
+
+**Known Issues/Workarounds:**
+- **Email Provider Disabled:** As mentioned, Email login is disabled via commenting in `src/lib/auth/index.ts`.
+- **`firstName` Field:** The `firstName` field for Users remains commented out in auth callbacks and related components due to prior unresolved type errors. Needs investigation.
+- **Invoice Numbering:** The current sequential invoice number generation is basic and prone to race conditions in a concurrent environment. This should be replaced with a database sequence or a more robust locking mechanism when scaling or implementing multi-tenancy.
+
+**Next Steps (Suggestions):**
+- Investigate and permanently resolve the `nodemailer` build issue to re-enable the Email provider.
+- Resolve the `firstName` type errors and re-enable the field.
+- Implement the "Edit Invoice" functionality.
+- Improve invoice numbering robustness. 

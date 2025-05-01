@@ -132,7 +132,8 @@ export const authOptions: NextAuthOptions = {
     //     },
     //   },
     //   from: process.env.EMAIL_FROM || "onboarding@resend.dev",
-    // }), // Temporarily commented out
+    // }), // Temporarily commented out [YYYY-MM-DD] due to persistent nodemailer/webpack build errors.
+    // // Needs further investigation to re-enable.
   ],
   session: {
     strategy: "database",
@@ -190,7 +191,7 @@ export const authOptions: NextAuthOptions = {
             ...session.user,
             id: user.id,
             name: fullUser?.name ?? session.user?.name,
-            // firstName: fullUser?.firstName ?? undefined, // Commented out due to persistent linter error
+            // firstName: fullUser?.firstName ?? undefined, // Temporarily commented out [YYYY-MM-DD] due to unresolved TS errors.
             role: fullUser?.role ?? user.role,
             login: fullUser?.login ?? user.login,
             isAdmin: fullUser?.isAdmin ?? user.isAdmin,
