@@ -19,7 +19,8 @@ async function getFormData() {
           id: true,
           name: true,
           salesPrice: true, // Use salesPrice for invoices
-          unitOfMeasure: true
+          unitOfMeasure: true,
+          sku: true, // Added sku field
       },
       orderBy: { name: 'asc' },
     });

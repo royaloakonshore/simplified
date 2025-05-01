@@ -30,5 +30,5 @@ export default async function EditOrderPage({ params, searchParams }: Props) {
           <EditOrderFormLoader orderId={orderId} /> 
        </Suspense>
     </div>
-  );
+    );
 } 

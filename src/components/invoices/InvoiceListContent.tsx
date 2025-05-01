@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+// import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // Keep removed if not using URL state
 import { api } from '@/lib/trpc/react';
 import {
   ColumnDef,
@@ -14,17 +14,22 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   PaginationState,
-  Column,
-  Row,
-  CellContext,
-  HeaderContext,
-  ColumnFilter
+  // Column, // Unused?
+  // Row, // Unused?
+  // CellContext, // Infer from ColumnDef
+  // HeaderContext, // Infer from ColumnDef
+  // ColumnFilter, // Unused?
+  VisibilityState
 } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Eye } from "lucide-react";
+import Link from "next/link";
+import { keepPreviousData } from '@tanstack/react-query'; // Import for placeholderData
 
-import { Invoice, Customer, Order, InvoiceStatus } from '@prisma/client'; // Use generated types
+// Import base Prisma types and the runtime enum InvoiceStatus
+import { type Invoice, type Customer, InvoiceStatus } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+// Assuming these common components exist and handle their own imports/props correctly
 import { DataTablePagination } from '@/components/common/DataTablePagination';
 import { DataTableFacetedFilter } from '@/components/common/DataTableFacetedFilter';
 import {
@@ -46,18 +51,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { DataTableSkeleton } from '@/components/common/DataTableSkeleton';
 import { formatCurrency, formatDate } from '@/lib/utils'; // Assuming utils exist
+import { Skeleton } from "@/components/ui/skeleton";
+import { type Decimal } from "@prisma/client/runtime/library";
 
-// Combine types for the table data
-type InvoiceWithRelations = Invoice & {
-  customer: Customer | null;
-  order: { orderNumber: string } | null;
+// 1. Define the precise data type for the table rows based on tRPC output
+// Includes all Invoice fields + specific includes + mapped itemCount
+type InvoiceTableRowData = Invoice & {
+  itemCount: number;
+  customer: { id: string; name: string } | null; 
+  items: { id: string }[]; // Included for itemCount calculation, might be needed elsewhere
 };
 
-// Define columns for the DataTable
-const columns: ColumnDef<InvoiceWithRelations>[] = [
+// 2. Define columns using the correct row data type
+const columns: ColumnDef<InvoiceTableRowData>[] = [
   {
     accessorKey: "invoiceNumber",
-    header: ({ column }: HeaderContext<InvoiceWithRelations, unknown>) => (
+    header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -70,20 +79,11 @@ const columns: ColumnDef<InvoiceWithRelations>[] = [
   {
     accessorKey: "customer.name",
     header: "Customer",
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => row.original.customer?.name ?? 'N/A',
-    filterFn: (row: Row<InvoiceWithRelations>, id: string, value: any): boolean => {
-        const rowValue = row.getValue(id) as string;
-        return value.includes(rowValue);
-    }
-  },
-  {
-    accessorKey: "order.orderNumber",
-    header: "Order #",
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => row.original.order?.orderNumber ?? 'N/A',
+    cell: ({ row }) => row.original.customer?.name ?? 'N/A',
   },
   {
     accessorKey: "invoiceDate",
-    header: ({ column }: HeaderContext<InvoiceWithRelations, unknown>) => (
+    header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -92,11 +92,11 @@ const columns: ColumnDef<InvoiceWithRelations>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => formatDate(row.getValue("invoiceDate") as Date),
+    cell: ({ row }) => formatDate(row.getValue("invoiceDate") as Date),
   },
   {
     accessorKey: "dueDate",
-    header: ({ column }: HeaderContext<InvoiceWithRelations, unknown>) => (
+    header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -105,11 +105,11 @@ const columns: ColumnDef<InvoiceWithRelations>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => formatDate(row.getValue("dueDate") as Date),
+    cell: ({ row }) => formatDate(row.getValue("dueDate") as Date),
   },
   {
     accessorKey: "totalAmount",
-    header: ({ column }: HeaderContext<InvoiceWithRelations, unknown>) => (
+    header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -119,33 +119,37 @@ const columns: ColumnDef<InvoiceWithRelations>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => (
-      <div className="text-right font-medium">
-        {formatCurrency(row.getValue("totalAmount") as number | string)}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const amountRaw = row.getValue("totalAmount");
+      const amount = typeof amountRaw === 'object' && amountRaw !== null && 'toNumber' in amountRaw 
+                     ? (amountRaw as Decimal).toNumber() 
+                     : Number(amountRaw) || 0;
+      const formatted = formatCurrency(amount);
+      return <div className="text-right">{formatted}</div>;
+    },
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => {
+    cell: ({ row }) => {
         const status = row.getValue("status") as InvoiceStatus;
-        // Basic status badge - can be enhanced
+        // Correct Badge variant - use secondary for draft
         let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-        if (status === InvoiceStatus.paid) variant = "default"; // Use success color later
+        if (status === InvoiceStatus.paid) variant = "default";
         if (status === InvoiceStatus.overdue) variant = "destructive";
         if (status === InvoiceStatus.sent) variant = "outline";
 
         return <Badge variant={variant} className="capitalize">{status.toLowerCase().replace('_', ' ')}</Badge>;
     },
-    filterFn: (row: Row<InvoiceWithRelations>, id: string, value: any): boolean => {
-        const rowValue = row.getValue(id) as string;
-        return value.includes(rowValue);
-    },
+  },
+  {
+    accessorKey: "itemCount", // Display itemCount
+    header: "Items",
+    cell: ({ row }) => <div className="text-center">{row.original.itemCount}</div>,
   },
   {
     id: "actions",
-    cell: ({ row }: CellContext<InvoiceWithRelations, unknown>) => {
+    cell: ({ row }) => {
       const invoice = row.original;
       return (
         <DropdownMenu>
@@ -163,9 +167,15 @@ const columns: ColumnDef<InvoiceWithRelations>[] = [
               Copy Invoice #
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem> // TODO: Link to customer page
-            <DropdownMenuItem>View invoice details</DropdownMenuItem> // TODO: Link to invoice details page
-            <DropdownMenuItem>View order</DropdownMenuItem> // TODO: Link to order page
+            <Link href={`/invoices/${invoice.id}`} passHref>
+              <DropdownMenuItem>View Details</DropdownMenuItem>
+            </Link>
+            {invoice.customer?.id && (
+               <Link href={`/customers/${invoice.customer.id}`} passHref>
+                 <DropdownMenuItem>View Customer</DropdownMenuItem>
+               </Link>
+            )}
+            {/* Add other actions like Edit, Credit, Delete later */}
           </DropdownMenuContent>
         </DropdownMenu>
       );
@@ -173,219 +183,167 @@ const columns: ColumnDef<InvoiceWithRelations>[] = [
   },
 ];
 
-// TODO: Replace with actual data fetch or better type
-const statusOptions = Object.values(InvoiceStatus).map(status => ({
+// 4. Correctly type statusOptions for DataTableFacetedFilter
+const statusOptions: { label: string; value: InvoiceStatus }[] = Object.values(InvoiceStatus).map(status => ({
     value: status,
     label: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace('_', ' '),
 }));
 
-export default function InvoiceListContent() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+// Props definition remains the same
+interface InvoiceListContentProps {
+  initialPage?: number;
+  initialPerPage?: number;
+  initialSearchTerm?: string;
+  initialStatus?: InvoiceStatus | null;
+  initialSortBy?: string;
+  initialSortDirection?: 'asc' | 'desc';
+}
 
-  // Read state from URL
-  const page = searchParams.get('page') ?? '1';
-  const perPage = searchParams.get('perPage') ?? '10';
-  const sort = searchParams.get('sort');
-  const [sortBy, sortDirection] = sort?.split('.') ?? ['invoiceDate', 'desc'];
-  const globalFilter = searchParams.get('search') ?? '';
-  const statusFilter = searchParams.get('status');
-  // TODO: Add customer filter if needed
-
+export default function InvoiceListContent({
+  initialPage = 1,
+  initialPerPage = 10,
+  initialSearchTerm = "",
+  initialStatus = null,
+  initialSortBy = 'invoiceDate',
+  initialSortDirection = 'desc',
+}: InvoiceListContentProps) {
+  const [page, setPage] = useState(initialPage);
+  const [perPage, setPerPage] = useState(initialPerPage);
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [status, setStatus] = useState<InvoiceStatus | null>(initialStatus);
   const [sorting, setSorting] = useState<SortingState>([
-    { id: sortBy, desc: sortDirection === 'desc' },
+    { id: initialSortBy, desc: initialSortDirection === 'desc' },
   ]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => {
       const filters: ColumnFiltersState = [];
-      if(statusFilter) filters.push({ id: 'status', value: statusFilter.split(',') });
-      // Add other initial filters from URL if needed
+      if(initialStatus) filters.push({ id: 'status', value: [initialStatus] });
       return filters;
   });
-  const [{ pageIndex, pageSize }, setPagination] = useState<PaginationState>({
-    pageIndex: parseInt(page) - 1,
-    pageSize: parseInt(perPage),
-  });
 
-  // Debounce mechanism for global filter
-  const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState(globalFilter);
-  // TODO: Implement proper debouncing if performance is an issue
+  const sortBy = sorting[0]?.id;
+  const sortDirection = sorting[0]?.desc ? 'desc' : 'asc';
 
-  // Update URL when state changes
-  const createQueryString = (params: Record<string, string | number | null>) => {
-    const newSearchParams = new URLSearchParams(searchParams?.toString());
-    for (const [key, value] of Object.entries(params)) {
-      if (value === null) {
-        newSearchParams.delete(key);
-      } else {
-        newSearchParams.set(key, String(value));
-      }
-    }
-    return newSearchParams.toString();
-  };
-
-  const handlePaginationChange = (updater: any) => {
-    setPagination((old) => {
-      const newState = typeof updater === 'function' ? updater(old) : updater;
-      router.push(
-        `${pathname}?${createQueryString({ page: newState.pageIndex + 1, perPage: newState.pageSize })}`,
-        { scroll: false }
-      );
-      return newState;
-    });
-  };
-
-  const handleSortingChange = (updater: any) => {
-    setSorting((old) => {
-        const newState = typeof updater === 'function' ? updater(old) : updater;
-        const sortParam = newState.length > 0 ? `${newState[0].id}.${newState[0].desc ? 'desc' : 'asc'}` : null;
-        router.push(
-            `${pathname}?${createQueryString({ sort: sortParam, page: 1 })}`,
-            { scroll: false }
-        );
-        setPagination(prev => ({...prev, pageIndex: 0})); // Reset page index on sort
-        return newState;
-    });
-  };
-
-  const handleColumnFiltersChange = (updater: any) => {
-    setColumnFilters((old) => {
-        const newState = typeof updater === 'function' ? updater(old) : updater;
-        const statusValues = newState.find((f: ColumnFilter) => f.id === 'status')?.value as string[] | undefined;
-        router.push(
-            `${pathname}?${createQueryString({ status: statusValues?.join(',') || null, page: 1 })}`,
-            { scroll: false }
-        );
-        setPagination(prev => ({...prev, pageIndex: 0})); // Reset page index on filter
-        return newState;
-    });
-  };
-
-  const handleGlobalFilterChange = (value: string) => {
-      setDebouncedGlobalFilter(value);
-      // Apply filter to URL immediately (or debounce)
-      router.push(
-          `${pathname}?${createQueryString({ search: value || null, page: 1 })}`,
-          { scroll: false }
-      );
-      setPagination(prev => ({...prev, pageIndex: 0})); // Reset page index on search
-  }
-
-
-  // Fetch data using tRPC hook
-  const { data, isLoading, error } = api.invoice.list.useQuery(
+  // 5. Fix tRPC query input types
+  const { data, isLoading, error, isFetching } = api.invoice.list.useQuery(
     {
-      pagination: {
-        page: pageIndex + 1,
-        perPage: pageSize,
-        sortBy: sorting.length > 0 ? sorting[0].id : undefined,
-        sortDirection: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
-      },
+      pagination: { page, perPage, sortBy, sortDirection },
       filters: {
-        // Combine global filter and column filters as needed by backend
-        searchTerm: debouncedGlobalFilter || undefined,
-        status: columnFilters.find((f: ColumnFilter) => f.id === 'status')?.value as InvoiceStatus | undefined,
-        // customerId: columnFilters.find((f: ColumnFilter) => f.id === 'customer.name')?.value as string | undefined,
+        searchTerm: searchTerm || undefined,
+        status: status ?? undefined,
       },
     },
+    {
+      // Use placeholderData from tanstack/react-query
+      placeholderData: keepPreviousData,
+    }
   );
 
+  // 6. Derive pagination state directly from component state (no parseInt needed)
+  const pagination: PaginationState = {
+    pageIndex: page - 1,
+    pageSize: perPage,
+  };
+
   const table = useReactTable({
-    data: data?.invoices ?? [], // Provide default empty array
-    columns,
-    pageCount: data?.pagination?.totalPages ?? -1, // -1 indicates unknown page count
+    data: data?.data ?? [], 
+    columns, // Use columns defined with InvoiceTableRowData
+    pageCount: data?.meta?.totalPages ?? -1,
     state: {
       sorting,
+      pagination, // Use derived pagination state
       columnFilters,
-      pagination: { pageIndex, pageSize },
-      globalFilter: debouncedGlobalFilter,
+      columnVisibility,
     },
-    onSortingChange: handleSortingChange,
-    onColumnFiltersChange: handleColumnFiltersChange,
-    onPaginationChange: handlePaginationChange,
+    onSortingChange: setSorting,
+    onPaginationChange: (updater) => {
+       const newState = typeof updater === 'function' ? updater(pagination) : updater;
+       setPage(newState.pageIndex + 1);
+       setPerPage(newState.pageSize);
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: true, // Server-side pagination
-    manualSorting: true, // Server-side sorting
-    manualFiltering: true, // Server-side filtering
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    debugTable: process.env.NODE_ENV === 'development',
   });
 
+  // Loading state
   if (isLoading && !data) {
-      // Use skeleton matching column definition and expected rows
-      return <DataTableSkeleton columnCount={columns.length} rowCount={pageSize} showHeader={true} />;
+    return <DataTableSkeleton columnCount={columns.length} rowCount={perPage} />;
   }
 
+  // Error state
   if (error) {
-    return <div className="text-red-600">Error loading invoices: {error.message}</div>;
+    return <div className="text-red-600 p-4">Error loading invoices: {error.message}</div>;
   }
 
+  // Render table
   return (
     <div className="space-y-4">
-        <div className="flex items-center justify-between">
-            <Input
-                placeholder="Search invoices..."
-                value={debouncedGlobalFilter}
-                onChange={(event) => handleGlobalFilterChange(event.target.value)}
-                className="max-w-sm"
-            />
-            <div className="flex items-center space-x-2">
-                {table.getColumn('status') && (
-                    <DataTableFacetedFilter
-                        column={table.getColumn('status')}
-                        title="Status"
-                        options={statusOptions}
-                    />
-                )}
-                {/* Add customer filter if needed */}
-            </div>
-        </div>
-        <div className="rounded-md border">
-            <Table>
+      <div className="flex items-center justify-between">
+          <Input
+              placeholder="Search invoices..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="max-w-sm"
+          />
+          <div className="flex items-center space-x-2">
+              <DataTableFacetedFilter
+                  column={table.getColumn('status')}
+                  title="Status"
+                  options={statusOptions}
+              />
+          </div>
+      </div>
+      <div className="rounded-md border">
+          <Table>
             <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
+              {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                    return (
-                        <TableHead key={header.id}>
-                        {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                            )}
-                        </TableHead>
-                    );
-                    })}
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  ))}
                 </TableRow>
-                ))}
+              ))}
             </TableHeader>
             <TableBody>
-                {table.getRowModel().rows?.length ? (
+              {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                    <TableRow
+                  <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    >
+                  >
                     {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
+                      <TableCell key={cell.id} style={{ width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
+                      </TableCell>
                     ))}
-                    </TableRow>
+                  </TableRow>
                 ))
-                ) : (
+              ) : (
                 <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
                     No results.
-                    </TableCell>
+                  </TableCell>
                 </TableRow>
-                )}
+              )}
             </TableBody>
-            </Table>
-        </div>
-        <DataTablePagination table={table} />
+          </Table>
+      </div>
+      <DataTablePagination table={table} />
     </div>
   );
 } 

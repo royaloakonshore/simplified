@@ -31,7 +31,7 @@ function SignInForm() {
         redirect: false, // Prevent NextAuth default redirect
         callbackUrl: callbackUrl,
       });
-      
+
       if (res?.error) {
         toast.error(`Email Sign-In Error: ${res.error}`);
       } else if (res?.ok) {
@@ -80,7 +80,7 @@ function SignInForm() {
         console.error(err);
      } finally {
         setIsCredentialsLoading(false);
-     }
+    }
   };
 
   return (
@@ -94,13 +94,13 @@ function SignInForm() {
         </CardHeader>
         <form onSubmit={handleCredentialsSignIn}>
           <CardContent className="grid gap-4">
-            {error && (
+          {error && (
               <p className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
                 {error === "CredentialsSignin" ? "Invalid email or password." : 
                  error === "EmailSignin" ? "Could not send magic link. Try again." :
                  "An authentication error occurred."}
               </p>
-            )}
+          )}
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -116,9 +116,9 @@ function SignInForm() {
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
               <Input 
-                id="password" 
-                type="password" 
-                required 
+                id="password"
+                type="password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isEmailLoading || isCredentialsLoading} 
@@ -139,7 +139,7 @@ function SignInForm() {
                      Or continue with
                   </span>
                </div>
-            </div>
+      </div>
              <Button 
                 variant="outline" 
                 className="w-full" 

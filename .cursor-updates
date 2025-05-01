@@ -26,3 +26,11 @@
 - Performed clean install (`rm -rf .next node_modules && npm install`) to resolve persistent build errors related to Node built-ins.
 - Fixed runtime error on invoice detail page caused by Next.js 15 async `params` change.
 - Created `invoices/add` page and placeholder `InvoiceForm` component to fix routing error.
+- Implemented the basic InvoiceForm component with react-hook-form and shadcn UI.
+- Added Zod schema for invoice creation (`CreateInvoiceSchema`).
+- Created tRPC router (`invoiceRouter`) with a `create` mutation including sequential number generation and total calculation.
+- Added `invoiceRouter` to the root `appRouter`.
+- Updated `AddInvoicePage` to fetch necessary data (customers, inventory items with SKU) and pass to `InvoiceForm`.
+- Added shadcn `Calendar` component.
+- Temporarily commented out NextAuth EmailProvider to resolve persistent `nodemailer` build error.
+- Fixed multiple type errors in `InvoiceListContent` related to data structure changes from `invoice.list` tRPC procedure and component state management.

@@ -5,7 +5,7 @@ import {
   type NextAuthOptions,
   type DefaultSession,
 } from "next-auth";
-import EmailProvider from "next-auth/providers/email";
+// import EmailProvider from "next-auth/providers/email"; // Temporarily commented out
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
@@ -122,17 +122,17 @@ export const authOptions: NextAuthOptions = {
         } as any; 
       }
     }),
-    EmailProvider({
-      server: {
-        host: "smtp.resend.com",
-        port: 465,
-        auth: {
-          user: "resend",
-          pass: process.env.EMAIL_SERVER_PASSWORD,
-        },
-      },
-      from: process.env.EMAIL_FROM || "onboarding@resend.dev",
-    }),
+    // EmailProvider({
+    //   server: {
+    //     host: "smtp.resend.com",
+    //     port: 465,
+    //     auth: {
+    //       user: "resend",
+    //       pass: process.env.EMAIL_SERVER_PASSWORD,
+    //     },
+    //   },
+    //   from: process.env.EMAIL_FROM || "onboarding@resend.dev",
+    // }), // Temporarily commented out
   ],
   session: {
     strategy: "database",
