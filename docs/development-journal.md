@@ -72,7 +72,7 @@ When working with Prisma in this project, remember these important steps:
 
 *   Prioritize fixing the remaining TypeScript errors, starting with the persistent Prisma client access errors and the missing `FulfillmentBoard` import. 
 
-## [YYYY-MM-DD] - Invoice Form Implementation & Debugging
+## 2025-04-26: Invoice Form Implementation & Debugging
 
 **Goal:** Implement the "Create Invoice" form and backend logic.
 
@@ -100,7 +100,7 @@ When working with Prisma in this project, remember these important steps:
 - Implement the "Edit Invoice" functionality.
 - Improve invoice numbering robustness. 
 
-## [YYYY-MM-DD] - Feature Planning & Documentation Update
+## 2025-04-27: Feature Planning & Documentation Update
 
 **Goal:** Plan next implementation steps based on user requirements and refine documentation.
 
@@ -111,4 +111,51 @@ When working with Prisma in this project, remember these important steps:
 - Clarified stock level tracking (calculated from transactions) and negative stock handling (generate alerts, don't block transactions).
 - Updated all relevant documentation files (`00-product-requirements.md`, `01-architecture-layout.md`, `02-type-flow-and-finvoice.md`, `03-user-business-flows.md`, `04-agent-implementation-plan.md`, `05-tech-stack-and-patterns.md`) to reflect the merged requirements, corrected information, and removed obsolete details.
 
-**Next Steps:** Proceed with implementing features outlined in Phase 2 of `04-agent-implementation-plan.md`, starting potentially with schema changes and backend logic for Order Types or BOMs. 
+**Next Steps:** Proceed with implementing features outlined in Phase 2 of `04-agent-implementation-plan.md`, starting potentially with schema changes and backend logic for Order Types or BOMs.
+
+## 2025-05-02: OrderType Feature Implementation
+
+**Goal:** Implement the OrderType feature to distinguish between Quotations and Work Orders within the Order module.
+
+**Summary:**
+- Added `OrderType` enum to Prisma schema with two values: `quotation` and `work_order`
+- Updated `Order` model with an `orderType` field defaulting to `work_order`
+- Fixed several Prisma schema issues:
+  - Added missing `@@schema` attributes to enums
+  - Fixed bidirectional relations between Order and Invoice
+  - Added missing `orders` relation on the User model for the Order-User relation
+- Updated Zod validation schemas in `order.schema.ts` to include orderType
+- Updated the order tRPC router to handle orderType in create/update operations
+- Updated UI components with OrderType display:
+  - Added orderType selection field to OrderForm
+  - Added orderType badge to OrderTable
+  - Added orderType badge to OrderDetail
+  - Added descriptive hints in the UI explaining the difference between types
+
+**Debugging & Fixes:**
+- Resolved build errors related to Prisma schema validation
+- Fixed import issues for OrderType in the router
+- Resolved relation issues in the schema for proper database structure
+- Fixed any form type issues related to OrderType selection
+
+**Next Steps:**
+1. **BOM Module Implementation:**
+   - Define `BillOfMaterial` and `BillOfMaterialItem` schemas in Prisma
+   - Create tRPC router for BOM CRUD operations
+   - Implement BOM creation/edit form UI
+   - Add cost calculation logic for BOMs
+
+2. **Order/Invoice Line Item Enhancements:**
+   - Add discount fields to OrderItem/InvoiceItem schemas
+   - Update forms with discount controls
+   - Add VAT handling and reverse charge functionality to invoices 
+
+3. **Inventory Enhancements:**
+   - Add `showInPricelist` field to InventoryItem schema
+   - Implement UI for pricelist filtering and display
+   - Create stock alert detection logic
+   - Add UI components for alerts
+   
+4. **Production Integration:**
+   - Implement inventory deduction for production based on BOMs
+   - Connect order status transitions to inventory transactions 

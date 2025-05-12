@@ -29,12 +29,12 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 
 **Phase 2: Feature Enhancement & Integration (Current Focus)**
 
-9.  **Order Module - Quote/Work Order:**
+9.  **Order Module - Quote/Work Order:** ✅ COMPLETED
     *   Add `orderType` enum and field to `Order` schema.
     *   Update `OrderForm` with conditional logic/UI for Quote vs. Work Order.
     *   Update `OrderListContent` to show `orderType`.
     *   Refine Order statuses if needed based on type.
-10. **Order/Invoice Line Item Enhancements:**
+10. **Order/Invoice Line Item Enhancements:** ⏳ NEXT PRIORITY
     *   Add `discountAmount`, `discountPercentage` to `OrderItem`/`InvoiceItem` schemas.
     *   Add `vatReverseCharge` flag to `Invoice` schema.
     *   Update `OrderForm`/`InvoiceForm` item tables with discount fields.
@@ -42,12 +42,12 @@ This plan outlines the step-by-step implementation process for the AI agent buil
     *   Add VAT Reverse Charge checkbox to `InvoiceForm`.
     *   Update backend total calculations for discounts.
     *   Update backend invoice creation to handle `vatReverseCharge` (set VAT to 0).
-11. **BOM Module:**
+11. **BOM Module:** 🔜 PLANNED NEXT
     *   Define `BillOfMaterial` and `BillOfMaterialItem` schemas.
     *   Create tRPC router (`bom.ts`) with CRUD procedures.
     *   Implement BOM Create/Edit form UI.
     *   Implement backend BOM cost calculation logic.
-12. **Inventory - Pricelist & Stock Alerts:**
+12. **Inventory - Pricelist & Stock Alerts:** 🔜 PLANNED
     *   Add `showInPricelist` field to `InventoryItem` schema.
     *   Update Inventory list UI with "Show Pricelist" button and filtering logic.
     *   Implement tRPC query for pricelist data.
@@ -55,7 +55,7 @@ This plan outlines the step-by-step implementation process for the AI agent buil
     *   Implement negative stock alert detection logic (querying transactions).
     *   Add Stock Alert display UI (e.g., table in Inventory page, Dashboard widget).
     *   Implement recurring Toast notifications for active alerts.
-13. **Inventory Deduction for Production:**
+13. **Inventory Deduction for Production:** 🔜 PLANNED
     *   Modify `order.updateStatus` tRPC mutation to create negative `InventoryTransaction` records based on BOMs when status changes to `in_production`.
     *   Handle negative stock case by generating alert, not failing transaction.
 14. **Finvoice Enhancements:**
