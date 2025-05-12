@@ -99,3 +99,31 @@
 
 **Note:** This project will commence using a pre-configured Next.js starter template (e.g., `next-ai-starter` or similar), providing a base setup for Next.js, TypeScript, Tailwind, Shadcn UI, and Supabase integration.
 **Note:** This project uses a foundation based on Next.js, TypeScript, Tailwind, Shadcn UI, Prisma, and NextAuth. tRPC is used for the API layer.
+
+## 7. Background Jobs & Tasks
+
+- **Inngest:** Used for handling asynchronous tasks or potentially long-running operations (e.g., complex report generation, external API calls). See `inngest.config.ts` and `src/app/api/inngest/route.ts`.
+- **Polling:** UI updates based on Inngest events should use polling mechanisms rather than relying directly on tRPC mutation success for background job completion status.
+
+## 8. Performance Considerations
+
+- **Database Indexing:** Add indexes in `prisma/schema.prisma` for frequently queried, filtered, or sorted fields.
+- **React Query Caching:** Leverage default tRPC/React Query caching. Use `placeholderData: keepPreviousData` for smooth pagination/updates. Adjust `staleTime` for specific queries where applicable.
+- **Next.js Caching:** Utilize Server Component data caching. Use route segment `revalidate` options for controlling data freshness.
+- **Prefetching:** Use `<Link prefetch={true}>` for common navigation paths. Consider `queryClient.prefetchQuery` in list views for likely detail view navigations.
+- **Bundle Size:** Monitor bundle size using `@next/bundle-analyzer` as complexity grows.
+
+## 9. PDF Generation
+
+- **Strategy:** Server-side generation using a library like Puppeteer is preferred for control and performance.
+- **Implementation:** Likely triggered via a tRPC mutation calling an Inngest function or a dedicated API route that performs the generation and returns the file.
+- **Templates:** Requires HTML/CSS templates designed for PDF output.
+
+## 10. Code Quality & Standards
+
+- **TypeScript:** Strict mode, avoid `any`, use utility types.
+- **ESLint/Prettier:** Enforce consistent code style and catch potential errors.
+- **Naming Conventions:** PascalCase for components/types, camelCase for variables/functions, snake_case for DB tables/fields.
+- **Modularity:** Organize code by feature/domain within `/src/app`, `/src/components`, `/src/lib`.
+- **Reusability:** Place shared logic in `src/lib/utils.ts` or feature-specific utility files.
+- **Error Handling:** Consistent error handling in tRPC procedures and UI components.

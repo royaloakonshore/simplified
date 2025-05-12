@@ -99,3 +99,16 @@ When working with Prisma in this project, remember these important steps:
 - Resolve the `firstName` type errors and re-enable the field.
 - Implement the "Edit Invoice" functionality.
 - Improve invoice numbering robustness. 
+
+## [YYYY-MM-DD] - Feature Planning & Documentation Update
+
+**Goal:** Plan next implementation steps based on user requirements and refine documentation.
+
+**Summary:**
+- Discussed requirements for enhancing Orders (Quotes/Work Orders), Invoices (Discounts, VAT RC), Inventory (Pricelist, Stock Alerts), BOMs, and Production views.
+- Referenced general ERP patterns (ERPNext) for context.
+- Defined implementation plans including necessary schema changes (OrderType, showInPricelist, vatReverseCharge, BOM models, discount fields), tRPC updates, UI modifications, and Finvoice considerations.
+- Clarified stock level tracking (calculated from transactions) and negative stock handling (generate alerts, don't block transactions).
+- Updated all relevant documentation files (`00-product-requirements.md`, `01-architecture-layout.md`, `02-type-flow-and-finvoice.md`, `03-user-business-flows.md`, `04-agent-implementation-plan.md`, `05-tech-stack-and-patterns.md`) to reflect the merged requirements, corrected information, and removed obsolete details.
+
+**Next Steps:** Proceed with implementing features outlined in Phase 2 of `04-agent-implementation-plan.md`, starting potentially with schema changes and backend logic for Order Types or BOMs. 

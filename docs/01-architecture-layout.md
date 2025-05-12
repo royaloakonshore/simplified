@@ -108,8 +108,13 @@ erp-system/
 ## 7. Database Design
 
 - See `prisma/schema.prisma` for the database schema.
+- Key additions based on recent requirements:
+    - `Order` model: Added `orderType` enum (`quotation`, `work_order`). Added `discountAmount`, `discountPercentage` to `OrderItem`.
+    - `Invoice` model: Added `vatReverseCharge` boolean. Added `discountAmount`, `discountPercentage` to `InvoiceItem`.
+    - `InventoryItem` model: Added `showInPricelist` boolean.
+    - **New Models:** `BillOfMaterial` and `BillOfMaterialItem` to manage BOM structures.
 - Use Prisma Migrate (`npx prisma migrate dev`) for schema changes.
-- Database access rules can be managed via application logic, as Supabase RLS is not directly used with Prisma in this setup (though database-level permissions still apply).
+- **Stock Alerts:** Negative stock levels are permitted but should trigger application-level alerts (mechanism TBD - likely involves querying aggregated transactions).
 
 ## 8. Architecture Layout & Project Structure
 
@@ -206,3 +211,14 @@ erp-system/
 *   **Zod Schemas (`src/lib/schemas/`):** Define data shapes and validation rules, used in forms and tRPC procedures.
 *   **Types (`src/lib/types/`, generated Prisma types):** Define application-specific types and Prisma generated types.
 *   **tRPC Client (`src/lib/trpc/react.tsx`):** Sets up the React Query client and provider for consuming tRPC procedures in Client Components.
+
+## 9. Key Feature Implementation Notes
+
+- **Order Types (Quote/Work Order):** `OrderForm.tsx` uses conditional logic based on the `orderType` field (set on creation) to display relevant fields/actions.
+- **Discounts:** Implemented in `OrderForm`/`InvoiceForm` line items. Calculation logic ensures amount/percentage consistency. Backend calculates totals *after* discounts.
+- **VAT Reverse Charge:** Checkbox in `InvoiceForm`. If true, backend (`invoice.create`/`update`) forces line item VAT to 0 and flags the invoice. Finvoice service (`finvoice.service.ts`) needs specific XML mapping for this flag.
+- **Pricelist:** Inventory list view includes filtering logic based on `materialType` and `showInPricelist`. Separate PDF export function uses dedicated tRPC query.
+- **BOMs:** Managed via new `/boms` route/components and `bom.ts` tRPC router. Cost calculation performed server-side.
+- **Inventory Deduction:** Logic within `order.updateStatus` tRPC mutation triggers inventory transactions when status becomes `in_production`.
+- **Stock Alerts:** Negative stock is handled by creating standard inventory transactions. A separate mechanism (e.g., dashboard query, dedicated alert table/view) is needed to identify and display items with negative calculated stock or below thresholds.
+- **PDF Generation:** Planned strategy is server-side generation (e.g., Puppeteer via tRPC/Inngest) for Invoices and Pricelists. Requires template design.

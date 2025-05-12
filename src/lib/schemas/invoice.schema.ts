@@ -56,7 +56,7 @@ export const invoicePaginationSchema = z.object({
   perPage: z.coerce.number().int().positive().optional().default(10),
   sortBy: z.string().optional().default('invoiceDate'),
   sortDirection: z.enum(['asc', 'desc']).optional().default('desc'),
-});
+}); 
 
 // Schema for a single invoice item
 export const InvoiceItemSchema = z.object({

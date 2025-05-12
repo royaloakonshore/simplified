@@ -118,11 +118,11 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <FormField
                 control={form.control}
@@ -137,7 +137,7 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {customers.map(c => (
+            {customers.map(c => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -226,9 +226,9 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                   </FormItem>
                 )}
               />
-            </div>
+        </div>
 
-            <div>
+        <div>
               <FormLabel>Items *</FormLabel>
               <Table>
                 <TableHeader>
@@ -391,7 +391,7 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                   {form.formState.errors.items.root.message}
                 </p>
               )}
-            </div>
+        </div>
 
             <div className="mt-4 space-y-2 flex justify-end">
               <div className="w-full md:w-1/3 space-y-1">
@@ -408,7 +408,7 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                   <span>{grandTotal.toFixed(2)}</span>
                 </div>
               </div>
-            </div>
+        </div>
 
              <FormField
                 control={form.control}
@@ -429,16 +429,16 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                 )}
               />
 
-          </CardContent>
-          <CardFooter className="flex justify-end">
+      </CardContent>
+      <CardFooter className="flex justify-end">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="mr-2">
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? "Saving..." : (isEditMode ? "Save Changes" : "Create Invoice")}
-            </Button>
-          </CardFooter>
-        </Card>
+         </Button>
+      </CardFooter>
+    </Card>
       </form>
     </Form>
   );

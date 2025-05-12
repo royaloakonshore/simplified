@@ -1,6 +1,6 @@
 "use client";
 
-import { type Order, OrderStatus, type Customer, Prisma } from "@prisma/client";
+import { type Order, OrderStatus, OrderType, type Customer, Prisma } from "@prisma/client";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,18 @@ const formatDate = (date: Date) => {
   return new Date(date).toLocaleDateString('fi-FI', {
     year: 'numeric', month: '2-digit', day: '2-digit',
   });
+};
+
+// Helper function to get order type display text
+const getOrderTypeDisplay = (orderType: OrderType): string => {
+  switch (orderType) {
+    case OrderType.work_order:
+      return "Work Order";
+    case OrderType.quotation:
+      return "Quotation";
+    default:
+      return orderType;
+  }
 };
 
 // Status badge variant mapping (similar to OrderDetail)
@@ -84,10 +96,10 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Order #</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
-              {/* <TableHead>Items</TableHead> */}{/* Removed, as items are not fetched in list */}
               <TableHead className="text-right">Total</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
@@ -95,7 +107,7 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No orders found.
                 </TableCell>
               </TableRow>
@@ -107,6 +119,11 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
                        {order.orderNumber}
                      </Link>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {getOrderTypeDisplay(order.orderType)}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{order.customer?.name ?? '-'}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
                   <TableCell>
@@ -114,7 +131,6 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
                         {order.status.replace('_', ' ').toUpperCase()}
                      </Badge>
                   </TableCell>
-                  {/* <TableCell>{order.items.length}</TableCell> */}
                   <TableCell className="text-right">{formatCurrency(order.totalAmount)}</TableCell>
                    <TableCell className="text-right">
                      <Button variant="outline" size="sm" asChild>

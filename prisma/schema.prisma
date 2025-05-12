@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  directUrl = env("DIRECT_URL") // Required for Prisma connection pooling in production with PgBouncer
   schemas   = ["public", "auth"]
 }
 
@@ -25,6 +25,7 @@ model User {
   isAdmin        Boolean   @default(false)
   accounts       Account[]
   sessions       Session[]
+  orders         Order[]
 
   @@schema("public")
 }
@@ -60,8 +61,8 @@ model Session {
 }
 
 enum UserRole {
-  user
   admin
+  user
 
   @@schema("public")
 }
@@ -171,26 +172,55 @@ model InventoryTransaction {
 enum OrderStatus {
   draft
   confirmed
-  in_production // Changed from picking, packing, ready
+  in_production // Added for clarity, maps to production workflow
   shipped
-  delivered
+  delivered // Added for clarity
   cancelled
+  quote_sent // Added for quote lifecycle
+  quote_accepted // Added for quote lifecycle
+  quote_rejected // Added for quote lifecycle
+  
+  @@schema("public")
+}
 
+enum OrderType {
+  quotation
+  work_order
+  
+  @@schema("public")
+}
+
+enum InventoryMaterialType {
+  raw_material
+  manufactured
+  
   @@schema("public")
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  customerId  String
-  orderNumber String      @unique
-  status      OrderStatus @default(draft)
-  totalAmount Decimal     @db.Decimal(10, 2)
-  notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  items       OrderItem[]
-  invoices    Invoice[]
+  id             String      @id @default(cuid())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  orderNumber    String      @unique // Consider sequence or better generation
+  orderDate      DateTime    @default(now())
+  status         OrderStatus @default(draft)
+  orderType      OrderType   @default(work_order) // Add orderType field, default to work_order
+  notes          String?     @db.Text
+  customerId     String
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  items          OrderItem[]
+  totalAmount    Decimal     @default(0.00) @db.Decimal(10, 2) // Calculated from items
+  invoiceId      String?     @unique // Link to the generated Invoice
+  invoice        Invoice?    
+  productionStep String? // Link to current step in a potential Kanban board
+  // companyId      String? // Future: for multi-tenancy
+  // company        Company? @relation(fields: [companyId], references: [id]) // Future
+  userId         String // Link to the user who created the order
+  user           User        @relation(fields: [userId], references: [id])
+
+  @@index([customerId])
+  @@index([userId])
+  // @@index([companyId]) // Future
 
   @@schema("public")
 }
@@ -222,7 +252,7 @@ model Invoice {
   id              String        @id @default(cuid())
   invoiceNumber   String        @unique
   customerId      String
-  orderId         String?       // Optional link to originating order
+  orderId         String?       @unique // Optional link to originating order - must be unique for one-to-one relation
   status          InvoiceStatus @default(draft)
   invoiceDate     DateTime      @default(now()) // Changed from issueDate
   dueDate         DateTime

@@ -13,7 +13,7 @@ import {
   OrderItemInput, // Import the type
   UpdateOrderInput, // Explicitly import UpdateOrderInput
 } from "@/lib/schemas/order.schema";
-import { OrderStatus, Prisma, TransactionType } from "@prisma/client";
+import { OrderStatus, OrderType, Prisma, TransactionType } from "@prisma/client";
 
 // Helper function to calculate order total (consider moving to a service if complex)
 const calculateOrderTotal = async (items: OrderItemInput[], tx: Prisma.TransactionClient) => {
@@ -173,8 +173,10 @@ export const orderRouter = createTRPCRouter({
 
   create: protectedProcedure
     .input(createOrderSchema)
-    .mutation(async ({ input }) => {
-      const { customerId, items, notes, status } = input;
+    .mutation(async ({ input, ctx }) => {
+      const { customerId, items, notes, status, orderType } = input;
+      // Get userId from the authenticated context
+      const userId = ctx.session.user.id;
 
       // Add explicit type for some parameter
       if (items.some((item: OrderItemInput) => item.unitPrice === undefined || item.unitPrice === null)) {
@@ -203,8 +205,10 @@ export const orderRouter = createTRPCRouter({
         const order = await tx.order.create({
           data: {
             customerId,
+            userId, // Add userId from the authenticated context
             orderNumber,
             status: status ?? OrderStatus.draft,
+            orderType: orderType ?? OrderType.work_order,
             totalAmount,
             notes,
             items: {

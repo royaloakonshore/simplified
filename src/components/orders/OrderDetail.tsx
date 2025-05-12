@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type Order, OrderStatus, type Customer, type OrderItem, type InventoryItem, type Address, Prisma } from "@prisma/client"; // Import Prisma types
+import { type Order, OrderStatus, OrderType, type Customer, type OrderItem, type InventoryItem, type Address, Prisma } from "@prisma/client"; // Import Prisma types
 import { api } from "@/lib/trpc/react"; // Import tRPC hook
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
@@ -27,6 +27,18 @@ type OrderDetailProps = {
     // Add stock status info if needed, fetched separately or included
     // stockStatus?: { itemId: string; hasSufficientStock: boolean; }[];
   };
+};
+
+// Helper function to get order type display text
+const getOrderTypeDisplay = (orderType: OrderType): string => {
+  switch (orderType) {
+    case OrderType.work_order:
+      return "Work Order";
+    case OrderType.quotation:
+      return "Quotation";
+    default:
+      return orderType;
+  }
 };
 
 export default function OrderDetail({ order }: OrderDetailProps) {
@@ -121,6 +133,9 @@ export default function OrderDetail({ order }: OrderDetailProps) {
         <div className="flex flex-wrap justify-between items-center gap-4">
           <h2 className="text-xl font-semibold">Order {order.orderNumber}</h2>
           <div className="flex items-center space-x-2">
+            <Badge variant="outline">
+              {getOrderTypeDisplay(order.orderType)}
+            </Badge>
             <Badge variant={getStatusBadgeVariant(order.status)}>
               {order.status.replace('_', ' ').toUpperCase()}
             </Badge>

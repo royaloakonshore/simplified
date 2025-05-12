@@ -129,7 +129,12 @@ Internal data models (`Customer`, `Invoice`, `InvoiceItem`, etc. in `src/lib/typ
 *   **Line Items:** Map `InvoiceItem` details (`description`, `quantity`, `unitPrice`, `unitCode`, `vatRatePercent`) precisely to `InvoiceLine` elements.
     *   Requires internal `InventoryItem` to have `unitCode` (e.g., 'kpl', 'h').
     *   Requires `vatRatePercent` on line items.
+    *   **Discounts:** Discounts applied to `InvoiceItem` (`discountAmount` or calculated from `discountPercentage`) should be reflected in the `InvoiceLine` structure, potentially using `LineDiscountAmount` or adjusting `LineBaseAmount` according to Finvoice specs.
 *   **Payment Details:** Map invoice `dueDate`, `invoiceTotal` (incl./excl. VAT), bank details (from settings) to `PaymentTermsDetails` and `InvoiceRecipientDetails`.
+*   **VAT Reverse Charge:** If the `Invoice.vatReverseCharge` flag is `true`:
+    *   All line item `vatRatePercent` values sent in the XML should be `0`.
+    *   A specific VAT exemption reason code/text needs to be included. Consult Finvoice 3.0 specification (Section 5.17 VatSpecificationDetails) for the appropriate `VatExemptionReasonCode` or `VatExemptionReasonText` (e.g., Code "VATRC" for Reverse Charge might be applicable, or specific Finnish codes).
+    *   This likely involves adding conditional logic within `finvoice.service.ts` to populate `<VatSpecificationDetails>` elements correctly when the flag is active.
 
 **References:**
 

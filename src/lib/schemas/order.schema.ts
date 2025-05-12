@@ -1,7 +1,7 @@
 // NOTE: Removed 'use client' directive as schemas are used server-side in tRPC.
 
 import { z } from "zod";
-import { OrderStatus } from "@prisma/client"; // Import OrderStatus enum from Prisma
+import { OrderStatus, OrderType } from "@prisma/client"; // Import OrderStatus and OrderType enums from Prisma
 
 /**
  * Schema for order item validation
@@ -25,6 +25,7 @@ export const orderBaseSchema = z.object({
   customerId: z.string().cuid({ message: 'Customer must be selected' }),
   orderNumber: z.string().optional(), // Consider auto-generating this
   status: z.nativeEnum(OrderStatus).default(OrderStatus.draft),
+  orderType: z.nativeEnum(OrderType).default(OrderType.work_order), // Add orderType field
   notes: z.string().optional(),
   items: z.array(orderItemSchema).min(1, 'Order must have at least one item'),
   // totalAmount will likely be calculated on the server, not submitted by client
@@ -44,6 +45,7 @@ export const updateOrderSchema = orderBaseSchema.extend({
 }).partial({ // Make only fields intended for update optional
   // customerId: true, // Keep customerId required
   status: true, // Keep status optional (managed by updateStatus procedure)
+  orderType: true, // Make orderType optional for updates
   notes: true,
   items: true,
 });
@@ -70,6 +72,7 @@ export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export const orderFilterSchema = z.object({
   customerId: z.string().optional(),
   status: z.nativeEnum(OrderStatus).optional(),
+  orderType: z.nativeEnum(OrderType).optional(), // Add orderType filter
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
   searchTerm: z.string().optional(),
@@ -82,7 +85,7 @@ export const orderPaginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   perPage: z.coerce.number().int().positive().default(10),
   sortBy: z
-    .enum(["createdAt", "orderNumber", "status", "totalAmount"])
+    .enum(["createdAt", "orderNumber", "status", "orderType", "totalAmount"])
     .default("createdAt"),
   sortDirection: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -95,6 +98,7 @@ export const listOrdersSchema = z.object({
   cursor: z.string().nullish(),
   customerId: z.string().cuid().optional(),
   status: z.nativeEnum(OrderStatus).nullish(),
+  orderType: z.nativeEnum(OrderType).nullish(), // Add orderType filter
   // Add other filters: date range, search term?
 });
 

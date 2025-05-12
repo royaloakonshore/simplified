@@ -141,7 +141,7 @@ const columns: ColumnDef<InvoiceTableRowData>[] = [
 
         return <Badge variant={variant} className="capitalize">{status.toLowerCase().replace('_', ' ')}</Badge>;
     },
-  },
+    },
   {
     accessorKey: "itemCount", // Display itemCount
     header: "Items",
@@ -286,64 +286,64 @@ export default function InvoiceListContent({
   // Render table
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-          <Input
-              placeholder="Search invoices..."
+        <div className="flex items-center justify-between">
+            <Input
+                placeholder="Search invoices..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="max-w-sm"
-          />
-          <div className="flex items-center space-x-2">
-              <DataTableFacetedFilter
-                  column={table.getColumn('status')}
-                  title="Status"
-                  options={statusOptions}
-              />
-          </div>
-      </div>
-      <div className="rounded-md border">
-          <Table>
+                className="max-w-sm"
+            />
+            <div className="flex items-center space-x-2">
+                    <DataTableFacetedFilter
+                        column={table.getColumn('status')}
+                        title="Status"
+                        options={statusOptions}
+                    />
+            </div>
+        </div>
+        <div className="rounded-md border">
+            <Table>
             <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
+                {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
+                        {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                            )}
+                        </TableHead>
                   ))}
                 </TableRow>
-              ))}
+                ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
+                {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
+                    <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                  >
+                    >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} style={{ width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+                        </TableCell>
                     ))}
-                  </TableRow>
+                    </TableRow>
                 ))
-              ) : (
+                ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
                     No results.
-                  </TableCell>
+                    </TableCell>
                 </TableRow>
-              )}
+                )}
             </TableBody>
-          </Table>
-      </div>
-      <DataTablePagination table={table} />
+            </Table>
+        </div>
+        <DataTablePagination table={table} />
     </div>
   );
 } 

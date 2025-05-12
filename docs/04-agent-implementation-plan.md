@@ -16,83 +16,71 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 *   User configures `.env.local` with Supabase URL and Anon Key.
 *   User copies the updated documentation files (from the `docs/project-overview/` directory generated in the previous session) into the new project's `docs/` folder.
 
-**Phase 1: Foundation & Core Modules (Agent)**
+**Phase 1: Foundation & Core Modules (Partially Complete)**
 
-**Step 1: Verify & Adapt Starter Template**
-    *   **Goal:** Ensure the starter template aligns with project requirements (theme, structure, core libraries, Supabase SSR setup).
-    *   **Tasks:**
-        *   Verify core dependencies are present (`next`, `react`, `typescript`, `tailwindcss`, `shadcn-ui`, `@supabase/ssr`, `zod`, `react-hook-form`, etc.). Install any missing essentials specifically required by this plan (`nuqs`, `xmlbuilder2`).
-        *   Verify Supabase client setup (`src/lib/supabase/client.ts`, `server.ts`, `middleware.ts` or equivalents) is correctly configured using `@supabase/ssr` and environment variables for proper Server/Client component/Server Action/Middleware integration.
-        *   Verify basic authentication flow provided by the starter (login, signup, protected routes via middleware) is functional. Note any deviations from standard Supabase auth patterns.
-        *   Adapt `src/app/globals.css` and `tailwind.config.js` (or equivalent theme config) to enforce the **strict monochrome theme** (using Shadcn 'neutral' colors as base). Remove or override any conflicting theme setup from the starter.
-        *   Confirm ESLint, Prettier, and TypeScript configurations (`.eslintrc.json`, `.prettierrc.json`, `tsconfig.json`) are present and enforce strict rules as per `05-tech-stack-and-patterns.md`.
-        *   Adjust the directory structure *if necessary* to align better with `docs/project-overview/01-architecture-layout.md`'s conceptual layout (e.g., ensure logical separation for `actions`, `schemas`, `types`, `components` per domain).
-        *   Generate initial Supabase database types: `npx supabase gen types typescript --project-id <your-project-id> --schema public > src/lib/types/supabase.ts` (Request `<your-project-id>` from User if not provided).
+1.  **Setup & Config:** Project init, dependencies, DB connection, env vars. (DONE)
+2.  **Authentication:** NextAuth setup (Email/Credentials), Prisma Adapter, Sign-in page, Settings page (Password/Profile). (DONE - Email provider temporarily disabled)
+3.  **Core Layout:** Main app layout, Shadcn Sidebar navigation. (DONE)
+4.  **Customer Module:** Schema, tRPC router (CRUD), List/Detail/Form components. (DONE)
+5.  **Inventory Module (Basic):** Schema (Item, Transaction), tRPC router (CRUD for Item, AdjustStock), List/Detail/Form components. (DONE)
+6.  **Order Module (Initial):** Schema, tRPC router (CRUD), List/Detail/Form components. (DONE - Basic form implemented, needs Quote/Work Order logic)
+7.  **Invoice Module (Initial):** Schema, tRPC router (List, Get, Create), List/Detail/Form components. (DONE - Basic form implemented)
+8.  **Production Module (Basic):** Schema stubs (if any), Kanban view component (basic), link from Orders. (DONE - Basic Kanban implemented)
 
-**Step 2: Customer Management Module**
-    *   **Goal:** Implement core CRUD functionality for customers, including Finvoice-specific fields.
-    *   **Tasks:**
-        *   Define Customer type (`src/lib/types/customer.types.ts`) including all necessary fields: name, contact info, multiple addresses (type: billing/shipping), and **Finvoice fields (VAT ID/Y-tunnus, OVT/EDI Identifier)**.
-        *   Define Zod schema for customer validation (`src/lib/schemas/customer.schema.ts`) covering creation and updates.
-        *   Implement Server Actions (`src/lib/actions/customer.actions.ts`) for `createCustomer`, `getCustomerById`, `listCustomers` (with robust pagination/filtering options), `updateCustomer`, `deleteCustomer`. Ensure validation using the Zod schema and compatibility with Supabase RLS (Row Level Security policies should be assumed or basic ones implemented).
-        *   Create Customer list page (`src/app/(erp)/customers/page.tsx` - adjust route group if starter uses a different one) using React Server Components (RSC) for data fetching via the `listCustomers` action.
-        *   Implement a reusable `CustomerTable` component (`src/components/customers/CustomerTable.tsx`) using Shadcn Table, displaying key customer info. Integrate URL state management (`nuqs`) for pagination, sorting, and filtering directly within the table/page.
-        *   Create Add Customer page (`src/app/(erp)/customers/add/page.tsx`) and Edit Customer page (`src/app/(erp)/customers/[id]/edit/page.tsx`).
-        *   Implement a reusable `CustomerForm` component (`src/components/customers/CustomerForm.tsx`) using Shadcn Form components, React Hook Form, the Zod schema for validation, and connecting submission to the `createCustomer`/`updateCustomer` Server Actions.
-        *   Implement Customer detail view (`src/app/(erp)/customers/[id]/page.tsx`) displaying full customer details and potentially related orders/invoices later.
-        *   Write basic unit/integration tests (Vitest/RTL) for Server Actions, form validation, and core component rendering.
+**Phase 2: Feature Enhancement & Integration (Current Focus)**
 
-**Step 2b: Enhance Customer List & UI (Lower Priority)**
-    *   **Goal:** Improve usability and appearance of the customer list.
-    *   **Tasks:**
-        *   Implement robust filtering and sorting options in the `CustomerTable` component, managed by URL state (`nuqs`). Update the `customer.list` tRPC procedure to accept filter/sort parameters.
-        *   Refine pagination controls in `CustomerTable`/`CustomersPage` (e.g., Previous/Next buttons, page number display).
-        *   Implement Skeleton Loaders (using Shadcn `Skeleton`) in `CustomerTable` for a better loading state experience.
+9.  **Order Module - Quote/Work Order:**
+    *   Add `orderType` enum and field to `Order` schema.
+    *   Update `OrderForm` with conditional logic/UI for Quote vs. Work Order.
+    *   Update `OrderListContent` to show `orderType`.
+    *   Refine Order statuses if needed based on type.
+10. **Order/Invoice Line Item Enhancements:**
+    *   Add `discountAmount`, `discountPercentage` to `OrderItem`/`InvoiceItem` schemas.
+    *   Add `vatReverseCharge` flag to `Invoice` schema.
+    *   Update `OrderForm`/`InvoiceForm` item tables with discount fields.
+    *   Add VAT dropdown (Finnish levels) to `InvoiceForm` items.
+    *   Add VAT Reverse Charge checkbox to `InvoiceForm`.
+    *   Update backend total calculations for discounts.
+    *   Update backend invoice creation to handle `vatReverseCharge` (set VAT to 0).
+11. **BOM Module:**
+    *   Define `BillOfMaterial` and `BillOfMaterialItem` schemas.
+    *   Create tRPC router (`bom.ts`) with CRUD procedures.
+    *   Implement BOM Create/Edit form UI.
+    *   Implement backend BOM cost calculation logic.
+12. **Inventory - Pricelist & Stock Alerts:**
+    *   Add `showInPricelist` field to `InventoryItem` schema.
+    *   Update Inventory list UI with "Show Pricelist" button and filtering logic.
+    *   Implement tRPC query for pricelist data.
+    *   Add "Add to Pricelist" checkbox to Inventory item form.
+    *   Implement negative stock alert detection logic (querying transactions).
+    *   Add Stock Alert display UI (e.g., table in Inventory page, Dashboard widget).
+    *   Implement recurring Toast notifications for active alerts.
+13. **Inventory Deduction for Production:**
+    *   Modify `order.updateStatus` tRPC mutation to create negative `InventoryTransaction` records based on BOMs when status changes to `in_production`.
+    *   Handle negative stock case by generating alert, not failing transaction.
+14. **Finvoice Enhancements:**
+    *   Update `finvoice.service.ts` to map discounts correctly.
+    *   Update `finvoice.service.ts` to handle `vatReverseCharge` flag (set VAT to 0, add exemption reason code/text).
+15. **PDF Generation (Invoice & Pricelist):**
+    *   Choose/set up server-side PDF generation library (e.g., Puppeteer).
+    *   Create API routes or Inngest functions triggered by tRPC mutations.
+    *   Develop basic PDF templates.
+16. **Production View Simplification:**
+    *   Update Production module tRPC queries to exclude pricing fields.
+    *   Ensure Production UI does not display prices.
+17. **Item Selection Dropdown:**
+    *   Update item selection in `OrderForm`/`InvoiceForm` to use a searchable Combobox.
+    *   Implement tRPC query (`inventory.getSelectableItems`) filtering by `showInPricelist`.
 
-**Step 3: Inventory Management Module**
-    *   **Goal:** Implement core CRUD for inventory items and basic stock transaction tracking.
-    *   **Tasks:**
-        *   Define Inventory Item type (`src/lib/types/inventory.types.ts`) including SKU, name, description, **Unit of Measure (UOM, e.g., 'kpl', 'ltr')**, cost price, sales price.
-        *   Define Inventory Transaction type (`src/lib/types/inventory.types.ts`) to record stock movements (type: purchase/sale/adjustment, quantity change, timestamp, related item ID).
-        *   Define Zod schemas (`src/lib/schemas/inventory.schema.ts`) for item creation/update and potentially stock adjustments.
-        *   Implement Server Actions (`src/lib/actions/inventory.actions.ts`) for `createItem`, `getItemById`, `listItems` (with pagination/filtering), `updateItem`, `deleteItem`. Implement `adjustStock` action which creates an `InventoryTransaction` record.
-        *   Create Inventory list page (`src/app/(erp)/inventory/page.tsx`) using RSC and `listItems` action.
-        *   Implement reusable `InventoryTable` component (`src/components/inventory/InventoryTable.tsx`) with pagination/filtering (`nuqs`).
-        *   Create Add Item page (`src/app/(erp)/inventory/add/page.tsx`) and Edit Item page (`src/app/(erp)/inventory/[id]/edit/page.tsx`).
-        *   Implement reusable `InventoryItemForm` component (`src/components/inventory/InventoryItemForm.tsx`).
-        *   Implement UI for stock adjustments (e.g., a modal invoked from the item list or detail page) linked to the `adjustStock` action.
-        *   Consider adding a calculated `quantityOnHand` field (either via DB view/function or calculated within `listItems`/`getItemById` actions based on transactions).
-        *   Write tests for actions and form validation.
+**Phase 3: Refinement & Advanced Features**
 
-**Step 4: Order Management Module**
-    *   **Goal:** Implement order creation, lifecycle management (including stock checks), and a basic fulfillment view.
-    *   **Tasks:**
-        *   Define Order and OrderItem types (`src/lib/types/order.types.ts`). Order should include reference to Customer, status, totals. OrderItem should include reference to InventoryItem, quantity, price at time of order.
-        *   Define Order Status enum (`src/lib/types/order.types.ts` or constants): `Draft` -> `Confirmed` -> `Processing` (internal steps like Picking/Packing) -> `Shipped` -> `Delivered` -> `Cancelled`.
-        *   Define Zod schemas (`src/lib/schemas/order.schema.ts`) for order and order item validation.
-        *   Implement Server Actions (`src/lib/actions/order.actions.ts`) for `createOrder`, `getOrderById`, `listOrders`, `addOrderItem`, `removeOrderItem`, `updateOrderItem`. Crucially, implement `updateOrderStatus` which enforces the lifecycle rules. **The transition to `Confirmed` must check current `quantityOnHand` for all line items; fail if insufficient stock, succeed and potentially allocate/decrement stock (or flag for backorder - TBD) if sufficient.**
-        *   Create Order list page (`src/app/(erp)/orders/page.tsx`) using RSC and `listOrders` action.
-        *   Implement reusable `OrderTable` component (`src/components/orders/OrderTable.tsx`).
-        *   Create Add/Edit Order page/form (`src/app/(erp)/orders/add/page.tsx`, `src/app/(erp)/orders/[id]/edit/page.tsx`). This form (`OrderForm`) needs to allow selecting a Customer and adding/editing/removing OrderItems (with Inventory Item lookup/selection, possibly using Shadcn `Combobox` or similar).
-        *   Implement Order detail view (`src/app/(erp)/orders/[id]/page.tsx`) showing order details, items, status, and controls for status updates (e.g., 'Confirm Order', 'Mark Shipped' buttons linked to `updateOrderStatus` action).
-        *   Create basic Fulfillment view (`src/app/(erp)/fulfillment/page.tsx` or similar route) showing orders in 'Processing' stages (e.g., Confirmed, Picking, Packing, Ready). Implement as a Table or simple Kanban board allowing status updates within the processing stages via `updateOrderStatus`.
-        *   Write tests for actions, especially status transition logic and stock checking.
-
-**Step 5: Invoicing Module & Finvoice Export**
-    *   **Goal:** Implement invoice generation (from orders and manually), status management, payment recording, and **mandatory Finvoice 3.0 (Netvisor) XML export**.
-    *   **Tasks:**
-        *   Define Invoice and InvoiceItem types (`src/lib/types/invoice.types.ts`). Invoice needs links to Order (optional) and Customer, status, due date, payment details. InvoiceItem needs link to Product/OrderItem, quantity, price, VAT details.
-        *   Define Invoice Status enum (`src/lib/types/invoice.types.ts` or constants): `Draft` -> `Sent` -> `Paid` -> `Overdue` -> `Cancelled`.
-        *   Define Zod schemas (`src/lib/schemas/invoice.schema.ts`).
-        *   Implement Server Actions (`src/lib/actions/invoice.actions.ts`) for `createInvoiceFromOrder` (populating details from a 'Shipped' Order), `createManualInvoice`, `getInvoiceById`, `listInvoices`, `updateInvoiceStatus` (logic for setting 'Overdue'), `recordPayment`.
-        *   Implement Finvoice generation logic in a dedicated service (`src/lib/services/finvoice.service.ts`) using `xmlbuilder2`. This service needs a function (e.g., `generateFinvoiceXml`) that accepts an internal `Invoice` object (and related Customer/Items/Settings data) and returns the complete Finvoice 3.0 XML string, **strictly adhering to the Netvisor import specification**. This requires careful mapping of all required fields (Seller Party from settings, Buyer Party from Customer, line items, VAT calculations, payment terms, bank details, etc.).
-        *   Add a Server Action (`generateAndDownloadFinvoice` in `invoice.actions.ts`) that fetches the required invoice data, calls the `finvoice.service`, and returns the XML content appropriately for browser download (e.g., as a `Blob` or data URL with correct headers).
-        *   Create Invoice list page (`src/app/(erp)/invoices/page.tsx`) using RSC and `listInvoices` action.
-        *   Implement reusable `InvoiceTable` component (`src/components/invoices/InvoiceTable.tsx`).
-        *   Create Invoice detail view (`src/app/(erp)/invoices/[id]/page.tsx`) displaying invoice details, items, status, payment history, and the **'Export Finvoice (Netvisor)' button** (enabled for 'Sent' invoices) triggering the download action.
-        *   Implement UI for manual invoice creation (`src/app/(erp)/invoices/add/page.tsx` with `InvoiceForm`).
-        *   Implement UI for recording payments (e.g., a modal on the detail view) linked to the `recordPayment` action.
-        *   Write tests, paying **critical attention to the `finvoice.service` logic** to ensure XML validity and correctness against examples/specs.
+18. **Resolve Known Issues:** Fix `nodemailer` build error, re-enable Email provider. Fix `firstName` type errors.
+19. **Robust Invoice Numbering:** Implement DB sequence or locking.
+20. **Performance Optimization:** Add DB indexes, review query efficiency, implement caching/prefetching as needed.
+21. **Testing:** Add unit/integration tests for critical logic (calculations, inventory updates, Finvoice mapping).
+22. **Multi-Tenancy:** Implement fully scoped data access using `companyId` and `companyProtectedProcedure`.
+23. **Advanced Reporting:** Implement more detailed reports.
+24. **UI/UX Polish:** Refine layouts, improve error handling displays, add confirmations.
 
 **Step 6: Settings & Finalization**
     *   **Goal:** Implement basic settings and finalize the application.

@@ -28,9 +28,9 @@ const getOrderBy = (
     case 'status':
       return { status: direction };
     case 'customerName': // Requires relation sorting
-      return { customer: { name: direction } };
+    return { customer: { name: direction } };
     default:
-      return { invoiceDate: direction }; // Fallback default sort
+  return { invoiceDate: direction }; // Fallback default sort
   }
 };
 

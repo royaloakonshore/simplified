@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, type SubmitHandler, FormProvider, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Order, type OrderItem, OrderStatus, type Customer, type InventoryItem } from "@prisma/client";
+import { type Order, type OrderItem, OrderStatus, OrderType, type Customer, type InventoryItem } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
@@ -55,6 +55,7 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
       customerId: '',
       notes: '',
       status: OrderStatus.draft,
+      orderType: OrderType.work_order, // Default to work_order
       items: [{ itemId: '', quantity: 1, unitPrice: 0 }],
     },
   });
@@ -82,6 +83,7 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
             id: order.id,
             customerId: order.customerId,
             notes: order.notes ?? '',
+            orderType: order.orderType ?? OrderType.work_order, // Include orderType
             items: order.items.map(item => ({
                 id: item.id,
                 itemId: item.itemId,
@@ -95,6 +97,7 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
             customerId: '',
             notes: '',
             status: OrderStatus.draft,
+            orderType: OrderType.work_order, // Default to work_order
             items: [{ itemId: '', quantity: 1, unitPrice: 0 }],
         });
     }
@@ -235,6 +238,31 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                   </FormItem>
                 )}
               />
+              
+              {/* Order Type Selection (Bound to updateForm) */}
+              <FormField
+                control={updateForm.control}
+                name={"orderType"}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Order Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
+                        <SelectItem value={OrderType.quotation}>Quotation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {field.value === OrderType.work_order ? 
+                        "Work orders track production and can generate invoices." : 
+                        "Quotations provide pricing information to customers."}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               {/* Items Table (Bound to updateForm) */}
               <div className="space-y-2">
                 <FormLabel>Order Items</FormLabel>
@@ -347,6 +375,31 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                     </FormItem>
                  )}
                />
+               
+               {/* Order Type Selection (Bound to createForm) */}
+               <FormField
+                 control={createForm.control}
+                 name={"orderType"}
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Order Type</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                       <SelectContent>
+                         <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
+                         <SelectItem value={OrderType.quotation}>Quotation</SelectItem>
+                       </SelectContent>
+                     </Select>
+                     <FormDescription>
+                       {field.value === OrderType.work_order ? 
+                         "Work orders track production and can generate invoices." : 
+                         "Quotations provide pricing information to customers."}
+                     </FormDescription>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+               
                {/* Items Table (Bound to createForm) */}
                <div className="space-y-2">
                  <FormLabel>Order Items</FormLabel>

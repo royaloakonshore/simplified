@@ -34,3 +34,4 @@
 - Added shadcn `Calendar` component.
 - Temporarily commented out NextAuth EmailProvider to resolve persistent `nodemailer` build error.
 - Fixed multiple type errors in `InvoiceListContent` related to data structure changes from `invoice.list` tRPC procedure and component state management.
+- Implemented OrderType feature (quotation/work_order) in schema, forms, and UI with proper validation, defaults, and visual indicators.
