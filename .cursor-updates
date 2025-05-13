@@ -39,3 +39,4 @@
 - Updated `finvoice.service.ts` to correctly include discounts and handle VAT reverse charge in Finvoice XML generation.
 - Fixed NextAuth JWT and session callback type errors by ensuring consistent `UserRole` type usage from `@/lib/auth`.
 - Refactored `src/app/api/auth/[...nextauth]/route.ts` to import `authOptions` from `@/lib/auth` to resolve build errors and centralize configuration.
+- Changed NextAuth session strategy to "jwt" in `src/lib/auth/index.ts` to resolve `CALLBACK_CREDENTIALS_JWT_ERROR` for Credentials provider.

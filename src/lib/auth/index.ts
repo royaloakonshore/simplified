@@ -136,7 +136,7 @@ export const authOptions: NextAuthOptions = {
     // // Needs further investigation to re-enable.
   ],
   session: {
-    strategy: "database",
+    strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
