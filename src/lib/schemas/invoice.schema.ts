@@ -13,7 +13,7 @@ const baseInvoiceItemSchema = z.object({
   description: z.string().min(1, "Description is required"), // This will likely be autopopulated from item
   quantity: z.number().positive("Quantity must be positive"),
   unitPrice: z.number().nonnegative("Unit price cannot be negative"), // Allow 0 for free items
-  vatRatePercent: z.number().min(0).max(100, "VAT rate must be between 0 and 100").default(24), // Default to 24%
+  vatRatePercent: z.number().min(0).max(100, "VAT rate must be between 0 and 100").default(25.5), // Default to 24%
   discountAmount: z.number().nonnegative({ message: 'Discount amount cannot be negative' }).optional().nullable(),
   discountPercent: z.number().min(0).max(100, { message: 'Discount percent must be between 0 and 100' }).optional().nullable(),
 });

@@ -147,18 +147,68 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
   invoice.items.forEach((item, index) => {
     const row = root.ele('InvoiceRow');
     const rowNumber = index + 1;
-    const rowSubTotal = Number(item.quantity) * Number(item.unitPrice);
-    const rowVatAmount = rowSubTotal * (Number(item.vatRatePercent) / 100);
+
+    // Calculate net unit price and line total considering discounts
+    let unitPrice = new Prisma.Decimal(item.unitPrice || 0);
+    let quantity = new Prisma.Decimal(item.quantity || 0);
+    let lineSubTotalBeforeDiscount = unitPrice.times(quantity);
+    let lineNetSubTotal = lineSubTotalBeforeDiscount; // This is RowVatExcludedAmount
+
+    let discountApplied = false;
+    if (item.discountPercent && new Prisma.Decimal(item.discountPercent).gt(0)) {
+      const discountMultiplier = new Prisma.Decimal(1).minus(new Prisma.Decimal(item.discountPercent).div(100));
+      lineNetSubTotal = lineSubTotalBeforeDiscount.times(discountMultiplier);
+      discountApplied = true;
+    } else if (item.discountAmount && new Prisma.Decimal(item.discountAmount).gt(0)) {
+      lineNetSubTotal = lineSubTotalBeforeDiscount.minus(new Prisma.Decimal(item.discountAmount));
+      if (lineNetSubTotal.lt(0)) lineNetSubTotal = new Prisma.Decimal(0); // Ensure not negative
+      discountApplied = true;
+    }
+
+    let rowVatAmountValue = new Prisma.Decimal(0);
+    let currentVatRate = new Prisma.Decimal(item.vatRatePercent || 0);
 
     row.ele('RowPositionIdentifier').txt(rowNumber.toString()).up();
-    row.ele('ArticleName').txt(item.description).up();
-    row.ele('DeliveredQuantity', { QuantityUnitCode: 'kpl' }).txt(formatDecimal(item.quantity, 3)).up(); // TODO: Get UnitCode from item
-    row.ele('UnitPriceAmount').txt(formatDecimal(item.unitPrice)).up();
-    row.ele('RowVatRatePercent').txt(formatDecimal(item.vatRatePercent, 0)).up(); // VAT Rate as integer or 0 decimal
-    row.ele('RowVatAmount').txt(formatDecimal(rowVatAmount)).up();
-    row.ele('RowVatExcludedAmount').txt(formatDecimal(rowSubTotal)).up();
-    row.ele('RowAmount').txt(formatDecimal(rowSubTotal + rowVatAmount)).up(); // Total for the row including VAT
-    row.ele('RowVatCategoryCode').txt('S').up(); // TODO: Determine VAT category code (S=Standard, AE=Exempt, etc.)
+    // ArticleIdentifier can be added if available (e.g., item.sku)
+    row.ele('ArticleName').txt(item.description || 'N/A').up();
+    // TODO: Get UnitCode from item if available, default to 'PCE' (piece) or 'kpl' if appropriate
+    row.ele('DeliveredQuantity', { QuantityUnitCode: 'PCE' }).txt(formatDecimal(quantity, 3)).up(); 
+    row.ele('UnitPriceAmount').txt(formatDecimal(unitPrice)).up(); // Original unit price
+
+    // Add discount information if present
+    if (item.discountPercent && new Prisma.Decimal(item.discountPercent).gt(0)) {
+      row.ele('RowDiscountPercent').txt(formatDecimal(item.discountPercent)).up();
+      // Optionally: Add RowDiscountBaseAmount (lineSubTotalBeforeDiscount) and RowDiscountAmountCalculated if needed by recipient system
+    }
+    if (item.discountAmount && new Prisma.Decimal(item.discountAmount).gt(0) && !(item.discountPercent && new Prisma.Decimal(item.discountPercent).gt(0))) {
+      // Only add fixed discount amount if percentage discount was not applied (to avoid double listing if both exist but % took precedence)
+      row.ele('RowDiscountAmount').txt(formatDecimal(item.discountAmount)).up();
+    }
+
+    row.ele('RowVatExcludedAmount').txt(formatDecimal(lineNetSubTotal)).up(); // Net amount after discount
+
+    if (invoice.vatReverseCharge) {
+      row.ele('RowVatRatePercent').txt('0').up();
+      row.ele('RowVatCode').txt('AE').up(); // AE = VAT Reverse Charge
+      row.ele('RowVatCategoryCode').txt('AE').up(); // Or standard specific code like 'VATEX-EU-AE' if available
+      // Add free text for reverse charge only if not already present at invoice level, or if required per row.
+      // The guide suggested it per row, which is fine for clarity.
+      row.ele('RowFreeText').txt('Käännetty verovelvollisuus / VAT Reverse Charge').up();
+      // rowVatAmountValue remains 0
+    } else {
+      row.ele('RowVatRatePercent').txt(formatDecimal(currentVatRate, 0)).up();
+      rowVatAmountValue = lineNetSubTotal.times(currentVatRate.div(100));
+      // Determine RowVatCategoryCode based on actual VAT rate
+      if (currentVatRate.equals(0)) {
+        row.ele('RowVatCategoryCode').txt('Z').up(); // Zero-rated goods
+      } else {
+        row.ele('RowVatCategoryCode').txt('S').up(); // Standard VAT rate applied
+      }
+    }
+    
+    row.ele('RowVatAmount').txt(formatDecimal(rowVatAmountValue)).up();
+    row.ele('RowAmount').txt(formatDecimal(lineNetSubTotal.plus(rowVatAmountValue))).up(); // Total for the row including VAT
+
   });
 
   // Epi Details (Electronic Payment Information - Finnish specific)
