@@ -37,3 +37,5 @@
 - Implemented OrderType feature (quotation/work_order) in schema, forms, and UI with proper validation, defaults, and visual indicators.
 - Implemented discount and VAT reverse charge enhancements for invoices, including UI updates in `InvoiceForm.tsx`, schema changes, and tRPC router logic modifications. Corrected `Decimal.js` usage and fixed related build errors.
 - Updated `finvoice.service.ts` to correctly include discounts and handle VAT reverse charge in Finvoice XML generation.
+- Fixed NextAuth JWT and session callback type errors by ensuring consistent `UserRole` type usage from `@/lib/auth`.
+- Refactored `src/app/api/auth/[...nextauth]/route.ts` to import `authOptions` from `@/lib/auth` to resolve build errors and centralize configuration.
