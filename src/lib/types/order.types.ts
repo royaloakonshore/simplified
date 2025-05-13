@@ -25,6 +25,8 @@ export interface OrderItem {
   itemId: UUID;
   quantity: Decimal;
   unitPrice: Decimal;
+  discountAmount?: Decimal | null;
+  discountPercent?: Decimal | null;
   item: InventoryItem;
 }
 
@@ -35,6 +37,8 @@ export interface OrderItemInput {
   itemId: string;
   quantity: number;
   unitPrice?: number; // Optional, can be calculated from item.salesPrice
+  discountAmount?: number | null;
+  discountPercent?: number | null;
 }
 
 /**

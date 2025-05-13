@@ -121,67 +121,111 @@ export const invoiceRouter = createTRPCRouter({
   create: protectedProcedure
     .input(CreateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
-      const { customerId, invoiceDate, dueDate, notes, items, orderId } = input;
-      const userId = ctx.session.user.id; // Keep userId for potential logging/auditing
-      // Removed: const prisma = ctx.db; 
+      const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge } = input;
+      const userId = ctx.session.user.id;
 
-      // TODO: Later, replace userId checks/scoping with companyId when multi-tenancy is fully implemented
-      // For now, we assume invoices are scoped globally or implicitly by user association.
-
-      // Calculate totals and VAT
-      let totalAmount = new Decimal(0);
-      let totalVatAmount = new Decimal(0);
+      // Calculate totals and VAT, considering discounts and reverse charge
+      let subTotal = new Decimal(0); // Represents total before VAT
+      let totalVatAmountValue = new Decimal(0); // Renamed to avoid conflict with Prisma model field
 
       const invoiceItemsData = items.map(item => {
-        const itemTotal = new Decimal(item.quantity).times(item.unitPrice);
-        const itemVat = itemTotal.times(new Decimal(item.vatRatePercent).div(100));
-        totalAmount = totalAmount.plus(itemTotal);
-        totalVatAmount = totalVatAmount.plus(itemVat);
+        const unitPrice = new Decimal(item.unitPrice);
+        const quantity = new Decimal(item.quantity);
+        let lineTotal = unitPrice.times(quantity);
+
+        // Apply discount, prioritizing percentage
+        if (item.discountPercent != null && item.discountPercent > 0) {
+          const discountMultiplier = new Decimal(1).minus(
+            new Decimal(item.discountPercent).div(100)
+          );
+          lineTotal = lineTotal.times(discountMultiplier);
+        } else if (item.discountAmount != null && item.discountAmount > 0) {
+          const discount = new Decimal(item.discountAmount);
+          lineTotal = lineTotal.sub(discount).greaterThan(0) ? lineTotal.sub(discount) : new Decimal(0);
+        }
+        
+        subTotal = subTotal.plus(lineTotal);
+
+        // Calculate VAT for this line item if not reverse charge
+        if (!vatReverseCharge) {
+          const itemVat = lineTotal.times(new Decimal(item.vatRatePercent).div(100));
+          totalVatAmountValue = totalVatAmountValue.plus(itemVat);
+        }
+
         return {
           itemId: item.itemId,
-          description: item.description, // Optional description override
+          description: item.description,
           quantity: new Decimal(item.quantity),
-          unitPrice: new Decimal(item.unitPrice),
+          unitPrice: new Decimal(item.unitPrice), // Store original unit price
           vatRatePercent: new Decimal(item.vatRatePercent),
+          discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
+          discountPercent: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
         };
       });
 
+      // If VAT reverse charge is active, total VAT is explicitly zero
+      if (vatReverseCharge) {
+        totalVatAmountValue = new Decimal(0);
+      }
+
+      const finalTotalAmount = subTotal.plus(totalVatAmountValue);
+
       // --- Sequential Invoice Number Logic --- 
-      // Find the highest invoice number (globally for now)
-      // WARNING: Still not atomic without proper db sequences/locks
       const lastInvoice = await prisma.invoice.findFirst({
-        // where: { companyId: ctx.companyId }, // Use when companyId is available
         orderBy: { invoiceNumber: 'desc' }, 
         select: { invoiceNumber: true }
       });
 
-      let nextInvoiceNumber = '1'; // Default for the first invoice
+      let nextInvoiceNumber = '1';
       if (lastInvoice && lastInvoice.invoiceNumber) {
         try {
-            // Attempt to increment the numeric part
-            nextInvoiceNumber = (parseInt(lastInvoice.invoiceNumber, 10) + 1).toString();
+            nextInvoiceNumber = (parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10) + 1).toString();
+            // Attempt to preserve prefix if any (e.g., INV-)
+            const prefixMatch = lastInvoice.invoiceNumber.match(/^([^0-9]*)/);
+            if (prefixMatch && prefixMatch[0]) {
+              nextInvoiceNumber = prefixMatch[0] + nextInvoiceNumber;
+            } else {
+              // Fallback: Pad with leading zeros if no clear prefix (e.g. 00001)
+               nextInvoiceNumber = nextInvoiceNumber.padStart(5, '0');
+            }
+
         } catch (e) {
             console.error("Failed to parse last invoice number:", lastInvoice.invoiceNumber, e);
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Could not determine the next invoice number.'
-            });
+            // Fallback to simpler increment if parsing fails
+            const numericPart = parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10);
+            if (!isNaN(numericPart)) {
+              nextInvoiceNumber = (numericPart + 1).toString().padStart(5, '0');
+            } else {
+               // Absolute fallback: use timestamp if all else fails to ensure uniqueness
+              nextInvoiceNumber = `INV-${Date.now()}`;
+            }
         }
+      } else {
+          // Default for first invoice, e.g., INV-00001 or 00001
+          nextInvoiceNumber = 'INV-00001'; 
       }
       // --- End Sequential Invoice Number Logic --- 
 
-      // Use a transaction to ensure atomicity
       const newInvoice = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-        // Double check number hasn't been taken (mitigation for race condition)
         const existing = await tx.invoice.findUnique({
           where: { invoiceNumber: nextInvoiceNumber },
           select: { id: true }
         });
         if (existing) {
-           throw new TRPCError({
-              code: 'CONFLICT', 
-              message: `Invoice number ${nextInvoiceNumber} already exists. Please try again.`
+           // If number collision, try to generate a slightly modified one (e.g. by adding a suffix)
+           // This is a simple mitigation; a robust solution needs DB sequences or better locking.
+           const timestampSuffix = Date.now().toString().slice(-4);
+           nextInvoiceNumber = `${nextInvoiceNumber}-${timestampSuffix}`;
+           const retryExisting = await tx.invoice.findUnique({
+               where: { invoiceNumber: nextInvoiceNumber },
+               select: { id: true }
            });
+           if (retryExisting) {
+              throw new TRPCError({
+                  code: 'CONFLICT', 
+                  message: `Invoice number ${nextInvoiceNumber} already exists after retry. Please try again.`
+              });
+           }
         }
 
         return tx.invoice.create({
@@ -193,12 +237,11 @@ export const invoiceRouter = createTRPCRouter({
             notes,
             orderId: orderId ?? undefined,
             status: InvoiceStatus.draft,
-            totalAmount,
-            totalVatAmount,
-            // userId: userId, // Link to user if needed
-            // companyId: ctx.companyId // Add when available
+            totalAmount: finalTotalAmount, // Use the final calculated total
+            totalVatAmount: totalVatAmountValue, // Use the calculated VAT
+            vatReverseCharge: vatReverseCharge, // Store the flag
             items: {
-              createMany: {
+              createMany: { // Prisma Decimals used in invoiceItemsData
                 data: invoiceItemsData,
               },
             },

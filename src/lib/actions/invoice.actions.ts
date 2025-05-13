@@ -6,7 +6,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { revalidatePath } from 'next/cache';
 import { 
   createInvoiceFromOrderSchema,
-  createManualInvoiceSchema,
+  CreateInvoiceSchema,
   updateInvoiceStatusSchema,
   recordPaymentSchema,
   invoiceFilterSchema,
@@ -187,7 +187,7 @@ export async function createInvoiceFromOrder(data: unknown): Promise<ActionResul
  */
 export async function createManualInvoice(data: unknown): Promise<ActionResult<Invoice>> {
   try {
-    const validatedData = createManualInvoiceSchema.parse(data);
+    const validatedData = CreateInvoiceSchema.parse(data);
     const invoiceNumber = await generateInvoiceNumber();
 
     const invoiceItemsData = validatedData.items.map(item => ({

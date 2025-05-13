@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { z } from 'zod';
+import { PlusCircle } from 'lucide-react';
 
 // Define form value types from Zod schemas
 type CreateFormValues = z.infer<typeof createOrderSchema>;
@@ -272,6 +273,8 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                       <TableHead className="w-[40%]">Item</TableHead>
                       <TableHead>Quantity</TableHead>
                       <TableHead>Unit Price</TableHead>
+                      <TableHead>Discount %</TableHead>
+                      <TableHead>Discount Amt</TableHead>
                       <TableHead>Line Total</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -294,32 +297,79 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                               )}
                              />
                         </TableCell>
-                        <TableCell>
-                           <FormField
-                              control={updateForm.control}
-                              name={`items.${index}.quantity`}
-                              render={({ field: qtyField }) => (
-                                <FormItem>
-                                  <FormControl><Input type="number" {...qtyField} onChange={e => qtyField.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                             />
+                        <TableCell className="w-[10%]">
+                          <FormField
+                            control={updateForm.control}
+                            name={`items.${index}.quantity`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </TableCell>
-                         <TableCell>
-                           <FormField
-                              control={updateForm.control}
-                              name={`items.${index}.unitPrice`}
-                              render={({ field: priceField }) => (
-                                <FormItem>
-                                  <FormControl><Input type="number" step="0.01" {...priceField} onChange={e => priceField.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl>
-                                  <FormDescription>{formatCurrency(Number(priceField.value) || 0)}</FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                             />
+                        <TableCell className="w-[15%] text-right">
+                          <FormField
+                            control={updateForm.control}
+                            name={`items.${index}.unitPrice`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </TableCell>
-                         <TableCell>{formatCurrency((Number(updateForm.watch(`items.${index}.quantity`)) || 0) * (Number(updateForm.watch(`items.${index}.unitPrice`)) || 0))}</TableCell>
+                        <TableCell className="w-[10%]">
+                          <FormField
+                            control={updateForm.control}
+                            name={`items.${index}.discountPercent`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="sr-only">Discount %</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    placeholder="%" 
+                                    {...field} 
+                                    value={field.value ?? ''}
+                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                    disabled={updateOrderMutation.isPending} 
+                                    className="text-right" 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[10%]">
+                          <FormField
+                            control={updateForm.control}
+                            name={`items.${index}.discountAmount`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="sr-only">Discount Amt</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    placeholder="Amt" 
+                                    {...field} 
+                                    value={field.value ?? ''}
+                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                    disabled={updateOrderMutation.isPending} 
+                                    className="text-right" 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[10%] text-right">{formatCurrency((Number(updateForm.watch(`items.${index}.quantity`)) || 0) * (Number(updateForm.watch(`items.${index}.unitPrice`)) || 0))}</TableCell>
                         <TableCell><Button type="button" variant="destructive" size="sm" onClick={() => updateRemove(index)} disabled={updateFields.length <= 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
                       </TableRow>
                     ))}
@@ -409,6 +459,8 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                        <TableHead className="w-[40%]">Item</TableHead>
                        <TableHead>Quantity</TableHead>
                        <TableHead>Unit Price</TableHead>
+                       <TableHead>Discount %</TableHead>
+                       <TableHead>Discount Amt</TableHead>
                        <TableHead>Line Total</TableHead>
                        <TableHead>Actions</TableHead>
                      </TableRow>
@@ -431,33 +483,80 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
                               )}
                              />
                          </TableCell>
-                         <TableCell>
-                            <FormField
-                              control={createForm.control}
-                              name={`items.${index}.quantity`}
-                              render={({ field: qtyField }) => (
-                                 <FormItem>
-                                   <FormControl><Input type="number" {...qtyField} onChange={e => qtyField.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
-                                   <FormMessage />
-                                 </FormItem>
-                              )}
-                             />
+                         <TableCell className="w-[10%]">
+                           <FormField
+                             control={createForm.control}
+                             name={`items.${index}.quantity`}
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
                          </TableCell>
-                          <TableCell>
-                             <FormField
-                              control={createForm.control}
-                              name={`items.${index}.unitPrice`}
-                              render={({ field: priceField }) => (
-                                 <FormItem>
-                                   <FormControl><Input type="number" step="0.01" {...priceField} onChange={e => priceField.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} /></FormControl>
-                                   <FormDescription>{formatCurrency(Number(priceField.value) || 0)}</FormDescription>
-                                   <FormMessage />
-                                 </FormItem>
-                              )}
-                             />
-                         </TableCell>
-                         <TableCell>{formatCurrency((Number(createForm.watch(`items.${index}.quantity`)) || 0) * (Number(createForm.watch(`items.${index}.unitPrice`)) || 0))}</TableCell>
-                         <TableCell><Button type="button" variant="destructive" size="sm" onClick={() => createRemove(index)} disabled={createFields.length <= 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                            <TableCell className="w-[15%] text-right">
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.unitPrice`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="w-[10%]">
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.discountPercent`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="sr-only">Discount %</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.01" 
+                                        placeholder="%" 
+                                        {...field} 
+                                        value={field.value ?? ''}
+                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                        disabled={createOrderMutation.isPending} 
+                                        className="text-right" 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="w-[10%]">
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.discountAmount`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="sr-only">Discount Amt</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.01" 
+                                        placeholder="Amt" 
+                                        {...field} 
+                                        value={field.value ?? ''}
+                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                        disabled={createOrderMutation.isPending} 
+                                        className="text-right" 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="w-[10%] text-right">{formatCurrency((Number(createForm.watch(`items.${index}.quantity`)) || 0) * (Number(createForm.watch(`items.${index}.unitPrice`)) || 0))}</TableCell>
+                            <TableCell><Button type="button" variant="destructive" size="sm" onClick={() => createRemove(index)} disabled={createFields.length <= 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
                        </TableRow>
                      ))}
                    </TableBody>

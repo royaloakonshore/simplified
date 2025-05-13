@@ -26,6 +26,8 @@ export interface InvoiceItem {
   quantity: Decimal;
   unitPrice: Decimal;
   vatRatePercent: Decimal; // VAT percentage for this line item
+  discountAmount?: Decimal | null;
+  discountPercent?: Decimal | null;
   // Potentially link back to OrderItem or InventoryItem if needed
   // orderItemId?: UUID;
   // inventoryItemId?: UUID;
@@ -45,6 +47,7 @@ export interface Invoice {
   status: InvoiceStatus;
   totalAmount: Decimal; // Total including VAT
   totalVatAmount: Decimal; // Total VAT amount
+  vatReverseCharge: boolean;
   notes?: string;
   paymentDate?: Date | null; // Date when payment was recorded
   createdAt: Date;
@@ -70,6 +73,8 @@ export interface ManualInvoiceItemInput {
   quantity: number;
   unitPrice: number;
   vatRatePercent: number;
+  discountAmount?: number | null;
+  discountPercent?: number | null;
 }
 
 // Input types for creation/update will be added as needed with Zod schemas 

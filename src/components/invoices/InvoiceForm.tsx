@@ -1,14 +1,20 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { type Customer, type InventoryItem, InvoiceStatus } from "@prisma/client";
-import { Decimal } from '@prisma/client/runtime/library';
+import Decimal from 'decimal.js';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 
-import { CreateInvoiceSchema, type CreateInvoiceInput } from "@/lib/schemas/invoice.schema";
+import { 
+  CreateInvoiceSchema, 
+  type CreateInvoiceInput, 
+  FINNISH_VAT_RATES,
+  invoiceFormValidationSchema,
+  type InvoiceFormValues
+} from "@/lib/schemas/invoice.schema";
 import { api } from "@/lib/trpc/react";
 
 import { Button } from "@/components/ui/button";
@@ -34,9 +40,10 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { CalendarIcon, PlusCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -48,15 +55,24 @@ type InventoryItemFormData = Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 
 
 export default function InvoiceForm({ customers, inventoryItems, isEditMode = false }: InvoiceFormProps) {
   const router = useRouter();
-  const form = useForm<CreateInvoiceInput>({
-    resolver: zodResolver(CreateInvoiceSchema),
+  const form = useForm<InvoiceFormValues>({
+    resolver: zodResolver(invoiceFormValidationSchema),
     defaultValues: {
       customerId: "",
       invoiceDate: new Date(),
       dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
       notes: "",
-      items: [{ itemId: "", quantity: 1, unitPrice: 0, vatRatePercent: 0, description: "" }],
-      orderId: null,
+      items: [{ 
+        itemId: "",
+        description: "",
+        quantity: 1, 
+        unitPrice: 0, 
+        vatRatePercent: 24, 
+        discountAmount: null, 
+        discountPercent: null 
+      }],
+      orderId: undefined,
+      vatReverseCharge: false,
     },
   });
 
@@ -81,14 +97,57 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
     },
   });
 
-  function onSubmit(values: CreateInvoiceInput) {
-    console.log("Form submitted:", values);
-    if (isEditMode) {
-      toast.info("Update functionality not yet implemented.");
-    } else {
-      createInvoiceMutation.mutate(values);
+  const onSubmit: SubmitHandler<InvoiceFormValues> = (values) => {
+    console.log("Form submitted (InvoiceFormValues):", values);
+
+    const transformedForApi: CreateInvoiceInput = {
+      customerId: values.customerId,
+      invoiceDate: values.invoiceDate,
+      dueDate: values.dueDate,
+      notes: values.notes ?? undefined,
+      items: values.items.map(item => ({
+        ...(item.id && { id: item.id }),
+        itemId: item.itemId,
+        description: item.description,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        vatRatePercent: Number(item.vatRatePercent),
+        discountAmount: item.discountAmount ? Number(item.discountAmount) : null,
+        discountPercent: item.discountPercent ? Number(item.discountPercent) : null,
+      })),
+      orderId: values.orderId ?? undefined,
+      vatReverseCharge: values.vatReverseCharge ?? false,
+    };
+
+    console.log("Transformed for API (CreateInvoiceInput shape):", transformedForApi);
+
+    try {
+      const validatedApiInput = CreateInvoiceSchema.parse(transformedForApi);
+      console.log("Validated API Input:", validatedApiInput);
+
+      if (isEditMode) {
+        toast.info("Update functionality not yet implemented.");
+      } else {
+        createInvoiceMutation.mutate(validatedApiInput);
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Validation error preparing data for API:", error.errors);
+        toast.error("There was an issue with the data provided. Please check the form and try again.");
+        error.errors.forEach((err) => {
+          const fieldName = err.path.join('.') as keyof InvoiceFormValues;
+          try {
+            form.setError(fieldName, { type: 'manual', message: err.message });
+          } catch (e) {
+            console.warn(`Could not set error on field ${fieldName}:`, e);
+          }
+        });
+      } else {
+        console.error("Error processing form submission:", error);
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     }
-  }
+  };
 
   const handleItemChange = (index: number, itemId: string) => {
     const selectedItem = inventoryItems.find(item => item.id === itemId) as InventoryItemFormData | undefined;
@@ -99,18 +158,49 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
   };
 
   const watchItems = form.watch("items");
+  const watchVatReverseCharge = form.watch("vatReverseCharge");
+
   const subTotal = watchItems.reduce((acc, item) => {
-    const quantity = Number(item.quantity) || 0;
-    const price = Number(item.unitPrice) || 0;
-    return acc + quantity * price;
-  }, 0);
+    const quantity = new Decimal(item.quantity || 0);
+    const price = new Decimal(item.unitPrice || 0);
+    let lineTotal = quantity.times(price);
+
+    if (item.discountPercent != null && item.discountPercent > 0) {
+      const discountMultiplier = new Decimal(1).minus(
+        new Decimal(item.discountPercent).div(100)
+      );
+      lineTotal = lineTotal.times(discountMultiplier);
+    } else if (item.discountAmount != null && item.discountAmount > 0) {
+      const discount = new Decimal(item.discountAmount);
+      lineTotal = lineTotal.minus(discount).greaterThan(0) ? lineTotal.minus(discount) : new Decimal(0);
+    }
+
+    return acc.plus(lineTotal);
+  }, new Decimal(0));
+
   const totalVat = watchItems.reduce((acc, item) => {
-    const quantity = Number(item.quantity) || 0;
-    const price = Number(item.unitPrice) || 0;
-    const vatRate = Number(item.vatRatePercent) || 0;
-    return acc + (quantity * price * vatRate / 100);
-  }, 0);
-  const grandTotal = subTotal + totalVat;
+    if (watchVatReverseCharge) return acc;
+
+    const quantity = new Decimal(item.quantity || 0);
+    const price = new Decimal(item.unitPrice || 0);
+    const vatRate = new Decimal(item.vatRatePercent || 0);
+    let lineTotal = quantity.times(price);
+
+    if (item.discountPercent != null && item.discountPercent > 0) {
+      const discountMultiplier = new Decimal(1).minus(
+        new Decimal(item.discountPercent).div(100)
+      );
+      lineTotal = lineTotal.times(discountMultiplier);
+    } else if (item.discountAmount != null && item.discountAmount > 0) {
+      const discount = new Decimal(item.discountAmount);
+      lineTotal = lineTotal.minus(discount).greaterThan(0) ? lineTotal.minus(discount) : new Decimal(0);
+    }
+
+    const lineVat = lineTotal.times(vatRate.div(100));
+    return acc.plus(lineVat);
+  }, new Decimal(0));
+
+  const grandTotal = subTotal.plus(totalVat);
 
   const title = isEditMode ? "Edit Invoice" : "Create New Invoice";
   const isPending = createInvoiceMutation.isPending;
@@ -233,10 +323,12 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[25%]">Item</TableHead>
-                    <TableHead className="w-[30%]">Description</TableHead>
-                    <TableHead className="w-[10%]">Qty</TableHead>
-                    <TableHead className="w-[15%] text-right">Unit Price</TableHead>
+                    <TableHead className="w-[20%]">Item</TableHead>
+                    <TableHead className="w-[25%]">Description</TableHead>
+                    <TableHead className="w-[8%]">Qty</TableHead>
+                    <TableHead className="w-[12%] text-right">Unit Price</TableHead>
+                    <TableHead className="w-[10%] text-right">Disc %</TableHead>
+                    <TableHead className="w-[10%] text-right">Disc Amt</TableHead>
                     <TableHead className="w-[10%] text-right">VAT %</TableHead>
                     <TableHead className="w-[10%] text-right">Total</TableHead>
                     <TableHead className="w-auto"></TableHead>
@@ -245,35 +337,36 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                 <TableBody>
                   {fields.map((field, index) => {
                     const itemValue = watchItems[index];
-                    const quantity = Number(itemValue?.quantity) || 0;
-                    const unitPrice = Number(itemValue?.unitPrice) || 0;
-                    const lineTotal = quantity * unitPrice;
+                    const quantity = new Decimal(itemValue?.quantity || 0);
+                    const unitPrice = new Decimal(itemValue?.unitPrice || 0);
+                    let lineTotal = quantity.times(unitPrice);
+
+                    if (itemValue?.discountPercent != null && itemValue.discountPercent > 0) {
+                      const discountMultiplier = new Decimal(1).minus(new Decimal(itemValue.discountPercent).div(100));
+                      lineTotal = lineTotal.times(discountMultiplier);
+                    } else if (itemValue?.discountAmount != null && itemValue.discountAmount > 0) {
+                      const discount = new Decimal(itemValue.discountAmount);
+                      lineTotal = lineTotal.minus(discount).greaterThan(0) ? lineTotal.minus(discount) : new Decimal(0);
+                    }
+
+                    let displayTotal = lineTotal;
+                    if (!watchVatReverseCharge) {
+                        const vatRate = new Decimal(itemValue?.vatRatePercent || 0);
+                        const lineVat = lineTotal.times(vatRate.div(100));
+                        displayTotal = lineTotal.plus(lineVat);
+                    }
+
                     return (
                       <TableRow key={field.id}>
                         <TableCell>
                           <FormField
                             control={form.control}
                             name={`items.${index}.itemId`}
-                            render={({ field: itemField }) => (
+                            render={({ field }) => (
                               <FormItem>
-                                <Select 
-                                  onValueChange={(value) => {
-                                    itemField.onChange(value);
-                                    handleItemChange(index, value);
-                                  }}
-                                  defaultValue={itemField.value}
-                                  disabled={isPending}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select item" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {inventoryItems.map(i => (
-                                      <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>
-                                    ))}
-                                  </SelectContent>
+                                <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value); }} defaultValue={field.value} disabled={isPending}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
+                                  <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
                                 </Select>
                                 <FormMessage />
                               </FormItem>
@@ -284,32 +377,21 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                           <FormField
                             control={form.control}
                             name={`items.${index}.description`}
-                            render={({ field: descField }) => (
+                            render={({ field }) => (
                               <FormItem>
-                                <FormControl>
-                                  <Input {...descField} placeholder="Item description" disabled={isPending} />
-                                </FormControl>
+                                <FormControl><Input {...field} value={field.value ?? ''} disabled={isPending} /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
                         </TableCell>
-                         <TableCell>
+                        <TableCell>
                           <FormField
                             control={form.control}
                             name={`items.${index}.quantity`}
-                            render={({ field: qtyField }) => (
+                            render={({ field }) => (
                               <FormItem>
-                                <FormControl>
-                                  <Input 
-                                    type="number"
-                                    step="any" 
-                                    {...qtyField} 
-                                    onChange={e => qtyField.onChange(parseFloat(e.target.value) || 0)}
-                                    placeholder="Qty" 
-                                    disabled={isPending}
-                                  />
-                                </FormControl>
+                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -319,57 +401,88 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                           <FormField
                             control={form.control}
                             name={`items.${index}.unitPrice`}
-                            render={({ field: priceField }) => (
+                            render={({ field }) => (
                               <FormItem>
-                                <FormControl>
-                                  <Input 
-                                    type="number"
-                                    step="0.01"
-                                    {...priceField} 
-                                    onChange={e => priceField.onChange(parseFloat(e.target.value) || 0)}
-                                    placeholder="Price" 
-                                    className="text-right" 
-                                    disabled={isPending}
-                                  />
-                                </FormControl>
+                                <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
                         </TableCell>
-                         <TableCell className="text-right">
+                        <TableCell className="text-right">
+                           <FormField
+                             control={form.control}
+                             name={`items.${index}.discountPercent`}
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    placeholder="%"
+                                    {...field} 
+                                    value={field.value ?? ''} 
+                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                    disabled={isPending}
+                                    className="text-right"
+                                  />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                        </TableCell>
+                        <TableCell className="text-right">
+                           <FormField
+                             control={form.control}
+                             name={`items.${index}.discountAmount`}
+                             render={({ field }) => (
+                               <FormItem>
+                                 <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    placeholder="Amt"
+                                    {...field} 
+                                    value={field.value ?? ''} 
+                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                    disabled={isPending}
+                                    className="text-right"
+                                  />
+                                 </FormControl>
+                                 <FormMessage />
+                               </FormItem>
+                             )}
+                           />
+                        </TableCell>
+                        <TableCell className="text-right">
                           <FormField
                             control={form.control}
                             name={`items.${index}.vatRatePercent`}
-                            render={({ field: vatField }) => (
+                            render={({ field }) => (
                               <FormItem>
-                                <FormControl>
-                                  <Input 
-                                    type="number"
-                                    step="0.01"
-                                    {...vatField}
-                                    onChange={e => vatField.onChange(parseFloat(e.target.value) || 0)}
-                                    placeholder="VAT %" 
-                                    className="text-right" 
-                                    disabled={isPending}
-                                  />
-                                </FormControl>
+                                <Select 
+                                  onValueChange={(v) => field.onChange(parseFloat(v))} 
+                                  value={field.value?.toString()}
+                                  disabled={isPending || watchVatReverseCharge}
+                                >
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Select VAT..." /></SelectTrigger></FormControl>
+                                  <SelectContent>
+                                    {FINNISH_VAT_RATES.map(rate => 
+                                      <SelectItem key={rate} value={rate.toString()}>{`${rate}%`}</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
                         </TableCell>
-                        <TableCell className="text-right">{lineTotal.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(displayTotal.toNumber())}</TableCell>
                         <TableCell>
-                           <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => remove(index)} 
-                              disabled={fields.length <= 1 || isPending}
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </Button>
+                          <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={isPending || fields.length <= 1}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -381,61 +494,98 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={() => append({ itemId: "", quantity: 1, unitPrice: 0, vatRatePercent: 0, description: "" })}
+                onClick={() => append({ itemId: "", description: "", quantity: 1, unitPrice: 0, vatRatePercent: 24, discountAmount: null, discountPercent: null })}
                 disabled={isPending}
               >
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Item
               </Button>
-              {form.formState.errors.items?.root && (
-                <p className="text-sm font-medium text-destructive mt-2">
-                  {form.formState.errors.items.root.message}
-                </p>
+              {form.formState.errors.items && !Array.isArray(form.formState.errors.items) && (
+                <p className="text-sm font-medium text-destructive">{form.formState.errors.items.message}</p>
               )}
-        </div>
+            </div>
 
-            <div className="mt-4 space-y-2 flex justify-end">
-              <div className="w-full md:w-1/3 space-y-1">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>{subTotal.toFixed(2)}</span>
+             <div className="flex justify-end pt-6">
+                <div className="w-full max-w-xs space-y-2">
+                    <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span>{formatCurrency(subTotal.toNumber())}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>VAT</span>
+                        <span>{formatCurrency(totalVat.toNumber())}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                        <span>Total</span>
+                        <span>{formatCurrency(grandTotal.toNumber())}</span>
+                    </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Total VAT:</span>
-                  <span>{totalVat.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Grand Total:</span>
-                  <span>{grandTotal.toFixed(2)}</span>
-                </div>
-              </div>
-        </div>
+            </div>
 
-             <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Add any internal notes or payment terms here..."
-                        className="resize-none"
-                        {...field}
-                        disabled={isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Optional notes for the invoice..."
+                      className="resize-none"
+                      {...field}
+                      value={field.value ?? ''}
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="vatReverseCharge"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox 
+                      checked={field.value} 
+                      onCheckedChange={(checked) => {
+                        const newCheckedState = !!checked;
+                        field.onChange(newCheckedState);
+                        form.setValue('vatReverseCharge', newCheckedState, { shouldValidate: true });
+
+                        if (newCheckedState) {
+                          watchItems.forEach((_, index) => {
+                            form.setValue(`items.${index}.vatRatePercent`, 0);
+                          });
+                        } else {
+                          // Optional: Revert VAT rates if unchecking reverse charge, e.g., to default 24%
+                          // This depends on desired UX.
+                          // watchItems.forEach((_, index) => {
+                          //   form.setValue(`items.${index}.vatRatePercent`, 24);
+                          // });
+                        }
+                      }}
+                      disabled={isPending} 
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>VAT Reverse Charge</FormLabel>
+                    <FormDescription>
+                      Enable for reverse charge VAT (e.g., intra-EU B2B). Sets 0% VAT on all items.
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
 
       </CardContent>
       <CardFooter className="flex justify-end">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="mr-2">
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : (isEditMode ? "Save Changes" : "Create Invoice")}
+            <Button type="submit" disabled={isPending || !form.formState.isValid && form.formState.isSubmitted }>
+              {isPending ? "Saving..." : (isEditMode ? "Update Invoice" : "Create Invoice")}
          </Button>
       </CardFooter>
     </Card>

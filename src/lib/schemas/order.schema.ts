@@ -11,10 +11,11 @@ export const orderItemSchema = z.object({
   orderId: z.string().cuid().optional(), // Optional, will be set when linked to Order
   itemId: z.string().cuid({ message: 'Inventory item must be selected' }),
   quantity: z.number({ required_error: 'Quantity is required', invalid_type_error: 'Quantity must be a number' })
-             .int({ message: 'Quantity must be a whole number' })
-             .positive({ message: 'Quantity must be positive' }),
+             .positive({ message: 'Quantity must be positive' }), // Updated to allow non-integers
   unitPrice: z.number({ required_error: 'Unit price is required', invalid_type_error: 'Unit price must be a number' })
              .nonnegative({ message: 'Price cannot be negative' }),
+  discountAmount: z.number().nonnegative({ message: 'Discount amount cannot be negative' }).optional().nullable(),
+  discountPercent: z.number().min(0).max(100, { message: 'Discount percent must be between 0 and 100' }).optional().nullable(),
   // Optional: Add other fields if needed, like discounts specific to the line item
 });
 
@@ -61,7 +62,22 @@ export const updateOrderStatusSchema = z.object({
 /**
  * Type inference for use in forms and procedures
  */
-export type OrderItemInput = z.infer<typeof orderItemSchema>;
+export type OrderItemInput = z.infer<typeof orderItemSchema>; // Keep this for backend validation
+
+export type OrderFormData = {
+    customerId: string;
+    orderType: OrderType;
+    notes?: string;
+    items: { 
+      key?: string; // For react-hook-form useFieldArray
+      itemId: string; 
+      quantity: number; 
+      unitPrice: number; 
+      discountAmount?: number | null; 
+      discountPercent?: number | null; 
+    }[];
+};
+
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;

@@ -15,19 +15,27 @@ import {
 } from "@/lib/schemas/order.schema";
 import { OrderStatus, OrderType, Prisma, TransactionType } from "@prisma/client";
 
-// Helper function to calculate order total (consider moving to a service if complex)
-const calculateOrderTotal = async (items: OrderItemInput[], tx: Prisma.TransactionClient) => {
-  let total = new Prisma.Decimal(0);
-  for (const item of items) {
-    // Optionally fetch current price if pricePerUnit is not fixed at order time
-    // const inventoryItem = await tx.inventoryItem.findUnique({ where: { id: item.itemId } });
-    // if (!inventoryItem) throw new Error(`Item with ID ${item.itemId} not found`);
-    // const price = item.pricePerUnit ?? inventoryItem.salesPrice; // Or use current price
-    const price = new Prisma.Decimal(item.unitPrice);
+// Helper function to calculate order total including discounts
+const calculateOrderTotal = (items: OrderItemInput[]): Prisma.Decimal => {
+  return items.reduce((total: Prisma.Decimal, item: OrderItemInput) => {
+    const price = new Prisma.Decimal(item.unitPrice || 0); // Default to 0 if undefined
     const quantity = new Prisma.Decimal(item.quantity);
-    total = total.add(price.mul(quantity));
-  }
-  return total;
+    let lineTotal = price.mul(quantity);
+
+    // Apply discount if present, prioritizing percentage
+    if (item.discountPercent != null && item.discountPercent > 0) {
+      const discountMultiplier = new Prisma.Decimal(1).minus(
+        new Prisma.Decimal(item.discountPercent).div(100)
+      );
+      lineTotal = lineTotal.mul(discountMultiplier);
+    } else if (item.discountAmount != null && item.discountAmount > 0) {
+      // Ensure discount doesn't make line total negative
+      const discount = new Prisma.Decimal(item.discountAmount);
+      lineTotal = lineTotal.sub(discount).greaterThan(0) ? lineTotal.sub(discount) : new Prisma.Decimal(0);
+    }
+
+    return total.add(lineTotal);
+  }, new Prisma.Decimal(0));
 };
 
 // Helper to generate unique order number (example)
@@ -175,49 +183,42 @@ export const orderRouter = createTRPCRouter({
     .input(createOrderSchema)
     .mutation(async ({ input, ctx }) => {
       const { customerId, items, notes, status, orderType } = input;
-      // Get userId from the authenticated context
       const userId = ctx.session.user.id;
 
-      // Add explicit type for some parameter
-      if (items.some((item: OrderItemInput) => item.unitPrice === undefined || item.unitPrice === null)) {
-           throw new TRPCError({
-               code: 'BAD_REQUEST',
-               message: 'Unit price must be provided for all order items.',
-           });
+      // Validate all items have unitPrice (adjust OrderItemInput type if necessary)
+      if (items.some((item) => item.unitPrice === undefined || item.unitPrice === null)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Unit price must be provided for all order items.',
+        });
       }
 
-      // Add explicit type for transaction client
       return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const orderNumber = await generateOrderNumber(tx);
 
-        // Add explicit type for map parameter
-        const mappedItems = items.map((item: OrderItemInput) => ({
+        // Map items for creation, including discounts
+        const mappedItemsForCreation = items.map((item) => ({
           itemId: item.itemId,
           quantity: new Prisma.Decimal(item.quantity),
-          unitPrice: new Prisma.Decimal(item.unitPrice!), // Already validated not null
+          unitPrice: new Prisma.Decimal(item.unitPrice!),
+          discountAmount: item.discountAmount != null ? new Prisma.Decimal(item.discountAmount) : null,
+          discountPercent: item.discountPercent != null ? new Prisma.Decimal(item.discountPercent) : null,
         }));
 
-        // Add explicit types for reduce parameters
-        const totalAmount = mappedItems.reduce((sum: Prisma.Decimal, item: { quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => {
-            return sum.add(item.quantity.mul(item.unitPrice));
-        }, new Prisma.Decimal(0));
+        // Calculate total amount using the updated helper function
+        const totalAmount = calculateOrderTotal(items); // Pass original input items
 
         const order = await tx.order.create({
           data: {
             customerId,
-            userId, // Add userId from the authenticated context
+            userId,
             orderNumber,
             status: status ?? OrderStatus.draft,
             orderType: orderType ?? OrderType.work_order,
             totalAmount,
             notes,
             items: {
-              // Add explicit type for map parameter
-              create: mappedItems.map((item: { itemId: string, quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => ({
-                itemId: item.itemId,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-              })),
+              create: mappedItemsForCreation, // Use the mapped items with Prisma Decimals
             },
           },
           include: { items: true },
@@ -225,7 +226,7 @@ export const orderRouter = createTRPCRouter({
 
         // Allocate stock immediately if created in 'confirmed' state
         if (order.status === OrderStatus.confirmed) {
-           await checkAndAllocateStock(order.id, tx);
+          await checkAndAllocateStock(order.id, tx);
         }
 
         return order;
@@ -287,102 +288,100 @@ export const orderRouter = createTRPCRouter({
 
   update: protectedProcedure
     .input(updateOrderSchema)
-    .mutation(async ({ input }: { input: UpdateOrderInput }) => {
-      const { id, customerId, items, notes, status } = input;
+    .mutation(async ({ input, ctx }) => {
+      const { id, items, ...restData } = input;
+      // TODO: Validate user has permission to update this order (e.g., based on userId or companyId)
 
-      // Fetch existing order to compare items if necessary
-      const existingOrder = await prisma.order.findUnique({
-        where: { id },
-        include: { items: true },
-      });
-
-      if (!existingOrder) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found.' });
-      }
-
-      // Prevent changing status via this endpoint; use updateStatus instead
-      if (status && status !== existingOrder.status) {
-           throw new TRPCError({
-               code: 'BAD_REQUEST',
-               message: 'Order status cannot be changed through this endpoint. Use updateStatus instead.',
-           });
-      }
-      // Prevent changing customer via this endpoint? (Decide based on business logic)
-       if (customerId && customerId !== existingOrder.customerId) {
-           throw new TRPCError({
-               code: 'BAD_REQUEST',
-               message: 'Customer cannot be changed after order creation.',
-           });
-      }
-
-      // Add explicit type for some parameter
-      if (items && items.some((item: OrderItemInput) => item.unitPrice === undefined || item.unitPrice === null)) {
-          throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Unit price must be provided for all order items.',
-          });
-      }
-
-      // Add explicit type for transaction client
       return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        let totalAmount = existingOrder.totalAmount;
-        // Add explicit type for update data
-        const updateData: Prisma.OrderUpdateInput = {
-            notes: notes, // Update notes if provided
-        };
-
+        // 1. Fetch existing order items if they are being updated
+        let existingItems: any[] = [];
         if (items) {
-            // Add explicit type for map parameter
-            const mappedItems = items.map((item: OrderItemInput) => ({
-                id: item.id, // Include id for identifying existing items
-                itemId: item.itemId,
-                quantity: new Prisma.Decimal(item.quantity),
-                unitPrice: new Prisma.Decimal(item.unitPrice!), // Already validated
-            }));
-
-            // Add explicit types for reduce parameters
-            totalAmount = mappedItems.reduce((sum: Prisma.Decimal, item: { quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => {
-                return sum.add(item.quantity.mul(item.unitPrice));
-            }, new Prisma.Decimal(0));
-
-            updateData.totalAmount = totalAmount;
-
-            // Complex logic for updating items: delete removed, update existing, create new
-            // Add explicit type for map parameter
-            const existingItemIds = existingOrder.items.map((item: { id: string }) => item.id);
-            // Add explicit type for map parameter
-            const newItemIds = mappedItems.map((item: { id?: string }) => item.id).filter(Boolean);
-            // Add explicit type for filter parameter
-            const itemIdsToDelete = existingItemIds.filter((id: string) => !newItemIds.includes(id));
-
-            // Perform deletions first
-            if (itemIdsToDelete.length > 0) {
-                await tx.orderItem.deleteMany({ where: { id: { in: itemIdsToDelete }, orderId: id } });
-            }
-
-            // Upsert items (update existing or create new)
-            updateData.items = {
-                // Add explicit type for map parameter
-                upsert: mappedItems.map((item: { id?: string, itemId: string, quantity: Prisma.Decimal, unitPrice: Prisma.Decimal }) => ({
-                    where: { id: item.id ?? '' }, // Use empty string if ID is null/undefined for create
-                    create: { itemId: item.itemId, quantity: item.quantity, unitPrice: item.unitPrice },
-                    update: { itemId: item.itemId, quantity: item.quantity, unitPrice: item.unitPrice },
-                })),
-            };
+          existingItems = await tx.orderItem.findMany({ where: { orderId: id } });
         }
 
-        // Update the order
+        // 2. Prepare item updates (delete, create, update)
+        const itemsToCreate: Prisma.OrderItemCreateManyInput[] = [];
+        const itemsToUpdate: { where: Prisma.OrderItemWhereUniqueInput, data: Prisma.OrderItemUpdateInput }[] = [];
+        const itemIdsToDelete: string[] = existingItems.map(item => item.id);
+
+        let calculatedTotalAmount: Prisma.Decimal | undefined = undefined;
+
+        if (items) {
+          // Calculate new total based on incoming items
+          calculatedTotalAmount = calculateOrderTotal(items as OrderItemInput[]); 
+
+          for (const item of items) {
+            const existingItem = existingItems.find(ei => ei.id === item.id);
+            const itemData = {
+              itemId: item.itemId,
+              quantity: new Prisma.Decimal(item.quantity),
+              unitPrice: new Prisma.Decimal(item.unitPrice!),
+              discountAmount: item.discountAmount != null ? new Prisma.Decimal(item.discountAmount) : null,
+              discountPercent: item.discountPercent != null ? new Prisma.Decimal(item.discountPercent) : null,
+            };
+
+            if (existingItem) {
+              // Update existing item
+              itemsToUpdate.push({ where: { id: item.id! }, data: itemData });
+              // Remove from delete list
+              const index = itemIdsToDelete.indexOf(item.id!);
+              if (index > -1) {
+                itemIdsToDelete.splice(index, 1);
+              }
+            } else {
+              // Create new item (needs orderId)
+              // We handle creates separately after the main update
+            }
+          }
+        }
+
+        // 3. Update the order itself
         const updatedOrder = await tx.order.update({
           where: { id },
-          data: updateData,
-          include: { items: true }, // Include items in the returned object
+          data: {
+            ...restData,
+            ...(calculatedTotalAmount !== undefined && { totalAmount: calculatedTotalAmount }),
+            // Item updates are handled separately below
+          },
         });
 
-        // Note: Stock allocation logic might need adjustment if items change on a 'confirmed' order.
-        // For now, assuming updates happen primarily in 'draft' status or only affect non-stock related fields.
-        // If items of a confirmed order can change, checkAndAllocateStock logic needs revisiting here.
+        // 4. Perform item changes
+        if (items) {
+          // Delete items no longer present
+          if (itemIdsToDelete.length > 0) {
+            await tx.orderItem.deleteMany({ where: { id: { in: itemIdsToDelete } } });
+          }
+          // Update existing items
+          for (const update of itemsToUpdate) {
+            await tx.orderItem.update(update);
+          }
+          // Create new items
+          const newItemsInput = items.filter(item => !item.id);
+          if (newItemsInput.length > 0) {
+              await tx.orderItem.createMany({
+                  data: newItemsInput.map(item => ({
+                      orderId: id,
+                      itemId: item.itemId,
+                      quantity: new Prisma.Decimal(item.quantity),
+                      unitPrice: new Prisma.Decimal(item.unitPrice!),
+                      discountAmount: item.discountAmount != null ? new Prisma.Decimal(item.discountAmount) : null,
+                      discountPercent: item.discountPercent != null ? new Prisma.Decimal(item.discountPercent) : null,
+                  }))
+              });
+          }
+        }
+        
+        // TODO: Re-evaluate stock allocation if status changes or items change
+        // This might involve reversing old allocations and creating new ones.
+        // For simplicity, this example assumes stock is handled primarily by status changes.
 
-        return updatedOrder;
+        // Refetch the full order with updated items
+        const finalOrder = await tx.order.findUnique({ 
+            where: { id },
+            include: { items: true, customer: true },
+        });
+
+        return finalOrder;
       });
     }),
 
