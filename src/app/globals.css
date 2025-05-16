@@ -205,3 +205,14 @@ body {
   animation: wave 1.5s infinite;
   transform-origin: 70% 70%;
 }
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

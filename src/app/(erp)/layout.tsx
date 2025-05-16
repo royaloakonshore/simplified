@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
+import { ModeToggle } from "@/components/theme/ModeToggle";
 
 export default async function ERPLayout({
   children,
@@ -28,6 +29,7 @@ export default async function ERPLayout({
               <Breadcrumbs className="ml-4" />
             </div>
             <div className="flex items-center space-x-4">
+              <ModeToggle />
               <Link href="/auth/logout" passHref legacyBehavior>
                 <Button asChild variant="outline" size="sm">
                   <a>Sign Out</a>
