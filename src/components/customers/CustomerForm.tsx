@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type Customer, type Address, AddressType } from "@prisma/client";
 import { z } from "zod";
@@ -20,9 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from 'react-toastify'; // Assuming react-toastify is set up
 import { api } from "@/lib/trpc/react";
-import { customerBaseSchema } from "@/lib/schemas/customer.schema";
-import { Trash2, Plus } from 'lucide-react';
+import { customerBaseSchema, yTunnusSchema } from "@/lib/schemas/customer.schema";
+import { Trash2, Plus, Search, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 // Define the form schema type based on the base schema
 type CustomerFormData = z.infer<typeof customerBaseSchema>;
@@ -35,6 +36,7 @@ interface CustomerFormProps {
 export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
+  const [yTunnusSearch, setYTunnusSearch] = React.useState("");
 
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerBaseSchema),
@@ -59,10 +61,63 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
         },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "addresses",
   });
+
+  const { 
+    data: prhData,
+    refetch: fetchPrhData,
+    isLoading: isPrhLoading,
+  } = api.customer.getYTunnusInfo.useQuery(
+    { yTunnus: yTunnusSearch }, 
+    { 
+      enabled: false, // Only call on demand
+      retry: false, // Don't retry on error for this manual call
+    }
+  );
+
+  const handleYTunnusSearch = async () => {
+    try {
+      yTunnusSchema.parse(yTunnusSearch); // Validate format before fetching
+      const result = await fetchPrhData(); // fetchPrhData returns a promise
+
+      if (result.data) {
+        const data = result.data;
+        toast.success(`Company data fetched for ${data.name}`);
+        form.setValue("name", data.name);
+        if (data.vatId) {
+          form.setValue("vatId", data.vatId);
+        }
+
+        const addressToUpdate = {
+          type: AddressType.billing, 
+          streetAddress: data.streetAddress || '' ,
+          city: data.city || '' ,
+          postalCode: data.postalCode || '' ,
+          countryCode: data.countryCode || 'FI',
+        };
+
+        if (fields.length > 0) {
+          const firstAddressCurrentData = fields[0];
+          update(0, { ...firstAddressCurrentData, ...addressToUpdate });
+        } else {
+          append(addressToUpdate);
+        }
+      } else if (result.error) {
+        toast.error(`Failed to fetch Y-tunnus info: ${result.error.message}`);
+      }
+
+    } catch (e) {
+      if (e instanceof z.ZodError) {
+        toast.error(e.errors[0]?.message || "Invalid Y-tunnus format.");
+      } else {
+        toast.error("An unexpected error occurred during Y-tunnus search.");
+        console.error("YTunnus search error:", e);
+      }
+    }
+  };
 
   const createCustomer = api.customer.create.useMutation({
     onSuccess: () => {
@@ -108,6 +163,35 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="space-y-2">
+          <Label htmlFor="yTunnusSearchInput">Y-tunnus Search</Label>
+          <div className="flex items-center gap-2">
+            <Input 
+              id="yTunnusSearchInput"
+              placeholder="1234567-8"
+              value={yTunnusSearch}
+              onChange={(e) => setYTunnusSearch(e.target.value)}
+              className="max-w-xs"
+              disabled={isPrhLoading}
+            />
+            <Button 
+              type="button" 
+              onClick={handleYTunnusSearch} 
+              disabled={isPrhLoading || !yTunnusSearch.trim()}
+            >
+              {isPrhLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" /> 
+              )}
+              Search
+            </Button>
+          </div>
+          <FormDescription>
+            Search for company details using Finnish Business ID (Y-tunnus).
+          </FormDescription>
+        </div>
+
         <h2 className="text-xl font-semibold">Customer Details</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField

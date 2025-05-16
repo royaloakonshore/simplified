@@ -8,10 +8,39 @@ import {
 import {
   createCustomerSchema,
   updateCustomerSchema,
+  customerBaseSchema,
+  listCustomersSchema,
+  yTunnusSchema,
+  prhCompanyInfoSchema,
 } from "@/lib/schemas/customer.schema";
 import type { Address } from '@prisma/client';
-import { listCustomersSchema } from "@/lib/schemas/customer.schema";
-import { Prisma } from '@prisma/client';
+import { AddressType } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
+
+// Define a type for the PRH API address structure for better type safety internally
+interface PRHApiAddress {
+  street?: string;
+  postCode?: string;
+  city?: string;
+  country?: string; // Typically a country code like 'FI'
+  type?: string;    // e.g., "Postiosoite", "Toimitusosoite"
+  language?: string;
+  registrationDate?: string;
+  endDate?: string;
+  careOf?: string;
+}
+
+// Define a type for the expected PRH API response structure (subset)
+interface PRHApiResponse {
+  name: string;
+  businessId: string;
+  vatNumber?: string; // This field is directly available in the PRH API if VAT registered
+  addresses?: PRHApiAddress[];
+  companyForm?: string;
+  registrationDate?: string;
+  // ... other fields we might not directly use but are present
+}
 
 export const customerRouter = createTRPCRouter({
   list: protectedProcedure
@@ -128,5 +157,97 @@ export const customerRouter = createTRPCRouter({
       return await prisma.customer.delete({
         where: { id: input.id },
       });
+    }),
+
+  getYTunnusInfo: protectedProcedure
+    .input(z.object({ yTunnus: yTunnusSchema }))
+    .output(prhCompanyInfoSchema)
+    .query(async ({ input }) => {
+      const { yTunnus } = input;
+      const apiUrl = `https://avoindata.prh.fi/bis/v1/${yTunnus}`;
+
+      try {
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `No company found with Y-tunnus: ${yTunnus}`,
+            });
+          }
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: `Failed to fetch data from PRH API. Status: ${response.status}`,
+          });
+        }
+
+        const apiDataArray = await response.json() as unknown as { results: PRHApiResponse[] };
+        
+        if (!apiDataArray.results || !Array.isArray(apiDataArray.results) || apiDataArray.results.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `No company data found in PRH API response for Y-tunnus: ${yTunnus}`,
+          });
+        }
+
+        const companyData = apiDataArray.results[0];
+
+        if (!companyData) {
+            throw new TRPCError({
+                code: "NOT_FOUND",
+                message: `No company data found for Y-tunnus: ${yTunnus}`,
+            });
+        }
+
+        let streetAddress: string | undefined;
+        let postalCode: string | undefined;
+        let city: string | undefined;
+        let countryCode: string | undefined = "FI";
+
+        if (companyData.addresses && companyData.addresses.length > 0) {
+          let postalApiAddress = companyData.addresses.find(addr => addr.type === "Postiosoite");
+          if (!postalApiAddress && companyData.addresses.length > 0) {
+            postalApiAddress = companyData.addresses[0];
+          }
+
+          if (postalApiAddress) {
+            streetAddress = postalApiAddress.street;
+            postalCode = postalApiAddress.postCode;
+            city = postalApiAddress.city;
+            if (postalApiAddress.country && postalApiAddress.country.trim() !== "") {
+                countryCode = postalApiAddress.country.toUpperCase();
+            }
+          }
+        }
+        
+        let vatId = companyData.vatNumber;
+        if (!vatId && companyData.businessId && /^\d{7}-\d$/.test(companyData.businessId)) {
+            vatId = `FI${companyData.businessId.replace("-", "")}`;
+        }
+
+        return {
+          name: companyData.name,
+          businessId: companyData.businessId,
+          vatId: vatId,
+          streetAddress,
+          postalCode,
+          city,
+          countryCode,
+          companyForm: companyData.companyForm,
+          registrationDate: companyData.registrationDate,
+        };
+
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error in getYTunnusInfo:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred while fetching company information.",
+          cause: error,
+        });
+      }
     }),
 }); 

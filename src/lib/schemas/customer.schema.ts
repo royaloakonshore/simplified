@@ -19,8 +19,7 @@ export const customerBaseSchema = z.object({
   vatId: z.string().optional(), // Y-tunnus
   ovtIdentifier: z.string().optional(),
   intermediatorAddress: z.string().optional(),
-  // Array for addresses - at least one address might be required depending on logic
-  addresses: z.array(addressSchema).min(0), // Start with min 0, can adjust later if needed
+  addresses: z.array(addressSchema).min(1, "At least one address is required."), // Ensure at least one address
 });
 
 // Schema for creating a customer
@@ -44,4 +43,32 @@ export const listCustomersSchema = z.object({
 });
 
 // Type inference
-export type ListCustomersInput = z.infer<typeof listCustomersSchema>; 
+export type ListCustomersInput = z.infer<typeof listCustomersSchema>;
+
+// Schema for Y-tunnus input validation
+export const yTunnusSchema = z.string()
+  .regex(/^\d{7}-\d$/, "Invalid Y-tunnus format (e.g., 1234567-8)");
+
+// Schema for the relevant address part from PRH API response
+export const prhAddressSchema = z.object({
+  street: z.string().optional(),
+  postCode: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(), // PRH API might provide country code
+  type: z.string().optional(), // e.g., "Postiosoite" or "Toimitusosoite"
+});
+
+// Schema for the selected company info returned by our tRPC route
+export const prhCompanyInfoSchema = z.object({
+  name: z.string(),
+  businessId: z.string(), // The Y-tunnus itself
+  vatId: z.string().optional(), // VAT ID, e.g., FI12345678
+  streetAddress: z.string().optional(),
+  postalCode: z.string().optional(),
+  city: z.string().optional(),
+  countryCode: z.string().optional().default("FI"), // Default to Finland
+  companyForm: z.string().optional(),
+  registrationDate: z.string().optional(), // Date as string
+});
+
+export type CustomerFormData = z.infer<typeof customerBaseSchema>; 

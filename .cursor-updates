@@ -47,3 +47,4 @@
 - Feat: Add originui/table, sidebar-07, and originui/dialog components via shadcn CLI.
 - Feat: Integrate sidebar-07, update navigation links and user info from session.
 - Feat: Implement Customer Edit Dialog using CustomerForm and originui/dialog.
+- Feat: Implement Y-tunnus (Finnish Business ID) search in CustomerForm.
