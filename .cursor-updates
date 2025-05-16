@@ -48,3 +48,4 @@
 - Feat: Integrate sidebar-07, update navigation links and user info from session.
 - Feat: Implement Customer Edit Dialog using CustomerForm and originui/dialog.
 - Feat: Implement Y-tunnus (Finnish Business ID) search in CustomerForm.
+- Feat: Refactor CustomerTable with advanced data table components (toolbar, client-side filtering/sorting, column visibility).

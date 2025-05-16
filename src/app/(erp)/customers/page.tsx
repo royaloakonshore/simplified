@@ -2,55 +2,39 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { usePathname } from 'next/navigation'; // Added for pagination
+// import { useSearchParams, useRouter } from 'next/navigation'; // No longer needed for client-side table
+// import { usePathname } from 'next/navigation'; // No longer needed for client-side table
 import { api } from "@/lib/trpc/react";
 import CustomerTable from '@/components/customers/CustomerTable';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { debounce } from 'lodash'; // Assuming lodash is installed
+// import { Input } from "@/components/ui/input"; // Search input now in DataTableToolbar
+// import { debounce } from 'lodash'; // No longer needed here
 import React from 'react';
 
 // Component to handle fetching and displaying data
 function CustomerListContent() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // const router = useRouter();
+  // const pathname = usePathname();
+  // const searchParams = useSearchParams();
 
-  // Get pagination and filter state from URL
-  const page = Number(searchParams.get('page') ?? 1);
-  const perPage = Number(searchParams.get('perPage') ?? 10);
-  const search = searchParams.get('search') ?? undefined;
-  const sortBy = (searchParams.get('sortBy') as 'name' | 'email' | 'createdAt') ?? 'name';
-  const sortDirection = (searchParams.get('sortDirection') as 'asc' | 'desc') ?? 'asc';
+  // // Get pagination and filter state from URL - No longer managing here for client-side table
+  // const page = Number(searchParams.get('page') ?? 1);
+  // const perPage = Number(searchParams.get('perPage') ?? 10);
+  // const search = searchParams.get('search') ?? undefined;
+  // const sortBy = (searchParams.get('sortBy') as 'name' | 'email' | 'createdAt') ?? 'name';
+  // const sortDirection = (searchParams.get('sortDirection') as 'asc' | 'desc') ?? 'asc';
 
-  // Fetch data using tRPC
+  // Fetch data using tRPC - simplified for client-side table
+  // We'll fetch all (or a large default set) and let the table handle pagination/filtering/sorting
   const { data, error, isLoading } = api.customer.list.useQuery({
-    page,
-    perPage,
-    search,
-    sortBy,
-    sortDirection,
+    // Remove page, perPage, search, sortBy, sortDirection for now.
+    // The list procedure might have defaults or fetch all.
+    // For a truly large dataset, server-side would be re-enabled.
   });
 
-  // Debounced search handler
-  const debouncedSearch = React.useCallback(
-    debounce((value: string) => {
-      const params = new URLSearchParams(searchParams);
-      if (value) {
-        params.set('search', value);
-      } else {
-        params.delete('search');
-      }
-      params.set('page', '1'); // Reset to page 1 on search
-      router.push(`${pathname}?${params.toString()}`);
-    }, 500), // 500ms debounce
-    [searchParams, router, pathname]
-  );
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    debouncedSearch(event.target.value);
-  };
+  // // Debounced search handler - Handled by DataTableToolbar now
+  // const debouncedSearch = React.useCallback(...);
+  // const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => { ... };
 
   if (error) {
     return <div className="text-red-600">Error loading customers: {error.message}</div>;
@@ -59,23 +43,18 @@ function CustomerListContent() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Input
-          placeholder="Search name or email..."
-          defaultValue={search}
-          onChange={handleSearchChange}
-          className="max-w-sm"
-        />
+        {/* Search input is now part of DataTableToolbar inside CustomerTable */}
+        <div> {/* Placeholder for alignment if needed, or remove outer div if only button */} </div>
          <Button asChild>
            <Link href="/customers/add">Create New Customer</Link>
          </Button>
       </div>
       {isLoading && !data ? (
-        <div>Loading customers...</div> // TODO: Add Skeleton
+        <div>Loading customers...</div> // TODO: Add Skeleton for table rows
       ) : (
         <CustomerTable 
             customers={data?.items ?? []} 
-            pagination={data?.pagination ?? { page: 1, perPage: 10, totalCount: 0, totalPages: 1 }} 
-            // Pass pagination change handler here if needed
+            // No pagination prop needed as CustomerTable handles it client-side now
         />
       )}
     </div>

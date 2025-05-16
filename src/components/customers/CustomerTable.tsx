@@ -6,7 +6,15 @@ import {
     flexRender, 
     getCoreRowModel, 
     useReactTable, 
-    getPaginationRowModel 
+    getPaginationRowModel,
+    getSortedRowModel,
+    getFilteredRowModel,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
+    type SortingState,
+    type ColumnFiltersState,
+    type VisibilityState,
+    type FilterFn, // For custom filter functions if needed
 } from "@tanstack/react-table";
 import { type Customer } from '@prisma/client';
 import { 
@@ -23,85 +31,128 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { CustomerEditDialog } from './CustomerEditDialog'; // Import the dialog
 import { api } from '@/lib/trpc/react'; // Import tRPC api for utils
 
-// Define columns
+// New Data Table Components
+import { DataTableToolbar } from "@/components/ui/data-table/data-table-toolbar";
+import { DataTableColumnHeader } from "@/components/ui/data-table/data-table-column-header";
+
+// Define columns dynamically to use hooks within
 const DynamicColumns = () => {
-  const utils = api.useUtils(); // Hook for tRPC utils
+  const utils = api.useUtils();
 
   const columns: ColumnDef<Customer>[] = [
     {
       accessorKey: 'name',
-      header: 'Name',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Name" />
+      ),
+      cell: ({ row }) => <div>{row.getValue("name")}</div>,
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'email',
-      header: 'Email',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Email" />
+      ),
+      cell: ({ row }) => <div>{row.getValue("email")}</div>,
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'phone',
-      header: 'Phone',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Phone" />
+      ),
+      cell: ({ row }) => <div>{row.getValue("phone")}</div>,
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'createdAt',
-      header: 'Created At',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Created At" />
+      ),
       cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       id: 'actions',
-      header: () => <div className="text-right">Actions</div>, // Optional: Align header
+      header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => (
         <div className="text-right">
           <CustomerEditDialog 
             customerId={row.original.id} 
             trigger={<Button variant="outline" size="sm">Edit</Button>}
             onSuccess={() => {
-              utils.customer.list.invalidate(); // Invalidate customer list on success
+              utils.customer.list.invalidate(); 
             }}
           />
         </div>
       ),
+      enableSorting: false,
+      enableHiding: false,
     },
   ];
   return columns;
 }
 
 interface CustomerTableProps {
-  customers: Customer[];
-  pagination: {
-    page: number;
-    perPage: number;
-    totalCount: number;
-    totalPages: number;
-  };
-  // Add callback for pagination changes if needed
+  customers: Customer[]; // This will be the initial full dataset for client-side processing
+  // Pagination is now handled client-side by TanStack table if we pass all data
+  // Or server-side if we continue to fetch paginated data.
+  // For this refactor, let's assume client-side processing for simplicity first.
+  // If server-side pagination/filtering is kept, the table state needs to be lifted.
 }
 
-export default function CustomerTable({ customers, pagination }: CustomerTableProps) {
-  const columns = DynamicColumns(); // Get columns from the hook-enabled function
+export default function CustomerTable({ customers }: CustomerTableProps) {
+  const columns = React.useMemo(() => DynamicColumns(), []);
+  
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState<string>("");
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({}); // If row selection is needed
+
   const table = useReactTable({
-    data: customers,
+    data: customers, // Use the full customer list
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(), // Use built-in pagination
-    manualPagination: true, // Tell table pagination is handled server-side
-    pageCount: pagination.totalPages,
     state: {
-      pagination: {
-        pageIndex: pagination.page - 1, // TanStack Table is 0-indexed
-        pageSize: pagination.perPage,
-      },
+      sorting,
+      columnFilters,
+      globalFilter,
+      columnVisibility,
+      rowSelection,
+      // pagination will be managed by the table if we don't set manualPagination
     },
-    // onPaginationChange: // Function to update URL search params (passed from page)
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(), // For client-side pagination
+    getFacetedRowModel: getFacetedRowModel(), // For faceted filters
+    getFacetedUniqueValues: getFacetedUniqueValues(), // For faceted filters
+    // enableGlobalFilter: true, // default is true
   });
 
   return (
     <div className="space-y-4">
+      <DataTableToolbar 
+        table={table} 
+        globalFilter={globalFilter} 
+        setGlobalFilter={setGlobalFilter} 
+      />
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -137,8 +188,7 @@ export default function CustomerTable({ customers, pagination }: CustomerTablePr
           </TableBody>
         </Table>
       </div>
-      {/* Reusable Pagination Component */}
-       <DataTablePagination table={table} />
+      <DataTablePagination table={table} />
     </div>
   );
 } 
