@@ -5,7 +5,7 @@ import {
   type NextAuthOptions,
   type DefaultSession,
 } from "next-auth";
-// import EmailProvider from "next-auth/providers/email"; // Temporarily commented out
+import EmailProvider from "next-auth/providers/email";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
@@ -119,18 +119,17 @@ export const authOptions: NextAuthOptions = {
         } as any; // Cast to any to bypass complex type issues between Prisma User and NextAuth User
       }
     }),
-    // EmailProvider({
-    //   server: {
-    //     host: "smtp.resend.com",
-    //     port: 465,
-    //     auth: {
-    //       user: "resend",
-    //       pass: process.env.EMAIL_SERVER_PASSWORD,
-    //     },
-    //   },
-    //   from: process.env.EMAIL_FROM || "onboarding@resend.dev",
-    // }), // Temporarily commented out [YYYY-MM-DD] due to persistent nodemailer/webpack build errors.
-    // // Needs further investigation to re-enable.
+    EmailProvider({
+      server: {
+        host: "smtp.resend.com",
+        port: 465,
+        auth: {
+          user: "resend",
+          pass: process.env.EMAIL_SERVER_PASSWORD,
+        },
+      },
+      from: process.env.EMAIL_FROM || "onboarding@resend.dev",
+    }),
   ],
   session: {
     strategy: "jwt",

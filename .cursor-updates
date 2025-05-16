@@ -50,3 +50,6 @@
 - Feat: Implement Y-tunnus (Finnish Business ID) search in CustomerForm.
 - Feat: Refactor CustomerTable with advanced data table components (toolbar, client-side filtering/sorting, column visibility).
 - Resolved `PageNotFoundError` by creating `src/app/(erp)/customers/add/page.tsx` for adding new customers.
+- Fix: Resolve CustomerTable Hook errors by refactoring hook usage.
+- Feat: Add CustomerTableSkeleton for improved loading UI on customers page.
+- Fix: Resolve build errors by updating date-fns, react-day-picker, and adapting calendar component to react-day-picker v9 API. Re-enabled NextAuth EmailProvider.

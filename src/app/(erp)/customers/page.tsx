@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 // import { Input } from "@/components/ui/input"; // Search input now in DataTableToolbar
 // import { debounce } from 'lodash'; // No longer needed here
 import React from 'react';
+import { CustomerTableSkeleton } from "@/components/customers/CustomerTableSkeleton"; // Import the skeleton
 
 // Component to handle fetching and displaying data
 function CustomerListContent() {
@@ -25,11 +26,8 @@ function CustomerListContent() {
   // const sortDirection = (searchParams.get('sortDirection') as 'asc' | 'desc') ?? 'asc';
 
   // Fetch data using tRPC - simplified for client-side table
-  // We'll fetch all (or a large default set) and let the table handle pagination/filtering/sorting
   const { data, error, isLoading } = api.customer.list.useQuery({
-    // Remove page, perPage, search, sortBy, sortDirection for now.
-    // The list procedure might have defaults or fetch all.
-    // For a truly large dataset, server-side would be re-enabled.
+    // No params needed for now, fetching all for client-side table
   });
 
   // // Debounced search handler - Handled by DataTableToolbar now
@@ -50,7 +48,7 @@ function CustomerListContent() {
          </Button>
       </div>
       {isLoading && !data ? (
-        <div>Loading customers...</div> // TODO: Add Skeleton for table rows
+        <CustomerTableSkeleton /> // Use the skeleton component
       ) : (
         <CustomerTable 
             customers={data?.items ?? []} 
