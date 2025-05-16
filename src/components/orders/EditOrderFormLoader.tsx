@@ -14,8 +14,11 @@ async function getEditFormData(orderId: string) {
         include: {
             items: {
                 include: {
-                    item: true, // Include InventoryItem details for each OrderItem
+                    inventoryItem: true, // Changed from item to inventoryItem to align with new schema
                 },
+            },
+            customer: {
+                select: { id: true, name: true },
             },
         },
     });

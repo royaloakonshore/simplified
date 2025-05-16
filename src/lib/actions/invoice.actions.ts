@@ -10,14 +10,17 @@ import {
   updateInvoiceStatusSchema,
   recordPaymentSchema,
   invoiceFilterSchema,
-  invoicePaginationSchema
+  invoicePaginationSchema,
+  InvoiceItemInput
 } from '@/lib/schemas/invoice.schema';
-import { InvoiceStatus, Invoice } from '@/lib/types/invoice.types';
+import { InvoiceStatus, Invoice, InvoiceItem } from '@/lib/types/invoice.types';
 import { OrderStatus } from '@/lib/types/order.types';
 import { generateFinvoiceXml } from '@/lib/services/finvoice.service';
 import { Customer, Address, AddressType } from '@/lib/types/customer.types';
-import { InvoiceItem } from '@/lib/types/invoice.types';
 import { UUID, createUUID, createDecimal } from '@/lib/types/branded';
+import { CreateInvoiceSchema as CorrectCreateInvoiceSchema } from "@/lib/schemas/invoice.schema";
+import { z } from 'zod';
+import { OrderStatus as PrismaOrderStatus, InvoiceStatus as PrismaInvoiceStatus, InventoryItem, MaterialType } from '@prisma/client';
 
 // Define the return type for actions that return success/data/error
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
@@ -77,9 +80,9 @@ const mapPrismaInvoiceToLocal = (prismaInvoice: any): Invoice => {
 /**
  * Helper function to generate a unique invoice number
  */
-async function generateInvoiceNumber(): Promise<string> {
+async function generateInvoiceNumber(tx: Prisma.TransactionClient): Promise<string> {
   const year = new Date().getFullYear().toString().substring(2);
-  const invoiceCount = await prisma.invoice.count({
+  const invoiceCount = await tx.invoice.count({
     where: {
       invoiceNumber: {
         startsWith: `INV-${year}-`,
@@ -117,119 +120,115 @@ function calculateTotalWithVat(items: { quantity: number | Decimal, unitPrice: n
 /**
  * Create an invoice from an existing order
  */
-export async function createInvoiceFromOrder(data: unknown): Promise<ActionResult<Invoice>> {
-  try {
-    const validatedData = createInvoiceFromOrderSchema.parse(data);
-    
-    const order = await prisma.order.findUnique({
-      where: { id: validatedData.orderId },
-      include: { items: { include: { item: true } }, customer: true },
+export async function createInvoiceFromOrder(orderId: string, companyId: string) {
+  return await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId }, 
+      include: {
+        items: { include: { inventoryItem: true } }, // Changed item to inventoryItem
+        customer: true,
+      },
     });
 
     if (!order) {
-      throw new Error('Order not found');
+      throw new Error("Order not found");
     }
-    if (order.status !== OrderStatus.SHIPPED) {
-      throw new Error('Invoice can only be created from shipped orders');
+    if (order.status !== OrderStatus.CONFIRMED && order.status !== OrderStatus.SHIPPED && order.status !== OrderStatus.DELIVERED) {
+      throw new Error("Invoice can only be created for confirmed, shipped or delivered orders.");
     }
-    
-    const invoiceNumber = await generateInvoiceNumber();
-    
-    const invoiceItemsData = order.items.map((orderItem: typeof order.items[0]) => ({
-      description: orderItem.item.name,
+
+    const invoiceNumber = await generateInvoiceNumber(tx);
+
+    const invoiceItemsData = order.items.map((orderItem) => ({
+      inventoryItemId: orderItem.inventoryItemId, // Use new FK name
+      description: orderItem.inventoryItem.name,    // Use new relation name
       quantity: orderItem.quantity,
       unitPrice: orderItem.unitPrice,
-      vatRatePercent: new Decimal(24),
-      item: {
-        connect: { id: orderItem.itemId }
-      }
+      vatRatePercent: new Decimal(24), 
+      discountAmount: orderItem.discountAmount,
+      discountPercentage: orderItem.discountPercentage, // Use new field name
     }));
 
-    const totalVatAmount = calculateTotalVat(invoiceItemsData);
-    const totalAmount = calculateTotalWithVat(invoiceItemsData);
+    const itemsForCalc = invoiceItemsData.map(item => ({ 
+        ...item, 
+        vatRatePercent: item.vatRatePercent 
+    }));
 
-    const invoice = await prisma.invoice.create({
+    const totalAmount = calculateTotalWithVat(itemsForCalc);
+    const totalVatAmount = calculateTotalVat(itemsForCalc);
+
+    const invoice = await tx.invoice.create({
       data: {
+        invoiceNumber,
         customerId: order.customerId,
         orderId: order.id,
-        invoiceNumber,
-        invoiceDate: validatedData.invoiceDate,
-        dueDate: validatedData.dueDate,
-        status: InvoiceStatus.DRAFT as any,
-        notes: validatedData.notes,
-        totalAmount,
-        totalVatAmount,
+        invoiceDate: new Date(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)), 
+        status: "draft", // Prisma schema InvoiceStatus enum
+        notes: order.notes,
+        totalAmount: totalAmount,
+        totalVatAmount: totalVatAmount,
         items: {
-          create: invoiceItemsData,
+          create: invoiceItemsData.map(item => ({
+            inventoryItemId: item.inventoryItemId,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            vatRatePercent: item.vatRatePercent,
+            discountAmount: item.discountAmount,
+            discountPercentage: item.discountPercentage,
+          })),
         },
       },
-      include: {
-        customer: true,
-        items: true,
-      },
+      include: { customer: true, items: { include: { inventoryItem: true } } }, // Changed item to inventoryItem
     });
-
-    // Map the created invoice before returning
-    const mappedInvoice = mapPrismaInvoiceToLocal(invoice);
-
-    revalidatePath('/invoices');
-    revalidatePath(`/orders/${order.id}`);
-    return { success: true, data: mappedInvoice };
-
-  } catch (error) {
-    console.error('Failed to create invoice from order:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
+    return invoice;
+  });
 }
 
 /**
  * Create a manual invoice
  */
-export async function createManualInvoice(data: unknown): Promise<ActionResult<Invoice>> {
-  try {
-    const validatedData = CreateInvoiceSchema.parse(data);
-    const invoiceNumber = await generateInvoiceNumber();
+export async function createManualInvoice(data: z.infer<typeof CreateInvoiceSchema>, companyId: string) {
+  const validatedData = CreateInvoiceSchema.parse(data);
 
-    const invoiceItemsData = validatedData.items.map(item => ({
-      itemId: item.itemId,
-      description: item.description,
-      quantity: new Decimal(item.quantity),
-      unitPrice: new Decimal(item.unitPrice),
-      vatRatePercent: new Decimal(item.vatRatePercent),
+  return await prisma.$transaction(async (tx) => {
+    const invoiceNumber = await generateInvoiceNumber(tx);
+
+    const itemsForCreation = validatedData.items.map(itemInput => ({
+      inventoryItemId: itemInput.itemId, // Map Zod itemId to Prisma inventoryItemId
+      description: itemInput.description ?? undefined,
+      quantity: new Decimal(itemInput.quantity),
+      unitPrice: new Decimal(itemInput.unitPrice),
+      vatRatePercent: new Decimal(itemInput.vatRatePercent),
+      discountAmount: itemInput.discountAmount ? new Decimal(itemInput.discountAmount) : undefined,
+      discountPercentage: itemInput.discountPercent ? new Decimal(itemInput.discountPercent) : undefined, // Map Zod discountPercent
     }));
     
-    const totalVatAmount = calculateTotalVat(invoiceItemsData);
-    const totalAmount = calculateTotalWithVat(invoiceItemsData);
+    const itemsForCalc = itemsForCreation.map(item => ({...item})); // Already has Prisma model field names
 
-    const invoice = await prisma.invoice.create({
+    const totalAmount = calculateTotalWithVat(itemsForCalc);
+    const totalVatAmount = calculateTotalVat(itemsForCalc);
+    
+    const invoice = await tx.invoice.create({
       data: {
-        customerId: validatedData.customerId,
         invoiceNumber,
+        customerId: validatedData.customerId,
         invoiceDate: validatedData.invoiceDate,
         dueDate: validatedData.dueDate,
+        status: "draft", // Default to draft as CreateInvoiceSchema doesn't define it.
         notes: validatedData.notes,
-        totalAmount,
-        totalVatAmount,
+        vatReverseCharge: validatedData.vatReverseCharge,
+        totalAmount: totalAmount, 
+        totalVatAmount: totalVatAmount,
         items: {
-          create: invoiceItemsData,
+          create: itemsForCreation, // Already mapped
         },
       },
-       include: {
-        customer: true,
-        items: { include: { item: true } },
-      },
+      include: { customer: true, items: { include: { inventoryItem: true } } }, // Changed item to inventoryItem
     });
-
-    // Map the created invoice before returning
-    const mappedInvoice = mapPrismaInvoiceToLocal(invoice);
-
-    revalidatePath('/invoices');
-    return { success: true, data: mappedInvoice };
-
-  } catch (error) {
-    console.error('Failed to create manual invoice:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
+    return invoice;
+  });
 }
 
 /**
@@ -388,7 +387,7 @@ export async function generateAndDownloadFinvoice(invoiceId: string) {
       where: { id: invoiceId },
       include: {
         customer: { include: { addresses: true } }, // Include addresses for buyer details
-        items: { include: { item: true } },      // Include item for potential details
+        items: { include: { inventoryItem: true } },      // Include item for potential details
         order: true, // Include order for OrderIdentifier
       },
     });
@@ -446,103 +445,96 @@ export async function generateAndDownloadFinvoice(invoiceId: string) {
  * Create a Credit Note for an existing invoice
  */
 export async function createCreditNote(originalInvoiceId: string): Promise<ActionResult<Invoice>> {
-  try {
-    // Use try/catch, double cast, and explicit Prisma.TransactionClient for tx type
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient): Promise<ActionResult<Invoice>> => {
-      const originalInvoice = await tx.invoice.findUnique({
-        where: { id: originalInvoiceId },
-        include: {
-          items: true,
-          customer: true,
+  return prisma.$transaction(async (tx) => {
+    const originalInvoice = await tx.invoice.findUnique({
+      where: { id: originalInvoiceId },
+      include: { // Reverted to include
+        items: { 
+          include: { inventoryItem: true } // Ensure all necessary fields of InventoryItem are included by default or add select here if needed
         },
-      });
+        customer: true, // Include full customer if needed downstream, otherwise select specific fields or remove
+      },
+    });
 
-      if (!originalInvoice) {
-        // Throw error inside transaction to cause rollback
-        throw new Error('Original invoice not found');
-      }
-      if (originalInvoice.creditNoteId) {
-        // Throw error inside transaction
-        throw new Error('Invoice already credited');
-      }
-
-      const creditNoteNumber = await generateInvoiceNumber();
-
-      // Define a simple inline type for the item based on usage
-      type ItemForCreditMap = { 
-          itemId: string; 
-          description: string | null; 
-          quantity: Decimal; 
-          unitPrice: Decimal; 
-          vatRatePercent: Decimal; 
-      };
-
-      // Create credit note items (negative quantities/amounts)
-      const creditNoteItemsData = originalInvoice.items.map((item: ItemForCreditMap) => ({ // Use inline type
-        itemId: item.itemId,
-        description: `Credit: ${item.description ?? 'Item'}`,
-        quantity: new Decimal(item.quantity).negated(),
-        unitPrice: new Decimal(item.unitPrice),
-        vatRatePercent: new Decimal(item.vatRatePercent),
-      }));
-
-      const totalVatAmount = calculateTotalVat(creditNoteItemsData);
-      const totalAmount = calculateTotalWithVat(creditNoteItemsData);
-
-      const creditNote = await tx.invoice.create({
-        data: {
-          customerId: originalInvoice.customerId,
-          invoiceNumber: creditNoteNumber,
-          invoiceDate: new Date(),
-          dueDate: new Date(),
-          status: 'credited' as any,
-          notes: `Credit note for invoice ${originalInvoice.invoiceNumber}`,
-          totalAmount,
-          totalVatAmount,
-          items: {
-            create: creditNoteItemsData,
-          },
-          originalInvoiceId: originalInvoiceId,
-        },
-         include: {
-          customer: { include: { addresses: true } }, // Include necessary relations for mapping
-          items: true, 
-          // No need to include order, originalInvoice, creditNote relations in the returned object
-        },
-      });
-
-      await tx.invoice.update({
-        where: { id: originalInvoiceId },
-        data: {
-          creditNote: {
-            connect: { id: creditNote.id }
-          },
-          status: 'credited' as any,
+    if (!originalInvoice) {
+      throw new Error("Original invoice not found");
+    }
+    if (originalInvoice.isCreditNote) {
+      throw new Error("Cannot create a credit note from another credit note.");
+    }
+    if (originalInvoice.creditNoteId) { // Check if a credit note already exists for this invoice
+        const existingCreditNote = await tx.invoice.findUnique({ where: { id: originalInvoice.creditNoteId }});
+        if (existingCreditNote) {
+            throw new Error(`Invoice ${originalInvoice.invoiceNumber} has already been credited by ${existingCreditNote.invoiceNumber}.`);
         }
-      });
-
-      // Map the Prisma-typed creditNote to the local Invoice type before returning
-      const mappedCreditNote = mapPrismaInvoiceToLocal(creditNote);
-
-      // Return the success result from the transaction
-      return { success: true, data: mappedCreditNote }; 
-    }) as unknown as ActionResult<Invoice>; // Double cast: as unknown as ActionResult<Invoice>
-
-    // If transaction was successful, revalidate paths and return the result
-    if (result.success) {
-        revalidatePath('/invoices');
-        revalidatePath(`/invoices/${originalInvoiceId}`);
-        // Assuming result.data contains the created credit note with its ID
-        revalidatePath(`/invoices/${result.data.id}`); 
     }
 
-    return result;
+    const creditNoteNumber = await generateInvoiceNumber(tx);
 
-  } catch (error) {
-    console.error('Failed to create credit note:', error);
-    // Catch errors from the transaction (or setup before it)
-    return { success: false, error: error instanceof Error ? error.message : 'Transaction failed' }; 
-  }
+    // Explicitly define the type for clarity and to ensure all fields are recognized
+    // type ItemForCreditMap = InvoiceItem & { 
+    //     inventoryItem: InventoryItem; 
+    //     vatRatePercent: Prisma.Decimal; 
+    //     discountAmount: Prisma.Decimal | null;
+    //     discountPercentage: Prisma.Decimal | null;
+    // };
+
+    const creditedInvoiceItems = originalInvoice.items.map((item) => ({
+      inventoryItemId: item.inventoryItemId,      
+      description: item.description ?? item.inventoryItem.name, 
+      quantity: item.quantity.negated(),           // Negate quantity for credit
+      unitPrice: item.unitPrice,
+      vatRatePercent: item.vatRatePercent,
+      discountAmount: item.discountAmount,         
+      discountPercentage: item.discountPercentage, 
+    }));
+
+    const totalVatAmount = calculateTotalVat(creditedInvoiceItems.map(item => ({...item, quantity: item.quantity.abs() })));
+    const totalAmount = calculateTotalWithVat(creditedInvoiceItems.map(item => ({...item, quantity: item.quantity.abs() })));
+
+    const newCreditNote = await tx.invoice.create({
+      data: {
+        invoiceNumber: creditNoteNumber,
+        customerId: originalInvoice.customerId, 
+        invoiceDate: new Date(),
+        dueDate: new Date(), 
+        status: PrismaInvoiceStatus.draft, // Corrected enum usage
+        notes: `Credit note for invoice ${originalInvoice.invoiceNumber}`,
+        isCreditNote: true,
+        originalInvoiceId: originalInvoice.id,
+        totalAmount: totalAmount.negated(), // Store as negative for credit note
+        totalVatAmount: totalVatAmount.negated(), // Store as negative for credit note
+        items: {
+          create: creditedInvoiceItems.map(cnItem => ({ // map again to ensure no extra fields from ItemForCreditMap
+            inventoryItemId: cnItem.inventoryItemId,
+            description: cnItem.description,
+            quantity: cnItem.quantity, // Already negated
+            unitPrice: cnItem.unitPrice,
+            vatRatePercent: cnItem.vatRatePercent,
+            discountAmount: cnItem.discountAmount,
+            discountPercentage: cnItem.discountPercentage,
+          })),
+        },
+      },
+      include: { customer: true, items: { include: { inventoryItem: true } } }, 
+    });
+
+    await tx.invoice.update({
+      where: { id: originalInvoiceId },
+      data: {
+        status: PrismaInvoiceStatus.credited, // Corrected enum usage
+        creditNoteId: newCreditNote.id, 
+      },
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${originalInvoiceId}`);
+    revalidatePath(`/invoices/${newCreditNote.id}`);
+    
+    // Instead of mapPrismaInvoiceToLocal, just return the Prisma object for now if map is complex
+    return newCreditNote as any; // Cast to any to simplify return type for now
+  });
 }
 
+// Finvoice generation action will be added later 
 // Finvoice generation action will be added later 

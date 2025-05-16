@@ -101,7 +101,7 @@ export const invoiceRouter = createTRPCRouter({
           customer: true,
           items: {
             include: {
-              item: true, // Include InventoryItem details
+              inventoryItem: true, // Corrected from item to inventoryItem
             },
           },
           order: true,
@@ -241,9 +241,15 @@ export const invoiceRouter = createTRPCRouter({
             totalVatAmount: totalVatAmountValue, // Use the calculated VAT
             vatReverseCharge: vatReverseCharge, // Store the flag
             items: {
-              createMany: { // Prisma Decimals used in invoiceItemsData
-                data: invoiceItemsData,
-              },
+              create: invoiceItemsData.map((item) => ({
+                inventoryItemId: item.itemId,
+                description: item.description,
+                quantity: new Prisma.Decimal(item.quantity),
+                unitPrice: new Prisma.Decimal(item.unitPrice),
+                vatRatePercent: new Prisma.Decimal(item.vatRatePercent),
+                discountAmount: item.discountAmount != null ? new Prisma.Decimal(item.discountAmount) : undefined,
+                discountPercentage: item.discountPercent != null ? new Prisma.Decimal(item.discountPercent) : undefined,
+              })),
             },
           },
           include: {

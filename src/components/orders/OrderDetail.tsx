@@ -22,7 +22,7 @@ type OrderDetailProps = {
       addresses?: Address[] | null; // Make addresses optional
     };
     items: (OrderItem & {
-      item: InventoryItem;
+      inventoryItem: InventoryItem; // Changed from 'item' to 'inventoryItem'
     })[];
     // Add stock status info if needed, fetched separately or included
     // stockStatus?: { itemId: string; hasSufficientStock: boolean; }[];
@@ -248,21 +248,23 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                         {order.items.map(orderItem => (
                             <tr key={orderItem.id}>
                                 <td className="px-4 py-2 text-sm">
-                                     <Link href={`/inventory/${orderItem.item.id}`} className="font-medium text-primary hover:underline">
-                                         {orderItem.item.name}
-                                     </Link>
-                                     <div className="text-xs text-muted-foreground">SKU: {orderItem.item.sku}</div>
+                                    <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
+                                      {orderItem.inventoryItem.name}
+                                    </Link>
+                                    <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
                                 </td>
-                                <td className="px-4 py-2 text-sm text-right">{Number(orderItem.quantity)} {orderItem.item.unitOfMeasure}</td>
-                                <td className="px-4 py-2 text-sm text-right">{formatCurrency(orderItem.unitPrice)}</td>
-                                <td className="px-4 py-2 text-sm text-right font-medium">{formatCurrency(Number(orderItem.quantity) * Number(orderItem.unitPrice))}</td>
+                                <td className="px-4 py-2 text-right text-sm">{orderItem.quantity.toString()}</td>
+                                <td className="px-4 py-2 text-right text-sm">{formatCurrency(orderItem.unitPrice)}</td>
+                                <td className="px-4 py-2 text-right text-sm">
+                                    {formatCurrency(new Prisma.Decimal(orderItem.quantity).mul(orderItem.unitPrice))}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
                      <tfoot className="bg-muted/50 border-t">
                         <tr>
                             <td colSpan={3} className="px-4 py-2 text-right text-sm font-medium uppercase">Total</td>
-                            <td className="px-4 py-2 text-right text-sm font-medium">{formatCurrency(order.totalAmount)}</td>
+                            <td className="px-4 py-2 text-right text-sm font-medium">{formatCurrency(order.totalAmount ?? 0)}</td>
                         </tr>
                     </tfoot>
                 </table>

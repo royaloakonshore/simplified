@@ -55,7 +55,6 @@ export default function OrderPage() {
     );
   }
 
-  // Data fetched successfully
   return (
     <div className="p-6">
       <div className="flex items-center mb-6">
@@ -66,9 +65,8 @@ export default function OrderPage() {
          {/* <h1 className="text-2xl font-bold">Order {order.orderNumber}</h1> */}
       </div>
 
-      {/* Pass fetched Prisma data directly - OrderDetail needs to handle it */}
-      {/* Ensure the type passed matches what OrderDetail expects */}
-      <OrderDetail order={order} />
+      {/* Explicitly assert the type for OrderDetail, assuming tRPC should provide the relations */}
+      <OrderDetail order={order as NonNullable<typeof order>} />
     </div>
   );
 } 

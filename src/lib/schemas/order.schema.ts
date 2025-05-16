@@ -27,6 +27,7 @@ export const orderBaseSchema = z.object({
   orderNumber: z.string().optional(), // Consider auto-generating this
   status: z.nativeEnum(OrderStatus).default(OrderStatus.draft),
   orderType: z.nativeEnum(OrderType).default(OrderType.work_order), // Add orderType field
+  deliveryDate: z.coerce.date().optional().nullable(), // Added deliveryDate
   notes: z.string().optional(),
   items: z.array(orderItemSchema).min(1, 'Order must have at least one item'),
   // totalAmount will likely be calculated on the server, not submitted by client
@@ -118,4 +119,13 @@ export const listOrdersSchema = z.object({
   // Add other filters: date range, search term?
 });
 
-export type ListOrdersInput = z.infer<typeof listOrdersSchema>; 
+export type ListOrdersInput = z.infer<typeof listOrdersSchema>;
+
+// Zod schema for listProductionView input (initially empty, can be expanded)
+export const listProductionViewInputSchema = z.object({
+  // placeholder for future filters like specific statuses, assigned user, etc.
+  // limit: z.number().min(1).max(100).nullish(),
+  // cursor: z.string().cuid().nullish(),
+});
+
+export type ListProductionViewInput = z.infer<typeof listProductionViewInputSchema>; // Exporting the type as well 

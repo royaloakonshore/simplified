@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, type SubmitHandler, FormProvider, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Order, type OrderItem, OrderStatus, OrderType, type Customer, type InventoryItem } from "@prisma/client";
+import { type Order, type OrderItem, OrderStatus, OrderType, type Customer, type InventoryItem, Prisma } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
@@ -27,6 +27,7 @@ import { Trash2, PlusCircle, UserPlus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { z } from 'zod';
 import { PlusCircle as PlusCircleIcon } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 // Dialog and CustomerForm imports
 import {
@@ -45,10 +46,34 @@ type UpdateFormValues = z.infer<typeof updateOrderSchema>;
 type CreateFormInstance = UseFormReturn<CreateFormValues>;
 type UpdateFormInstance = UseFormReturn<UpdateFormValues>;
 
+// Define the payload type for order items with the related item (InventoryItem)
+export type OrderItemWithRelatedItem = Prisma.OrderItemGetPayload<{
+  select: {
+    id: true;
+    orderId: true;
+    inventoryItemId: true; // Aligned with new schema FK name
+    quantity: true;
+    unitPrice: true;
+    discountAmount: true;
+    discountPercentage: true; // Aligned with new schema field name
+    // notes: true; 
+    inventoryItem: { // Aligned with new schema relation name
+      select: {
+        id: true;
+        name: true;
+        sku: true; 
+        salesPrice: true; 
+        unitOfMeasure: true; 
+      }
+    }
+  }
+}>;
+
+// Props for the OrderForm
 type OrderFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
   inventoryItems: Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 'unitOfMeasure'>[];
-  order?: Order & { items: (OrderItem & { item: InventoryItem })[] };
+  order?: Order & { items: OrderItemWithRelatedItem[] }; // Uses the updated OrderItemWithRelatedItem
   isEditMode?: boolean;
 };
 
@@ -96,12 +121,16 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             id: order.id,
             customerId: order.customerId,
             notes: order.notes ?? '',
-            orderType: order.orderType ?? OrderType.work_order, // Include orderType
-            items: order.items.map(item => ({
-                id: item.id,
-                itemId: item.itemId,
-                quantity: item.quantity.toNumber(),
-                unitPrice: item.unitPrice.toNumber(),
+            status: order.status, 
+            orderType: order.orderType ?? OrderType.work_order, 
+            deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined, 
+            items: order.items.map((orderItem: OrderItemWithRelatedItem) => ({ 
+                id: orderItem.id,
+                itemId: orderItem.inventoryItemId, // Map from inventoryItemId (schema) to Zod schema's itemId
+                quantity: (orderItem.quantity as any).toNumber(), 
+                unitPrice: (orderItem.unitPrice as any).toNumber(), 
+                discountAmount: (orderItem.discountAmount as any)?.toNumber() ?? 0,
+                discountPercent: (orderItem.discountPercentage as any)?.toNumber() ?? 0, // Map from discountPercentage (schema) to Zod schema's discountPercent
             })),
         });
     } else if (!isEditMode) {
@@ -194,11 +223,11 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   const handleItemChange = (index: number, itemId: string, formInstance: CreateFormInstance | UpdateFormInstance) => {
     const selectedItem = inventoryItems.find(invItem => invItem.id === itemId);
     if (selectedItem) {
-      // Cast formInstance based on mode to resolve setValue union type issue
       if (isEditMode) {
         const updateFormInstance = formInstance as UpdateFormInstance;
         updateFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
         updateFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice.toNumber(), { shouldValidate: true });
+        // Potentially set discountPercentage if needed from selectedItem
       } else {
         const createFormInstance = formInstance as CreateFormInstance;
         createFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });

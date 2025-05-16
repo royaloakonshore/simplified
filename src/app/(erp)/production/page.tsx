@@ -1,275 +1,284 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
+import { api } from "@/lib/trpc/react";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
+import { KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider } from '@/components/ui/kanban';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Order, OrderStatus, Customer, InventoryItem, BillOfMaterial, BillOfMaterialItem, User, Prisma } from '@prisma/client';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { DataTableToolbar } from "@/components/ui/data-table/data-table-toolbar";
 import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  closestCorners,
-  type DragStartEvent,
-  type DragOverEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { arrayMove } from '@dnd-kit/sortable';
-import { OrderStatus, type Order } from '@prisma/client';
-import { api } from '@/lib/trpc/react';
-import { KanbanColumn } from '@/components/production/KanbanColumn';
-import { KanbanCard } from '@/components/production/KanbanCard';
+    ColumnDef,
+    flexRender,
+    getCoreRowModel,
+    useReactTable,
+    getPaginationRowModel,
+    getSortedRowModel,
+    getFilteredRowModel,
+    getFacetedRowModel,
+    getFacetedUniqueValues,
+    type SortingState,
+    type ColumnFiltersState,
+    type VisibilityState,
+} from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
 import { toast } from 'react-toastify';
 
-// Define the order of statuses for the columns
-const productionStatuses: OrderStatus[] = [
-  OrderStatus.confirmed,
-  OrderStatus.in_production,
-  OrderStatus.shipped,
-  // Add other relevant statuses? e.g., delivered if it belongs here
-];
+// Define the structure of an order for the Kanban board more specifically
+interface KanbanOrder extends Order {
+  customer: Pick<Customer, 'id' | 'name'> | null;
+  items: (
+    {
+      inventoryItem: Pick<InventoryItem, 'id' | 'name' | 'sku' | 'materialType'> & {
+        billOfMaterial: (BillOfMaterial & {
+          items: (BillOfMaterialItem & {
+            rawMaterialItem: Pick<InventoryItem, 'id' | 'name' | 'sku'>;
+          })[]
+        }) | null;
+      };
+      quantity: Prisma.Decimal;
+    }
+  )[];
+  user: Pick<User, 'id' | 'name' | 'firstName'> | null;
+  totalQuantity: Prisma.Decimal;
+}
 
-// Helper to get status title
-const getStatusTitle = (status: OrderStatus): string => {
-  switch (status) {
-    case OrderStatus.confirmed: return 'Confirmed';
-    case OrderStatus.in_production: return 'In Production';
-    case OrderStatus.shipped: return 'Shipped';
-    // Add cases for other statuses
-    default: return status;
-  }
+type KanbanColumn = {
+  id: OrderStatus;
+  name: string;
+  color: string;
 };
 
-type ProductionOrder = Order & { customer?: { name: string } };
+const KANBAN_COLUMNS: KanbanColumn[] = [
+  { id: OrderStatus.confirmed, name: 'Confirmed', color: '#fbbf24' }, // amber-400
+  { id: OrderStatus.in_production, name: 'In Production', color: '#3b82f6' }, // blue-500
+  { id: OrderStatus.shipped, name: 'Ready for Shipping/Shipped', color: '#22c55e' }, // green-500 
+];
 
-export default function ProductionPage() {
-  // Fetch all orders relevant to production (consider filtering if too many)
-  const { data: orderData, isLoading, error } = api.order.list.useQuery({
-    limit: 100, // Fetch a larger limit for the board view
-    // Optionally filter by specific statuses if needed on initial load
-    // status: { in: productionStatuses } // Prisma syntax example if needed
-  });
-
-  // State to hold the orders grouped by status
-  const [ordersByStatus, setOrdersByStatus] = useState<Record<OrderStatus, ProductionOrder[]>>(() => {
-    const initial: Partial<Record<OrderStatus, ProductionOrder[]>> = {};
-    productionStatuses.forEach(status => { initial[status] = []; });
-    return initial as Record<OrderStatus, ProductionOrder[]>;
-  });
-
-  // State for active drag item
-  const [activeOrder, setActiveOrder] = useState<ProductionOrder | null>(null);
-
-  // Memoize orders by status
-  useMemo(() => {
-    if (orderData?.items) {
-      const grouped: Record<OrderStatus, ProductionOrder[]> = { ...ordersByStatus }; // Start with current state or empty
-       // Ensure all defined columns exist
-       productionStatuses.forEach(status => { if (!grouped[status]) grouped[status] = []; });
-
-      orderData.items.forEach((order) => {
-        // Only include orders matching our defined production statuses
-        if (productionStatuses.includes(order.status)) {
-           if (!grouped[order.status]) {
-             grouped[order.status] = [];
-           }
-          // Avoid adding duplicates if already present (e.g., from local state updates)
-           if (!grouped[order.status].some(o => o.id === order.id)) {
-                grouped[order.status].push(order as ProductionOrder);
-           }
-        }
-      });
-
-      // Preserve order within columns if possible, or sort
-       Object.keys(grouped).forEach((statusKey) => {
-           grouped[statusKey as OrderStatus].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-       });
-
-      setOrdersByStatus(grouped);
-    }
-  }, [orderData]);
+function ProductionPageContent() {
+  const [activeView, setActiveView] = useState<string>("kanban");
+  const [orders, setOrders] = useState<KanbanOrder[]>([]);
+  const [activeOrder, setActiveOrder] = useState<KanbanOrder | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
     })
   );
 
-  // Mutation hook for updating status
-   const updateStatusMutation = api.order.updateStatus.useMutation({
-       onSuccess: (updatedOrder) => {
-          toast.success(`Order #${updatedOrder.orderNumber} moved to ${getStatusTitle(updatedOrder.status)}`);
-          // Note: We rely on the query refetch or manual state update for UI change
-          // Could potentially update local state here for instant feedback, but complex
-       },
-       onError: (error) => {
-          toast.error(`Failed to move order: ${error.message}`);
-          // TODO: Revert local state change if implemented
-       },
-       // Optional: Invalidate query on settlement to refetch
-       // onSettled: () => { utils.order.list.invalidate(); }
-   });
+  const productionOrdersQuery = api.order.listProductionView.useQuery(
+    {},
+    {
+      refetchOnWindowFocus: true,
+    }
+  );
+
+  useEffect(() => {
+    if (productionOrdersQuery.data) {
+      setOrders(productionOrdersQuery.data as KanbanOrder[]);
+    }
+    if (productionOrdersQuery.error) {
+      toast.error("Failed to fetch production orders: " + productionOrdersQuery.error.message);
+      setOrders([]);
+    }
+  }, [productionOrdersQuery.data, productionOrdersQuery.error]);
+
+  const updateOrderStatusMutation = api.order.updateStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Order status updated!");
+      productionOrdersQuery.refetch(); 
+    },
+    onError: (error) => {
+      toast.error("Failed to update order status: " + error.message);
+    },
+  });
 
   const handleDragStart = (event: DragStartEvent) => {
-    if (event.active.data.current?.type === 'Order') {
-      setActiveOrder(event.active.data.current.order);
-    }
-  };
-
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId === overId) return;
-
-    const isActiveAnOrder = active.data.current?.type === 'Order';
-    const isOverAnOrder = over.data.current?.type === 'Order';
-    const isOverAColumn = over.data.current?.type === 'Column';
-
-    if (!isActiveAnOrder) return;
-
-    // Find current column and item details
-    const activeOrderData = active.data.current?.order as ProductionOrder;
-    let currentColumnId: OrderStatus | undefined;
-    let currentItemIndex = -1;
-
-    Object.entries(ordersByStatus).forEach(([status, orders]) => {
-        const index = orders.findIndex(o => o.id === activeId);
-        if (index !== -1) {
-            currentColumnId = status as OrderStatus;
-            currentItemIndex = index;
-        }
-    });
-
-    if (!currentColumnId) return;
-
-    if (isOverAColumn) {
-        const targetColumnId = over.data.current?.status as OrderStatus;
-
-        if (currentColumnId !== targetColumnId) {
-           setOrdersByStatus((prev) => {
-               const activeItems = prev[currentColumnId!];
-               const overItems = prev[targetColumnId];
-
-               // Remove from active column
-               const updatedActiveItems = activeItems.filter(o => o.id !== activeId);
-               // Add to target column (typically at the end)
-               const updatedOverItems = [...overItems, activeOrderData];
-
-               // Sort target column if necessary (e.g., by date)
-               updatedOverItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-               return { ...prev, [currentColumnId!]: updatedActiveItems, [targetColumnId]: updatedOverItems };
-           });
-        }
-    }
-
-    if (isOverAnOrder) {
-        let targetColumnId: OrderStatus | undefined;
-        let targetItemIndex = -1;
-
-        Object.entries(ordersByStatus).forEach(([status, orders]) => {
-            const index = orders.findIndex(o => o.id === overId);
-            if (index !== -1) {
-                targetColumnId = status as OrderStatus;
-                targetItemIndex = index;
-            }
-        });
-
-        if (!targetColumnId) return;
-
-        if (currentColumnId === targetColumnId) {
-            // Reordering within the same column
-            setOrdersByStatus((prev) => {
-                const items = prev[currentColumnId!];
-                const newIndex = items.findIndex(o => o.id === overId);
-                return { ...prev, [currentColumnId!]: arrayMove(items, currentItemIndex, newIndex) };
-            });
-        } else {
-            // Moving to a different column over an item
-             setOrdersByStatus((prev) => {
-                const activeItems = prev[currentColumnId!];
-                const overItems = prev[targetColumnId!];
-                const overIndex = overItems.findIndex(o => o.id === overId);
-
-                const updatedActiveItems = activeItems.filter(o => o.id !== activeId);
-                const updatedOverItems = [
-                    ...overItems.slice(0, overIndex),
-                    activeOrderData,
-                    ...overItems.slice(overIndex)
-                ];
-                updatedOverItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                return { ...prev, [currentColumnId!]: updatedActiveItems, [targetColumnId!]: updatedOverItems };
-             });
-        }
-    }
+    const { active } = event;
+    const order = orders.find((o: KanbanOrder) => o.id === active.id);
+    if (order) setActiveOrder(order);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveOrder(null);
     const { active, over } = event;
-    if (!over) return;
 
-    const activeId = active.id as string;
-    const activeOrderData = active.data.current?.order as ProductionOrder;
-    const targetColumnId = over.data.current?.status as OrderStatus | undefined;
+    if (over && active.id !== over.id) {
+      const orderId = active.id as string;
+      const newStatus = over.id as OrderStatus;
+      const originalOrder = orders.find(o => o.id === orderId);
 
-    if (!activeOrderData || !targetColumnId) {
-        console.warn('Drag end without active order data or target column status');
-        return;
-    }
-
-    // Find original status
-    let originalStatus: OrderStatus | undefined;
-     Object.entries(ordersByStatus).forEach(([status, orders]) => {
-         if (orders.some(o => o.id === activeId)) {
-             originalStatus = status as OrderStatus;
-         }
-     });
-
-    if (targetColumnId && originalStatus !== targetColumnId) {
-      console.log(`Moving order ${activeId} from ${originalStatus} to ${targetColumnId}`);
-      // Call the mutation to update the status in the backend
-      updateStatusMutation.mutate({ id: activeId, status: targetColumnId });
-    } else {
-        console.log('Order dropped in the same column or invalid target.');
-         // If only reordering occurred within the same column, no mutation needed,
-         // but state was already updated optimistically in handleDragOver
+      if (originalOrder && originalOrder.status !== newStatus) {
+        updateOrderStatusMutation.mutate({ id: orderId, status: newStatus });
+      }
     }
   };
 
-  if (isLoading) return <div>Loading production orders...</div>;
-  if (error) return <div>Error loading orders: {error.message}</div>;
+  const renderKanbanCardContent = (order: KanbanOrder) => (
+    <div className="space-y-1 text-sm">
+      <p className="font-semibold text-base truncate">{order.orderNumber}</p>
+      <p className="text-muted-foreground truncate">{order.customer?.name || 'N/A'}</p>
+      <p className="text-muted-foreground">Qty: {order.totalQuantity.toString()}</p>
+      {order.deliveryDate && <p className="text-muted-foreground">Due: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
+      <div className="mt-1 flex flex-wrap gap-1">
+        {order.items.map(item => (
+          item.inventoryItem.billOfMaterial ? (
+            <Badge key={`${order.id}-${item.inventoryItem.id}-bom`} variant="secondary" className="text-xs">
+              BOM: {item.inventoryItem.billOfMaterial.name || item.inventoryItem.name}
+            </Badge>
+          ) : item.inventoryItem.materialType === 'manufactured' ? (
+            <Badge key={`${order.id}-${item.inventoryItem.id}-mfd`} variant="outline" className="text-xs">
+              Mfd: {item.inventoryItem.name}
+            </Badge>
+          ) : null
+        ))}
+      </div>
+    </div>
+  );
+
+  const columns = React.useMemo<ColumnDef<KanbanOrder>[]>(() => [
+    { accessorKey: "orderNumber", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Order #</Button> },
+    { accessorKey: "customer.name", header: "Customer", cell: ({ row }) => row.original.customer?.name || 'N/A' },
+    { accessorKey: "status", header: "Status" },
+    { accessorKey: "totalQuantity", header: "Total Qty", cell: ({row}) => row.original.totalQuantity.toString() },
+    { accessorKey: "deliveryDate", header: "Delivery Date", cell: ({ row }) => row.original.deliveryDate ? new Date(row.original.deliveryDate).toLocaleDateString() : 'N/A' },
+  ], []);
+
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState<string>("");
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
+
+  const table = useReactTable({
+    data: orders,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+      columnVisibility,
+      rowSelection,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+  });
+
+  if (productionOrdersQuery.isLoading) {
+    return <div>Loading production orders...</div>; 
+  }
 
   return (
-    <div className="flex flex-col h-full p-4">
-        <h1 className="text-2xl font-bold mb-4">Production Pipeline</h1>
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-        >
-            <div className="flex gap-4 flex-1 overflow-x-auto">
-                {productionStatuses.map((status) => (
-                    <KanbanColumn
-                        key={status}
-                        status={status}
-                        title={getStatusTitle(status)}
-                        orders={ordersByStatus[status] ?? []}
-                    />
-                ))}
-            </div>
-
-            <DragOverlay>
-                {activeOrder ? <KanbanCard order={activeOrder} isOverlay /> : null}
-            </DragOverlay>
+    <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
+      <TabsList className="mb-4 w-full sm:w-auto self-start">
+        <TabsTrigger value="kanban">Kanban View</TabsTrigger>
+        <TabsTrigger value="table">Table View</TabsTrigger>
+      </TabsList>
+      <TabsContent value="kanban" className="flex-grow overflow-auto">
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={rectIntersection}>
+          <KanbanProvider className="min-h-[600px]" onDragEnd={handleDragEnd}>
+            {KANBAN_COLUMNS.map((column) => (
+              <KanbanBoard key={column.id} id={column.id} className="min-w-[280px]">
+                <KanbanHeader name={column.name} color={column.color} />
+                <KanbanCards>
+                  {orders
+                    .filter((order) => order.status === column.id)
+                    .map((order, index) => (
+                      <KanbanCard key={order.id} id={order.id} name={order.orderNumber} index={index} parent={column.id}>
+                        {renderKanbanCardContent(order)}
+                      </KanbanCard>
+                    ))}
+                </KanbanCards>
+              </KanbanBoard>
+            ))}
+          </KanbanProvider>
+          <DragOverlay>
+            {activeOrder ? (
+              <KanbanCard id={activeOrder.id} name={activeOrder.orderNumber} index={0} parent={activeOrder.status}>
+                {renderKanbanCardContent(activeOrder)}
+              </KanbanCard>
+            ) : null}
+          </DragOverlay>
         </DndContext>
-    </div>
+      </TabsContent>
+      <TabsContent value="table" className="flex-grow">
+         <Card>
+            <CardHeader>
+                <CardTitle>Production Orders</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <DataTableToolbar 
+                    table={table}
+                    globalFilter={globalFilter}
+                    setGlobalFilter={setGlobalFilter}
+                />
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map((header) => (
+                                <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
+                                    {header.isPlaceholder
+                                    ? null
+                                    : flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                        )}
+                                </TableHead>
+                                ))}
+                            </TableRow>
+                            ))}
+                        </TableHeader>
+                        <TableBody>
+                            {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow
+                                key={row.id}
+                                data-state={row.getIsSelected() && "selected"}
+                                >
+                                {row.getVisibleCells().map((cell) => (
+                                    <TableCell key={cell.id}>
+                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </TableCell>
+                                ))}
+                                </TableRow>
+                            ))
+                            ) : (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                No production orders found.
+                                </TableCell>
+                            </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+                <DataTablePagination table={table} />
+            </CardContent>
+         </Card>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+export default function ProductionPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProductionPageContent />
+    </Suspense>
   );
 } 
