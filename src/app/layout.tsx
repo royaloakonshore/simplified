@@ -4,12 +4,11 @@ import "react-toastify/dist/ReactToastify.css";
 import { TRPCReactProvider } from "@/lib/trpc/react";
 import { Metadata } from "next";
 import ClientProvider from "@/components/ClientProvider";
-import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ThemeAwareToast } from "@/components/theme/ThemeAwareToast";
 
 export const metadata: Metadata = {
-  title: "",
-  description: "",
+  title: "Simplified ERP",
+  description: "A modern ERP system for small to medium-sized businesses",
   icons: {
     icon: "/favicon.ico",
   },
@@ -23,14 +22,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider defaultTheme="system" enableSystem>
-          <ClientProvider>
-            <TRPCReactProvider>
-              {children}
-              <ThemeAwareToast />
-            </TRPCReactProvider>
-          </ClientProvider>
-        </ThemeProvider>
+        <ClientProvider>
+          <TRPCReactProvider>
+            {children}
+            <ThemeAwareToast />
+          </TRPCReactProvider>
+        </ClientProvider>
       </body>
     </html>
   );

@@ -28,11 +28,11 @@ export default async function ERPLayout({
               <Breadcrumbs className="ml-4" />
             </div>
             <div className="flex items-center space-x-4">
-              <form action="/api/auth/signout" method="post">
-                <Button variant="outline" size="sm" type="submit">
-                  Sign Out
+              <Link href="/auth/logout" passHref legacyBehavior>
+                <Button asChild variant="outline" size="sm">
+                  <a>Sign Out</a>
                 </Button>
-              </form>
+              </Link>
             </div>
           </header>
           <div className="flex-1 overflow-auto p-6">

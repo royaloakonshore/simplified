@@ -61,6 +61,10 @@ declare module "next-auth" {
   }
 }
 
+const debugLog = (location: string, data: any) => {
+  console.log(`[Auth Debug] ${location}:`, JSON.stringify(data, null, 2));
+};
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -71,55 +75,48 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials, req) {
+        debugLog("authorize:entry", { email: credentials?.email });
+        
         if (!credentials?.email || !credentials.password) {
-          console.log("Authorize: Missing email or password");
-          return null; // Indicate failure
+          debugLog("authorize:missing_credentials", { email: credentials?.email });
+          return null;
         }
 
-        console.log(`Authorize: Attempting login for ${credentials.email}`);
-
-        // Find user by email
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
+        debugLog("authorize:user_found", { 
+          userId: user?.id,
+          hasPassword: !!user?.hashedPassword 
+        });
+
         if (!user) {
-          console.log(`Authorize: No user found for email ${credentials.email}`);
-          return null; // User not found
+          return null;
         }
 
-        // Check if user has a password hash stored
         if (!user.hashedPassword) {
-          console.log(`Authorize: User ${credentials.email} has no password set.`);
-           // You might want to redirect them to a password setup flow or deny access
-           // For now, deny access if no password is set
-          return null; 
+          return null;
         }
 
-        // Validate password
         const isValidPassword = await bcrypt.compare(
           credentials.password,
           user.hashedPassword
         );
 
         if (!isValidPassword) {
-          console.log(`Authorize: Invalid password for user ${credentials.email}`);
-          return null; // Invalid password
+          return null;
         }
 
-        console.log(`Authorize: Successful login for user ${credentials.email}`);
-        // Return the user object (ensure it matches NextAuth User type)
-        // Important: Do NOT return the hashedPassword here!
-        // Cast to any temporarily to bypass complex type error, ensure all needed fields are present
+        // Return type must match the User interface from next-auth
         return {
-           id: user.id,
-           name: user.name,
-           email: user.email,
-           image: user.image,
-           role: user.role, 
-           // firstName: user.firstName, // Commented out due to persistent linter error
-           // Add any other necessary fields expected by session callback
-        } as any; 
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          image: user.image,
+          isAdmin: user.isAdmin,
+        } as any; // Cast to any to bypass complex type issues between Prisma User and NextAuth User
       }
     }),
     // EmailProvider({
@@ -141,6 +138,10 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async signIn({ user, account, profile, email, credentials }) {
+      debugLog("signIn:entry", {
+        userFromArg: user ? JSON.parse(JSON.stringify(user)) : null,
+        accountFromArg: account ? JSON.parse(JSON.stringify(account)) : null,
+      });
       try {
         const userEmail = user?.email;
         if (!userEmail) {
@@ -181,31 +182,72 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
     },
-    async session({ session, user }) {
-      try {
-        const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
+    async jwt({ token, user, account, profile, trigger, isNewUser }) {
+      debugLog("jwt:entry", {
+        tokenIN: JSON.parse(JSON.stringify(token)),
+        userIN: user ? JSON.parse(JSON.stringify(user)) : null,
+        accountIN: account ? JSON.parse(JSON.stringify(account)) : null,
+        triggerIN: trigger,
+        isNewUserIN: isNewUser
+      });
 
+      // Handle initial sign-in: if 'account' and 'user' are present, it's a sign-in event.
+      if (account && user) {
+        debugLog("jwt:initial_signin_event_processing", { userId: user.id, userRole: user.role, userEmail: user.email });
         return {
-          ...session,
-          user: {
-            ...session.user,
-            id: user.id,
-            name: fullUser?.name ?? session.user?.name,
-            // firstName: fullUser?.firstName ?? undefined, // Temporarily commented out [YYYY-MM-DD] due to unresolved TS errors.
-            role: fullUser?.role ?? user.role,
-            login: fullUser?.login ?? user.login,
-            isAdmin: fullUser?.isAdmin ?? user.isAdmin,
-          },
+          ...token, // Preserve existing token properties (like sub, iat, exp)
+          id: user.id,
+          role: user.role,
+          email: user.email,
+          // name: user.name, // Default token might already have name
+          // picture: user.image, // Default token might already have picture (image)
         };
-      } catch (error) {
-        console.error("Session callback error:", error);
-        return session;
       }
+
+      // For subsequent requests, 'token' is passed. 'user' and 'account' are undefined.
+      // If token needs refreshing (e.g., access token expiry), do it here.
+      // For now, just return the token.
+      debugLog("jwt:exit_returning_token", { tokenOUT: JSON.parse(JSON.stringify(token)) });
+      return token;
     },
+    async session({ session, token }) { // For JWT strategy, 'token' is the decoded JWT
+      debugLog("session:entry", {
+        sessionIN: JSON.parse(JSON.stringify(session)),
+        tokenIN: JSON.parse(JSON.stringify(token))
+      });
+
+      if (session?.user && token?.id) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as UserRole;
+        if (token.email) {
+          session.user.email = token.email as string;
+        }
+        // session.user.name = token.name as string; // if you add name to token
+        // session.user.image = token.picture as string; // if you add picture to token
+      } else {
+        debugLog("session:warning_cannot_enrich_session_user", { 
+          tokenExists: !!token, 
+          tokenId: token?.id, 
+          sessionUserExists: !!session?.user 
+        });
+      }
+
+      debugLog("session:exit_returning_session", { sessionOUT: JSON.parse(JSON.stringify(session)) });
+      return session;
+    },
+  },
+  events: {
+    async signOut({ session, token }) {
+      debugLog("events:signOut", {
+        sessionIN: session ? JSON.parse(JSON.stringify(session)) : null,
+        tokenIN: token ? JSON.parse(JSON.stringify(token)) : null,
+      });
+    },
+    // You can add other events like signIn, createUser, updateUser, linkAccount if needed for debugging
   },
   pages: {
     signIn: "/auth/signin",
-    signOut: "/auth/signout",
+    // signOut: "/auth/logout", // Removed for simplification
     error: "/auth/error",
     verifyRequest: "/auth/verify",
   },
