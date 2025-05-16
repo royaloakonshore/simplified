@@ -29,9 +29,10 @@ type CustomerFormData = z.infer<typeof customerBaseSchema>;
 
 interface CustomerFormProps {
   initialData?: Customer & { addresses: Address[] }; // Optional initial data for editing
+  onSuccessCallback?: () => void; // Add callback for successful submission
 }
 
-export function CustomerForm({ initialData }: CustomerFormProps) {
+export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
 
@@ -67,7 +68,11 @@ export function CustomerForm({ initialData }: CustomerFormProps) {
     onSuccess: () => {
       toast.success('Customer created successfully!');
       utils.customer.list.invalidate(); // Invalidate list query to refetch
-      router.push('/customers'); // Redirect to customer list
+      if (onSuccessCallback) {
+        onSuccessCallback();
+      } else {
+        router.push('/customers'); // Redirect to customer list
+      }
     },
     onError: (error) => {
       toast.error(`Error creating customer: ${error.message}`);
@@ -81,7 +86,11 @@ export function CustomerForm({ initialData }: CustomerFormProps) {
       if (initialData) {
           utils.customer.getById.invalidate({ id: initialData.id });
       }
-      router.push('/customers');
+      if (onSuccessCallback) {
+        onSuccessCallback();
+      } else {
+        router.push('/customers');
+      }
     },
     onError: (error) => {
       toast.error(`Error updating customer: ${error.message}`);

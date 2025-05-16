@@ -18,37 +18,51 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import Link from 'next/link';
-import { DataTablePagination } from "@/components/ui/data-table-pagination"; // Assuming pagination exists
+// import Link from 'next/link'; // No longer directly needed for edit button
+import { DataTablePagination } from "@/components/ui/data-table-pagination"; 
+import { CustomerEditDialog } from './CustomerEditDialog'; // Import the dialog
+import { api } from '@/lib/trpc/react'; // Import tRPC api for utils
 
 // Define columns
-const columns: ColumnDef<Customer>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Name',
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email',
-  },
-  {
-    accessorKey: 'phone',
-    header: 'Phone',
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Created At',
-    cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
-  },
-  {
-    id: 'actions',
-    cell: ({ row }) => (
-      <Button variant="outline" size="sm" asChild>
-        <Link href={`/customers/${row.original.id}/edit`}>Edit</Link>
-      </Button>
-    ),
-  },
-];
+const DynamicColumns = () => {
+  const utils = api.useUtils(); // Hook for tRPC utils
+
+  const columns: ColumnDef<Customer>[] = [
+    {
+      accessorKey: 'name',
+      header: 'Name',
+    },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Phone',
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Created At',
+      cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">Actions</div>, // Optional: Align header
+      cell: ({ row }) => (
+        <div className="text-right">
+          <CustomerEditDialog 
+            customerId={row.original.id} 
+            trigger={<Button variant="outline" size="sm">Edit</Button>}
+            onSuccess={() => {
+              utils.customer.list.invalidate(); // Invalidate customer list on success
+            }}
+          />
+        </div>
+      ),
+    },
+  ];
+  return columns;
+}
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -62,6 +76,7 @@ interface CustomerTableProps {
 }
 
 export default function CustomerTable({ customers, pagination }: CustomerTableProps) {
+  const columns = DynamicColumns(); // Get columns from the hook-enabled function
   const table = useReactTable({
     data: customers,
     columns,
