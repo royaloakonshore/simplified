@@ -49,3 +49,4 @@
 - Feat: Implement Customer Edit Dialog using CustomerForm and originui/dialog.
 - Feat: Implement Y-tunnus (Finnish Business ID) search in CustomerForm.
 - Feat: Refactor CustomerTable with advanced data table components (toolbar, client-side filtering/sorting, column visibility).
+- Resolved `PageNotFoundError` by creating `src/app/(erp)/customers/add/page.tsx` for adding new customers.
