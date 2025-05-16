@@ -43,3 +43,4 @@
 - Fixed sign-out flow by correcting button action in ERP layout and renaming signout page to logout to avoid conflicts.
 - Integrated existing CustomerForm component into the AddCustomerPage.
 - Wrapped AuthErrorPage content in Suspense to resolve build error related to useSearchParams.
+- Redesigned sign-in page using `login-04` shadcn-ui block, integrating existing auth logic.

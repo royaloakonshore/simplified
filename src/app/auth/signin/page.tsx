@@ -3,193 +3,163 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "react-toastify";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoginForm } from "@/components/login-form"; // Import the new LoginForm
+import { Skeleton } from "@/components/ui/skeleton"; // Keep Skeleton for fallback
 
-function SignInForm() {
+// This component contains the actual sign-in logic and state
+function SignInPageClientContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
-  const error = searchParams?.get("error");
+  
+  // Extract error from URL query params, which NextAuth.js might add on redirect
+  const urlError = searchParams?.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
 
-  // Handle Email link sign-in
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  // Combine URL error with any potential direct error messages for display
+  // This ensures errors passed via URL (e.g. OAuth errors) are shown
+  const displayError = urlError ? 
+    (urlError === "OAuthAccountNotLinked" ? "This email is already linked with another provider." : 
+     urlError === "CredentialsSignin" ? "Invalid email or password." :
+     `Authentication Error: ${urlError}`) 
+    : null;
+
+  const handleEmailSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    if (!email) {
+      toast.info("Please enter your email address.");
+      return;
+    }
     setIsEmailLoading(true);
     try {
       const res = await signIn("email", {
         email: email,
-        redirect: false, // Prevent NextAuth default redirect
+        redirect: false, 
         callbackUrl: callbackUrl,
       });
 
       if (res?.error) {
         toast.error(`Email Sign-In Error: ${res.error}`);
       } else if (res?.ok) {
-        // Redirect to a verification page or show message
         toast.success("Check your email for a sign-in link!");
-        // router.push('/auth/verify-request'); // Optional: redirect to a page telling user to check email
+        // Optionally, redirect to a page like /auth/verify-request
+        // router.push("/auth/verify-request"); 
       } else {
          toast.error("An unknown error occurred during email sign-in.");
       }
     } catch (err) {
-       toast.error("An unexpected error occurred.");
-       console.error(err);
+       toast.error("An unexpected error occurred while trying to send the email link.");
+       console.error("Email sign-in catch:", err);
     } finally {
        setIsEmailLoading(false);
     }
   };
 
-  // Handle Credentials (email/password) sign-in
-  const handleCredentialsSignIn = async (e: React.FormEvent) => {
+  const handleCredentialsSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast.info("Please enter both email and password.");
+      return;
+    }
     setIsCredentialsLoading(true);
      try {
         const res = await signIn("credentials", {
             email: email,
             password: password,
-            redirect: false, // Handle redirect manually
+            redirect: false, 
             callbackUrl: callbackUrl,
         });
 
         if (res?.error) {
-            // Map common errors to user-friendly messages
             if (res.error === "CredentialsSignin") {
                toast.error("Invalid email or password.");
             } else {
                toast.error(`Login Error: ${res.error}`);
             }
         } else if (res?.ok) {
-             // Successful sign-in, redirect
              router.push(callbackUrl);
-             router.refresh(); // Refresh server components
+             router.refresh(); 
         } else {
            toast.error("An unknown error occurred during login.");
         }
      } catch (err) {
-        toast.error("An unexpected error occurred.");
-        console.error(err);
+        toast.error("An unexpected error occurred during login.");
+        console.error("Credentials sign-in catch:", err);
      } finally {
         setIsCredentialsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login or receive a magic link.
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleCredentialsSignIn}>
-          <CardContent className="grid gap-4">
-          {error && (
-              <p className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
-                {error === "CredentialsSignin" ? "Invalid email or password." : 
-                 error === "EmailSignin" ? "Could not send magic link. Try again." :
-                 "An authentication error occurred."}
-              </p>
-          )}
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isEmailLoading || isCredentialsLoading}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isEmailLoading || isCredentialsLoading} 
-              />
-            </div>
-             <Button type="submit" className="w-full" disabled={isCredentialsLoading || !email || !password}>
-               {isCredentialsLoading ? "Signing In..." : "Sign in with Password"}
-             </Button>
-          </CardContent>
-        </form>
-         <CardFooter className="flex flex-col gap-4">
-            <div className="relative w-full">
-               <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-               </div>
-               <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                     Or continue with
-                  </span>
-               </div>
+    // Adopt the styling from the login-04 block's page wrapper
+    <div className="flex min-h-svh flex-col items-center justify-center bg-neutral-100 p-6 dark:bg-neutral-900 md:p-10"> {/* Adjusted dark bg */}
+      <div className="w-full max-w-sm md:max-w-3xl"> {/* This matches the login-04 structure */}
+        <LoginForm 
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          isCredentialsLoading={isCredentialsLoading}
+          isEmailLoading={isEmailLoading}
+          handleCredentialsSignIn={handleCredentialsSignIn}
+          handleEmailSignIn={handleEmailSignIn}
+          error={displayError} // Pass the error to be displayed by LoginForm
+          appName="Simplified ERP" // Customize app name
+        />
       </div>
-             <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={handleEmailSignIn} 
-                disabled={isEmailLoading || !email}
-             >
-              {isEmailLoading ? "Sending Link..." : "Sign in with Email Link"}
-             </Button>
-        </CardFooter>
-      </Card>
     </div>
   );
 }
 
-// Loading Skeleton for the form
-function SignInSkeleton() {
+// Skeleton for the new layout (can be simpler or more detailed)
+function SignInPageSkeleton() {
   return (
-     <div className="flex min-h-screen w-full items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-sm">
-           <CardHeader>
-             <Skeleton className="h-7 w-1/4 mb-1" />
-             <Skeleton className="h-4 w-3/4" />
-           </CardHeader>
-           <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                 <Skeleton className="h-4 w-12"/>
-                 <Skeleton className="h-10 w-full"/>
+    <div className="flex min-h-svh flex-col items-center justify-center bg-neutral-100 p-6 dark:bg-neutral-900 md:p-10">
+      <div className="w-full max-w-sm md:max-w-3xl">
+        <div className="flex flex-col gap-6">
+          <div className="overflow-hidden shadow-lg rounded-lg"> {/* Mimic Card */}
+            <div className="grid p-0 md:grid-cols-2">
+              {/* Form Side Skeleton */}
+              <div className="p-6 md:p-8">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col items-center text-center">
+                    <Skeleton className="h-7 w-1/2 mb-2" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Skeleton className="h-4 w-12"/>
+                    <Skeleton className="h-10 w-full"/>
+                  </div>
+                  <div className="grid gap-2">
+                    <Skeleton className="h-4 w-16"/>
+                    <Skeleton className="h-10 w-full"/>
+                  </div>
+                  <Skeleton className="h-10 w-full mt-2"/> {/* Credentials Sign In Button */}
+                  <div className="h-8 mt-2"></div> {/* Spacer for separator */}
+                  <Skeleton className="h-10 w-full"/> {/* Email Sign In Button */}
+                </div>
               </div>
-              <div className="grid gap-2">
-                 <Skeleton className="h-4 w-16"/>
-                 <Skeleton className="h-10 w-full"/>
+              {/* Image Side Skeleton (hidden on md) */}
+              <div className="relative hidden bg-muted md:block dark:bg-neutral-800">
+                 <Skeleton className="absolute inset-0 h-full w-full" />
               </div>
-              <Skeleton className="h-10 w-full"/>
-           </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-               <Skeleton className="h-5 w-full"/>
-               <Skeleton className="h-10 w-full"/>
-           </CardFooter>
-        </Card>
-     </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-// New default export Server Component
 export default function SignInPage() {
-  // This outer component is a Server Component by default
-  // We wrap the client component that uses useSearchParams in Suspense
   return (
-    <Suspense fallback={<SignInSkeleton />}>
-      <SignInForm />
+    <Suspense fallback={<SignInPageSkeleton />}>
+      <SignInPageClientContent />
     </Suspense>
   );
 }
