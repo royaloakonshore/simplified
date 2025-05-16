@@ -1,7 +1,7 @@
 "use client";
 
 // Original imports might be needed later, keep them commented for now
-import { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, type SubmitHandler, FormProvider, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,10 +23,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Trash2 } from 'lucide-react';
+import { Trash2, PlusCircle, UserPlus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { z } from 'zod';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle as PlusCircleIcon } from 'lucide-react';
+
+// Dialog and CustomerForm imports
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CustomerForm } from "@/components/customers/CustomerForm";
 
 // Define form value types from Zod schemas
 type CreateFormValues = z.infer<typeof createOrderSchema>;
@@ -45,8 +54,11 @@ type OrderFormProps = {
 
 // Removed OrderFormContent abstraction
 
-export default function OrderForm({ customers, inventoryItems, order, isEditMode = false }: OrderFormProps) {
+export default function OrderForm({ customers: initialCustomers, inventoryItems, order, isEditMode = false }: OrderFormProps) {
   const router = useRouter();
+  const utils = api.useUtils(); // For cache invalidation
+  const [customers, setCustomers] = useState(initialCustomers);
+  const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = useState(false);
 
   // --- Create Form Setup ---
   const createForm = useForm<CreateFormValues>({
@@ -404,188 +416,181 @@ export default function OrderForm({ customers, inventoryItems, order, isEditMode
 
   } else {
     // --- CREATE MODE RENDER ---
-     return (
-      <FormProvider {...createForm}>
-        <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-8">
-           <Card>
-             <CardHeader><CardTitle>Create New Order</CardTitle></CardHeader>
-             <CardContent className="space-y-6">
-               {/* Customer Selection (Bound to createForm) */}
-               <FormField
-                 control={createForm.control}
-                 name={"customerId"}
-                 render={({ field }) => (
+    return (
+      <>
+        <FormProvider {...createForm}>
+          <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-8">
+            <Card>
+              <CardHeader><CardTitle>Create New Order</CardTitle></CardHeader>
+              <CardContent className="space-y-6">
+                {/* Customer Selection (Bound to createForm) */}
+                <FormField
+                  control={createForm.control}
+                  name={"customerId"}
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} >
-                         <FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl>
-                         <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
+                          <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setIsAddCustomerDialogOpen(true)}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          <span className="sr-only">Add New Customer</span>
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
-                 )}
-               />
-               
-               {/* Order Type Selection (Bound to createForm) */}
-               <FormField
-                 control={createForm.control}
-                 name={"orderType"}
-                 render={({ field }) => (
-                   <FormItem>
-                     <FormLabel>Order Type</FormLabel>
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                       <SelectContent>
-                         <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
-                         <SelectItem value={OrderType.quotation}>Quotation</SelectItem>
-                       </SelectContent>
-                     </Select>
-                     <FormDescription>
-                       {field.value === OrderType.work_order ? 
-                         "Work orders track production and can generate invoices." : 
-                         "Quotations provide pricing information to customers."}
-                     </FormDescription>
-                     <FormMessage />
-                   </FormItem>
-                 )}
-               />
-               
-               {/* Items Table (Bound to createForm) */}
-               <div className="space-y-2">
-                 <FormLabel>Order Items</FormLabel>
-                 <Table>
-                   <TableHeader>
-                     <TableRow>
-                       <TableHead className="w-[40%]">Item</TableHead>
-                       <TableHead>Quantity</TableHead>
-                       <TableHead>Unit Price</TableHead>
-                       <TableHead>Discount %</TableHead>
-                       <TableHead>Discount Amt</TableHead>
-                       <TableHead>Line Total</TableHead>
-                       <TableHead>Actions</TableHead>
-                     </TableRow>
-                   </TableHeader>
-                   <TableBody>
-                     {createFields.map((field, index) => (
-                       <TableRow key={field.key}>
-                         <TableCell>
-                           <FormField
-                              control={createForm.control}
-                              name={`items.${index}.itemId`}
-                              render={({ field: itemField }) => (
-                                 <FormItem>
-                                   <Select onValueChange={(v) => handleItemChange(index, v, createForm)} defaultValue={itemField.value}>
-                                     <FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl>
-                                     <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
-                                   </Select>
-                                   <FormMessage />
-                                 </FormItem>
-                              )}
-                             />
-                         </TableCell>
-                         <TableCell className="w-[10%]">
-                           <FormField
-                             control={createForm.control}
-                             name={`items.${index}.quantity`}
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                         </TableCell>
-                            <TableCell className="w-[15%] text-right">
+                  )}
+                />
+                
+                {/* Order Type Selection (Bound to createForm) */}
+                <FormField
+                  control={createForm.control}
+                  name={"orderType"}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Order Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
+                          <SelectItem value={OrderType.quotation}>Quotation</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {field.value === OrderType.work_order ? 
+                          "Work orders track production and can generate invoices." : 
+                          "Quotations provide pricing information to customers."}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Items Table (Bound to createForm) */}
+                <div>
+                  <FormLabel>Items</FormLabel>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-2/5">Item</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit Price</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {createFields.map((item, index) => {
+                        const currentItem = createForm.watch(`items.${index}`);
+                        const itemTotal = (Number(currentItem?.quantity) || 0) * (Number(currentItem?.unitPrice) || 0);
+                        return (
+                          <TableRow key={item.key}>
+                            <TableCell>
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.itemId`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} defaultValue={field.value}>
+                                      <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
+                                      <SelectContent>{inventoryItems.map(inv => <SelectItem key={inv.id} value={inv.id}>{inv.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.quantity`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
                               <FormField
                                 control={createForm.control}
                                 name={`items.${index}.unitPrice`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
+                                    <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
                               />
                             </TableCell>
-                            <TableCell className="w-[10%]">
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.discountPercent`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="sr-only">Discount %</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        type="number" 
-                                        step="0.01" 
-                                        placeholder="%" 
-                                        {...field} 
-                                        value={field.value ?? ''}
-                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                        disabled={createOrderMutation.isPending} 
-                                        className="text-right" 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                            <TableCell className="text-right">{formatCurrency(itemTotal)}</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="icon" onClick={() => createRemove(index)} disabled={createFields.length <= 1}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </TableCell>
-                            <TableCell className="w-[10%]">
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.discountAmount`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="sr-only">Discount Amt</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        type="number" 
-                                        step="0.01" 
-                                        placeholder="Amt" 
-                                        {...field} 
-                                        value={field.value ?? ''}
-                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                        disabled={createOrderMutation.isPending} 
-                                        className="text-right" 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell className="w-[10%] text-right">{formatCurrency((Number(createForm.watch(`items.${index}.quantity`)) || 0) * (Number(createForm.watch(`items.${index}.unitPrice`)) || 0))}</TableCell>
-                            <TableCell><Button type="button" variant="destructive" size="sm" onClick={() => createRemove(index)} disabled={createFields.length <= 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
-                       </TableRow>
-                     ))}
-                   </TableBody>
-                 </Table>
-                 <Button type="button" variant="outline" size="sm" onClick={() => createAppend({ itemId: '', quantity: 1, unitPrice: 0 })} >Add Item</Button>
-                  {createForm.formState.errors.items && typeof createForm.formState.errors.items === 'object' && 'message' in createForm.formState.errors.items && (
-                     <p className="text-sm font-medium text-destructive">{createForm.formState.errors.items.message as string}</p>
-                  )}
-               </div>
-               {/* Notes (Bound to createForm) */}
-               <FormField
-                 control={createForm.control}
-                 name={"notes"}
-                 render={({ field }) => (
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => createAppend({ itemId: '', quantity: 1, unitPrice: 0 })}>
+                     <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                  </Button>
+                </div>
+
+                {/* Notes (Bound to createForm) */}
+                <FormField
+                  control={createForm.control}
+                  name="notes"
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
-                      <FormControl><Textarea placeholder="Optional notes..." {...field} value={field.value ?? ''} /></FormControl>
+                      <FormControl><Textarea {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
-                 )}
-               />
-             </CardContent>
-             <CardFooter className="flex justify-between items-center">
-               <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(createForm))}</span>
-               <Button type="submit" disabled={createOrderMutation.isPending}>{createOrderMutation.isPending ? 'Creating...' : 'Create Order'}</Button>
-             </CardFooter>
-           </Card>
-        </form>
-      </FormProvider>
+                  )}
+                />
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createOrderMutation.isPending}>
+                  {createOrderMutation.isPending ? "Creating..." : "Create Order"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
+        </FormProvider>
+
+        <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Add New Customer</DialogTitle>
+            </DialogHeader>
+            <CustomerForm 
+              onSuccessCallback={(createdCustomerId) => {
+                if (createdCustomerId) {
+                  createForm.setValue("customerId", createdCustomerId, { shouldValidate: true });
+                  // Consider refetching customers or updating local 'customers' state for the dropdown
+                  utils.customer.list.invalidate(); // Relies on parent/global state to update customers prop
+                }
+                setIsAddCustomerDialogOpen(false);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 } 

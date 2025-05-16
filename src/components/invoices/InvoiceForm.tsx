@@ -7,6 +7,7 @@ import { type Customer, type InventoryItem, InvoiceStatus } from "@prisma/client
 import Decimal from 'decimal.js';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
+import React from 'react';
 
 import { 
   CreateInvoiceSchema, 
@@ -41,9 +42,16 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
-import { CalendarIcon, PlusCircle, Trash2 } from "lucide-react";
+import { CalendarIcon, PlusCircle, Trash2, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CustomerForm } from "@/components/customers/CustomerForm";
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -53,8 +61,12 @@ type InvoiceFormProps = {
 
 type InventoryItemFormData = Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 'unitOfMeasure' | 'sku'>;
 
-export default function InvoiceForm({ customers, inventoryItems, isEditMode = false }: InvoiceFormProps) {
+export default function InvoiceForm({ customers: initialCustomers, inventoryItems, isEditMode = false }: InvoiceFormProps) {
   const router = useRouter();
+  const utils = api.useUtils();
+  const [customers, setCustomers] = React.useState(initialCustomers);
+  const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = React.useState(false);
+
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormValidationSchema),
     defaultValues: {
@@ -206,305 +218,318 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
   const isPending = createInvoiceMutation.isPending;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditMode || isPending}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-            {customers.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+    <>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>{title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2 md:col-span-2">
+                      <FormLabel>Customer *</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isEditMode || isPending}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {customers.map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setIsAddCustomerDialogOpen(true)}
+                          disabled={isPending}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          <span className="sr-only">Add New Customer</span>
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="invoiceDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Invoice Date *</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={isPending}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date: Date) => date > new Date() || date < new Date("1900-01-01") || isPending}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Due Date *</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              disabled={isPending}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date: Date) => date < (form.getValues("invoiceDate") || new Date("1900-01-01")) || isPending}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div>
+                <FormLabel>Items *</FormLabel>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[20%]">Item</TableHead>
+                      <TableHead className="w-[25%]">Description</TableHead>
+                      <TableHead className="w-[8%]">Qty</TableHead>
+                      <TableHead className="w-[12%] text-right">Unit Price</TableHead>
+                      <TableHead className="w-[10%] text-right">Disc %</TableHead>
+                      <TableHead className="w-[10%] text-right">Disc Amt</TableHead>
+                      <TableHead className="w-[10%] text-right">VAT %</TableHead>
+                      <TableHead className="w-[10%] text-right">Total</TableHead>
+                      <TableHead className="w-auto"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fields.map((field, index) => {
+                      const itemValue = watchItems[index];
+                      const quantity = new Decimal(itemValue?.quantity || 0);
+                      const unitPrice = new Decimal(itemValue?.unitPrice || 0);
+                      let lineTotal = quantity.times(unitPrice);
+
+                      if (itemValue?.discountPercent != null && itemValue.discountPercent > 0) {
+                        const discountMultiplier = new Decimal(1).minus(new Decimal(itemValue.discountPercent).div(100));
+                        lineTotal = lineTotal.times(discountMultiplier);
+                      } else if (itemValue?.discountAmount != null && itemValue.discountAmount > 0) {
+                        const discount = new Decimal(itemValue.discountAmount);
+                        lineTotal = lineTotal.minus(discount).greaterThan(0) ? lineTotal.minus(discount) : new Decimal(0);
+                      }
+
+                      let displayTotal = lineTotal;
+                      if (!watchVatReverseCharge) {
+                          const vatRate = new Decimal(itemValue?.vatRatePercent || 0);
+                          const lineVat = lineTotal.times(vatRate.div(100));
+                          displayTotal = lineTotal.plus(lineVat);
+                      }
+
+                      return (
+                        <TableRow key={field.id}>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.itemId`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value); }} defaultValue={field.value} disabled={isPending}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
+                                    <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.description`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl><Input {...field} value={field.value ?? ''} disabled={isPending} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.quantity`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.unitPrice`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                             <FormField
+                               control={form.control}
+                               name={`items.${index}.discountPercent`}
+                               render={({ field }) => (
+                                 <FormItem>
+                                   <FormControl>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01" 
+                                      placeholder="%"
+                                      {...field} 
+                                      value={field.value ?? ''} 
+                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                      disabled={isPending}
+                                      className="text-right"
+                                    />
+                                   </FormControl>
+                                   <FormMessage />
+                                 </FormItem>
+                               )}
+                             />
+                          </TableCell>
+                          <TableCell className="text-right">
+                             <FormField
+                               control={form.control}
+                               name={`items.${index}.discountAmount`}
+                               render={({ field }) => (
+                                 <FormItem>
+                                   <FormControl>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01" 
+                                      placeholder="Amt"
+                                      {...field} 
+                                      value={field.value ?? ''} 
+                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                      disabled={isPending}
+                                      className="text-right"
+                                    />
+                                   </FormControl>
+                                   <FormMessage />
+                                 </FormItem>
+                               )}
+                             />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.vatRatePercent`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select 
+                                    onValueChange={(v) => field.onChange(parseFloat(v))} 
+                                    value={field.value?.toString()}
+                                    disabled={isPending || watchVatReverseCharge}
+                                  >
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select VAT..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      {FINNISH_VAT_RATES.map(rate => 
+                                        <SelectItem key={rate} value={rate.toString()}>{`${rate}%`}</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(displayTotal.toNumber())}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={isPending || fields.length <= 1}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => append({ itemId: "", description: "", quantity: 1, unitPrice: 0, vatRatePercent: 24, discountAmount: null, discountPercent: null })}
+                  disabled={isPending}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                </Button>
+                {form.formState.errors.items && !Array.isArray(form.formState.errors.items) && (
+                  <p className="text-sm font-medium text-destructive">{form.formState.errors.items.message}</p>
                 )}
-              />
-              <FormField
-                control={form.control}
-                name="invoiceDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Invoice Date *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            disabled={isPending}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date: Date) => date > new Date() || date < new Date("1900-01-01") || isPending}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="dueDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Due Date *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            disabled={isPending}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date: Date) => date < (form.getValues("invoiceDate") || new Date("1900-01-01")) || isPending}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-        </div>
+              </div>
 
-        <div>
-              <FormLabel>Items *</FormLabel>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[20%]">Item</TableHead>
-                    <TableHead className="w-[25%]">Description</TableHead>
-                    <TableHead className="w-[8%]">Qty</TableHead>
-                    <TableHead className="w-[12%] text-right">Unit Price</TableHead>
-                    <TableHead className="w-[10%] text-right">Disc %</TableHead>
-                    <TableHead className="w-[10%] text-right">Disc Amt</TableHead>
-                    <TableHead className="w-[10%] text-right">VAT %</TableHead>
-                    <TableHead className="w-[10%] text-right">Total</TableHead>
-                    <TableHead className="w-auto"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {fields.map((field, index) => {
-                    const itemValue = watchItems[index];
-                    const quantity = new Decimal(itemValue?.quantity || 0);
-                    const unitPrice = new Decimal(itemValue?.unitPrice || 0);
-                    let lineTotal = quantity.times(unitPrice);
-
-                    if (itemValue?.discountPercent != null && itemValue.discountPercent > 0) {
-                      const discountMultiplier = new Decimal(1).minus(new Decimal(itemValue.discountPercent).div(100));
-                      lineTotal = lineTotal.times(discountMultiplier);
-                    } else if (itemValue?.discountAmount != null && itemValue.discountAmount > 0) {
-                      const discount = new Decimal(itemValue.discountAmount);
-                      lineTotal = lineTotal.minus(discount).greaterThan(0) ? lineTotal.minus(discount) : new Decimal(0);
-                    }
-
-                    let displayTotal = lineTotal;
-                    if (!watchVatReverseCharge) {
-                        const vatRate = new Decimal(itemValue?.vatRatePercent || 0);
-                        const lineVat = lineTotal.times(vatRate.div(100));
-                        displayTotal = lineTotal.plus(lineVat);
-                    }
-
-                    return (
-                      <TableRow key={field.id}>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.itemId`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value); }} defaultValue={field.value} disabled={isPending}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
-                                  <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.description`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl><Input {...field} value={field.value ?? ''} disabled={isPending} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.quantity`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.unitPrice`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <FormField
-                             control={form.control}
-                             name={`items.${index}.discountPercent`}
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    placeholder="%"
-                                    {...field} 
-                                    value={field.value ?? ''} 
-                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                    disabled={isPending}
-                                    className="text-right"
-                                  />
-                                 </FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <FormField
-                             control={form.control}
-                             name={`items.${index}.discountAmount`}
-                             render={({ field }) => (
-                               <FormItem>
-                                 <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    placeholder="Amt"
-                                    {...field} 
-                                    value={field.value ?? ''} 
-                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                    disabled={isPending}
-                                    className="text-right"
-                                  />
-                                 </FormControl>
-                                 <FormMessage />
-                               </FormItem>
-                             )}
-                           />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.vatRatePercent`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <Select 
-                                  onValueChange={(v) => field.onChange(parseFloat(v))} 
-                                  value={field.value?.toString()}
-                                  disabled={isPending || watchVatReverseCharge}
-                                >
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Select VAT..." /></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                    {FINNISH_VAT_RATES.map(rate => 
-                                      <SelectItem key={rate} value={rate.toString()}>{`${rate}%`}</SelectItem>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(displayTotal.toNumber())}</TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={isPending || fields.length <= 1}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => append({ itemId: "", description: "", quantity: 1, unitPrice: 0, vatRatePercent: 24, discountAmount: null, discountPercent: null })}
-                disabled={isPending}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Item
-              </Button>
-              {form.formState.errors.items && !Array.isArray(form.formState.errors.items) && (
-                <p className="text-sm font-medium text-destructive">{form.formState.errors.items.message}</p>
-              )}
-            </div>
-
-             <div className="flex justify-end pt-6">
+              <div className="flex justify-end pt-6">
                 <div className="w-full max-w-xs space-y-2">
                     <div className="flex justify-between">
                         <span>Subtotal</span>
@@ -519,77 +544,95 @@ export default function InvoiceForm({ customers, inventoryItems, isEditMode = fa
                         <span>{formatCurrency(grandTotal.toNumber())}</span>
                     </div>
                 </div>
-            </div>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Optional notes for the invoice..."
-                      className="resize-none"
-                      {...field}
-                      value={field.value ?? ''}
-                      disabled={isPending}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Optional notes for the invoice..."
+                        className="resize-none"
+                        {...field}
+                        value={field.value ?? ''}
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="vatReverseCharge"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox 
-                      checked={field.value} 
-                      onCheckedChange={(checked) => {
-                        const newCheckedState = !!checked;
-                        field.onChange(newCheckedState);
-                        form.setValue('vatReverseCharge', newCheckedState, { shouldValidate: true });
+              <FormField
+                control={form.control}
+                name="vatReverseCharge"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox 
+                        checked={field.value} 
+                        onCheckedChange={(checked) => {
+                          const newCheckedState = !!checked;
+                          field.onChange(newCheckedState);
+                          form.setValue('vatReverseCharge', newCheckedState, { shouldValidate: true });
 
-                        if (newCheckedState) {
-                          watchItems.forEach((_, index) => {
-                            form.setValue(`items.${index}.vatRatePercent`, 0);
-                          });
-                        } else {
-                          // Optional: Revert VAT rates if unchecking reverse charge, e.g., to default 24%
-                          // This depends on desired UX.
-                          // watchItems.forEach((_, index) => {
-                          //   form.setValue(`items.${index}.vatRatePercent`, 24);
-                          // });
-                        }
-                      }}
-                      disabled={isPending} 
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>VAT Reverse Charge</FormLabel>
-                    <FormDescription>
-                      Enable for reverse charge VAT (e.g., intra-EU B2B). Sets 0% VAT on all items.
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
+                          if (newCheckedState) {
+                            watchItems.forEach((_, index) => {
+                              form.setValue(`items.${index}.vatRatePercent`, 0);
+                            });
+                          } else {
+                            // Optional: Revert VAT rates if unchecking reverse charge, e.g., to default 24%
+                            // This depends on desired UX.
+                            // watchItems.forEach((_, index) => {
+                            //   form.setValue(`items.${index}.vatRatePercent`, 24);
+                            // });
+                          }
+                        }}
+                        disabled={isPending} 
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>VAT Reverse Charge</FormLabel>
+                      <FormDescription>
+                        Enable for reverse charge VAT (e.g., intra-EU B2B). Sets 0% VAT on all items.
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter className="flex justify-end">
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="mr-2">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending || !form.formState.isValid && form.formState.isSubmitted }>
+                {isPending ? "Saving..." : (isEditMode ? "Update Invoice" : "Create Invoice")}
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </Form>
 
-      </CardContent>
-      <CardFooter className="flex justify-end">
-            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="mr-2">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending || !form.formState.isValid && form.formState.isSubmitted }>
-              {isPending ? "Saving..." : (isEditMode ? "Update Invoice" : "Create Invoice")}
-         </Button>
-      </CardFooter>
-    </Card>
-      </form>
-    </Form>
+      <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+          </DialogHeader>
+          <CustomerForm 
+            onSuccessCallback={(createdCustomerId) => {
+              if (createdCustomerId) {
+                form.setValue("customerId", createdCustomerId, { shouldValidate: true });
+                utils.customer.list.invalidate().then(() => {
+                });
+              }
+              setIsAddCustomerDialogOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 } 

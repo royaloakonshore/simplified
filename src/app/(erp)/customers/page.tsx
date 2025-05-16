@@ -64,7 +64,7 @@ export default function CustomersPage() {
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
       <h1 className="text-2xl font-bold mb-6">Customers</h1>
-       <Suspense fallback={<div>Loading...</div>}>
+       <Suspense fallback={<CustomerTableSkeleton />}> {/* Use full skeleton as fallback */}
          <CustomerListContent />
        </Suspense>
     </div>

@@ -53,3 +53,6 @@
 - Fix: Resolve CustomerTable Hook errors by refactoring hook usage.
 - Feat: Add CustomerTableSkeleton for improved loading UI on customers page.
 - Fix: Resolve build errors by updating date-fns, react-day-picker, and adapting calendar component to react-day-picker v9 API. Re-enabled NextAuth EmailProvider.
+- Fix: Resolve Prisma client & React import build errors. Improve customer page skeleton.
+- Feat: Integrate inventory list/add pages. Add 'New Customer' modals to Order/Invoice forms.
+- Feat: Update ERP layout top bar for collapsible sidebar trigger. Add haydenbleasel/kanban component.

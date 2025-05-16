@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge"; // Import Badge
 import { formatCurrency } from "@/lib/utils"; // Assuming a currency formatter exists
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 interface InventoryTableProps {
   items: InventoryItem[]; // TODO: Include quantityOnHand later
@@ -35,8 +36,34 @@ const formatMaterialType = (type: MaterialType) => {
 
 export function InventoryTable({ items, isLoading }: InventoryTableProps) {
   if (isLoading) {
-    // TODO: Replace with Shadcn Skeleton Loader
-    return <div>Loading...</div>;
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-40" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-16" /></TableHead>
+            <TableHead className="text-right"><Skeleton className="h-5 w-24" /></TableHead>
+            <TableHead className="text-right"><Skeleton className="h-5 w-24" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-28" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(5)].map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
   }
 
   if (!items || items.length === 0) {
