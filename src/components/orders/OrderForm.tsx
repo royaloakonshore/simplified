@@ -72,7 +72,12 @@ export type OrderItemWithRelatedItem = Prisma.OrderItemGetPayload<{
 // Props for the OrderForm
 type OrderFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
-  inventoryItems: Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 'unitOfMeasure'>[];
+  inventoryItems: {
+    id: string;
+    name: string;
+    salesPrice: number; // Changed from Decimal (Prisma.Decimal)
+    unitOfMeasure: string;
+  }[];
   order?: Order & { items: OrderItemWithRelatedItem[] }; // Uses the updated OrderItemWithRelatedItem
   isEditMode?: boolean;
 };
@@ -226,12 +231,11 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
       if (isEditMode) {
         const updateFormInstance = formInstance as UpdateFormInstance;
         updateFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
-        updateFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice.toNumber(), { shouldValidate: true });
-        // Potentially set discountPercentage if needed from selectedItem
+        updateFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice, { shouldValidate: true });
       } else {
         const createFormInstance = formInstance as CreateFormInstance;
         createFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
-        createFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice.toNumber(), { shouldValidate: true });
+        createFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice, { shouldValidate: true });
       }
     }
   };

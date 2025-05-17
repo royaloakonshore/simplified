@@ -86,12 +86,17 @@ export default async function AddOrderPage() {
 
 // Wrapper component to handle awaited promise inside Suspense
 async function AddOrderFormWrapper({ formDataPromise }: { formDataPromise: ReturnType<typeof getFormData> }) {
-    const { customers, inventoryItems } = await formDataPromise;
+    const { customers, inventoryItems: rawInventoryItems } = await formDataPromise;
+
+    const processedInventoryItems = rawInventoryItems.map(item => ({
+      ...item,
+      salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
+    }));
 
     return (
         <OrderForm
             customers={customers}
-            inventoryItems={inventoryItems}
+            inventoryItems={processedInventoryItems} // Pass processed items
             isEditMode={false}
         />
     );

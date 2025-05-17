@@ -89,13 +89,23 @@ export default async function EditOrderFormLoader({ orderId }: { orderId: string
     }
 
     // Fetch data inside the wrapper
-    const { order, customers, inventoryItems } = await getEditFormData(orderId);
+    const { order, customers, inventoryItems: rawInventoryItems } = await getEditFormData(orderId);
+
+    const processedInventoryItems = rawInventoryItems.map(item => ({
+      ...item,
+      salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
+    }));
+
+    // The `order` object itself contains Decimal fields in its `items` and `totalAmount`.
+    // These are handled inside OrderForm's useEffect for populating the form,
+    // and totalAmount is not directly passed to a client prop that would break serialization immediately.
+    // Order items' decimals are converted during form reset.
 
     return (
         <OrderForm
-            order={order} // Pass the specific order
+            order={order} // Pass the specific order (Decimals handled by OrderForm's useEffect)
             customers={customers}
-            inventoryItems={inventoryItems}
+            inventoryItems={processedInventoryItems} // Pass processed items
             isEditMode={true} // Set form to edit mode
         />
     );
