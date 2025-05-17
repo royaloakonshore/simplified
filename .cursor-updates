@@ -57,3 +57,4 @@
 - Feat: Integrate inventory list/add pages. Add 'New Customer' modals to Order/Invoice forms.
 - Feat: Update ERP layout top bar for collapsible sidebar trigger. Add haydenbleasel/kanban component.
 - Fixed build errors by adding `deliveryDate` to Order schema, correcting Prisma includes and mappings in tRPC routers for orders and invoices, and resolving type issues in invoice actions.
+- Analyzed and verified Production Kanban View functionality; updated `listProductionView` to include 'shipped' status orders.

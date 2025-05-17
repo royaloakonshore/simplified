@@ -231,6 +231,7 @@ export const orderRouter = createTRPCRouter({
             in: [
               OrderStatus.confirmed,
               OrderStatus.in_production,
+              OrderStatus.shipped,
             ],
           },
           // companyId: ctx.companyId, // Enable for multi-tenancy
