@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, type SubmitHandler, FormProvider, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Order, type OrderItem, OrderStatus, OrderType, type Customer, type InventoryItem, Prisma } from "@prisma/client";
+import { type Order, type OrderItem, OrderStatus, OrderType, type Customer, type InventoryItem, Prisma, type BillOfMaterial, type BillOfMaterialItem } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
@@ -46,28 +46,34 @@ type UpdateFormValues = z.infer<typeof updateOrderSchema>;
 type CreateFormInstance = UseFormReturn<CreateFormValues>;
 type UpdateFormInstance = UseFormReturn<UpdateFormValues>;
 
-// Define the payload type for order items with the related item (InventoryItem)
-export type OrderItemWithRelatedItem = Prisma.OrderItemGetPayload<{
-  select: {
-    id: true;
-    orderId: true;
-    inventoryItemId: true; // Aligned with new schema FK name
-    quantity: true;
-    unitPrice: true;
-    discountAmount: true;
-    discountPercentage: true; // Aligned with new schema field name
-    // notes: true; 
-    inventoryItem: { // Aligned with new schema relation name
-      select: {
-        id: true;
-        name: true;
-        sku: true; 
-        salesPrice: true; 
-        unitOfMeasure: true; 
-      }
-    }
-  }
-}>;
+// --- Processed Types for OrderForm Props (Decimals converted to numbers) ---
+
+// Based on InventoryItem, but Decimals are numbers
+type ProcessedInventoryItemForOrder = Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel'> & {
+  costPrice: number;
+  salesPrice: number;
+  minimumStockLevel: number;
+  reorderLevel: number;
+};
+
+// Based on OrderItem, but Decimals are numbers, and inventoryItem is ProcessedInventoryItemForOrder
+export type ProcessedOrderItem = Omit<OrderItem, 'quantity' | 'unitPrice' | 'discountAmount' | 'discountPercentage' | 'inventoryItem'> & {
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number | null;
+  discountPercentage: number | null;
+  inventoryItem: ProcessedInventoryItemForOrder | null; // inventoryItem can be null if not properly included, though schema implies it
+};
+
+// Based on Order, but Decimals are numbers, and items are ProcessedOrderItem[]
+export type ProcessedOrder = Omit<Order, 'totalAmount' | 'items'> & {
+  totalAmount: number;
+  items: ProcessedOrderItem[];
+  // Retain other Order fields like customer, deliveryDate etc. implicitly from Omit<Order, ...>
+  // Ensure deliveryDate is correctly typed if it's part of Order from @prisma/client
+  deliveryDate?: Date | null; // Explicitly ensuring deliveryDate is available and correctly typed
+};
+// --- End Processed Types ---
 
 // Props for the OrderForm
 type OrderFormProps = {
@@ -78,7 +84,7 @@ type OrderFormProps = {
     salesPrice: number; // Changed from Decimal (Prisma.Decimal)
     unitOfMeasure: string;
   }[];
-  order?: Order & { items: OrderItemWithRelatedItem[] }; // Uses the updated OrderItemWithRelatedItem
+  order?: ProcessedOrder; // Use the new ProcessedOrder type
   isEditMode?: boolean;
 };
 
@@ -122,6 +128,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   // Effect to set/reset Update form default values
   useEffect(() => {
     if (isEditMode && order) {
+        console.log("Order data for edit form population:", JSON.stringify(order, null, 2)); // Debug log
+        console.log("Specifically order.orderType:", order.orderType);
         updateForm.reset({
             id: order.id,
             customerId: order.customerId,
@@ -129,13 +137,13 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             status: order.status, 
             orderType: order.orderType ?? OrderType.work_order, 
             deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined, 
-            items: order.items.map((orderItem: OrderItemWithRelatedItem) => ({ 
+            items: order.items.map((orderItem: ProcessedOrderItem) => ({ // Use ProcessedOrderItem here
                 id: orderItem.id,
-                itemId: orderItem.inventoryItemId, // Map from inventoryItemId (schema) to Zod schema's itemId
-                quantity: (orderItem.quantity as any).toNumber(), 
-                unitPrice: (orderItem.unitPrice as any).toNumber(), 
-                discountAmount: (orderItem.discountAmount as any)?.toNumber() ?? 0,
-                discountPercent: (orderItem.discountPercentage as any)?.toNumber() ?? 0, // Map from discountPercentage (schema) to Zod schema's discountPercent
+                itemId: orderItem.inventoryItemId, 
+                quantity: orderItem.quantity, // Already a number
+                unitPrice: orderItem.unitPrice, // Already a number
+                discountAmount: orderItem.discountAmount ?? 0, // Already a number or null
+                discountPercentage: orderItem.discountPercentage ?? 0, // Already a number or null
             })),
         });
     } else if (!isEditMode) {
@@ -276,8 +284,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={true}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={true}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
                       <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
@@ -292,8 +300,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Order Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select order type" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
                         <SelectItem value={OrderType.quotation}>Quotation</SelectItem>
@@ -333,7 +341,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                               name={`items.${index}.itemId`}
                               render={({ field: itemField }) => (
                                 <FormItem>
-                                  <Select onValueChange={(v) => handleItemChange(index, v, updateForm)} defaultValue={itemField.value}>
+                                  <Select onValueChange={(v) => handleItemChange(index, v, updateForm)} value={itemField.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl>
                                     <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
                                   </Select>
@@ -464,7 +472,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
                       <div className="flex items-center gap-2">
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
                           <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                         </Select>
@@ -490,8 +498,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Order Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select order type" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
                           <SelectItem value={OrderType.quotation}>Quotation</SelectItem>
@@ -532,7 +540,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 name={`items.${index}.itemId`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} defaultValue={field.value}>
+                                    <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value}>
                                       <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
                                       <SelectContent>{inventoryItems.map(inv => <SelectItem key={inv.id} value={inv.id}>{inv.name}</SelectItem>)}</SelectContent>
                                     </Select>

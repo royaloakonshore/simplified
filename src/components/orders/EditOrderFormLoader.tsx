@@ -9,12 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Fetch data required for the form (customers, inventory, specific order)
 async function getEditFormData(orderId: string) {
     // Fetch the specific order including items and related item details
-    const order = await prisma.order.findUnique({
+    const orderWithDecimals = await prisma.order.findUnique({
         where: { id: orderId },
         include: {
             items: {
                 include: {
-                    inventoryItem: true, // Changed from item to inventoryItem to align with new schema
+                    inventoryItem: true, 
                 },
             },
             customer: {
@@ -23,9 +23,35 @@ async function getEditFormData(orderId: string) {
         },
     });
 
-    if (!order) {
+    if (!orderWithDecimals) {
         notFound(); // Trigger 404 if order doesn't exist
     }
+
+    // Process the order to convert Decimals to numbers
+    const processedOrderItems = orderWithDecimals.items.map(item => {
+        const inventoryItemProcessed = item.inventoryItem ? {
+            ...item.inventoryItem,
+            costPrice: item.inventoryItem.costPrice.toNumber(),
+            salesPrice: item.inventoryItem.salesPrice.toNumber(),
+            minimumStockLevel: item.inventoryItem.minimumStockLevel.toNumber(),
+            reorderLevel: item.inventoryItem.reorderLevel.toNumber(),
+        } : null;
+
+        return {
+            ...item,
+            quantity: item.quantity.toNumber(),
+            unitPrice: item.unitPrice.toNumber(),
+            discountAmount: item.discountAmount ? item.discountAmount.toNumber() : null,
+            discountPercentage: item.discountPercentage ? item.discountPercentage.toNumber() : null,
+            inventoryItem: inventoryItemProcessed,
+        };
+    });
+
+    const order = {
+        ...orderWithDecimals,
+        totalAmount: orderWithDecimals.totalAmount.toNumber(),
+        items: processedOrderItems,
+    };
 
     // Fetch customers (only need id and name for select)
     const customers = await prisma.customer.findMany({
@@ -45,7 +71,7 @@ async function getEditFormData(orderId: string) {
     });
 
     return {
-        order: order, // Return the raw order object with Decimal types
+        order: order, // Return the processed order object
         customers,
         inventoryItems
     };
@@ -89,7 +115,7 @@ export default async function EditOrderFormLoader({ orderId }: { orderId: string
     }
 
     // Fetch data inside the wrapper
-    const { order, customers, inventoryItems: rawInventoryItems } = await getEditFormData(orderId);
+    const { order: processedOrderData, customers, inventoryItems: rawInventoryItems } = await getEditFormData(orderId);
 
     const processedInventoryItems = rawInventoryItems.map(item => ({
       ...item,
@@ -103,7 +129,7 @@ export default async function EditOrderFormLoader({ orderId }: { orderId: string
 
     return (
         <OrderForm
-            order={order} // Pass the specific order (Decimals handled by OrderForm's useEffect)
+            order={processedOrderData} // Pass the specific PROCESSED order
             customers={customers}
             inventoryItems={processedInventoryItems} // Pass processed items
             isEditMode={true} // Set form to edit mode

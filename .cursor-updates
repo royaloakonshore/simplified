@@ -59,3 +59,4 @@
 - Fixed build errors by adding `deliveryDate` to Order schema, correcting Prisma includes and mappings in tRPC routers for orders and invoices, and resolving type issues in invoice actions.
 - Analyzed and verified Production Kanban View functionality; updated `listProductionView` to include 'shipped' status orders.
 - Fix: Resolve Decimal serialization error when adding items to order.
+- Updated `docs/07-enhancement-plan-invoice-order.md` with new inventory and BOM feature requests.

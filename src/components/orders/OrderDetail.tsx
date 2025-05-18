@@ -14,6 +14,7 @@ import { Terminal } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge"; // Use Shadcn badge
+import ClientOnly from "@/components/ClientOnly"; // Import ClientOnly
 
 // Define the expected shape of the order prop with includes
 type OrderDetailProps = {
@@ -145,49 +146,52 @@ export default function OrderDetail({ order }: OrderDetailProps) {
               </Button>
             )}
             {availableStatusTransitions.length > 0 && (
-               <Dialog open={showStatusModal} onOpenChange={setShowStatusModal}>
-                <DialogTrigger asChild>
-                   <Button size="sm">Update Status</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Update Order Status</DialogTitle>
-                  </DialogHeader>
-                  <div className="py-4 space-y-4">
-                    {error && (
-                      <Alert variant="destructive">
-                        <Terminal className="h-4 w-4" />
-                        <AlertTitle>Error</AlertTitle>
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    )}
-                    <p>Current Status: <Badge variant={getStatusBadgeVariant(order.status)}>{order.status.replace('_',' ').toUpperCase()}</Badge></p>
-                    <Select onValueChange={(value) => setSelectedStatus(value as OrderStatus)} value={selectedStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select new status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableStatusTransitions.map(status => (
-                          <SelectItem key={status} value={status}>
-                            {status.replace('_',' ').toUpperCase()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DialogFooter>
-                     <DialogClose asChild>
-                       <Button variant="outline" disabled={updateStatusMutation.isPending}>Cancel</Button>
-                     </DialogClose>
-                     <Button
-                       onClick={handleStatusChangeSubmit}
-                       disabled={updateStatusMutation.isPending || !selectedStatus}
-                     >
-                       {updateStatusMutation.isPending ? 'Updating...' : 'Confirm Update'}
-                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <ClientOnly> {/* Wrap the entire Dialog instance */} 
+                <Dialog open={showStatusModal} onOpenChange={setShowStatusModal}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">Update Status</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Update Order Status</DialogTitle>
+                    </DialogHeader>
+                    {/* Content that was previously wrapped in ClientOnly is now part of this larger ClientOnly block */}
+                    <div className="py-4 space-y-4">
+                      {error && (
+                        <Alert variant="destructive">
+                          <Terminal className="h-4 w-4" />
+                          <AlertTitle>Error</AlertTitle>
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      )}
+                      <div>Current Status: <Badge variant={getStatusBadgeVariant(order.status)}>{order.status.replace('_',' ').toUpperCase()}</Badge></div>
+                      <Select onValueChange={(value) => setSelectedStatus(value as OrderStatus)} value={selectedStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select new status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableStatusTransitions.map(status => (
+                            <SelectItem key={status} value={status}>
+                              {status.replace('_',' ').toUpperCase()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline" disabled={updateStatusMutation.isPending}>Cancel</Button>
+                      </DialogClose>
+                      <Button
+                        onClick={handleStatusChangeSubmit}
+                        disabled={updateStatusMutation.isPending || !selectedStatus}
+                      >
+                        {updateStatusMutation.isPending ? 'Updating...' : 'Confirm Update'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </ClientOnly> /* End wrap for Dialog instance */
             )}
           </div>
         </div>
