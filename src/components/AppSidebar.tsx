@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
 import {
     LayoutDashboard,
     Users,
@@ -11,20 +10,19 @@ import {
     FileText,
     Truck,
     Settings,
-    Building2, // For Org
-    UserCircle, // For User
-    ChevronLeft, // For collapse button
-    ChevronsUpDown, // For org switcher dropdown
+    Building2,
+    ChevronsUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Session } from 'next-auth'; // For typing the user prop
 
 // Define navigation items with icons
 const navItems = [
@@ -33,40 +31,38 @@ const navItems = [
     { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Orders', href: '/orders', icon: ShoppingCart },
     { name: 'Invoices', href: '/invoices', icon: FileText },
-    { name: 'Production', href: '/production', icon: Truck },
+    { name: 'Production', href: '/production', icon: Truck }, // Matched to import
     // { name: 'Settings', href: '/settings', icon: Settings }, // Settings will be in user dropdown
 ];
 
-// Placeholder user and org data - replace with actual data fetching
-const CurrentUser = {
-  name: "User Name",
-  email: "user@example.com",
-  avatarFallback: "UN",
-  // company: { name: "Current Org" } // Example for multi-tenancy
-};
-
+// Placeholder org data - replace with actual org data from context/session when multi-tenancy is implemented
 const CurrentOrg = {
   name: "User's Organization",
-  // availableOrgs: [{id: "1", name: "Org 1"}, {id: "2", name: "Org 2"}], // For switcher
-  // isAdmin: false // To control switcher visibility/functionality
 };
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  isCollapsed: boolean;
+  user: Session['user'] | null | undefined; // Accept user from session
+}
+
+export function AppSidebar({ isCollapsed, user }: AppSidebarProps) {
     const pathname = usePathname();
-    const [isCollapsed, setIsCollapsed] = useState(false); // Default to open, or true for default collapsed
 
     const isActive = (href: string) => {
-        // Basic check: current path starts with the nav item's href
-        // More specific checks might be needed for nested routes
         return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
     };
+
+    const userName = user?.name ?? "Guest";
+    const userEmail = user?.email ?? "";
+    const userAvatar = user?.image ?? undefined;
+    const avatarFallback = userName.substring(0, 2).toUpperCase();
 
     return (
         <div
             data-collapsed={isCollapsed}
             className={cn(
                 "group flex flex-col gap-4 py-2 border-r h-full bg-background transition-all duration-300 ease-in-out",
-                isCollapsed ? "w-20" : "w-64" // Adjusted width, v0.dev usually uses specific rem values
+                isCollapsed ? "w-20" : "w-64"
             )}
         >
             {/* Organization Switcher Area */}
@@ -81,7 +77,6 @@ export function AppSidebar() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount>
                         <DropdownMenuItem>Switch Org (Placeholder)</DropdownMenuItem>
-                        {/* Add logic for org switching when multi-tenancy is ready */}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
@@ -104,40 +99,35 @@ export function AppSidebar() {
                 ))}
             </nav>
 
-            {/* Footer: User and Collapse Button */}
+            {/* Footer: User Profile / Settings Button */}
             <div className={cn("mt-auto p-4 border-t", isCollapsed ? "px-2" : "px-4")}>
-                {/* User Profile / Settings Button */}
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className={cn("w-full justify-start items-center", isCollapsed ? "justify-center px-0" : "")}>
                             <Avatar className={cn("h-8 w-8", isCollapsed ? "" : "mr-2")}>
-                                <AvatarFallback>{CurrentUser.avatarFallback}</AvatarFallback>
+                                {userAvatar && <AvatarImage src={userAvatar} alt={userName} />}
+                                <AvatarFallback>{avatarFallback}</AvatarFallback>
                             </Avatar>
-                            <span className={cn(isCollapsed ? "hidden" : "block")}>{CurrentUser.name}</span>
+                            <span className={cn(isCollapsed ? "hidden" : "block")}>{userName}</span>
                              {!isCollapsed && <ChevronsUpDown className="ml-auto h-4 w-4 opacity-50" />}
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount>
                         <DropdownMenuItem asChild>
-                            <Link href="/settings"> {/* Link to main settings page */}
+                            <Link href="/settings">
                                 <Settings className="mr-2 h-4 w-4" />
                                 <span>Settings</span>
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>Logout (Placeholder)</DropdownMenuItem>
+                        {/* Actual Sign Out button should be implemented here or use the one in the header */}
+                        <DropdownMenuItem asChild>
+                             <Link href="/auth/logout">
+                                <Settings className="mr-2 h-4 w-4" /> {/* Replace with Logout icon */}
+                                <span>Sign Out</span>
+                            </Link>
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
-
-                {/* Collapse Button - Placed at the bottom of the sidebar */}
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="mt-4 h-10 w-full flex items-center justify-center"
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                >
-                    <ChevronLeft className={cn("h-5 w-5 transition-transform duration-300", isCollapsed && "rotate-180")} />
-                    <span className="sr-only">{isCollapsed ? "Expand sidebar" : "Collapse sidebar"}</span>
-                </Button>
             </div>
         </div>
     );

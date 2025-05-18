@@ -60,3 +60,4 @@
 - Analyzed and verified Production Kanban View functionality; updated `listProductionView` to include 'shipped' status orders.
 - Fix: Resolve Decimal serialization error when adding items to order.
 - Updated `docs/07-enhancement-plan-invoice-order.md` with new inventory and BOM feature requests.
+- Refactored ERP layout to use a client component for sidebar state management, fixing build error. Sidebar collapse is now controlled by a header button.
