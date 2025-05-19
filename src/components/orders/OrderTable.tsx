@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowRight, ArrowLeft } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Define the expected shape of the order prop passed to the table
 // Matches the include statement in the list procedure
@@ -25,7 +26,11 @@ type OrderInTable = Order & {
 interface OrderTableProps {
   orders: OrderInTable[];
   nextCursor: string | undefined | null;
-  // Add previousCursor if implementing Prev button
+  // Props for selection
+  selectedOrderIds: string[];
+  onSelectOrder: (orderId: string, isSelected: boolean) => void;
+  onSelectAll: (isSelected: boolean) => void;
+  isAllSelected: boolean;
 }
 
 // Helper function to format currency
@@ -74,7 +79,14 @@ const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "
   };
 
 
-export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
+export default function OrderTable({ 
+  orders, 
+  nextCursor, 
+  selectedOrderIds,
+  onSelectOrder,
+  onSelectAll,
+  isAllSelected
+}: OrderTableProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -95,6 +107,13 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox 
+                  checked={isAllSelected}
+                  onCheckedChange={(checked) => onSelectAll(Boolean(checked))}
+                  aria-label="Select all rows"
+                />
+              </TableHead>
               <TableHead>Order #</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Customer</TableHead>
@@ -107,13 +126,23 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   No orders found.
                 </TableCell>
               </TableRow>
             ) : (
               orders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow 
+                  key={order.id}
+                  data-state={selectedOrderIds.includes(order.id) ? "selected" : ""}
+                >
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedOrderIds.includes(order.id)}
+                      onCheckedChange={(checked) => onSelectOrder(order.id, Boolean(checked))}
+                      aria-label={`Select order ${order.orderNumber}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                      <Link href={`/orders/${order.id}`} className="hover:underline">
                        {order.orderNumber}
@@ -144,24 +173,29 @@ export default function OrderTable({ orders, nextCursor }: OrderTableProps) {
         </Table>
       </div>
       {/* Pagination Controls */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-         {/* TODO: Add Previous button if implementing bi-directional cursors */}
-        {/* <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handlePreviousPage()}
-          disabled={!previousCursor} // Need previousCursor prop
-        >
-           <ArrowLeft className="mr-2 h-4 w-4" /> Previous
-        </Button> */} 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleNextPage()}
-          disabled={!nextCursor}
-        >
-          Next Page <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+      <div className="flex items-center justify-between py-4">
+        <div className="text-sm text-muted-foreground">
+          {selectedOrderIds.length} of {orders.length} row(s) selected.
+        </div>
+        <div className="space-x-2">
+          {/* TODO: Add Previous button if implementing bi-directional cursors */}
+          {/* <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePreviousPage()}
+            disabled={!previousCursor} // Need previousCursor prop
+          >
+             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
+          </Button> */} 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleNextPage()}
+            disabled={!nextCursor}
+          >
+            Next Page <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

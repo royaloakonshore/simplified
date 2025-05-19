@@ -175,11 +175,26 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     onSuccess: () => {
       toast.success("Order updated successfully!");
       router.push('/orders');
-      router.refresh();
+      router.refresh(); // Refresh to show updated data if staying on page or redirecting to list
     },
     onError: (error: TRPCClientErrorLike<AppRouter>) => {
       console.error("Update Order Error:", error);
       toast.error(`Failed to update order: ${error.message}`);
+    },
+  });
+
+  // Mutation for creating an invoice from an order
+  const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
+    onSuccess: (newInvoice) => {
+      toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
+      // Optionally, redirect to the new invoice or refresh data
+      // router.push(`/invoices/${newInvoice.id}`);
+      utils.order.getById.invalidate({ id: order?.id }); // Invalidate cache for the current order to show linked invoice
+      // Potentially show the invoice ID or a link on the order form itself.
+    },
+    onError: (error: TRPCClientErrorLike<AppRouter>) => {
+      console.error("Create Invoice Error:", error);
+      toast.error(`Failed to create invoice: ${error.message}`);
     },
   });
 
@@ -230,6 +245,18 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
 
     // Assert the type for the mutation - needs id, and potentially partial other fields
     updateOrderMutation.mutate(processedData as UpdateOrderInput);
+  };
+
+  const handleCreateInvoice = (orderId?: string) => {
+    if (!orderId) {
+      toast.error("Order ID is missing, cannot create invoice.");
+      return;
+    }
+    // For now, we don't have a UI to collect invoiceDate, dueDate, notes for createFromOrder
+    // The schema defaults invoiceDate and the router sets a default dueDate.
+    // Notes can be passed if a field is added.
+    // vatReverseCharge also defaults in schema.
+    createInvoiceMutation.mutate({ orderId, dueDate: new Date(new Date().setDate(new Date().getDate() + 14)) }); // Pass a default due date
   };
 
   // --- Shared Helper/Event Logic (adjust based on active form) ---
@@ -300,7 +327,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Order Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={true}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Select order type" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value={OrderType.work_order}>Work Order</SelectItem>
@@ -448,7 +475,17 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             </CardContent>
             <CardFooter className="flex justify-between items-center">
               <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(updateForm))}</span>
-              <Button type="submit" disabled={updateOrderMutation.isPending}>{updateOrderMutation.isPending ? 'Saving...' : 'Save Changes'}</Button>
+              <div className="flex space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => handleCreateInvoice(order?.id)}
+                  disabled={!order || updateOrderMutation.isPending || createInvoiceMutation.isPending}
+                >
+                  {createInvoiceMutation.isPending ? "Creating Invoice..." : "Create Invoice"}
+                </Button>
+                <Button type="submit" disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending}>{updateOrderMutation.isPending ? 'Saving...' : 'Save Changes'}</Button>
+              </div>
             </CardFooter>
           </Card>
         </form>

@@ -1,6 +1,6 @@
 'use client'; // Make this a client component to use tRPC hooks
 
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // Hook for accessing search params
 import { Prisma } from '@prisma/client'; // Import Prisma namespace for Decimal
@@ -21,6 +21,26 @@ import {
     TableRow 
 } from "@/components/ui/table"; // Import Table components
 import { Badge } from "@/components/ui/badge"; // Import Badge
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ChevronDown, Trash2, Send } from 'lucide-react'; // Icons for actions
+import { toast } from 'react-toastify';
 
 // Moved type definition from OrderTable
 type OrderInTable = Order & {
@@ -62,14 +82,20 @@ function OrderListContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams(); 
+  const cursor = searchParams.get('cursor');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+  const [confirmationAction, setConfirmationAction] = useState<'delete' | 'sendToProduction' | null>(null);
+  const [actionInProgress, setActionInProgress] = useState(false);
 
   // Extract pagination/filter parameters from URL
-  const cursor = searchParams.get('cursor') ?? undefined;
   const limit = Number(searchParams.get('limit') ?? 10);
   const status = searchParams.get('status') as OrderStatus | undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
 
-  const { data, error, isLoading, isFetching } = api.order.list.useQuery({
+  const utils = api.useUtils();
+
+  const { data, error, isLoading, isFetching, refetch } = api.order.list.useQuery({
     limit,
     cursor,
     status,
@@ -78,6 +104,76 @@ function OrderListContent() {
 
   const orders: OrderInTable[] = (data?.items as OrderInTable[]) ?? [];
   const nextCursor = data?.nextCursor;
+
+  useEffect(() => {
+    // Clear selection when data reloads (e.g., pagination)
+    setSelectedOrderIds([]);
+  }, [data]);
+
+  const handleSelectOrder = (orderId: string, isSelected: boolean) => {
+    setSelectedOrderIds(prev => 
+      isSelected ? [...prev, orderId] : prev.filter(id => id !== orderId)
+    );
+  };
+
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected && data?.items) {
+      setSelectedOrderIds(data.items.map(order => order.id));
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+  
+  const isAllSelected = data?.items && data.items.length > 0 && selectedOrderIds.length === data.items.length;
+
+  // TODO: Create these tRPC mutations in order.router.ts
+  const deleteOrdersMutation = api.order.deleteMany.useMutation({
+    onSuccess: () => {
+      toast.success("Selected orders deleted.");
+      refetch();
+      setSelectedOrderIds([]);
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete orders: ${err.message}`);
+    },
+    onSettled: () => {
+      setShowConfirmationDialog(false);
+    }
+  });
+
+  const sendToProductionMutation = api.order.sendManyToProduction.useMutation({
+    onSuccess: (result) => {
+      // result could contain info about successes/failures
+      toast.success(`Processing complete. ${result.successCount} orders sent to production, ${result.failCount} failed/skipped.`);
+      refetch();
+      setSelectedOrderIds([]);
+    },
+    onError: (err) => {
+      toast.error(`Failed to send orders to production: ${err.message}`);
+    },
+    onSettled: () => {
+      setShowConfirmationDialog(false);
+    }
+  });
+
+  const openConfirmationModal = (action: 'delete' | 'sendToProduction') => {
+    if (selectedOrderIds.length === 0) {
+      toast.warn("Please select orders first.");
+      return;
+    }
+    // TODO: For 'sendToProduction', could pre-filter here based on order status if data is available client-side
+    // to provide a more accurate count in the confirmation, or let the backend handle filtering.
+    setConfirmationAction(action);
+    setShowConfirmationDialog(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (confirmationAction === 'delete') {
+      deleteOrdersMutation.mutate({ ids: selectedOrderIds });
+    } else if (confirmationAction === 'sendToProduction') {
+      sendToProductionMutation.mutate({ ids: selectedOrderIds });
+    }
+  };
 
   const handleNextPage = () => {
     if (nextCursor) {
@@ -178,6 +274,62 @@ function OrderListContent() {
             </div>
         )}
       </div>
+
+      <div className="mt-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Bulk Actions</h2>
+          <div className="flex items-center space-x-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
+                  Actions <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Bulk Actions ({selectedOrderIds.length} selected)</DropdownMenuLabel>
+                <DropdownMenuItem 
+                  onClick={() => openConfirmationModal('sendToProduction')} 
+                  disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Send to Production
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => openConfirmationModal('delete')} 
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-700/20"
+                  disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button asChild>
+              <Link href="/orders/add">Create New Order</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. You are about to process {selectedOrderIds.length} order(s).
+              {confirmationAction === 'sendToProduction' && " This will attempt to send them to production (if applicable)."}
+              {confirmationAction === 'delete' && " This will permanently delete them."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction} disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
+              {(deleteOrdersMutation.isPending || sendToProductionMutation.isPending) ? "Processing..." : "Continue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

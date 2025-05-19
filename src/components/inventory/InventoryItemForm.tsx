@@ -30,9 +30,11 @@ type InventoryItemFormData = z.infer<typeof inventoryItemBaseSchema>;
 
 interface InventoryItemFormProps {
   initialData?: InventoryItem;
+  onSubmit: (values: z.infer<typeof inventoryItemBaseSchema>) => void;
+  isLoading?: boolean;
 }
 
-export function InventoryItemForm({ initialData }: InventoryItemFormProps) {
+export function InventoryItemForm({ initialData, onSubmit: handleSubmitProp, isLoading }: InventoryItemFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
 
@@ -93,11 +95,7 @@ export function InventoryItemForm({ initialData }: InventoryItemFormProps) {
 
   // Let handleSubmit infer the type for 'values'
   function onSubmit(values: z.infer<typeof inventoryItemBaseSchema>) { // Explicitly type values based on schema inference
-    if (initialData) {
-      updateItem.mutate({ ...values, id: initialData.id });
-    } else {
-      createItem.mutate(values);
-    }
+    handleSubmitProp(values); // Call the passed onSubmit prop
   }
 
   return (
@@ -241,7 +239,7 @@ export function InventoryItemForm({ initialData }: InventoryItemFormProps) {
             />
         </div>
 
-        <Button type="submit" disabled={createItem.isPending || updateItem.isPending}>
+        <Button type="submit" disabled={isLoading || createItem.isPending || updateItem.isPending}>
           {initialData ? 'Update Item' : 'Create Item'}
         </Button>
       </form>

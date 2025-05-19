@@ -128,4 +128,20 @@ export const listProductionViewInputSchema = z.object({
   // cursor: z.string().cuid().nullish(),
 });
 
-export type ListProductionViewInput = z.infer<typeof listProductionViewInputSchema>; // Exporting the type as well 
+export type ListProductionViewInput = z.infer<typeof listProductionViewInputSchema>; // Exporting the type as well
+
+/**
+ * Schema for deleting multiple orders
+ */
+export const deleteManyOrdersSchema = z.object({
+  ids: z.array(z.string().cuid()).min(1, "At least one order ID must be provided."),
+});
+export type DeleteManyOrdersInput = z.infer<typeof deleteManyOrdersSchema>;
+
+/**
+ * Schema for sending multiple orders to production
+ */
+export const sendManyOrdersToProductionSchema = z.object({
+  ids: z.array(z.string().cuid()).min(1, "At least one order ID must be provided."),
+});
+export type SendManyOrdersToProductionInput = z.infer<typeof sendManyOrdersToProductionSchema>; 

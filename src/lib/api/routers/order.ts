@@ -12,7 +12,9 @@ import {
   listOrdersSchema,
   OrderItemInput,
   UpdateOrderInput,
-  listProductionViewInputSchema
+  listProductionViewInputSchema,
+  deleteManyOrdersSchema,
+  sendManyOrdersToProductionSchema
 } from "@/lib/schemas/order.schema";
 import { OrderStatus, OrderType, Prisma, TransactionType, InventoryTransaction, MaterialType } from "@prisma/client";
 
@@ -492,5 +494,74 @@ export const orderRouter = createTRPCRouter({
 
         return updatedOrder;
       });
+    }),
+
+  // New mutation to delete multiple orders
+  deleteMany: protectedProcedure
+    .input(deleteManyOrdersSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { ids } = input;
+      // Optional: Add checks to ensure orders can be deleted (e.g., not shipped, not invoiced)
+      // For simplicity, direct deletion for now.
+      const result = await prisma.order.deleteMany({
+        where: {
+          id: { in: ids },
+          // Add companyId: ctx.companyId if multi-tenancy is active
+        },
+      });
+      return { count: result.count };
+    }),
+
+  // New mutation to send multiple orders to production
+  sendManyToProduction: protectedProcedure
+    .input(sendManyOrdersToProductionSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { ids } = input;
+      let successCount = 0;
+      let failCount = 0;
+
+      // It's better to process each order individually within a transaction 
+      // if complex logic or multiple updates per order are needed.
+      // However, for a simple status update, batching might be fine, but error handling is tricky.
+      // Let's update them one by one to allow for individual checks and error reporting.
+
+      for (const orderId of ids) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            const order = await tx.order.findUnique({
+              where: { id: orderId },
+              select: { status: true, orderType: true },
+            });
+
+            if (!order) {
+              throw new TRPCError({ code: "NOT_FOUND", message: `Order ${orderId} not found.` });
+            }
+
+            // Only send Work Orders to production if they are in a suitable state (e.g., confirmed)
+            if (
+              order.orderType === OrderType.work_order &&
+              (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft) // Or other valid pre-production statuses
+            ) {
+              await tx.order.update({
+                where: { id: orderId },
+                data: { status: OrderStatus.in_production }, 
+              });
+              // Call stock deduction logic AFTER status update is committed
+              // Note: handleProductionStockDeduction allows negative stock
+              await handleProductionStockDeduction(orderId, tx);
+              successCount++;
+            } else {
+              // Skip if not a work order or not in a valid state to send to production
+              console.log(`Skipping order ${orderId}: type ${order.orderType}, status ${order.status}`);
+              failCount++;
+            }
+          });
+        } catch (error) {
+          console.error(`Failed to send order ${orderId} to production:`, error);
+          failCount++;
+          // Optionally collect individual error messages
+        }
+      }
+      return { successCount, failCount };
     }),
 }); 

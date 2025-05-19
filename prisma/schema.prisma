@@ -25,6 +25,7 @@ model User {
   accounts       Account[]
   sessions       Session[]
   orders         Order[]
+  invoices       Invoice[]
 
   @@schema("public")
 }
@@ -263,12 +264,14 @@ model Invoice {
   isCreditNote      Boolean       @default(false)
   originalInvoiceId String?       @unique // For credit notes, ID of the original invoice
   creditNoteId      String?       @unique // For original invoices, ID of the credit note that credits this one
+  userId            String?       // Added: ID of the user who created/managed this invoice
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   customer Customer      @relation(fields: [customerId], references: [id])
   order    Order?        @relation("OrderToInvoices", fields: [orderId], references: [id]) // Corrected relation name
+  user     User?         @relation(fields: [userId], references: [id]) // Added: Relation to User
   items    InvoiceItem[]
   payments Payment[]
 

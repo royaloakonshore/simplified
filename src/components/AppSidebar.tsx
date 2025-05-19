@@ -9,126 +9,94 @@ import {
     ShoppingCart,
     FileText,
     Truck,
-    Settings,
-    Building2,
-    ChevronsUpDown,
+    Settings as SettingsIcon, // Renamed to avoid conflict
+    Building2, // For placeholder team switcher
+    type LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { Session } from 'next-auth'; // For typing the user prop
+import type { Session } from 'next-auth';
 
-// Define navigation items with icons
-const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Customers', href: '/customers', icon: Users },
-    { name: 'Inventory', href: '/inventory', icon: Package },
-    { name: 'Orders', href: '/orders', icon: ShoppingCart },
-    { name: 'Invoices', href: '/invoices', icon: FileText },
-    { name: 'Production', href: '/production', icon: Truck }, // Matched to import
-    // { name: 'Settings', href: '/settings', icon: Settings }, // Settings will be in user dropdown
-];
+// Import the new navigation components
+import { NavMain } from './nav-main'; // Assuming nav-main.tsx is in the same directory
+import { NavUser } from './nav-user';   // Assuming nav-user.tsx is in the same directory
+import { TeamSwitcher } from './team-switcher'; // Assuming team-switcher.tsx is in the same directory
+// Import Sidebar component and useSidebar hook
+import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 
-// Placeholder org data - replace with actual org data from context/session when multi-tenancy is implemented
-const CurrentOrg = {
-  name: "User's Organization",
-};
-
-interface AppSidebarProps {
-  isCollapsed: boolean;
-  user: Session['user'] | null | undefined; // Accept user from session
+// Define types for navigation items
+interface SubNavItem {
+  title: string;
+  url: string;
 }
 
-export function AppSidebar({ isCollapsed, user }: AppSidebarProps) {
-    const pathname = usePathname();
+interface NavItemDefinition {
+  title: string;
+  url: string;
+  icon?: LucideIcon;
+  items?: SubNavItem[]; // Sub-items are optional and typed
+}
 
-    const isActive = (href: string) => {
-        return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+// Placeholder data for TeamSwitcher, adapt as needed
+const placeholderTeams = [
+  { name: 'My Company', logo: Building2, plan: 'Free Plan' },
+  // Add more teams if multi-tenancy is implemented
+];
+
+// Adapt existing navItems to the format expected by NavMain
+const mainNavItemsData: NavItemDefinition[] = [
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, items: [] }, // items: [] is valid for SubNavItem[]
+    { title: 'Customers', url: '/customers', icon: Users, items: [] },
+    { title: 'Inventory', url: '/inventory', icon: Package, items: [] },
+    { title: 'Orders', url: '/orders', icon: ShoppingCart, items: [] },
+    { title: 'Invoices', url: '/invoices', icon: FileText, items: [] },
+    { title: 'Production', url: '/production', icon: Truck, items: [] },
+];
+
+interface AppSidebarProps {
+  // isCollapsed: boolean; // No longer needed as prop, will use useSidebar hook
+  user: Session['user'] | null | undefined;
+}
+
+export function AppSidebar({ user }: AppSidebarProps) { // Removed isCollapsed from props
+    const pathname = usePathname();
+    const { open: isSidebarOpen, isMobile } = useSidebar(); // Get state from context
+    // For components that need to react to collapsed state but don't use useSidebar directly:
+    // const isEffectivelyCollapsed = isMobile ? false : !isSidebarOpen; // On mobile, sidebar is an overlay, not collapsed
+
+    const processedMainNavItems = mainNavItemsData.map(item => ({
+        title: item.title,
+        url: item.url,
+        icon: item.icon,
+        isActive: pathname === item.url || (item.url !== '/dashboard' && pathname.startsWith(item.url)),
+        items: (item.items && item.items.length > 0) 
+               ? item.items.map(subItem => ({ title: subItem.title, url: subItem.url })) 
+               : undefined
+    }));
+    
+    const sessionUser = {
+        name: user?.name ?? "Guest User",
+        email: user?.email ?? "",
+        avatar: user?.image ?? "", // NavUser expects avatar prop
     };
 
-    const userName = user?.name ?? "Guest";
-    const userEmail = user?.email ?? "";
-    const userAvatar = user?.image ?? undefined;
-    const avatarFallback = userName.substring(0, 2).toUpperCase();
-
     return (
-        <div
-            data-collapsed={isCollapsed}
-            className={cn(
-                "group flex flex-col gap-4 py-2 border-r h-full bg-background transition-all duration-300 ease-in-out",
-                isCollapsed ? "w-20" : "w-64"
-            )}
-        >
-            {/* Organization Switcher Area */}
-            <div className={cn("p-4 border-b", isCollapsed ? "px-2" : "px-4")}>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className={cn("w-full justify-start items-center", isCollapsed ? "justify-center px-0" : "")}>
-                            <Building2 className={cn("h-5 w-5", isCollapsed ? "" : "mr-2")} />
-                            <span className={cn(isCollapsed ? "hidden" : "block")}>{CurrentOrg.name}</span>
-                            {!isCollapsed && <ChevronsUpDown className="ml-auto h-4 w-4 opacity-50" />}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                        <DropdownMenuItem>Switch Org (Placeholder)</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+        <Sidebar className="border-r fixed top-0 left-0 z-30 h-full">
+            {/* Sidebar component from ui/sidebar.tsx will handle its own width and collapsed state styling */}
+            {/* The `p-2` and `border-b/t` might need to be inside SidebarHeader/SidebarFooter if available */}
+            <div className="flex flex-col justify-between h-full">
+              <div> {/* Top section */}
+                <div className={cn("p-2 border-b")}>
+                  <TeamSwitcher teams={placeholderTeams} />
+                </div>
+                <NavMain items={processedMainNavItems} />
+              </div>
 
-            {/* Navigation Links */}
-            <nav className="flex-1 px-2 space-y-1">
-                {navItems.map((item) => (
-                    <Link
-                        key={item.name}
-                        href={item.href}
-                        className={cn(
-                            "flex items-center rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:text-primary hover:bg-muted",
-                            isActive(item.href) && "bg-muted text-primary font-medium",
-                            isCollapsed ? "justify-center" : ""
-                        )}
-                    >
-                        <item.icon className={cn("h-5 w-5", isCollapsed ? "" : "mr-3")} />
-                        <span className={cn(isCollapsed ? "hidden" : "block")}>{item.name}</span>
-                    </Link>
-                ))}
-            </nav>
-
-            {/* Footer: User Profile / Settings Button */}
-            <div className={cn("mt-auto p-4 border-t", isCollapsed ? "px-2" : "px-4")}>
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className={cn("w-full justify-start items-center", isCollapsed ? "justify-center px-0" : "")}>
-                            <Avatar className={cn("h-8 w-8", isCollapsed ? "" : "mr-2")}>
-                                {userAvatar && <AvatarImage src={userAvatar} alt={userName} />}
-                                <AvatarFallback>{avatarFallback}</AvatarFallback>
-                            </Avatar>
-                            <span className={cn(isCollapsed ? "hidden" : "block")}>{userName}</span>
-                             {!isCollapsed && <ChevronsUpDown className="ml-auto h-4 w-4 opacity-50" />}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                        <DropdownMenuItem asChild>
-                            <Link href="/settings">
-                                <Settings className="mr-2 h-4 w-4" />
-                                <span>Settings</span>
-                            </Link>
-                        </DropdownMenuItem>
-                        {/* Actual Sign Out button should be implemented here or use the one in the header */}
-                        <DropdownMenuItem asChild>
-                             <Link href="/auth/logout">
-                                <Settings className="mr-2 h-4 w-4" /> {/* Replace with Logout icon */}
-                                <span>Sign Out</span>
-                            </Link>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+              <div> {/* Bottom section */}
+                <div className={cn("p-2 border-t")}>
+                  <NavUser user={sessionUser} />
+                </div>
+              </div>
             </div>
-        </div>
+        </Sidebar>
     );
 } 

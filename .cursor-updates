@@ -62,3 +62,6 @@
 - Updated `docs/07-enhancement-plan-invoice-order.md` with new inventory and BOM feature requests.
 - Refactored ERP layout to use a client component for sidebar state management, fixing build error. Sidebar collapse is now controlled by a header button.
 - Refactored Kanban board: excluded pricing from production view payload and corrected inventory deduction logic to trigger on 'in_production' status, deduct BOM components, and allow negative stock for production.
+- Fixed linter errors related to `isLoading` vs `isPending` and tRPC utils.
+- Regenerated Prisma client to resolve `userId` issues in invoice router.
+- Restored and fixed `EditInventoryItemPage` and updated `AddInventoryItemPage` for `InventoryItemForm` prop changes.

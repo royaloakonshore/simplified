@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { createTRPCRouter, protectedProcedure } from "@/lib/api/trpc";
-import { CreateInvoiceSchema, UpdateInvoiceSchema, invoiceFilterSchema, invoicePaginationSchema } from "@/lib/schemas/invoice.schema";
-import { InvoiceStatus, Prisma, PrismaClient } from '@prisma/client'; // Import PrismaClient for transaction typing
+import { CreateInvoiceSchema, UpdateInvoiceSchema, invoiceFilterSchema, invoicePaginationSchema, createInvoiceFromOrderSchema } from "@/lib/schemas/invoice.schema";
+import { InvoiceStatus, OrderStatus, Prisma, PrismaClient } from '@prisma/client'; // Import PrismaClient for transaction typing, OrderStatus
 import { Decimal } from '@prisma/client/runtime/library'; // Import Decimal
 import { prisma } from "@/lib/db"; // Import prisma client directly
 
@@ -240,6 +240,7 @@ export const invoiceRouter = createTRPCRouter({
             totalAmount: finalTotalAmount, // Use the final calculated total
             totalVatAmount: totalVatAmountValue, // Use the calculated VAT
             vatReverseCharge: vatReverseCharge, // Store the flag
+            userId: userId, // Uncommented: userId can now be saved
             items: {
               create: invoiceItemsData.map((item) => ({
                 inventoryItemId: item.itemId,
@@ -260,6 +261,140 @@ export const invoiceRouter = createTRPCRouter({
       });
 
       return newInvoice;
+    }),
+
+  createFromOrder: protectedProcedure
+    .input(createInvoiceFromOrderSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { orderId, invoiceDate, dueDate: inputDueDate, notes, vatReverseCharge } = input;
+      const userId = ctx.session.user.id;
+
+      return prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+          where: { id: orderId },
+          include: {
+            customer: true,
+            items: { include: { inventoryItem: true } },
+          },
+        });
+
+        if (!order) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+        }
+
+        if (!order.customer) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order customer is missing' });
+        }
+
+        // Check if order status is appropriate (e.g., not draft or cancelled)
+        if (order.status === OrderStatus.draft || order.status === OrderStatus.cancelled) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Cannot create invoice for order with status: ${order.status}`,
+          });
+        }
+        
+        // TODO: Check if an invoice already exists for this order to prevent duplicates?
+        // const existingInvoice = await tx.invoice.findFirst({
+        //   where: { orderId: order.id }
+        // });
+        // if (existingInvoice) {
+        //   throw new TRPCError({ code: 'CONFLICT', message: `Invoice already exists for order ${order.orderNumber}` });
+        // }
+
+        let subTotal = new Prisma.Decimal(0);
+        let totalVatAmountValue = new Prisma.Decimal(0);
+
+        const invoiceItemsData = order.items.map(orderItem => {
+          if (!orderItem.inventoryItem) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Inventory item details missing for order item ${orderItem.id}` });
+          }
+          const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
+          const quantity = new Prisma.Decimal(orderItem.quantity);
+          let lineTotal = unitPrice.times(quantity);
+
+          // Apply discount from order item if present
+          if (orderItem.discountPercentage != null && orderItem.discountPercentage.gt(0)) {
+            const discountMultiplier = new Prisma.Decimal(1).minus(orderItem.discountPercentage.div(100));
+            lineTotal = lineTotal.times(discountMultiplier);
+          } else if (orderItem.discountAmount != null && orderItem.discountAmount.gt(0)) {
+            lineTotal = lineTotal.sub(orderItem.discountAmount).greaterThanOrEqualTo(0) ? lineTotal.sub(orderItem.discountAmount) : new Prisma.Decimal(0);
+          }
+
+          subTotal = subTotal.plus(lineTotal);
+          
+          // Using a default VAT rate of 24% for now as InventoryItem does not have vatRate
+          const vatRate = new Prisma.Decimal(24); // Default 24%
+
+          if (!vatReverseCharge) {
+            const itemVat = lineTotal.times(vatRate.div(100));
+            totalVatAmountValue = totalVatAmountValue.plus(itemVat);
+          }
+
+          return {
+            inventoryItemId: orderItem.inventoryItemId,
+            description: orderItem.inventoryItem.name, // Or a more detailed description from orderItem if available
+            quantity: orderItem.quantity, // Already Decimal
+            unitPrice: orderItem.unitPrice, // Already Decimal
+            vatRatePercent: vatRate, // Use determined VAT rate (defaulted to 24%)
+            discountAmount: orderItem.discountAmount, // Already Decimal or null
+            discountPercent: orderItem.discountPercentage, // Corrected to discountPercentage
+          };
+        });
+        
+        if (vatReverseCharge) {
+          totalVatAmountValue = new Prisma.Decimal(0);
+        }
+        const finalTotalAmount = subTotal.plus(totalVatAmountValue);
+
+        // Generate Invoice Number (reusing logic from `create` or a shared helper)
+        const lastInvoice = await tx.invoice.findFirst({
+          orderBy: { invoiceNumber: 'desc' }, 
+          select: { invoiceNumber: true }
+        });
+        let nextInvoiceNumber = 'INV-00001'; 
+        if (lastInvoice && lastInvoice.invoiceNumber) {
+          try {
+            nextInvoiceNumber = (parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10) + 1).toString();
+            const prefixMatch = lastInvoice.invoiceNumber.match(/^([^0-9]*)/);
+            if (prefixMatch && prefixMatch[0]) {
+              nextInvoiceNumber = prefixMatch[0] + nextInvoiceNumber.padStart(5, '0');
+            } else {
+              nextInvoiceNumber = nextInvoiceNumber.padStart(5, '0');
+            }
+          } catch (e) {
+            nextInvoiceNumber = `INV-${Date.now()}`;
+          }
+        }
+        // Check for collision (simplified)
+        const existingNum = await tx.invoice.findUnique({ where: { invoiceNumber: nextInvoiceNumber } });
+        if (existingNum) {
+          nextInvoiceNumber = `${nextInvoiceNumber}-${Date.now().toString().slice(-3)}`;
+        }
+
+        const finalInvoiceDate = invoiceDate ?? new Date();
+        const finalDueDate = inputDueDate ?? new Date(new Date(finalInvoiceDate).setDate(finalInvoiceDate.getDate() + 14)); // Default due date: 14 days from invoice date
+
+        const newInvoice = await tx.invoice.create({
+          data: {
+            invoiceNumber: nextInvoiceNumber,
+            customerId: order.customerId,
+            invoiceDate: finalInvoiceDate,
+            dueDate: finalDueDate,
+            notes: notes ?? order.notes, // Default to order notes if invoice notes not provided
+            orderId: order.id,
+            status: InvoiceStatus.draft, // Default status
+            totalAmount: finalTotalAmount,
+            totalVatAmount: totalVatAmountValue,
+            vatReverseCharge: vatReverseCharge,
+            userId: userId, // Uncommented: userId can now be saved
+            items: {
+              create: invoiceItemsData,
+            },
+          },
+        });
+        return newInvoice;
+      });
     }),
 
   // TODO: Add update, delete procedures
