@@ -132,4 +132,89 @@ Ensure `components.json` is configured correctly for aliases (`@/components`, `@
 *   **Backup:** Before running `npx shadcn-ui@latest add ...`, ensure your `components.json` is correctly configured and commit any pending changes. The `add` command can sometimes overwrite existing files if names conflict or if it installs dependencies.
 *   **File Locations:** The `add` commands might place new components directly into `src/components/ui/` or into `src/components/blocks/`. Be mindful of these locations and adjust imports or file locations as needed to maintain project structure. Prefer moving block-like structures to `src/components/blocks/` and utility/UI primitives to `src/components/ui/`.
 
-This roadmap provides a structured approach to these enhancements. 
+This roadmap provides a structured approach to these enhancements.
+
+## 3. Dashboard Enhancements Plan
+
+**Objective:** To create a comprehensive and interactive dashboard providing key business metrics and insights at a glance, with real-time data updates and customizable date filtering.
+
+**Inspiration:** `dashboard-01` block from [https://ui.shadcn.com/blocks#blocks](https://ui.shadcn.com/blocks#blocks) and user-provided examples.
+
+**Location:** `src/app/(erp)/dashboard/page.tsx`
+
+**Key Features & Implementation Notes:**
+
+**A. Real-time Updates:**
+*   **Goal:** Synchronize changes across the application, such as inventory updates or Kanban task movements, reflecting them on the dashboard without requiring a manual refresh.
+*   **To-Do:**
+    *   Investigate and decide on a real-time update mechanism. Options include:
+        *   WebSockets (e.g., using `socket.io` or a managed service).
+        *   Server-Sent Events (SSE).
+        *   Polling with tRPC queries (could leverage Inngest events to trigger client-side refetching via a context or Zustand store).
+        *   Services like Supabase Realtime or Pusher if integrating external services is an option.
+    *   Implement chosen mechanism to push or trigger updates for relevant data points (e.g., new orders, inventory level changes affecting replenishment).
+
+**B. Date Range Selectors & Filtering:**
+*   **Goal:** Allow users to filter dashboard visualizations based on a selected date range ('From' and 'To' dates).
+*   **Component:** `originui/calendar` (added via `npx shadcn@latest add calendar -p originui`).
+*   **Integration:**
+    *   Utilize the `DateRangePicker` component created at `src/components/ui/date-range-picker.tsx`.
+    *   Place this component prominently on the dashboard, likely in the header section.
+*   **To-Do:**
+    *   Connect the selected date range to the tRPC procedures that fetch data for the dashboard visualizations.
+    *   Ensure all relevant charts and tables update dynamically when the date range changes.
+    *   Implement weekly/monthly toggle for the revenue trend chart, which will also interact with the date range.
+
+**C. Statistics Cards (Top Section):**
+*   **Goal:** Display key performance indicators (KPIs) with comparison percentages.
+*   **Layout:** Four cards at the top of the dashboard.
+*   **Metrics:**
+    1.  **Shipped Orders (Period):** Count of orders marked 'Shipped' within the selected date range. Comparison to the previous equivalent period.
+    2.  **Pending Production:** Count of orders currently in 'Pending' or 'In Production' status. Comparison could be to an average or a target.
+    3.  **Late Orders:** Count of orders whose delivery date is past and are not yet 'Shipped'. Comparison to the previous period.
+    4.  **Total Revenue (Period):** Sum of revenue from invoiced orders within the selected date range. Comparison to the previous equivalent period.
+*   **Placeholder:** `StatsCard` component implemented in `src/app/(erp)/dashboard/page.tsx`.
+*   **To-Do:**
+    *   Create tRPC procedures to fetch data for each stat, accepting `companyId` (from context) and date range as input.
+    *   Implement logic for calculating comparison percentages (e.g., ((currentPeriod - previousPeriod) / previousPeriod) * 100).
+    *   Wire up the `StatsCard` components to display fetched data.
+
+**D. Revenue Trend Chart (Middle Section):**
+*   **Goal:** Visualize revenue trends over time with a comparison to a previous period.
+*   **Chart Type:** Wide area chart (e.g., using `recharts` as per user example).
+*   **Features:**
+    *   Primary line for current period revenue.
+    *   Secondary line/area for previous period comparison (e.g., previous month, previous year's same period).
+    *   Toggles for "Weekly" / "Monthly" data aggregation view.
+*   **Placeholder:** `PlaceholderAreaChart` component in `src/components/dashboard/PlaceholderAreaChart.tsx`.
+*   **To-Do:**
+    *   Create a tRPC procedure to fetch aggregated revenue data (e.g., daily, weekly, or monthly sums based on the selected view and date range). This will need to fetch relevant invoice data.
+    *   Implement the area chart using a library like `recharts`, ensuring it's responsive.
+    *   Connect the chart to the date range selectors and weekly/monthly toggles.
+
+**E. Bottom Tables (Height-Limited):**
+*   **Goal:** Display recent activity and critical alerts in compact, scrollable tables.
+*   **Layout:** Two tables side-by-side or stacked, each with a limited height and internal scrolling.
+
+    **1. Recent Orders Table:**
+    *   **Content:** Display a list of the most recent orders (e.g., last 10-15 orders) with key details like Order ID, Customer Name, Status, and Order Date.
+    *   **Placeholder:** `PlaceholderRecentOrdersTable` in `src/components/dashboard/PlaceholderRecentOrdersTable.tsx`.
+    *   **To-Do:**
+        *   Create a tRPC procedure to fetch recent orders (e.g., `order.list` with appropriate sorting and limit).
+        *   Implement a compact data table (e.g., using `shadcn/ui Table` or parts of `originui/table` if suitable for a compact view) to display the data.
+        *   Consider making rows clickable to navigate to the order detail page.
+
+    **2. Replenishment Alerts Table:**
+    *   **Content:** Display inventory items that are below their defined `reorderLevel` or `minimumStockLevel`. Show Item Name/SKU, Current Stock, Reorder Level.
+    *   **Placeholder:** `PlaceholderReplenishmentTable` in `src/components/dashboard/PlaceholderReplenishmentTable.tsx`.
+    *   **To-Do:**
+        *   Create a tRPC procedure to fetch inventory items requiring replenishment.
+        *   Implement a compact data table to display these alerts.
+        *   Consider quick actions like "Create Purchase Order" (future enhancement).
+
+**General Implementation Notes for Dashboard:**
+*   **Data Fetching:** All data should be fetched via tRPC procedures. These procedures must be company-scoped using `companyProtectedProcedure` where applicable.
+*   **Loading States:** Implement appropriate loading skeletons or indicators for each dashboard section while data is being fetched. The current placeholder components serve as a basic visual.
+*   **Error Handling:** Gracefully handle errors if data fetching fails for any section, displaying informative messages.
+*   **Responsiveness:** Ensure the entire dashboard layout and its components are responsive across different screen sizes.
+*   **Permissions:** Dashboard data should respect user roles and permissions if certain metrics are sensitive (though initially, assume all authenticated users within a company can see the full dashboard). 

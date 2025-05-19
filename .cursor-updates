@@ -65,6 +65,6 @@
 - Fixed linter errors related to `isLoading` vs `isPending` and tRPC utils.
 - Regenerated Prisma client to resolve `userId` issues in invoice router.
 - Restored and fixed `EditInventoryItemPage` and updated `AddInventoryItemPage` for `InventoryItemForm` prop changes.
-- Corrected dashboard page path by deleting `src/app/dashboard/page.tsx`.
-- Updated sidebar navigation: Implemented separate chevron for collapsibles, added sub-items for Orders, Invoices, Inventory (with placeholder links for new inventory sub-items).
-- Cleaned up user popover menu in the sidebar.
+- Corrected dashboard page path to `src/app/(erp)/dashboard/page.tsx` and created a basic structure.
+- Added `originui/calendar` and created placeholder components for `DateRangePicker`, `PlaceholderAreaChart`, `PlaceholderRecentOrdersTable`, and `PlaceholderReplenishmentTable` for the dashboard.
+- Updated `docs/06-ui-and-feature-roadmap.md` with a detailed plan for dashboard enhancements.
