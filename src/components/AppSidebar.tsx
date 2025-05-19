@@ -21,19 +21,28 @@ import { NavMain } from './nav-main'; // Assuming nav-main.tsx is in the same di
 import { NavUser } from './nav-user';   // Assuming nav-user.tsx is in the same directory
 import { TeamSwitcher } from './team-switcher'; // Assuming team-switcher.tsx is in the same directory
 // Import Sidebar component and useSidebar hook
-import { Sidebar, useSidebar } from "@/components/ui/sidebar";
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarHeader,
+    useSidebar
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'; // Added for NavUser default
 
 // Define types for navigation items
 interface SubNavItem {
   title: string;
   url: string;
+  // icon is typically not used for sub-items in this design, but can be added
 }
 
 interface NavItemDefinition {
   title: string;
   url: string;
   icon?: LucideIcon;
-  items?: SubNavItem[]; // Sub-items are optional and typed
+  items?: SubNavItem[];
+  isCollapsible?: boolean; // To indicate if it should have a chevron
 }
 
 // Placeholder data for TeamSwitcher, adapt as needed
@@ -44,59 +53,90 @@ const placeholderTeams = [
 
 // Adapt existing navItems to the format expected by NavMain
 const mainNavItemsData: NavItemDefinition[] = [
-    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, items: [] }, // items: [] is valid for SubNavItem[]
-    { title: 'Customers', url: '/customers', icon: Users, items: [] },
-    { title: 'Inventory', url: '/inventory', icon: Package, items: [] },
-    { title: 'Orders', url: '/orders', icon: ShoppingCart, items: [] },
-    { title: 'Invoices', url: '/invoices', icon: FileText, items: [] },
-    { title: 'Production', url: '/production', icon: Truck, items: [] },
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, isCollapsible: false },
+    { title: 'Customers', url: '/customers', icon: Users, isCollapsible: false },
+    {
+        title: 'Inventory',
+        url: '/inventory',
+        icon: Package,
+        isCollapsible: true,
+        items: [
+            { title: 'View All', url: '/inventory' }, // Explicit "View All" or main link
+            { title: 'New Item', url: '/inventory/add' },
+            { title: 'Replenishment', url: '/inventory/replenishment' }, // Placeholder URL
+            { title: 'Price List', url: '/inventory/price-list' },       // Placeholder URL
+        ],
+    },
+    {
+        title: 'Orders',
+        url: '/orders',
+        icon: ShoppingCart,
+        isCollapsible: true,
+        items: [
+            { title: 'View All', url: '/orders' },
+            { title: 'New Order', url: '/orders/add' },
+        ],
+    },
+    {
+        title: 'Invoices',
+        url: '/invoices',
+        icon: FileText,
+        isCollapsible: true,
+        items: [
+            { title: 'View All', url: '/invoices' },
+            { title: 'New Invoice', url: '/invoices/add' },
+        ],
+    },
+    { title: 'Production', url: '/production', icon: Truck, isCollapsible: false },
+    { title: 'Settings', url: '/settings', icon: SettingsIcon, isCollapsible: false },
 ];
 
 interface AppSidebarProps {
-  // isCollapsed: boolean; // No longer needed as prop, will use useSidebar hook
   user: Session['user'] | null | undefined;
 }
 
-export function AppSidebar({ user }: AppSidebarProps) { // Removed isCollapsed from props
+export function AppSidebar({ user }: AppSidebarProps) {
     const pathname = usePathname();
-    const { open: isSidebarOpen, isMobile } = useSidebar(); // Get state from context
-    // For components that need to react to collapsed state but don't use useSidebar directly:
-    // const isEffectivelyCollapsed = isMobile ? false : !isSidebarOpen; // On mobile, sidebar is an overlay, not collapsed
+    const { open: isSidebarOpen, isMobile, state: sidebarState } = useSidebar();
 
     const processedMainNavItems = mainNavItemsData.map(item => ({
-        title: item.title,
-        url: item.url,
-        icon: item.icon,
+        ...item,
         isActive: pathname === item.url || (item.url !== '/dashboard' && pathname.startsWith(item.url)),
-        items: (item.items && item.items.length > 0) 
-               ? item.items.map(subItem => ({ title: subItem.title, url: subItem.url })) 
-               : undefined
+        // Sub-items also need to be processed if we want to mark active parent based on active sub-item
+        items: item.items?.map(subItem => ({
+            ...subItem,
+            isActive: pathname === subItem.url || pathname.startsWith(subItem.url)
+        }))
     }));
     
     const sessionUser = {
         name: user?.name ?? "Guest User",
         email: user?.email ?? "",
-        avatar: user?.image ?? "", // NavUser expects avatar prop
+        avatar: user?.image ?? "",
     };
 
-    return (
-        <Sidebar className="border-r fixed top-0 left-0 z-30 h-full">
-            {/* Sidebar component from ui/sidebar.tsx will handle its own width and collapsed state styling */}
-            {/* The `p-2` and `border-b/t` might need to be inside SidebarHeader/SidebarFooter if available */}
-            <div className="flex flex-col justify-between h-full">
-              <div> {/* Top section */}
-                <div className={cn("p-2 border-b")}>
-                  <TeamSwitcher teams={placeholderTeams} />
-                </div>
-                <NavMain items={processedMainNavItems} />
-              </div>
+    // Determine if the sidebar is in icon-only mode for NavMain tooltip conditional logic
+    const isIconMode = !isMobile && sidebarState === 'collapsed';
 
-              <div> {/* Bottom section */}
-                <div className={cn("p-2 border-t")}>
-                  <NavUser user={sessionUser} />
-                </div>
-              </div>
-            </div>
+    return (
+        <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
+            <SidebarHeader className="p-2 justify-center border-b">
+                <Link href="/dashboard" className="flex items-center gap-2 ">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                        <AvatarImage src="/logo.png" alt="App Logo" />
+                        <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
+                    </Avatar>
+                    <span className={cn("font-semibold text-lg", isIconMode && "opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-200")}>
+                        SimplifiedERP
+                    </span>
+                </Link>
+            </SidebarHeader>
+            <SidebarContent className="p-0">
+                <NavMain items={processedMainNavItems} isIconMode={isIconMode} />
+            </SidebarContent>
+            <SidebarFooter className="p-2 border-t">
+                <NavUser user={sessionUser} />
+            </SidebarFooter>
         </Sidebar>
     );
 } 

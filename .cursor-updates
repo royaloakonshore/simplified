@@ -65,3 +65,6 @@
 - Fixed linter errors related to `isLoading` vs `isPending` and tRPC utils.
 - Regenerated Prisma client to resolve `userId` issues in invoice router.
 - Restored and fixed `EditInventoryItemPage` and updated `AddInventoryItemPage` for `InventoryItemForm` prop changes.
+- Corrected dashboard page path by deleting `src/app/dashboard/page.tsx`.
+- Updated sidebar navigation: Implemented separate chevron for collapsibles, added sub-items for Orders, Invoices, Inventory (with placeholder links for new inventory sub-items).
+- Cleaned up user popover menu in the sidebar.
