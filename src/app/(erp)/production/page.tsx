@@ -5,7 +5,8 @@ import { api } from "@/lib/trpc/react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
 import { KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider } from '@/components/ui/kanban';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Order, OrderStatus, Customer, InventoryItem, BillOfMaterial, BillOfMaterialItem, User, Prisma } from '@prisma/client';
+import { OrderStatus, OrderType } from '@prisma/client';
+import type { Customer, InventoryItem, BillOfMaterial, BillOfMaterialItem, User, Prisma as PrismaTypes } from '@prisma/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +30,18 @@ import { Button } from "@/components/ui/button";
 import { toast } from 'react-toastify';
 
 // Define the structure of an order for the Kanban board more specifically
-interface KanbanOrder extends Order {
+interface KanbanOrder {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  orderType?: OrderType | string;
+  notes?: string | null;
+  productionStep?: string | null;
+  // deliveryDate is intentionally made optional here as it's temporarily excluded from backend payload
+  deliveryDate?: Date | null; 
+  // totalAmount is intentionally made optional here as it's excluded from backend payload for production view
+  totalAmount?: PrismaTypes.Decimal | null;
+
   customer: Pick<Customer, 'id' | 'name'> | null;
   items: (
     {
@@ -40,11 +52,11 @@ interface KanbanOrder extends Order {
           })[]
         }) | null;
       };
-      quantity: Prisma.Decimal;
+      quantity: PrismaTypes.Decimal;
     }
   )[];
   user: Pick<User, 'id' | 'name' | 'firstName'> | null;
-  totalQuantity: Prisma.Decimal;
+  totalQuantity: PrismaTypes.Decimal; // This is calculated and added in the backend
 }
 
 type KanbanColumn = {
@@ -145,7 +157,14 @@ function ProductionPageContent() {
     { accessorKey: "customer.name", header: "Customer", cell: ({ row }) => row.original.customer?.name || 'N/A' },
     { accessorKey: "status", header: "Status" },
     { accessorKey: "totalQuantity", header: "Total Qty", cell: ({row}) => row.original.totalQuantity.toString() },
-    { accessorKey: "deliveryDate", header: "Delivery Date", cell: ({ row }) => row.original.deliveryDate ? new Date(row.original.deliveryDate).toLocaleDateString() : 'N/A' },
+    { 
+      accessorKey: "deliveryDate", 
+      header: "Delivery Date", 
+      cell: ({ row }) => {
+        const deliveryDate = row.original.deliveryDate;
+        return deliveryDate ? new Date(deliveryDate).toLocaleDateString() : 'N/A';
+      } 
+    },
   ], []);
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
