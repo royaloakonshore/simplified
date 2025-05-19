@@ -7,7 +7,11 @@ import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { ModeToggle } from "@/components/theme/ModeToggle";
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { Session } from 'next-auth';
-import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import {
+  SidebarProvider,
+  useSidebar,
+  SidebarInset
+} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 interface ERPLayoutClientProps {
@@ -16,25 +20,17 @@ interface ERPLayoutClientProps {
 }
 
 function LayoutContent({ children, user }: ERPLayoutClientProps) {
-  const { open, toggleSidebar, isMobile, openMobile } = useSidebar();
+  const { open, toggleSidebar, isMobile, openMobile, state: sidebarState } = useSidebar();
   const isSidebarEffectivelyOpen = isMobile ? openMobile : open;
 
   return (
     <div className={cn("flex h-screen bg-background", isMobile && openMobile ? "overflow-hidden" : "")}>
       <AppSidebar user={user} />
 
-      <main 
-        className={cn(
-          "flex-1 flex flex-col overflow-hidden w-full transition-all duration-300 ease-in-out",
-          {
-            "md:ml-64": !isMobile && open,
-            "md:ml-16": !isMobile && !open,
-          }
-        )}
-      >
+      <SidebarInset className="flex-1 flex flex-col overflow-hidden w-full">
         <header className="flex sticky top-0 bg-background h-16 shrink-0 items-center gap-2 border-b px-4 z-10">
           <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2">
-            {!isSidebarEffectivelyOpen ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+            {(!isMobile && sidebarState === 'collapsed') || (isMobile && !openMobile) ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             <span className="sr-only">Toggle sidebar</span>
           </Button>
           <Breadcrumbs />
@@ -48,10 +44,10 @@ function LayoutContent({ children, user }: ERPLayoutClientProps) {
             </Link>
           </div>
         </header>
-        <div className="flex-1 overflow-auto p-6 w-full">
+        <div className="flex-1 overflow-auto p-4 md:p-6 w-full">
           {children}
         </div>
-      </main>
+      </SidebarInset>
     </div>
   );
 }

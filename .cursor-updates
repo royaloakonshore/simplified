@@ -68,3 +68,9 @@
 - Corrected dashboard page path to `src/app/(erp)/dashboard/page.tsx` and created a basic structure.
 - Added `originui/calendar` and created placeholder components for `DateRangePicker`, `PlaceholderAreaChart`, `PlaceholderRecentOrdersTable`, and `PlaceholderReplenishmentTable` for the dashboard.
 - Updated `docs/06-ui-and-feature-roadmap.md` with a detailed plan for dashboard enhancements.
+- Fixed `Invoice.userId` database schema mismatch with `prisma migrate`.
+- Corrected main layout to be full-width using `SidebarInset` in `ERPLayoutClient`.
+- Adjusted dashboard page layout: stacked tables, added `DashboardSiteHeader`.
+- Refined sidebar logo text hiding on collapse in `AppSidebar`.
+- Added "New Customer" as a sub-item to the sidebar under "Customers".
+- Resolved `_document` PageNotFoundError build issue with a clean build.

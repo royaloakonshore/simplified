@@ -54,7 +54,16 @@ const placeholderTeams = [
 // Adapt existing navItems to the format expected by NavMain
 const mainNavItemsData: NavItemDefinition[] = [
     { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, isCollapsible: false },
-    { title: 'Customers', url: '/customers', icon: Users, isCollapsible: false },
+    {
+        title: 'Customers',
+        url: '/customers', // Main link to view all customers
+        icon: Users,
+        isCollapsible: true, // Make it collapsible to house sub-items
+        items: [
+            { title: 'View All Customers', url: '/customers' },
+            { title: 'New Customer', url: '/customers/add' },
+        ],
+    },
     {
         title: 'Inventory',
         url: '/inventory',
@@ -126,7 +135,13 @@ export function AppSidebar({ user }: AppSidebarProps) {
                         <AvatarImage src="/logo.png" alt="App Logo" />
                         <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
                     </Avatar>
-                    <span className={cn("font-semibold text-lg", isIconMode && "opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-200")}>
+                    <span 
+                        className={cn(
+                            "font-semibold text-lg whitespace-nowrap transition-opacity duration-200", 
+                            isIconMode ? "opacity-0 w-0" : "opacity-100 w-auto",
+                            "group-hover:opacity-100 group-hover:w-auto delay-150 group-hover:delay-0"
+                        )}
+                    >
                         SimplifiedERP
                     </span>
                 </Link>
