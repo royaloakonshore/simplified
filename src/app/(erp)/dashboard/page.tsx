@@ -20,9 +20,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { PlaceholderAreaChart } from "@/components/dashboard/PlaceholderAreaChart";
-import { PlaceholderRecentOrdersTable } from "@/components/dashboard/PlaceholderRecentOrdersTable";
-import { PlaceholderReplenishmentTable } from "@/components/dashboard/PlaceholderReplenishmentTable";
+// import { PlaceholderRecentOrdersTable } from "@/components/dashboard/PlaceholderRecentOrdersTable";
+// import { PlaceholderReplenishmentTable } from "@/components/dashboard/PlaceholderReplenishmentTable";
 import { DashboardSiteHeader } from "@/components/dashboard/DashboardSiteHeader"; // Import the new header
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"; // Import Table components
 
 // StatsCard component (can be moved to its own file later if preferred)
 function StatsCard({
@@ -80,7 +88,9 @@ export default function DashboardPage() {
         {/* Date Range Selectors and Real-time update status - Placeholder */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {/* <DateRangePicker range={dateRange} onRangeChange={setDateRange} /> */}
-          <Button variant="outline" size="sm" disabled>Date Range (TODO)</Button>
+          <Button variant="outline" size="sm" disabled>
+            Date Range (TODO)
+          </Button>
           <span className="text-xs text-muted-foreground">Real-time: N/A (TODO)</span>
         </div>
 
@@ -137,23 +147,69 @@ export default function DashboardPage() {
         </Card>
 
         {/* Bottom Tables Section - Stacked vertically */}
-        <div className="flex flex-col gap-4 md:gap-6">
-          <Card className="flex flex-col">
+        <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
+          <Card className="flex flex-col h-[calc(10rem*2+2rem)]"> {/* Approx 10 rows + header, assuming 2rem per row approx */}
             <CardHeader>
               <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>Last 10 orders placed.</CardDescription>
+              <CardDescription>Last 10 quotations.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden">
-              <PlaceholderRecentOrdersTable />
+            <CardContent className="flex-1 overflow-y-auto p-0">
+              {/* Placeholder for Recent Orders Table - to be simple table styled like image */}
+              {/* <div className="p-4 text-sm text-muted-foreground">Recent Orders Table Placeholder</div> */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-4">Order ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right px-4">Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Example Row - Replace with actual data mapping */}
+                  {[...Array(10)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium px-4">{`ORD-00${123 + i}`}</TableCell>
+                      <TableCell>{`Customer ${String.fromCharCode(65 + i)}`}</TableCell>
+                      <TableCell>Draft</TableCell>
+                      <TableCell className="text-right px-4">{(new Date()).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))}
+                  {/* Add more rows or dynamic data mapping here */}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-          <Card className="flex flex-col">
+          <Card className="flex flex-col h-[calc(10rem*2+2rem)]"> {/* Approx 10 rows + header */}
             <CardHeader>
               <CardTitle>Replenishment Alerts</CardTitle>
-              <CardDescription>Items needing reorder based on stock levels.</CardDescription>
+              <CardDescription>Items needing reorder.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow overflow-hidden">
-              <PlaceholderReplenishmentTable />
+            <CardContent className="flex-1 overflow-y-auto p-0">
+              {/* Placeholder for Replenishment Alerts Table - to be simple table styled like image */}
+              {/* <div className="p-4 text-sm text-muted-foreground">Replenishment Alerts Table Placeholder</div> */}
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-4">Item SKU</TableHead>
+                    <TableHead>Item Name</TableHead>
+                    <TableHead className="text-right">Stock</TableHead>
+                    <TableHead className="text-right px-4">Alert Level</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Example Row - Replace with actual data mapping */}
+                  {[...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium px-4">{`SKU-00${i + 1}`}</TableCell>
+                    <TableCell>{`Product ${String.fromCharCode(65 + i)}`}</TableCell>
+                    <TableCell className="text-right">{10 - i * 2}</TableCell>
+                    <TableCell className="text-right px-4">{10}</TableCell>
+                  </TableRow>
+                  ))}
+                  {/* Add more rows or dynamic data mapping here */}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>

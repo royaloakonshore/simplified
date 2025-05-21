@@ -74,3 +74,4 @@
 - Refined sidebar logo text hiding on collapse in `AppSidebar`.
 - Added "New Customer" as a sub-item to the sidebar under "Customers".
 - Resolved `_document` PageNotFoundError build issue with a clean build.
+- Addressed dashboard table layout, fixed inventory item edit error, and corrected layout width jumping on inventory page.

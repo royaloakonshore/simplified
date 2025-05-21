@@ -48,11 +48,27 @@ export function InventoryItemForm({ initialData, onSubmit: handleSubmitProp, isL
           name: initialData.name,
           description: initialData.description ?? undefined,
           unitOfMeasure: initialData.unitOfMeasure,
-          costPrice: initialData.costPrice?.toNumber() ?? 0,
-          salesPrice: initialData.salesPrice?.toNumber() ?? 0,
+          costPrice: typeof initialData.costPrice === 'object' && initialData.costPrice && 'toNumber' in initialData.costPrice 
+            ? initialData.costPrice.toNumber() 
+            : typeof initialData.costPrice === 'number' 
+            ? initialData.costPrice 
+            : 0,
+          salesPrice: typeof initialData.salesPrice === 'object' && initialData.salesPrice && 'toNumber' in initialData.salesPrice
+            ? initialData.salesPrice.toNumber()
+            : typeof initialData.salesPrice === 'number'
+            ? initialData.salesPrice
+            : 0,
           materialType: initialData.materialType,
-          minimumStockLevel: initialData.minimumStockLevel?.toNumber() ?? 0,
-          reorderLevel: initialData.reorderLevel?.toNumber() ?? 0,
+          minimumStockLevel: typeof initialData.minimumStockLevel === 'object' && initialData.minimumStockLevel && 'toNumber' in initialData.minimumStockLevel
+            ? initialData.minimumStockLevel.toNumber()
+            : typeof initialData.minimumStockLevel === 'number'
+            ? initialData.minimumStockLevel
+            : 0,
+          reorderLevel: typeof initialData.reorderLevel === 'object' && initialData.reorderLevel && 'toNumber' in initialData.reorderLevel
+            ? initialData.reorderLevel.toNumber()
+            : typeof initialData.reorderLevel === 'number'
+            ? initialData.reorderLevel
+            : 0,
           // Note: createdAt and updatedAt are usually handled by the DB
         }
       : {

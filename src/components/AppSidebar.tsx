@@ -137,9 +137,10 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     </Avatar>
                     <span 
                         className={cn(
-                            "font-semibold text-lg whitespace-nowrap transition-opacity duration-200", 
-                            isIconMode ? "opacity-0 w-0" : "opacity-100 w-auto",
-                            "group-hover:opacity-100 group-hover:w-auto delay-150 group-hover:delay-0"
+                            "font-semibold text-lg whitespace-nowrap transition-all duration-300 ease-in-out", // General transition
+                            isIconMode 
+                                ? "opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto group-hover:ml-2" // Collapsed: hidden, shown on hover with a slight margin
+                                : "opacity-100 w-auto ml-2" // Open: visible with margin
                         )}
                     >
                         SimplifiedERP

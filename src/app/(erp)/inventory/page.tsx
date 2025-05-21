@@ -11,12 +11,14 @@ import React from 'react';
 // Skeleton for the inventory table (can be more detailed if needed)
 function InventoryPageSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-10 w-48" /> {/* Title skeleton */}
-        <Skeleton className="h-10 w-32" /> {/* Button skeleton */}
+    <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-10 w-48" /> {/* Title skeleton */}
+          <Skeleton className="h-10 w-32" /> {/* Button skeleton */}
+        </div>
+        <Skeleton className="h-64 w-full" /> {/* Table content skeleton */}
       </div>
-      <Skeleton className="h-64 w-full" /> {/* Table content skeleton */}
     </div>
   );
 }
@@ -50,10 +52,8 @@ function InventoryListContent() {
 // Main page component
 export default function InventoryPage() {
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
-       <Suspense fallback={<InventoryPageSkeleton />}>
-         <InventoryListContent />
-       </Suspense>
-    </div>
+    <Suspense fallback={<InventoryPageSkeleton />}>
+      <InventoryListContent />
+    </Suspense>
   );
 } 
