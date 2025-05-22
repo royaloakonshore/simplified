@@ -5,6 +5,7 @@ import { InventoryItemForm } from "@/components/inventory/InventoryItemForm";
 import { api } from "@/lib/trpc/react";
 import { toast } from 'react-toastify';
 import type { CreateInventoryItemInput } from "@/lib/schemas/inventory.schema";
+import { Card, CardContent } from "@/components/ui/card";
 // import { Heading } from "@/components/ui/heading"; // If you have a standard heading component
 // import { Separator } from "@/components/ui/separator"; // If you use a standard separator
 
@@ -28,23 +29,16 @@ export default function AddInventoryItemPage() {
   };
 
   return (
-    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8 max-w-2xl mx-auto">
-      {/* Optional: Consistent Heading and Description for add pages */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Add New Inventory Item</h1>
-            <p className="text-sm text-muted-foreground">
-                Fill in the details to create a new inventory item.
-            </p>
-        </div>
-      </div>
-      {/* <Separator className="my-6" /> */}
-      <div className="border-b my-6" /> {/* Simple separator */}
-
-      <InventoryItemForm 
-        onSubmit={handleSubmit} 
-        isLoading={createMutation.isPending} 
-      />
+    <div className="container mx-auto py-6 px-4 md:px-6">
+      <h1 className="text-2xl font-bold mb-6">Add New Inventory Item</h1>
+      <Card className="max-w-2xl mx-auto">
+        <CardContent className="pt-6">
+          <InventoryItemForm 
+            onSubmit={handleSubmit} 
+            isLoading={createMutation.isPending} 
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 } 

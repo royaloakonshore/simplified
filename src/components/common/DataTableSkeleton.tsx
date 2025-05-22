@@ -14,6 +14,7 @@ interface DataTableSkeletonProps {
   cellWidths?: string[];
   showHeader?: boolean;
   showToolbar?: boolean;
+  showPagination?: boolean;
 }
 
 export function DataTableSkeleton({
@@ -21,14 +22,20 @@ export function DataTableSkeleton({
   rowCount = 10,
   cellWidths = [],
   showHeader = true,
-  showToolbar = false, // Simple version doesn't include toolbar skeleton yet
+  showToolbar = false,
+  showPagination = true,
 }: DataTableSkeletonProps) {
   return (
     <div className="space-y-4">
       {showToolbar && (
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-8 w-20" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-[250px]" /> {/* Search input */}
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-[120px]" /> {/* Dropdown button */}
+            <Skeleton className="h-9 w-9" /> {/* View options */}
+          </div>
         </div>
       )}
       <div className="rounded-md border">
@@ -57,14 +64,18 @@ export function DataTableSkeleton({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Skeleton className="h-8 w-20" />
-        <Skeleton className="h-8 w-16" />
-        <div className="flex items-center space-x-2">
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-8" />
+      {showPagination && (
+        <div className="flex items-center justify-between py-4">
+          <Skeleton className="h-8 w-[200px]" /> {/* Rows selected/page size */}
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-8 w-[100px]" /> {/* Page indicator */}
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-8 w-8" /> {/* Previous button */}
+              <Skeleton className="h-8 w-8" /> {/* Next button */}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 } 

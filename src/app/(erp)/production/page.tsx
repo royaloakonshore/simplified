@@ -197,7 +197,24 @@ function ProductionPageContent() {
   });
 
   if (productionOrdersQuery.isLoading) {
-    return <div>Loading production orders...</div>; 
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
+            <div className="flex space-x-2">
+              <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
+              <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="border rounded-md h-64 bg-muted/5 animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -296,8 +313,30 @@ function ProductionPageContent() {
 
 export default function ProductionPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ProductionPageContent />
-    </Suspense>
+    <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Production</h1>
+      </div>
+      <Suspense fallback={
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
+              <div className="flex space-x-2">
+                <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
+                <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="border rounded-md h-64 bg-muted/5 animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      }>
+        <ProductionPageContent />
+      </Suspense>
+    </div>
   );
 } 

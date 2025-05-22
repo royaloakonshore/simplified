@@ -185,10 +185,15 @@ function OrderListContent() {
 
   const TableLoadingSkeleton = () => (
     <div className="space-y-4">
-        <Skeleton className="h-8 w-1/4" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
+        <div className="border rounded-md">
+            <Skeleton className="h-12 w-full" /> {/* Table header */}
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+        </div>
+        <div className="flex items-center justify-end space-x-2 py-4">
+            <Skeleton className="h-9 w-24" /> {/* Pagination button */}
+        </div>
     </div>
   );
 
