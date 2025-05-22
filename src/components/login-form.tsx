@@ -132,11 +132,8 @@ export function LoginForm({
             {/* You can use a specific image for your app here */}
             {/* Using a generic placeholder for now. Consider aspect ratio and content. */}
             <img
-              // TODO: Replace with a relevant, high-quality image for your application
-              // src="/placeholder.svg" // Original placeholder
-              // Using a more abstract placeholder from unDraw or similar could be good
-              src="https://images.unsplash.com/photo-1593640408182-31c70c8268f5?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80"
-              alt="Login illustration"
+              src="/auth-background.jpg" // Changed to the new image path
+              alt="Authentication Background"
               className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.7]" // Adjusted brightness
             />
           </div>

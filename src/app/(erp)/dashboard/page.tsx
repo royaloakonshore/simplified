@@ -15,7 +15,7 @@ import * as React from "react";
 //   SidebarTrigger, // This is in ERPLayoutClient header
 // } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+// import { DateRangePicker } from "@/components/ui/date-range-picker"; // Commented out
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"; // Import Table components
+import Link from "next/link"; // Import Link for navigation
 
 // StatsCard component (can be moved to its own file later if preferred)
 function StatsCard({
@@ -39,15 +40,17 @@ function StatsCard({
   description,
   trend,
   trendDirection,
+  href, // Add href for linking
 }: {
   title: string;
   value: string;
   description: string;
   trend: string;
   trendDirection: "up" | "down";
+  href?: string; // Make href optional
 }) {
-  return (
-    <Card className="@container/card shadow-xs bg-gradient-to-t from-primary/5 to-card dark:bg-card">
+  const cardContent = (
+    <Card className="@container/card shadow-xs bg-card dark:bg-card"> {/* Removed gradient, ensured bg-card */}
       <CardHeader className="relative pb-2">
         <CardDescription>{title}</CardDescription>
         <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
@@ -71,6 +74,11 @@ function StatsCard({
       </CardFooter>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href} className="block hover:shadow-md transition-shadow">{cardContent}</Link>;
+  }
+  return cardContent;
 }
 
 export default function DashboardPage() {
@@ -102,6 +110,7 @@ export default function DashboardPage() {
             description="vs. previous period" 
             trend="+0%" 
             trendDirection="up" 
+            href="/orders?status=shipped"
           />
           <StatsCard 
             title="Pending Production" 
@@ -109,6 +118,7 @@ export default function DashboardPage() {
             description="Currently in queue" 
             trend="-0%" 
             trendDirection="down" 
+            href="/production"
           />
           <StatsCard 
             title="Late Orders" 
@@ -116,6 +126,7 @@ export default function DashboardPage() {
             description="Past due date" 
             trend="+0%" 
             trendDirection="up" 
+            href="/orders?status=late"
           />
           <StatsCard 
             title="Total Revenue (Period)" 
@@ -123,6 +134,7 @@ export default function DashboardPage() {
             description="vs. previous period" 
             trend="+0%" 
             trendDirection="up" 
+            href="/invoices"
           />
         </div>
 
@@ -147,7 +159,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Bottom Tables Section - Stacked vertically */}
-        <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-4 md:gap-6"> {/* Changed from grid to flex-col */}
           <Card className="flex flex-col h-[calc(10rem*2+2rem)]"> {/* Approx 10 rows + header, assuming 2rem per row approx */}
             <CardHeader>
               <CardTitle>Recent Orders</CardTitle>
@@ -172,7 +184,7 @@ export default function DashboardPage() {
                       <TableCell className="font-medium px-4">{`ORD-00${123 + i}`}</TableCell>
                       <TableCell>{`Customer ${String.fromCharCode(65 + i)}`}</TableCell>
                       <TableCell>Draft</TableCell>
-                      <TableCell className="text-right px-4">{(new Date()).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right px-4">2024-05-23</TableCell>
                     </TableRow>
                   ))}
                   {/* Add more rows or dynamic data mapping here */}

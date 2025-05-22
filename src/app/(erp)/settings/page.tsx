@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { toast } from 'react-toastify';
 import { Skeleton } from '@/components/ui/skeleton';
+import React from 'react';
 
 // Schema for profile update (excluding password initially)
 const profileUpdateSchema = z.object({
@@ -40,8 +41,8 @@ export default function SettingsPage() {
   const profileForm = useForm<ProfileUpdateValues>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
-      name: session?.user?.name ?? '',
-      firstName: session?.user?.firstName ?? '',
+      name: '',
+      firstName: '',
     },
   });
 
@@ -126,13 +127,15 @@ export default function SettingsPage() {
     return <p>Access Denied. Please sign in.</p>;
   }
 
-  // Set default values once session is loaded
-  if (status === 'authenticated' && !profileForm.formState.isDirty) {
-     profileForm.reset({
-       name: session.user.name ?? '',
-       firstName: session.user.firstName ?? '',
-     });
-  }
+  // Effect to set form default values once session is loaded
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      profileForm.reset({
+        name: session.user.name ?? '',
+        firstName: session.user.firstName ?? '',
+      });
+    }
+  }, [status, session, profileForm.reset]);
 
   return (
     <div className="container mx-auto py-8 space-y-6">

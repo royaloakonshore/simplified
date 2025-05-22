@@ -48,26 +48,38 @@ export function InventoryItemForm({ initialData, onSubmit: handleSubmitProp, isL
           name: initialData.name,
           description: initialData.description ?? undefined,
           unitOfMeasure: initialData.unitOfMeasure,
-          costPrice: typeof initialData.costPrice === 'object' && initialData.costPrice && 'toNumber' in initialData.costPrice 
-            ? initialData.costPrice.toNumber() 
+          costPrice: 
+            initialData.costPrice && typeof initialData.costPrice === 'object' && 'toNumber' in initialData.costPrice 
+            ? (initialData.costPrice as { toNumber: () => number }).toNumber() 
             : typeof initialData.costPrice === 'number' 
             ? initialData.costPrice 
+            : typeof initialData.costPrice === 'string' 
+            ? parseFloat(initialData.costPrice) || 0 
             : 0,
-          salesPrice: typeof initialData.salesPrice === 'object' && initialData.salesPrice && 'toNumber' in initialData.salesPrice
-            ? initialData.salesPrice.toNumber()
+          salesPrice: 
+            initialData.salesPrice && typeof initialData.salesPrice === 'object' && 'toNumber' in initialData.salesPrice
+            ? (initialData.salesPrice as { toNumber: () => number }).toNumber()
             : typeof initialData.salesPrice === 'number'
             ? initialData.salesPrice
+            : typeof initialData.salesPrice === 'string'
+            ? parseFloat(initialData.salesPrice) || 0
             : 0,
           materialType: initialData.materialType,
-          minimumStockLevel: typeof initialData.minimumStockLevel === 'object' && initialData.minimumStockLevel && 'toNumber' in initialData.minimumStockLevel
-            ? initialData.minimumStockLevel.toNumber()
+          minimumStockLevel: 
+            initialData.minimumStockLevel && typeof initialData.minimumStockLevel === 'object' && 'toNumber' in initialData.minimumStockLevel
+            ? (initialData.minimumStockLevel as { toNumber: () => number }).toNumber()
             : typeof initialData.minimumStockLevel === 'number'
             ? initialData.minimumStockLevel
+            : typeof initialData.minimumStockLevel === 'string'
+            ? parseFloat(initialData.minimumStockLevel) || 0
             : 0,
-          reorderLevel: typeof initialData.reorderLevel === 'object' && initialData.reorderLevel && 'toNumber' in initialData.reorderLevel
-            ? initialData.reorderLevel.toNumber()
+          reorderLevel: 
+            initialData.reorderLevel && typeof initialData.reorderLevel === 'object' && 'toNumber' in initialData.reorderLevel
+            ? (initialData.reorderLevel as { toNumber: () => number }).toNumber()
             : typeof initialData.reorderLevel === 'number'
             ? initialData.reorderLevel
+            : typeof initialData.reorderLevel === 'string'
+            ? parseFloat(initialData.reorderLevel) || 0
             : 0,
           // Note: createdAt and updatedAt are usually handled by the DB
         }
