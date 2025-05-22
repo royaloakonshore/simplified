@@ -41,8 +41,8 @@ export default function SettingsPage() {
   const profileForm = useForm<ProfileUpdateValues>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
-      name: '',
-      firstName: '',
+      name: ' ',
+      firstName: ' ',
     },
   });
 
@@ -50,11 +50,22 @@ export default function SettingsPage() {
   const passwordForm = useForm<PasswordChangeValues>({
     resolver: zodResolver(passwordChangeSchema),
     defaultValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
+      currentPassword: ' ',
+      newPassword: ' ',
+      confirmPassword: ' ',
     },
   });
+
+  // Effect to set form default values once session is loaded
+  // This hook must be called before any early returns.
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+     profileForm.reset({
+       name: session.user.name ?? ' ',
+       firstName: session.user.firstName ?? ' ',
+     });
+  }
+  }, [status, session, profileForm]); // profileForm was added to the dependency array as reset is a part of it
 
   // tRPC Mutations
   const updateProfileMutation = api.user.updateProfile.useMutation({
@@ -126,16 +137,6 @@ export default function SettingsPage() {
   if (status === 'unauthenticated') {
     return <p>Access Denied. Please sign in.</p>;
   }
-
-  // Effect to set form default values once session is loaded
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      profileForm.reset({
-        name: session.user.name ?? '',
-        firstName: session.user.firstName ?? '',
-      });
-    }
-  }, [status, session, profileForm.reset]);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
