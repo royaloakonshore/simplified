@@ -76,3 +76,4 @@
 - Resolved `_document` PageNotFoundError build issue with a clean build.
 - Addressed dashboard table layout, fixed inventory item edit error, and corrected layout width jumping on inventory page.
 - Addressed multiple UI/UX issues including auth card image, dashboard layout/linking, sidebar logo visibility, and fixed errors related to inventory form, date hydration, and settings page re-renders.
+- Increased global border radius for UI elements and applied consistent container usage to dashboard page for better layout stability.

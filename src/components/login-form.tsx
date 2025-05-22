@@ -132,7 +132,7 @@ export function LoginForm({
             {/* You can use a specific image for your app here */}
             {/* Using a generic placeholder for now. Consider aspect ratio and content. */}
             <img
-              src="/auth-background.jpg" // Changed to the new image path
+              src="/auth-background.png" // Changed to the new image path
               alt="Authentication Background"
               className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.7]" // Adjusted brightness
             />

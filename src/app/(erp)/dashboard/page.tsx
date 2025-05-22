@@ -92,7 +92,7 @@ export default function DashboardPage() {
     // This component renders *inside* the SidebarInset's children area.
     <div className="flex flex-1 flex-col">
       <DashboardSiteHeader title="Dashboard" />
-      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 @container/main">
+      <div className="container mx-auto flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 @container/main">
         {/* Date Range Selectors and Real-time update status - Placeholder */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           {/* <DateRangePicker range={dateRange} onRangeChange={setDateRange} /> */}
