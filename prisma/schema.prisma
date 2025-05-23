@@ -330,20 +330,39 @@ model Payment {
 
 model Settings {
   id                      String  @id @default(cuid())
-  companyName             String
-  vatId                   String // Y-tunnus
-  ovtId                   String? // OVT identifier
-  streetAddress           String
-  postalCode              String
-  city                    String
-  country                 String
-  phone                   String?
-  email                   String?
-  bankName                String?
-  bankAccountIban         String
-  bankSwiftBic            String
-  finvoiceIntermediator   String?
-  finvoiceIntermediatorId String?
+  // companyId               String  @unique // TODO: Add when multi-tenancy is implemented (needs to be @unique for findFirst/update logic in settings router or tied to user)
+
+  companyName             String  // Was String, remains String (required by schema)
+  vatId                   String  // Was String, remains String (required by schema)
+  domicile                String  // New, String (required by schema)
+  
+  streetAddress           String  // Was String, remains String (required by schema)
+  postalCode              String  // Was String, remains String (required by schema)
+  city                    String  // Was String, remains String (required by schema)
+  countryCode             String  // Renamed from country, String (required by schema)
+  countryName             String  // New, String (required by schema)
+
+  bankAccountIBAN         String  // Renamed from bankAccountIban, String (required by schema)
+  bankAccountBIC          String  // Renamed from bankSwiftBic, String (required by schema)
+  
+  // Optional fields from schema
+  website                 String? // New, optional
+  sellerIdentifier        String? // Renamed from ovtId, optional
+  sellerIntermediatorAddress String? // Renamed from finvoiceIntermediator, optional
+  bankName                String? // Was String?, remains String? (optional)
+
+  // Fields to review/remove from old model if not in new schema:
+  // phone                   String? // Not in settingsSchema, was optional
+  // email                   String? // Not in settingsSchema, was optional
+  // finvoiceIntermediatorId String? // Removed as sellerIntermediatorAddress should cover the OVT/identifier
+
+  // For now, I will comment them out. If they are truly unused, they can be deleted later.
+  phone                   String? @map("settings_phone") // Keep but map to avoid breaking old data if any, or remove if unused
+  email                   String? @map("settings_email") // Keep but map, or remove if unused
+  // finvoiceIntermediatorId String? // Removed as sellerIntermediatorAddress should cover the OVT/identifier
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@schema("public")
 }

@@ -4,6 +4,7 @@ import { inventoryRouter } from "./routers/inventory";
 import { orderRouter } from "./routers/order";
 import { invoiceRouter } from "./routers/invoice";
 import { userRouter } from "./routers/user";
+import { settingsRouter } from "./routers/settings";
 // import all routers here
 
 /**
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   order: orderRouter,
   invoice: invoiceRouter, // Add invoice router
   user: userRouter,
+  settings: settingsRouter,
   // add routers here
 });
 
@@ -30,4 +32,4 @@ export type AppRouter = typeof appRouter;
  * const res = await trpc.post.all();
  *       ^? RouterOutputs['post']['all']
  */
-export const createCaller = createCallerFactory(appRouter);
+export const createAppCaller = createCallerFactory(appRouter); // Renamed from createCaller

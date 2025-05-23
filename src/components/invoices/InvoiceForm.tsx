@@ -79,7 +79,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         description: "",
         quantity: 1, 
         unitPrice: 0, 
-        vatRatePercent: 24, 
+        vatRatePercent: FINNISH_VAT_RATES[0],
         discountAmount: null, 
         discountPercent: null 
       }],
@@ -213,6 +213,23 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
   }, new Decimal(0));
 
   const grandTotal = subTotal.plus(totalVat);
+
+  const calculateLineTotal = (item: InvoiceFormValues['items'][number]): number => {
+    const quantity = new Decimal(item.quantity || 0);
+    const price = new Decimal(item.unitPrice || 0);
+    let lineTotal = quantity.times(price);
+
+    if (item.discountPercent != null && item.discountPercent > 0) {
+      const discountMultiplier = new Decimal(1).minus(
+        new Decimal(item.discountPercent).div(100)
+      );
+      lineTotal = lineTotal.times(discountMultiplier);
+    } else if (item.discountAmount != null && item.discountAmount > 0) {
+      const discount = new Decimal(item.discountAmount);
+      lineTotal = lineTotal.minus(discount).greaterThanOrEqualTo(0) ? lineTotal.minus(discount) : new Decimal(0);
+    }
+    return lineTotal.toDP(2).toNumber();
+  };
 
   const title = isEditMode ? "Edit Invoice" : "Create New Invoice";
   const isPending = createInvoiceMutation.isPending;
@@ -348,15 +365,15 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[20%]">Item</TableHead>
-                      <TableHead className="w-[25%]">Description</TableHead>
-                      <TableHead className="w-[8%]">Qty</TableHead>
-                      <TableHead className="w-[12%] text-right">Unit Price</TableHead>
-                      <TableHead className="w-[10%] text-right">Disc %</TableHead>
-                      <TableHead className="w-[10%] text-right">Disc Amt</TableHead>
-                      <TableHead className="w-[10%] text-right">VAT %</TableHead>
-                      <TableHead className="w-[10%] text-right">Total</TableHead>
-                      <TableHead className="w-auto"></TableHead>
+                      <TableHead className="w-[200px]">Item</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="w-[100px]">Qty</TableHead>
+                      <TableHead className="w-[120px]">Unit Price</TableHead>
+                      <TableHead className="w-[100px]">VAT %</TableHead>
+                      <TableHead className="w-[120px]">Discount %</TableHead>
+                      <TableHead className="w-[120px]">Discount Amt.</TableHead>
+                      <TableHead className="text-right">Line Total</TableHead>
+                      <TableHead className="w-[50px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -422,80 +439,49 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               )}
                             />
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell>
                             <FormField
                               control={form.control}
                               name={`items.${index}.unitPrice`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={isPending} className="text-right" /></FormControl>
+                                  <FormControl>
+                                    <Input 
+                                      type="number" 
+                                      step="0.01" 
+                                      {...field} 
+                                      onChange={e => field.onChange(parseFloat(e.target.value))} 
+                                      disabled={isPending}
+                                      className="text-right"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                           </TableCell>
-                          <TableCell className="text-right">
-                             <FormField
-                               control={form.control}
-                               name={`items.${index}.discountPercent`}
-                               render={({ field }) => (
-                                 <FormItem>
-                                   <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      step="0.01" 
-                                      placeholder="%"
-                                      {...field} 
-                                      value={field.value ?? ''} 
-                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                      disabled={isPending}
-                                      className="text-right"
-                                    />
-                                   </FormControl>
-                                   <FormMessage />
-                                 </FormItem>
-                               )}
-                             />
-                          </TableCell>
-                          <TableCell className="text-right">
-                             <FormField
-                               control={form.control}
-                               name={`items.${index}.discountAmount`}
-                               render={({ field }) => (
-                                 <FormItem>
-                                   <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      step="0.01" 
-                                      placeholder="Amt"
-                                      {...field} 
-                                      value={field.value ?? ''} 
-                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                      disabled={isPending}
-                                      className="text-right"
-                                    />
-                                   </FormControl>
-                                   <FormMessage />
-                                 </FormItem>
-                               )}
-                             />
-                          </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell>
                             <FormField
                               control={form.control}
                               name={`items.${index}.vatRatePercent`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <Select 
-                                    onValueChange={(v) => field.onChange(parseFloat(v))} 
+                                  <Select
+                                    onValueChange={(value) => field.onChange(parseFloat(value))}
                                     value={field.value?.toString()}
                                     disabled={isPending || watchVatReverseCharge}
                                   >
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select VAT..." /></SelectTrigger></FormControl>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="VAT %" />
+                                      </SelectTrigger>
+                                    </FormControl>
                                     <SelectContent>
-                                      {FINNISH_VAT_RATES.map(rate => 
-                                        <SelectItem key={rate} value={rate.toString()}>{`${rate}%`}</SelectItem>
-                                      )}
+                                      {FINNISH_VAT_RATES.map(rate => (
+                                        <SelectItem key={rate} value={rate.toString()}>
+                                          {rate}%
+                                        </SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
                                   <FormMessage />
@@ -503,7 +489,55 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               )}
                             />
                           </TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(displayTotal.toNumber())}</TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.discountPercent`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+                                      placeholder="e.g. 10"
+                                      disabled={isPending}
+                                      className="w-full"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.discountAmount`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+                                      placeholder="e.g. 5.00"
+                                      disabled={isPending}
+                                      className="w-full"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(calculateLineTotal(itemValue))}
+                          </TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={isPending || fields.length <= 1}>
                               <Trash2 className="h-4 w-4" />

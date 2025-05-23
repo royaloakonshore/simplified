@@ -6,11 +6,12 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC, TRPCError } from "@trpc/server";
+import { initTRPC, TRPCError, type inferAsyncReturnType } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { getServerAuthSession, UserRole } from "../auth";
+import { getServerAuthSession } from "../auth";
+// No direct import from './root' here to avoid potential circular dependencies at init time.
 
 /**
  * 1. CONTEXT
@@ -26,12 +27,14 @@ import { getServerAuthSession, UserRole } from "../auth";
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const session = await getServerAuthSession();
-
   return {
     session,
     ...opts,
   };
 };
+
+// Context type used by tRPC initialization
+type CreateContextReturn = inferAsyncReturnType<typeof createTRPCContext>;
 
 /**
  * 2. INITIALIZATION
@@ -40,7 +43,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
  * ZodErrors so that you get typesafety on the frontend if your procedure fails due to validation
  * errors on the backend.
  */
-const t = initTRPC.context<typeof createTRPCContext>().create({
+const t = initTRPC.context<CreateContextReturn>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
     return {
@@ -55,11 +58,24 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
 });
 
 /**
- * Create a server-side caller.
- *
- * @see https://trpc.io/docs/server/server-side-calls
+ * Export reusable router and procedure creators.
  */
-export const createCallerFactory = t.createCallerFactory;
+export const createTRPCRouter = t.router;
+export const createCallerFactory = t.createCallerFactory; // Export createCallerFactory
+
+/**
+ * Create a server-side caller factory for the `appRouter`.
+ * This is used to create a caller instance that can invoke procedures programmatically.
+ */
+// REMOVED: import { appRouter } from './root'; 
+
+// REMOVED: const createCallerInner = createCallerFactory(appRouter); 
+
+// REMOVED: type TrpcCaller = ReturnType<typeof createCallerInner>;
+
+// REMOVED: export type ContextWithCaller = CreateContextReturn & {
+// REMOVED:   caller: TrpcCaller;
+// REMOVED: };
 
 /**
  * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
@@ -73,7 +89,6 @@ export const createCallerFactory = t.createCallerFactory;
  *
  * @see https://trpc.io/docs/router
  */
-export const createTRPCRouter = t.router;
 
 /**
  * Public (unauthenticated) procedure
@@ -99,10 +114,11 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
       message: "Session or user information is missing",
     });
   }
-
   return next({
     ctx: {
+      // Provide the session and user to the procedure context
       session: { ...ctx.session, user: ctx.session.user },
+      headers: ctx.headers, // Pass along headers if needed
     },
   });
 });

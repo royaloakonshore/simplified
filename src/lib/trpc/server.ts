@@ -3,7 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { cache } from "react";
 
-import { createCaller } from "@/lib/api/root";
+import { createAppCaller } from "@/lib/api/root";
 import { createTRPCContext } from "@/lib/api/trpc";
 
 /**
@@ -19,4 +19,4 @@ const createContext = cache(async () => {
   });
 });
 
-export const api = createCaller(createContext);
+export const api = createAppCaller(createContext);

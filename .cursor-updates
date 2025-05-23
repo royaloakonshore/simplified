@@ -81,3 +81,4 @@
 - Resolved 'Rendered fewer hooks than expected' error in Settings page by ensuring correct hook call order.
 - Fixed TypeScript errors in `InventoryItemForm.tsx` by casting `form.control` and `inventoryItemBaseSchema` to `any` as a workaround for complex type inference issues with `react-hook-form` and Zod.
 - Documented fixes for user profile updates and order creation. Prepared a comprehensive AI handover prompt.
+- Fixed a runtime error `prismaInvoice.totalAmount.toNumber is not a function` on the invoice detail page by ensuring Decimal types are consistently handled between server actions and page components.

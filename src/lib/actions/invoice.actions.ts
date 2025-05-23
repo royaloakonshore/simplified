@@ -44,9 +44,9 @@ const mapPrismaInvoiceToLocal = (prismaInvoice: any): Invoice => {
     ...item,
     id: createUUID(item.id),
     invoiceId: createUUID(item.invoiceId),
-    quantity: item.quantity.toNumber() as Decimal, 
-    unitPrice: item.unitPrice.toNumber() as Decimal,
-    vatRatePercent: item.vatRatePercent.toNumber() as Decimal,
+    quantity: item.quantity as Decimal,
+    unitPrice: item.unitPrice as Decimal,
+    vatRatePercent: item.vatRatePercent as Decimal,
     description: item.description ?? '', 
   });
 
@@ -64,8 +64,8 @@ const mapPrismaInvoiceToLocal = (prismaInvoice: any): Invoice => {
       orderId: prismaInvoice.orderId ? createUUID(prismaInvoice.orderId) : undefined,
       status: prismaInvoice.status as InvoiceStatus, 
       notes: prismaInvoice.notes ?? undefined, 
-      totalAmount: prismaInvoice.totalAmount.toNumber() as Decimal,
-      totalVatAmount: prismaInvoice.totalVatAmount.toNumber() as Decimal,
+      totalAmount: prismaInvoice.totalAmount as Decimal,
+      totalVatAmount: prismaInvoice.totalVatAmount as Decimal,
       customer: customer, 
       items: items, 
       originalInvoiceId: prismaInvoice.originalInvoiceId ? createUUID(prismaInvoice.originalInvoiceId) : undefined,

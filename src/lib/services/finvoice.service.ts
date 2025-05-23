@@ -5,7 +5,7 @@ import { Customer, Address } from '@/lib/types/customer.types';
 import { Prisma } from '@prisma/client'; // For Decimal type usage
 
 // TODO: Replace with actual settings retrieval (from DB or config)
-interface SellerSettings {
+export interface SellerSettings {
   companyName: string;
   vatId: string; // Y-tunnus
   domicile: string; // Kotipaikka

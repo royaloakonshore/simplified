@@ -98,14 +98,13 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
 
   // --- Create Form Setup ---
   const createForm = useForm<CreateFormValues>({
-    // Cast resolver to any to bypass schema conflict temporarily
     resolver: zodResolver(createOrderSchema) as any, 
     defaultValues: {
       customerId: '',
       notes: '',
       status: OrderStatus.draft,
-      orderType: OrderType.work_order, // Default to work_order
-      items: [{ itemId: '', quantity: 1, unitPrice: 0 }],
+      orderType: OrderType.work_order, 
+      items: [{ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }], // Added discount fields
     },
   });
   const { fields: createFields, append: createAppend, remove: createRemove } = useFieldArray({
@@ -116,7 +115,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
 
   // --- Update Form Setup ---
   const updateForm = useForm<UpdateFormValues>({
-    resolver: zodResolver(updateOrderSchema), // Keep resolver typed here
+    resolver: zodResolver(updateOrderSchema),
     defaultValues: undefined,
   });
    const { fields: updateFields, append: updateAppend, remove: updateRemove } = useFieldArray({
@@ -125,11 +124,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     keyName: "key",
   });
 
-  // Effect to set/reset Update form default values
   useEffect(() => {
     if (isEditMode && order) {
-        console.log("Order data for edit form population:", JSON.stringify(order, null, 2)); // Debug log
-        console.log("Specifically order.orderType:", order.orderType);
         updateForm.reset({
             id: order.id,
             customerId: order.customerId,
@@ -137,28 +133,26 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             status: order.status, 
             orderType: order.orderType ?? OrderType.work_order, 
             deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined, 
-            items: order.items.map((orderItem: ProcessedOrderItem) => ({ // Use ProcessedOrderItem here
+            items: order.items.map((orderItem: ProcessedOrderItem) => ({
                 id: orderItem.id,
                 itemId: orderItem.inventoryItemId, 
-                quantity: orderItem.quantity, // Already a number
-                unitPrice: orderItem.unitPrice, // Already a number
-                discountAmount: orderItem.discountAmount ?? 0, // Already a number or null
-                discountPercentage: orderItem.discountPercentage ?? 0, // Already a number or null
+                quantity: orderItem.quantity,
+                unitPrice: orderItem.unitPrice,
+                discountAmount: orderItem.discountAmount ?? null,
+                discountPercent: orderItem.discountPercentage ?? null, // Prisma model uses discountPercentage
             })),
         });
     } else if (!isEditMode) {
-        // Reset create form when switching back to create mode (or initial load)
         createForm.reset({
             customerId: '',
             notes: '',
             status: OrderStatus.draft,
-            orderType: OrderType.work_order, // Default to work_order
-            items: [{ itemId: '', quantity: 1, unitPrice: 0 }],
+            orderType: OrderType.work_order,
+            items: [{ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }],
         });
     }
-  }, [order, isEditMode, updateForm]);
+  }, [order, isEditMode, updateForm, createForm]);
 
-  // --- Mutations ---
   const createOrderMutation = api.order.create.useMutation({
     onSuccess: () => {
       toast.success("Order created successfully!");
@@ -175,7 +169,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     onSuccess: () => {
       toast.success("Order updated successfully!");
       router.push('/orders');
-      router.refresh(); // Refresh to show updated data if staying on page or redirecting to list
+      router.refresh(); 
     },
     onError: (error: TRPCClientErrorLike<AppRouter>) => {
       console.error("Update Order Error:", error);
@@ -183,14 +177,10 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     },
   });
 
-  // Mutation for creating an invoice from an order
   const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
     onSuccess: (newInvoice) => {
       toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
-      // Optionally, redirect to the new invoice or refresh data
-      // router.push(`/invoices/${newInvoice.id}`);
-      utils.order.getById.invalidate({ id: order?.id }); // Invalidate cache for the current order to show linked invoice
-      // Potentially show the invoice ID or a link on the order form itself.
+      utils.order.getById.invalidate({ id: order?.id }); 
     },
     onError: (error: TRPCClientErrorLike<AppRouter>) => {
       console.error("Create Invoice Error:", error);
@@ -198,52 +188,39 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     },
   });
 
-  // --- Submit Handlers ---
   const handleCreateSubmit: SubmitHandler<CreateFormValues> = (data) => {
-    console.log("Create Data:", data);
     const processedData: CreateOrderInput = {
       ...data,
       items: (data.items || []).map(item => ({
         ...item,
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice),
+        discountAmount: item.discountAmount ? Number(item.discountAmount) : null,
+        discountPercent: item.discountPercent ? Number(item.discountPercent) : null,
       })),
     };
     createOrderMutation.mutate(processedData);
   };
 
   const handleUpdateSubmit: SubmitHandler<UpdateFormValues> = (data) => {
-    console.log("Update Data (Raw from form):");
-    console.dir(data, { depth: null });
-
     if (!data.id) return toast.error("Cannot update order without an ID.");
 
-    // Ensure the data conforms to UpdateOrderInput for the mutation
-    // updateOrderSchema makes status optional, but our API prevents updating it here.
-    // We should remove it if present, along with potentially other fields not meant for update.
     const processedData = { ...data };
 
-    // Remove status if it exists in the form data (it shouldn't be updated here)
     if ('status' in processedData) {
       delete (processedData as Partial<UpdateFormValues>).status;
     }
 
-    // Optionally remove other fields if API prevents their update
-    // delete processedData.customerId; // If customerId cannot be changed
-
-    // Ensure item quantities/prices are numbers (though zodResolver should handle this)
     if (processedData.items) {
         processedData.items = processedData.items.map(item => ({
             ...item,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
+            discountAmount: item.discountAmount ? Number(item.discountAmount) : null,
+            discountPercent: item.discountPercent ? Number(item.discountPercent) : null,
         }));
     }
     
-    console.log("Update Data (Processed for mutation):");
-    console.dir(processedData, { depth: null });
-
-    // Assert the type for the mutation - needs id, and potentially partial other fields
     updateOrderMutation.mutate(processedData as UpdateOrderInput);
   };
 
@@ -252,14 +229,9 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
       toast.error("Order ID is missing, cannot create invoice.");
       return;
     }
-    // For now, we don't have a UI to collect invoiceDate, dueDate, notes for createFromOrder
-    // The schema defaults invoiceDate and the router sets a default dueDate.
-    // Notes can be passed if a field is added.
-    // vatReverseCharge also defaults in schema.
-    createInvoiceMutation.mutate({ orderId, dueDate: new Date(new Date().setDate(new Date().getDate() + 14)) }); // Pass a default due date
+    createInvoiceMutation.mutate({ orderId, dueDate: new Date(new Date().setDate(new Date().getDate() + 14)) }); 
   };
 
-  // --- Shared Helper/Event Logic (adjust based on active form) ---
   const handleItemChange = (index: number, itemId: string, formInstance: CreateFormInstance | UpdateFormInstance) => {
     const selectedItem = inventoryItems.find(invItem => invItem.id === itemId);
     if (selectedItem) {
@@ -276,7 +248,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   };
 
   const calculateTotal = (formInstance: CreateFormInstance | UpdateFormInstance) => {
-    // Cast formInstance based on mode to resolve watch union type issue
     let items: CreateFormValues['items'] | UpdateFormValues['items'] = [];
     if (isEditMode) {
       items = (formInstance as UpdateFormInstance).watch("items");
@@ -284,16 +255,44 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
       items = (formInstance as CreateFormInstance).watch("items");
     }
 
-    return Array.isArray(items) ? items.reduce((total: number, item: any) => { // Keep 'any' here for now, focus on build error
+    return Array.isArray(items) ? items.reduce((total: number, item: any) => { 
       const quantity = Number(item?.quantity) || 0;
       const price = Number(item?.unitPrice) || 0;
-      return total + quantity * price;
+      let lineTotal = quantity * price;
+
+      const discountPercent = item?.discountPercent;
+      const discountAmount = item?.discountAmount;
+
+      if (discountPercent != null && discountPercent > 0) {
+        lineTotal = lineTotal * (1 - discountPercent / 100);
+      } else if (discountAmount != null && discountAmount > 0) {
+        lineTotal = Math.max(0, lineTotal - discountAmount);
+      }
+      return total + lineTotal;
     }, 0) : 0;
   };
 
-  // --- Conditional Rendering ---
+  const calculateLineTotal = (item: any, formInstance: CreateFormInstance | UpdateFormInstance) => {
+    const quantity = new Prisma.Decimal(item.quantity || 0);
+    const unitPrice = new Prisma.Decimal(item.unitPrice || 0);
+    let lineTotal = quantity.mul(unitPrice);
+
+    const discountPercent = item.discountPercent; // Schema uses discountPercent
+    const discountAmount = item.discountAmount;
+
+    if (discountPercent != null && discountPercent > 0) {
+      const discountMultiplier = new Prisma.Decimal(1).minus(
+        new Prisma.Decimal(discountPercent).div(100)
+      );
+      lineTotal = lineTotal.times(discountMultiplier);
+    } else if (discountAmount != null && discountAmount > 0) {
+      const discountFixed = new Prisma.Decimal(discountAmount);
+      lineTotal = lineTotal.sub(discountFixed).greaterThanOrEqualTo(0) ? lineTotal.sub(discountFixed) : new Prisma.Decimal(0);
+    }
+    return lineTotal.toDP(2).toNumber();
+  };
+
   if (isEditMode) {
-    // --- EDIT MODE RENDER ---
     if (!order && !updateForm.formState.isDirty) {
         return <div>Loading order data...</div>;
     }
@@ -304,7 +303,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
           <Card>
             <CardHeader><CardTitle>Edit Order</CardTitle></CardHeader>
             <CardContent className="space-y-6">
-              {/* Customer Selection (Bound to updateForm) */}
               <FormField
                 control={updateForm.control}
                 name={"customerId"}
@@ -320,7 +318,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 )}
               />
               
-              {/* Order Type Selection (Bound to updateForm) */}
               <FormField
                 control={updateForm.control}
                 name={"orderType"}
@@ -344,18 +341,17 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 )}
               />
               
-              {/* Items Table (Bound to updateForm) */}
               <div className="space-y-2">
                 <FormLabel>Order Items</FormLabel>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[40%]">Item</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Unit Price</TableHead>
-                      <TableHead>Discount %</TableHead>
-                      <TableHead>Discount Amt</TableHead>
-                      <TableHead>Line Total</TableHead>
+                      <TableHead className="w-[100px]">Qty</TableHead>
+                      <TableHead className="w-[120px]">Unit Price</TableHead>
+                      <TableHead className="w-[120px]">Discount %</TableHead>
+                      <TableHead className="w-[120px]">Discount Amt.</TableHead>
+                      <TableHead className="text-right">Line Total</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -377,7 +373,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                               )}
                              />
                         </TableCell>
-                        <TableCell className="w-[10%]">
+                        <TableCell className="w-[100px]">
                           <FormField
                             control={updateForm.control}
                             name={`items.${index}.quantity`}
@@ -389,7 +385,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             )}
                           />
                         </TableCell>
-                        <TableCell className="w-[15%] text-right">
+                        <TableCell className="w-[120px] text-right">
                           <FormField
                             control={updateForm.control}
                             name={`items.${index}.unitPrice`}
@@ -401,10 +397,10 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             )}
                           />
                         </TableCell>
-                        <TableCell className="w-[10%]">
+                        <TableCell className="w-[120px]">
                           <FormField
                             control={updateForm.control}
-                            name={`items.${index}.discountPercent`}
+                            name={`items.${index}.discountPercent`} // Corrected from discountPercentage
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="sr-only">Discount %</FormLabel>
@@ -425,7 +421,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             )}
                           />
                         </TableCell>
-                        <TableCell className="w-[10%]">
+                        <TableCell className="w-[120px]">
                           <FormField
                             control={updateForm.control}
                             name={`items.${index}.discountAmount`}
@@ -449,18 +445,17 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             )}
                           />
                         </TableCell>
-                        <TableCell className="w-[10%] text-right">{formatCurrency((Number(updateForm.watch(`items.${index}.quantity`)) || 0) * (Number(updateForm.watch(`items.${index}.unitPrice`)) || 0))}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(calculateLineTotal(updateForm.watch(`items.${index}`), updateForm))}</TableCell>
                         <TableCell><Button type="button" variant="destructive" size="sm" onClick={() => updateRemove(index)} disabled={updateFields.length <= 1}><Trash2 className="h-4 w-4" /></Button></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                <Button type="button" variant="outline" size="sm" onClick={() => updateAppend({ itemId: '', quantity: 1, unitPrice: 0 })} >Add Item</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => updateAppend({ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} >Add Item</Button> 
                  {updateForm.formState.errors.items && typeof updateForm.formState.errors.items === 'object' && 'message' in updateForm.formState.errors.items && (
                     <p className="text-sm font-medium text-destructive">{updateForm.formState.errors.items.message as string}</p>
                  )}
               </div>
-              {/* Notes (Bound to updateForm) */}
               <FormField
                 control={updateForm.control}
                 name={"notes"}
@@ -493,7 +488,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     );
 
   } else {
-    // --- CREATE MODE RENDER ---
     return (
       <>
         <FormProvider {...createForm}>
@@ -501,7 +495,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             <Card>
               <CardHeader><CardTitle>Create New Order</CardTitle></CardHeader>
               <CardContent className="space-y-6">
-                {/* Customer Selection (Bound to createForm) */}
                 <FormField
                   control={createForm.control}
                   name={"customerId"}
@@ -528,7 +521,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   )}
                 />
                 
-                {/* Order Type Selection (Bound to createForm) */}
                 <FormField
                   control={createForm.control}
                   name={"orderType"}
@@ -552,7 +544,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   )}
                 />
 
-                {/* Items Table (Bound to createForm) */}
                 <div>
                   <FormLabel>Items</FormLabel>
                   <Table>
@@ -561,14 +552,16 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                         <TableHead className="w-2/5">Item</TableHead>
                         <TableHead>Quantity</TableHead>
                         <TableHead>Unit Price</TableHead>
-                        <TableHead>Total</TableHead>
+                        <TableHead className="w-[120px]">Discount %</TableHead>
+                        <TableHead className="w-[120px]">Discount Amt.</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {createFields.map((item, index) => {
-                        const currentItem = createForm.watch(`items.${index}`);
-                        const itemTotal = (Number(currentItem?.quantity) || 0) * (Number(currentItem?.unitPrice) || 0);
+                        const currentItemValues = createForm.watch(`items.${index}`);
+                        const itemTotal = calculateLineTotal(currentItemValues, createForm);
                         return (
                           <TableRow key={item.key}>
                             <TableCell>
@@ -592,7 +585,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 name={`items.${index}.quantity`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                    <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -610,6 +603,50 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 )}
                               />
                             </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.discountPercent`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.01" 
+                                        placeholder="%" 
+                                        {...field} 
+                                        value={field.value ?? ''}
+                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                        className="text-right" 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.discountAmount`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.01" 
+                                        placeholder="Amt" 
+                                        {...field} 
+                                        value={field.value ?? ''}
+                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                        className="text-right" 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
                             <TableCell className="text-right">{formatCurrency(itemTotal)}</TableCell>
                             <TableCell>
                               <Button variant="ghost" size="icon" onClick={() => createRemove(index)} disabled={createFields.length <= 1}>
@@ -621,31 +658,36 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                       })}
                     </TableBody>
                   </Table>
-                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => createAppend({ itemId: '', quantity: 1, unitPrice: 0 })}>
+                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => createAppend({ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })}> 
                      <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                   </Button>
+                  {createForm.formState.errors.items && typeof createForm.formState.errors.items === 'object' && 'message' in createForm.formState.errors.items && (
+                    <p className="text-sm font-medium text-destructive">{(createForm.formState.errors.items as any).message as string}</p>
+                  )}
                 </div>
 
-                {/* Notes (Bound to createForm) */}
                 <FormField
                   control={createForm.control}
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
-                      <FormControl><Textarea {...field} /></FormControl>
+                      <FormControl><Textarea {...field} value={field.value ?? ''} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2">
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createOrderMutation.isPending}>
-                  {createOrderMutation.isPending ? "Creating..." : "Create Order"}
-                </Button>
+              <CardFooter className="flex justify-between items-center">
+                <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(createForm))}</span>
+                <div className="flex space-x-2">
+                    <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2" disabled={createOrderMutation.isPending}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={createOrderMutation.isPending || (createForm.formState.isSubmitted && !createForm.formState.isValid)}>
+                        {createOrderMutation.isPending ? "Creating..." : "Create Order"}
+                    </Button>
+                </div>
               </CardFooter>
             </Card>
           </form>
@@ -660,8 +702,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
               onSuccessCallback={(createdCustomerId) => {
                 if (createdCustomerId) {
                   createForm.setValue("customerId", createdCustomerId, { shouldValidate: true });
-                  // Consider refetching customers or updating local 'customers' state for the dropdown
-                  utils.customer.list.invalidate(); // Relies on parent/global state to update customers prop
+                  utils.customer.list.invalidate(); 
                 }
                 setIsAddCustomerDialogOpen(false);
               }}
