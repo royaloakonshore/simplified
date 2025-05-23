@@ -71,9 +71,9 @@ export default function SettingsPage() {
   const updateProfileMutation = api.user.updateProfile.useMutation({
     onSuccess: async (data) => {
       toast.success('Profile updated successfully!');
-      // Update the session with new details (excluding firstName for now)
-      await updateSession({ name: data.name /*, firstName: data.firstName */ }); 
-      profileForm.reset({ name: data.name ?? '' /*, firstName: data.firstName ?? '' */}); // Reset form (excluding firstName for now)
+      // Update the session with new details
+      await updateSession({ name: data.name, firstName: data.firstName }); 
+      profileForm.reset({ name: data.name ?? '', firstName: data.firstName ?? '' }); // Reset form
     },
     onError: (error) => {
       toast.error(`Profile update failed: ${error.message}`);

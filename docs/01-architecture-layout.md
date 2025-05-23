@@ -95,7 +95,7 @@ erp-system/
 ## 5. State Management
 
 - **URL State:** Prefer managing UI state like filters, sorting, pagination via URL search parameters (e.g., using `nuqs`).
-- **Server Actions:** Replaced by tRPC mutations. Handle mutations and related state updates via tRPC procedures and React Query's cache invalidation/optimistic update capabilities.
+- **Server Actions:** Replaced by tRPC mutations. Handle mutations and related state updates via tRPC procedures and React Query's cache invalidation/optimistic update capabilities. **[Profile update and order creation flows using tRPC are now confirmed working after addressing `userId` and `firstName` issues.]**
 - **Zustand:** Reserve for truly global client-side UI state not easily managed by URL or component state (e.g., notification toasts, sidebar open/closed state). Avoid storing server data fetched via tRPC/React Query in Zustand.
 
 ## 6. Error Handling
@@ -127,7 +127,7 @@ This document outlines the planned architecture and directory structure for the 
 *   **Modular Design:** Components and logic organized by feature/domain.
 *   **Prisma ORM:** For database interaction and migrations.
 *   **NextAuth.js:** For authentication, configured with Prisma Adapter.
-*   **tRPC:** Primary mechanism for API communication (queries and mutations).
+*   **tRPC:** Primary mechanism for API communication (queries and mutations). **[Successfully used to fix profile update and order creation issues.]**
 *   **Shadcn UI & Tailwind:** For UI components and styling (monochrome theme).
 
 ### 8.2. Expected Directory Structure (Adaptable from Starter)

@@ -11,13 +11,17 @@ This document details key user and business process flows within the ERP system.
 
 ## 2. Detailed User Flow: Inventory Item Lifecycle & Sale
 
-**Persona:** Inventory Manager, Sales Rep, Finance Clerk
+**Persona:** Inventory Manager, Sales Rep, Finance Clerk, Admin
 
-**Goal:** Add a new product, manage its stock, sell it, invoice the customer, and export the invoice.
+**Goal:** Add a new product, manage its stock, sell it, invoice the customer, and export the invoice. Also, ensure user profile can be updated.
 
 **Steps:**
 
-1.  **Login:** User logs into the system.
+1.  **Login & Profile Check (Admin/User):**
+    *   User logs into the system.
+    *   (Optional) User navigates to Settings -> Profile.
+    *   User can update their Name and First Name. **[Backend: `user.updateProfile` tRPC mutation - Confirmed Working]**
+    *   Saves the profile.
 2.  **Navigate to Inventory:** User selects 'Inventory' from the navigation sidebar.
 3.  **Create New Item:**
     *   User clicks 'Add New Item'.
@@ -35,7 +39,7 @@ This document details key user and business process flows within the ERP system.
     *   Adds a line item: Searches for the `Inventory Item` created earlier, enters quantity (e.g., 5).
     *   System shows item price, calculates line total.
     *   User reviews the order (customer details, items, totals).
-    *   User Saves order as 'Draft'. **[Backend: `order.actions.createOrder` with status 'draft']**
+    *   User Saves order as 'Draft'. **[Backend: `order.create` tRPC mutation with status 'draft' - Confirmed Working after ensuring valid `userId` in session and database]**
 6.  **Confirm Order & Allocate Stock:**
     *   User navigates to the draft order's detail page.
     *   User clicks 'Confirm Order'.
@@ -82,8 +86,8 @@ This document details key user and business process flows within the ERP system.
 
 ## 4. Backend Interaction Focus
 
-- **Data Validation:** All backend actions (Server Actions) MUST validate input using corresponding Zod schemas before interacting with the database.
-- **Database Operations:** Actions perform CRUD operations using the Supabase client (`src/lib/db.ts`). Ensure RLS is enforced.
+- **Data Validation:** All backend actions (Server Actions or tRPC mutations) MUST validate input using corresponding Zod schemas before interacting with the database.
+- **Database Operations:** Actions perform CRUD operations using the Prisma client (`src/lib/db.ts`). Ensure RLS is enforced where applicable (though primary user checks are often via `ctx.session.user.id` in tRPC).
 - **State Updates:** Actions should return updated data or success/error status.
 - **UI Revalidation:** Actions should use Next.js's `revalidatePath` or `revalidateTag` to ensure the UI reflects changes after mutations.
 - **Error Handling:** Actions must handle potential database errors or validation failures gracefully, returning structured error information to the frontend.

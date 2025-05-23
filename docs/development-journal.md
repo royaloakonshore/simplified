@@ -159,3 +159,30 @@ When working with Prisma in this project, remember these important steps:
 4. **Production Integration:**
    - Implement inventory deduction for production based on BOMs
    - Connect order status transitions to inventory transactions 
+
+## 2025-05-23: Profile Update and Order Creation Fixes
+
+**Goal:** Resolve critical errors preventing user profile updates and order creation.
+
+**Summary:**
+
+1.  **User Profile Update (`user.updateProfile`):**
+    *   **Problem:** Users were encountering an error when attempting to update their profile information.
+    *   **Investigation:** The error was traced to the `user.updateProfile` tRPC mutation in `src/lib/api/routers/user.ts`. The handling of the `firstName` field was commented out in both the backend mutation (data update and select statement) and in the frontend `SettingsPage` component (`src/app/(erp)/settings/page.tsx`) during the session update and form reset logic.
+    *   **Solution:** Uncommented and corrected the `firstName` handling in both the backend tRPC mutation and the frontend component's `onSuccess` handler for the mutation. This ensured that `firstName` is correctly passed, updated in the database, returned, and reflected in the user's session and form.
+
+2.  **Order Creation (`order.create`):**
+    *   **Problem:** Order creation was failing with a "Foreign key constraint violated: `Order_userId_fkey (index)`" error.
+    *   **Investigation:**
+        *   Added logging to the `order.create` tRPC mutation in `src/lib/api/routers/order.ts` to inspect the `userId` being retrieved from the session (`ctx.session.user.id`).
+        *   The logs confirmed that a `userId` was present in the session.
+        *   The error indicated that this `userId` from the session did not correspond to an existing user in the `User` table in the `public` schema. This typically happens if the session ID is stale (e.g., user deleted, database reset without session invalidation).
+    *   **Solution:**
+        *   Guided the user to generate a fresh UUID for the user ID and a new bcrypt hash for the password.
+        *   Instructed the user to update their primary test/admin user record in the `User` table with these new values.
+        *   Advised logging out and logging back in to ensure the session picks up the corrected and valid `userId`.
+    *   **Outcome:** After these steps, order creation functionality was restored.
+
+**Next Steps:**
+- Continue with planned feature development, starting with QR Code generation and the mobile scanning page.
+- Thoroughly document these new features as they are implemented. 

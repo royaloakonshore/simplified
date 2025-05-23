@@ -38,12 +38,13 @@ This plan outlines the step-by-step implementation process for the AI agent buil
     *   Add `discountAmount`, `discountPercentage` to `OrderItem`/`InvoiceItem` schemas. (Done for InvoiceItem & OrderItem in schema, UI/logic pending for OrderItem)
     *   Add `vatReverseCharge` flag to `Invoice` schema. (Done)
     *   Update `OrderForm`/`InvoiceForm` item tables with discount fields. (Partially for InvoiceForm, pending for OrderForm)
-    *   Add VAT dropdown (Finnish levels) to `InvoiceForm` items. (Done, default 25.5%)
+    *   Add VAT dropdown (Finnish levels) to `InvoiceForm` items. (Done, default 24% - corrected)
     *   Add VAT Reverse Charge checkbox to `InvoiceForm`. (Done)
     *   Update backend total calculations for discounts. (Done for Invoice, pending for Order)
     *   Update backend invoice creation to handle `vatReverseCharge` (set VAT to 0). (Done)
     *   **New:** Order status updated to `INVOICED` upon invoice creation from order. (Done)
-    *   **New:** Default VAT rate for invoices now 25.5%. (Done)
+    *   **New:** Default VAT rate for invoices now 24%. (Corrected)
+    *   **New:** User Profile Update (`firstName` handling) and Order Creation (`userId` foreign key constraint) issues resolved. **[Critical Fixes Implemented]**
     *   **TODO:** Implement date-aware VAT logic for invoices.
 11. **BOM Module:** 🔜 PLANNED NEXT
     *   Define `BillOfMaterial` and `BillOfMaterialItem` schemas.
@@ -77,7 +78,7 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 
 **Phase 3: Refinement & Advanced Features**
 
-18. **Resolve Known Issues:** Fix `nodemailer` build error, re-enable Email provider. Fix `firstName` type errors.
+18. **Resolve Known Issues:** Fix `nodemailer` build error, re-enable Email provider. Fix `firstName` type errors (now resolved for profile update). Address `InventoryItemForm.tsx` type issues (workaround with `any` applied).
 19. **Robust Invoice Numbering:** Implement DB sequence or locking.
 20. **Performance Optimization:** Add DB indexes, review query efficiency, implement caching/prefetching as needed.
 21. **Testing:** Add unit/integration tests for critical logic (calculations, inventory updates, Finvoice mapping).

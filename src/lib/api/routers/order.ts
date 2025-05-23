@@ -334,6 +334,8 @@ export const orderRouter = createTRPCRouter({
       const { customerId, items, notes, status, orderType, deliveryDate } = input;
       const userId = ctx.session.user.id;
 
+      console.log("[Order Create Mutation] Attempting to create order for userId:", userId);
+
       if (items.some((item) => item.unitPrice === undefined || item.unitPrice === null)) {
         throw new TRPCError({
           code: 'BAD_REQUEST',

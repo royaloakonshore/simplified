@@ -113,7 +113,7 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
 ### 4.8. Settings
 
 - **Requirements:**
-    - User profile updates (Name, Password).
+    - User profile updates (Name, First Name, Password). **[Profile Update for Name and First Name confirmed working]**
     - Company details for invoicing/Finvoice (Name, VAT ID, Bank Info, Address, Finvoice Intermediator details).
 
 ## 5. Non-Functional Requirements

@@ -30,13 +30,12 @@ export const userRouter = createTRPCRouter({
         where: { id: userId },
         data: {
           name: input.name,
-          // firstName: input.firstName, // Commented out due to persistent linter error
+          firstName: input.firstName,
         },
-         select: { name: true /*, firstName: true */ }, // Commented out firstName
+         select: { name: true, firstName: true },
       });
       
-      // Need to return the correct shape even if firstName isn't selected
-      return { name: updatedUser.name, firstName: null }; // Return null for firstName for now
+      return { name: updatedUser.name, firstName: updatedUser.firstName };
     }),
 
   // Procedure to change/set user password
