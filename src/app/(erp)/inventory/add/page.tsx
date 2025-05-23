@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { InventoryItemForm } from "@/components/inventory/InventoryItemForm";
 import { api } from "@/lib/trpc/react";
 import { toast } from 'react-toastify';
-import type { CreateInventoryItemInput } from "@/lib/schemas/inventory.schema";
+import { type InventoryItemFormValues, type CreateInventoryItemInput } from "@/lib/schemas/inventory.schema";
 import { Card, CardContent } from "@/components/ui/card";
 // import { Heading } from "@/components/ui/heading"; // If you have a standard heading component
 // import { Separator } from "@/components/ui/separator"; // If you use a standard separator
@@ -24,8 +24,12 @@ export default function AddInventoryItemPage() {
     },
   });
 
-  const handleSubmit = (values: CreateInventoryItemInput) => {
-    createMutation.mutate(values);
+  const handleSubmit = (values: InventoryItemFormValues, mode: 'full' | 'scan-edit', quantityAdjustment?: number) => {
+    const dataToSubmit: CreateInventoryItemInput = {
+        ...values,
+        salesPrice: values.salesPrice ?? 0,
+    };
+    createMutation.mutate(dataToSubmit);
   };
 
   return (
@@ -34,8 +38,9 @@ export default function AddInventoryItemPage() {
       <Card className="max-w-2xl mx-auto">
         <CardContent className="pt-6">
           <InventoryItemForm 
-            onSubmit={handleSubmit} 
+            onSubmitProp={handleSubmit}
             isLoading={createMutation.isPending} 
+            formMode="full"
           />
         </CardContent>
       </Card>

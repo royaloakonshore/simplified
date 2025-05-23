@@ -91,6 +91,7 @@ async function AddOrderFormWrapper({ formDataPromise }: { formDataPromise: Retur
     const processedInventoryItems = rawInventoryItems.map(item => ({
       ...item,
       salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
+      unitOfMeasure: item.unitOfMeasure ?? '', // Provide default for null unitOfMeasure
     }));
 
     return (

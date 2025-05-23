@@ -172,61 +172,47 @@ export const invoiceRouter = createTRPCRouter({
 
       // --- Sequential Invoice Number Logic --- 
       const lastInvoice = await prisma.invoice.findFirst({
-        orderBy: { invoiceNumber: 'desc' }, 
+        orderBy: { createdAt: 'desc' }, 
         select: { invoiceNumber: true }
       });
 
-      let nextInvoiceNumber = '1';
+      let nextInvoiceNumber = 'INV-00001';
       if (lastInvoice && lastInvoice.invoiceNumber) {
         try {
-            nextInvoiceNumber = (parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10) + 1).toString();
-            // Attempt to preserve prefix if any (e.g., INV-)
+            let numericPart = parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10);
+            if (isNaN(numericPart)) numericPart = 0;
+
+            const newNumericPart = numericPart + 1;
             const prefixMatch = lastInvoice.invoiceNumber.match(/^([^0-9]*)/);
-            if (prefixMatch && prefixMatch[0]) {
-              nextInvoiceNumber = prefixMatch[0] + nextInvoiceNumber;
-            } else {
-              // Fallback: Pad with leading zeros if no clear prefix (e.g. 00001)
-               nextInvoiceNumber = nextInvoiceNumber.padStart(5, '0');
-            }
+            const prefix = prefixMatch && prefixMatch[0] ? prefixMatch[0] : 'INV-';
+            
+            const lastNumericString = lastInvoice.invoiceNumber.replace(/^[^0-9]*/, '');
+            const paddingLength = lastNumericString.length > 0 ? lastNumericString.length : 5;
+
+            nextInvoiceNumber = prefix + newNumericPart.toString().padStart(paddingLength, '0');
 
         } catch (e) {
             console.error("Failed to parse last invoice number:", lastInvoice.invoiceNumber, e);
-            // Fallback to simpler increment if parsing fails
-            const numericPart = parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10);
-            if (!isNaN(numericPart)) {
-              nextInvoiceNumber = (numericPart + 1).toString().padStart(5, '0');
-            } else {
-               // Absolute fallback: use timestamp if all else fails to ensure uniqueness
-              nextInvoiceNumber = `INV-${Date.now()}`;
-            }
+            nextInvoiceNumber = `INV-${Date.now()}`;
         }
-      } else {
-          // Default for first invoice, e.g., INV-00001 or 00001
-          nextInvoiceNumber = 'INV-00001'; 
-      }
+      } 
       // --- End Sequential Invoice Number Logic --- 
 
       const newInvoice = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-        const existing = await tx.invoice.findUnique({
-          where: { invoiceNumber: nextInvoiceNumber },
-          select: { id: true }
-        });
-        if (existing) {
-           // If number collision, try to generate a slightly modified one (e.g. by adding a suffix)
-           // This is a simple mitigation; a robust solution needs DB sequences or better locking.
-           const timestampSuffix = Date.now().toString().slice(-4);
-           nextInvoiceNumber = `${nextInvoiceNumber}-${timestampSuffix}`;
-           const retryExisting = await tx.invoice.findUnique({
-               where: { invoiceNumber: nextInvoiceNumber },
-               select: { id: true }
-           });
-           if (retryExisting) {
-              throw new TRPCError({
-                  code: 'CONFLICT', 
-                  message: `Invoice number ${nextInvoiceNumber} already exists after retry. Please try again.`
-              });
-           }
+        // Simplified collision check and resolution for invoice number
+        let N = 0;
+        let tempInvoiceNumber = nextInvoiceNumber;
+        while (await tx.invoice.findUnique({ where: { invoiceNumber: tempInvoiceNumber } })) {
+          N++;
+          const prefixMatch = nextInvoiceNumber.match(/^([^0-9]*)/);
+          const baseNumber = nextInvoiceNumber.replace(/^[^0-9]*/, '').replace(/-Retry-\d+$/, '');
+          const prefix = prefixMatch && prefixMatch[0] ? prefixMatch[0] : 'INV-';
+          tempInvoiceNumber = `${prefix}${baseNumber}-Retry-${N}`;
+          if (N > 5) { 
+             throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to generate a unique invoice number after multiple retries.' });
+          }
         }
+        nextInvoiceNumber = tempInvoiceNumber;
 
         return tx.invoice.create({
           data: {
@@ -237,10 +223,10 @@ export const invoiceRouter = createTRPCRouter({
             notes,
             orderId: orderId ?? undefined,
             status: InvoiceStatus.draft,
-            totalAmount: finalTotalAmount, // Use the final calculated total
-            totalVatAmount: totalVatAmountValue, // Use the calculated VAT
-            vatReverseCharge: vatReverseCharge, // Store the flag
-            userId: userId, // Uncommented: userId can now be saved
+            totalAmount: finalTotalAmount, 
+            totalVatAmount: totalVatAmountValue, 
+            vatReverseCharge: vatReverseCharge, 
+            userId: userId, 
             items: {
               create: invoiceItemsData.map((item) => ({
                 inventoryItemId: item.itemId,
@@ -286,21 +272,21 @@ export const invoiceRouter = createTRPCRouter({
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order customer is missing' });
         }
 
-        // Check if order status is appropriate (e.g., not draft or cancelled)
-        if (order.status === OrderStatus.draft || order.status === OrderStatus.cancelled) {
+        // Refined Order Status Check: Only allow from SHIPPED orders
+        if (order.status !== OrderStatus.shipped) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
-            message: `Cannot create invoice for order with status: ${order.status}`,
+            message: `Invoice can only be created for orders with status SHIPPED. Current status: ${order.status}`,
           });
         }
         
-        // TODO: Check if an invoice already exists for this order to prevent duplicates?
-        // const existingInvoice = await tx.invoice.findFirst({
-        //   where: { orderId: order.id }
-        // });
-        // if (existingInvoice) {
-        //   throw new TRPCError({ code: 'CONFLICT', message: `Invoice already exists for order ${order.orderNumber}` });
-        // }
+        // Enable Duplicate Invoice Check
+        const existingInvoice = await tx.invoice.findFirst({
+          where: { orderId: order.id, isCreditNote: false } // Ensure it's not a credit note for the same order
+        });
+        if (existingInvoice) {
+          throw new TRPCError({ code: 'CONFLICT', message: `An invoice (${existingInvoice.invoiceNumber}) already exists for order ${order.orderNumber}.` });
+        }
 
         let subTotal = new Prisma.Decimal(0);
         let totalVatAmountValue = new Prisma.Decimal(0);
@@ -323,8 +309,10 @@ export const invoiceRouter = createTRPCRouter({
 
           subTotal = subTotal.plus(lineTotal);
           
-          // Using a default VAT rate of 24% for now as InventoryItem does not have vatRate
-          const vatRate = new Prisma.Decimal(24); // Default 24%
+          // TODO: Implement date-aware VAT logic. Defaulting to 25.5% as per new general rate effective Sep 1, 2024.
+          // System should check invoiceDate to apply 24% for invoices before Sep 1, 2024.
+          // Also, source vatRatePercent from InventoryItem.defaultVatRatePercent once that field is added and populated.
+          const vatRate = new Prisma.Decimal(25.5); 
 
           if (!vatReverseCharge) {
             const itemVat = lineTotal.times(vatRate.div(100));
@@ -333,12 +321,12 @@ export const invoiceRouter = createTRPCRouter({
 
           return {
             inventoryItemId: orderItem.inventoryItemId,
-            description: orderItem.inventoryItem.name, // Or a more detailed description from orderItem if available
-            quantity: orderItem.quantity, // Already Decimal
-            unitPrice: orderItem.unitPrice, // Already Decimal
-            vatRatePercent: vatRate, // Use determined VAT rate (defaulted to 24%)
-            discountAmount: orderItem.discountAmount, // Already Decimal or null
-            discountPercent: orderItem.discountPercentage, // Corrected to discountPercentage
+            description: orderItem.inventoryItem.name, 
+            quantity: orderItem.quantity, 
+            unitPrice: orderItem.unitPrice, 
+            vatRatePercent: vatRate, 
+            discountAmount: orderItem.discountAmount, 
+            discountPercent: orderItem.discountPercentage, 
           };
         });
         
@@ -347,33 +335,51 @@ export const invoiceRouter = createTRPCRouter({
         }
         const finalTotalAmount = subTotal.plus(totalVatAmountValue);
 
-        // Generate Invoice Number (reusing logic from `create` or a shared helper)
+        // Generate Invoice Number 
+        // This logic could be extracted to a shared utility function for consistency
         const lastInvoice = await tx.invoice.findFirst({
-          orderBy: { invoiceNumber: 'desc' }, 
+          orderBy: { createdAt: 'desc' }, 
           select: { invoiceNumber: true }
         });
         let nextInvoiceNumber = 'INV-00001'; 
         if (lastInvoice && lastInvoice.invoiceNumber) {
           try {
-            nextInvoiceNumber = (parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10) + 1).toString();
+            let numericPart = parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10);
+            if (isNaN(numericPart)) numericPart = 0; 
+
+            const newNumericPart = numericPart + 1;
             const prefixMatch = lastInvoice.invoiceNumber.match(/^([^0-9]*)/);
-            if (prefixMatch && prefixMatch[0]) {
-              nextInvoiceNumber = prefixMatch[0] + nextInvoiceNumber.padStart(5, '0');
-            } else {
-              nextInvoiceNumber = nextInvoiceNumber.padStart(5, '0');
-            }
+            const prefix = prefixMatch && prefixMatch[0] ? prefixMatch[0] : 'INV-';
+            
+            const lastNumericString = lastInvoice.invoiceNumber.replace(/^[^0-9]*/, '');
+            const paddingLength = lastNumericString.length > 0 ? lastNumericString.length : 5;
+
+            nextInvoiceNumber = prefix + newNumericPart.toString().padStart(paddingLength, '0');
+
           } catch (e) {
+            console.error("Error generating next invoice number:", e);
             nextInvoiceNumber = `INV-${Date.now()}`;
           }
         }
-        // Check for collision (simplified)
-        const existingNum = await tx.invoice.findUnique({ where: { invoiceNumber: nextInvoiceNumber } });
-        if (existingNum) {
-          nextInvoiceNumber = `${nextInvoiceNumber}-${Date.now().toString().slice(-3)}`;
+        
+        // Simplified collision check and resolution
+        let N = 0;
+        let tempInvoiceNumber = nextInvoiceNumber;
+        while (await tx.invoice.findUnique({ where: { invoiceNumber: tempInvoiceNumber } })) {
+          N++;
+          const prefixMatch = nextInvoiceNumber.match(/^([^0-9]*)/);
+          const baseNumber = nextInvoiceNumber.replace(/^[^0-9]*/, '').replace(/-Retry-\d+$/, ''); 
+          const prefix = prefixMatch && prefixMatch[0] ? prefixMatch[0] : 'INV-';
+          tempInvoiceNumber = `${prefix}${baseNumber}-Retry-${N}`;
+          if (N > 5) { 
+             throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to generate a unique invoice number after multiple retries.' });
+          }
         }
+        nextInvoiceNumber = tempInvoiceNumber;
+
 
         const finalInvoiceDate = invoiceDate ?? new Date();
-        const finalDueDate = inputDueDate ?? new Date(new Date(finalInvoiceDate).setDate(finalInvoiceDate.getDate() + 14)); // Default due date: 14 days from invoice date
+        const finalDueDate = inputDueDate ?? new Date(new Date(finalInvoiceDate).setDate(finalInvoiceDate.getDate() + 14)); 
 
         const newInvoice = await tx.invoice.create({
           data: {
@@ -381,18 +387,25 @@ export const invoiceRouter = createTRPCRouter({
             customerId: order.customerId,
             invoiceDate: finalInvoiceDate,
             dueDate: finalDueDate,
-            notes: notes ?? order.notes, // Default to order notes if invoice notes not provided
+            notes: notes ?? order.notes, 
             orderId: order.id,
-            status: InvoiceStatus.draft, // Default status
+            status: InvoiceStatus.draft, 
             totalAmount: finalTotalAmount,
             totalVatAmount: totalVatAmountValue,
             vatReverseCharge: vatReverseCharge,
-            userId: userId, // Uncommented: userId can now be saved
+            userId: userId,
             items: {
               create: invoiceItemsData,
             },
           },
         });
+
+        // Update Order status to INVOICED
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: OrderStatus.INVOICED },
+        });
+
         return newInvoice;
       });
     }),

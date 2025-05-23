@@ -79,3 +79,4 @@
 - Increased global border radius for UI elements and applied consistent container usage to dashboard page for better layout stability.
 - Fixed UI rounding by correcting border radius variables in tailwind.config.ts. Improved layout consistency across pages by standardizing container usage and updating skeleton components to match content width.
 - Resolved 'Rendered fewer hooks than expected' error in Settings page by ensuring correct hook call order.
+- Fixed TypeScript errors in `InventoryItemForm.tsx` by casting `form.control` and `inventoryItemBaseSchema` to `any` as a workaround for complex type inference issues with `react-hook-form` and Zod.

@@ -31,10 +31,10 @@ async function getEditFormData(orderId: string) {
     const processedOrderItems = orderWithDecimals.items.map(item => {
         const inventoryItemProcessed = item.inventoryItem ? {
             ...item.inventoryItem,
-            costPrice: item.inventoryItem.costPrice.toNumber(),
+            costPrice: item.inventoryItem.costPrice !== null ? item.inventoryItem.costPrice.toNumber() : 0,
             salesPrice: item.inventoryItem.salesPrice.toNumber(),
-            minimumStockLevel: item.inventoryItem.minimumStockLevel.toNumber(),
-            reorderLevel: item.inventoryItem.reorderLevel.toNumber(),
+            minimumStockLevel: item.inventoryItem.minimumStockLevel !== null ? item.inventoryItem.minimumStockLevel.toNumber() : 0,
+            reorderLevel: item.inventoryItem.reorderLevel !== null ? item.inventoryItem.reorderLevel.toNumber() : 0,
         } : null;
 
         return {
@@ -49,7 +49,7 @@ async function getEditFormData(orderId: string) {
 
     const order = {
         ...orderWithDecimals,
-        totalAmount: orderWithDecimals.totalAmount.toNumber(),
+        totalAmount: orderWithDecimals.totalAmount !== null ? orderWithDecimals.totalAmount.toNumber() : 0,
         items: processedOrderItems,
     };
 
@@ -119,7 +119,8 @@ export default async function EditOrderFormLoader({ orderId }: { orderId: string
 
     const processedInventoryItems = rawInventoryItems.map(item => ({
       ...item,
-      salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
+      salesPrice: item.salesPrice.toNumber(),
+      unitOfMeasure: item.unitOfMeasure ?? '', // Ensure unitOfMeasure is string
     }));
 
     // The `order` object itself contains Decimal fields in its `items` and `totalAmount`.

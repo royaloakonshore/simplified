@@ -128,7 +128,7 @@ Internal data models (`Customer`, `Invoice`, `InvoiceItem`, etc. in `src/lib/typ
 *   **Addresses:** Map the correct address (usually billing) to `BuyerPostalAddressDetails`.
 *   **Line Items:** Map `InvoiceItem` details (`description`, `quantity`, `unitPrice`, `unitCode`, `vatRatePercent`) precisely to `InvoiceLine` elements.
     *   Requires internal `InventoryItem` to have `unitCode` (e.g., 'kpl', 'h').
-    *   Requires `vatRatePercent` on line items.
+    *   Requires `vatRatePercent` on line items. (Default is now 25.5% for new items, reflecting recent changes. System will need date-aware logic for historical rates like 24%.)
     *   **Discounts:** Discounts applied to `InvoiceItem` (`discountAmount` or calculated from `discountPercentage`) should be reflected in the `InvoiceLine` structure, potentially using `LineDiscountAmount` or adjusting `LineBaseAmount` according to Finvoice specs.
 *   **Payment Details:** Map invoice `dueDate`, `invoiceTotal` (incl./excl. VAT), bank details (from settings) to `PaymentTermsDetails` and `InvoiceRecipientDetails`.
 *   **VAT Reverse Charge:** If the `Invoice.vatReverseCharge` flag is `true`:
@@ -140,6 +140,7 @@ Internal data models (`Customer`, `Invoice`, `InvoiceItem`, etc. in `src/lib/typ
 
 *   [Finvoice 3.0 Implementation Guidelines](https://file.finanssiala.fi/finvoice/Finvoice_3_0_implementation_guidelines.pdf)
 *   [Netvisor Finvoice Import](https://support.netvisor.fi/en/support/solutions/articles/77000498451-finvoice-import)
+*   [Finnish VAT Rate Changes 2024 (Procountor)](https://procountor.fi/blogi/arvonlisaveron-muutos/) - *Note: System default VAT changed to 25.5%. Date-aware logic for historical rates is a TODO.*
 
 ## 5. Type Generation
 

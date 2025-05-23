@@ -90,11 +90,11 @@ export const invoiceItemSchema = z.object({
   // ... existing fields
   discountAmount: z.number().optional(),
   discountPercent: z.number().min(0).max(100).optional(),
-  vatRatePercent: z.number().min(0).max(100).default(24), // Default to standard Finnish VAT
+  vatRatePercent: z.number().min(0).max(100).default(25.5), // Default to standard Finnish VAT 25.5%
 });
 
 // Consider adding Finnish VAT constants
-export const FINNISH_VAT_RATES = [24, 14, 10, 0] as const;
+export const FINNISH_VAT_RATES = [25.5, 14, 10, 0] as const; // Updated to 25.5%
 ```
 
 ### 3. Update Calculation Logic
@@ -165,6 +165,10 @@ function calculateTotalVat(
   if (vatReverseCharge) {
     return new Decimal(0);
   }
+
+  // TODO: Implement date-aware VAT logic. Currently defaults to 25.5% in tRPC mutation.
+  // The schema default is also 25.5% for items.
+  // This function should ideally take invoiceDate as a parameter to select the correct historical rate if needed.
 
   const totalVat = items.reduce((sum, item) => {
     const lineTotal = new Decimal(item.quantity.toString()).times(new Decimal(item.unitPrice.toString()));

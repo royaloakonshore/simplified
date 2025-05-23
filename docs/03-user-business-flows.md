@@ -6,7 +6,7 @@ This document details key user and business process flows within the ERP system.
 
 *   **Customer:** Created -> Updated -> Used in Orders/Invoices
 *   **Inventory Item:** Created -> Stock Adjusted (Purchased/Adjusted) -> Used in Orders -> Stock Decreased (Shipped)
-*   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages) -> Shipped/Completed -> Invoiced
+*   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages) -> Shipped/Completed -> INVOICED
 *   **Invoice:** Draft (From Order/Manual) -> Sent -> Payment Recorded -> Paid / Overdue -> Exported (Finvoice)
 
 ## 2. Detailed User Flow: Inventory Item Lifecycle & Sale
@@ -50,12 +50,15 @@ This document details key user and business process flows within the ERP system.
     *   Once ready, user marks the order as 'Shipped' or 'Completed'.
     *   This signifies the order is ready for invoicing. **[Backend: `order.actions.updateOrderStatus` to 'shipped']**
 9.  **Generate Invoice:**
-    *   (Finance Clerk) Navigates to 'Invoices'.
-    *   Clicks 'Create Invoice from Order'.
-    *   Selects the 'Shipped' order.
+    *   (Finance Clerk) Navigates to the detail page of a 'Shipped' order.
+    *   User clicks the 'Create Invoice' button.
     *   System pre-populates the invoice form with customer details, line items, prices, and totals from the order.
-    *   User reviews the invoice, sets the due date.
-    *   Saves the invoice (status 'Draft'). **[Backend: `invoice.actions.createInvoiceFromOrder`]**
+    *   User reviews the invoice, sets the due date (or accepts default), and can add notes or set VAT Reverse Charge.
+    *   Saves the invoice (status 'Draft'). **[Backend: `invoice.createFromOrder` tRPC mutation]**
+    *   **System Action:** Order status is updated to `INVOICED`. **[Backend: `invoice.createFromOrder` tRPC mutation]**
+    *   **UI Flow:** A modal appears: "Invoice draft [invoice_number] created. Go to draft?" (Yes/No).
+        *   Yes: Navigates to the new invoice draft page.
+        *   No: Modal closes, user remains on the order page (which now shows status `INVOICED`).
 10. **Send Invoice:**
     *   User navigates to the draft invoice.
     *   Clicks 'Mark as Sent'. (This might trigger an email in a future version, but for now, just updates status).

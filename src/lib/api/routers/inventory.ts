@@ -8,9 +8,13 @@ import {
   createInventoryItemSchema,
   updateInventoryItemSchema,
   adjustStockSchema,
+  inventoryItemBaseSchema,
+  type InventoryItemFormValues,
 } from "@/lib/schemas/inventory.schema";
-import { TransactionType } from '@prisma/client'; // Import enum
+import { TransactionType, Prisma } from '@prisma/client'; // Import enum and Prisma for Decimal
 import { TRPCError } from '@trpc/server';
+import puppeteer from 'puppeteer';
+import QRCode from 'qrcode';
 
 export const inventoryRouter = createTRPCRouter({
   list: protectedProcedure
@@ -72,7 +76,6 @@ export const inventoryRouter = createTRPCRouter({
   create: protectedProcedure
     .input(createInventoryItemSchema)
     .mutation(async ({ input }) => {
-      // Check if SKU already exists
       const existingSku = await prisma.inventoryItem.findUnique({
         where: { sku: input.sku },
       });
@@ -82,7 +85,12 @@ export const inventoryRouter = createTRPCRouter({
           message: 'SKU already exists. Please use a unique SKU.',
         });
       }
-      return await prisma.inventoryItem.create({ data: input });
+      const newItem = await prisma.inventoryItem.create({ data: input });
+      const updatedItemWithQr = await prisma.inventoryItem.update({
+        where: { id: newItem.id },
+        data: { qrIdentifier: `ITEM:${newItem.id}` }
+      });
+      return updatedItemWithQr;
     }),
 
   update: protectedProcedure
@@ -138,17 +146,158 @@ export const inventoryRouter = createTRPCRouter({
     .input(adjustStockSchema)
     .mutation(async ({ input }) => {
       const { itemId, quantityChange, note } = input;
-      // Record the transaction
-      // QuantityOnHand is derived from transactions, so no direct update here.
       return await prisma.inventoryTransaction.create({
         data: {
           itemId: itemId,
           quantity: quantityChange,
-          type: TransactionType.adjustment, // Defaulting to adjustment for now
+          type: TransactionType.adjustment, 
           note: note,
         },
       });
     }),
 
+  // New mutation for scan-based stock adjustment and optional cost price update
+  adjustStockFromScan: protectedProcedure
+    .input(z.object({
+      itemId: z.string().cuid(),
+      quantityAdjustment: z.number(), // Can be positive or negative
+      newCostPrice: z.number().nonnegative().optional(),
+      // companyId: z.string().cuid().optional(), // For multi-tenancy if needed
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { itemId, quantityAdjustment, newCostPrice } = input;
+
+      if (quantityAdjustment === 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Quantity adjustment cannot be zero.',
+        });
+      }
+
+      return prisma.$transaction(async (tx) => {
+        // 1. Create the inventory transaction
+        await tx.inventoryTransaction.create({
+          data: {
+            itemId: itemId,
+            quantity: new Prisma.Decimal(quantityAdjustment),
+            type: quantityAdjustment > 0 ? TransactionType.purchase : TransactionType.adjustment, // Or a new type e.g. SCAN_ADJUSTMENT
+            reference: 'Scanned Adjustment', // Or more specific reference if available
+            // userId: ctx.session.user.id, // If tracking who made the scan adjustment
+          },
+        });
+
+        // 2. Optionally update the cost price of the inventory item
+        if (newCostPrice !== undefined) {
+          await tx.inventoryItem.update({
+            where: { id: itemId },
+            data: { costPrice: new Prisma.Decimal(newCostPrice) },
+          });
+        }
+        
+        // 3. Fetch the updated item to return, or just a success message
+        // For simplicity, returning a success message. Client can re-fetch if needed.
+        return { success: true, message: 'Stock adjusted and cost price updated successfully.' };
+      });
+    }),
+
     // TODO: Add procedure to get quantityOnHand for an item or list
+
+  generateQrCodePdf: protectedProcedure
+    .input(z.object({ itemIds: z.array(z.string().cuid()) }))
+    .mutation(async ({ input }) => {
+      const { itemIds } = input;
+      if (!itemIds || itemIds.length === 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No item IDs provided for PDF generation.',
+        });
+      }
+
+      const items = await prisma.inventoryItem.findMany({
+        where: { id: { in: itemIds } },
+        select: { id: true, name: true, sku: true, qrIdentifier: true },
+      });
+
+      if (items.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'No items found for the provided IDs.',
+        });
+      }
+
+      let htmlContent = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+              .page-container { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: flex-start; padding: 10mm; gap: 5mm; page-break-after: always; }
+              .tag { width: 60mm; height: 35mm; border: 1px solid #ccc; padding: 5mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; overflow: hidden; }
+              .tag-header { font-size: 10pt; font-weight: bold; margin-bottom: 2mm; word-break: break-word; }
+              .tag-sku { font-size: 8pt; color: #555; margin-bottom: 3mm; }
+              .qr-code { width: 20mm; height: 20mm; margin: 0 auto; }
+              @media print {
+                .page-container { padding: 0; gap: 0; }
+                .tag { border: none; margin: 2mm; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="page-container">
+      `;
+
+      for (const item of items) {
+        if (!item.qrIdentifier) {
+          console.warn(`Item ${item.name} (SKU: ${item.sku}) is missing a QR identifier. Skipping.`);
+          htmlContent += `
+            <div class="tag">
+              <div class="tag-header">${item.name}</div>
+              <div class="tag-sku">SKU: ${item.sku}</div>
+              <div>QR NOT AVAILABLE</div>
+            </div>
+          `;
+          continue;
+        }
+        try {
+          const qrCodeDataURL = await QRCode.toDataURL(item.qrIdentifier, { errorCorrectionLevel: 'H', width: 150 });
+          htmlContent += `
+            <div class="tag">
+              <div class="tag-header">${item.name}</div>
+              <div class="tag-sku">SKU: ${item.sku}</div>
+              <img src="${qrCodeDataURL}" alt="QR Code for ${item.name}" class="qr-code" />
+            </div>
+          `;
+        } catch (err) {
+          console.error(`Failed to generate QR code for item ${item.id}:`, err);
+          htmlContent += `
+            <div class="tag">
+              <div class="tag-header">${item.name} (Error generating QR)</div>
+              <div class="tag-sku">SKU: ${item.sku}</div>
+              <div class="qr-code">Error</div>
+            </div>
+          `;
+        }
+      }
+
+      htmlContent += `
+            </div>
+          </body>
+        </html>
+      `;
+
+      const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      });
+      await browser.close();
+
+      return {
+        success: true,
+        pdfBase64: (pdfBuffer as any).toString('base64'),
+        message: 'QR Code PDF generated successfully.',
+      };
+    }),
 }); 

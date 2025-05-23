@@ -97,7 +97,7 @@ export default function FulfillmentBoard({
       </div>
 
       <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-        {order.items.length} items · {formatCurrency(order.totalAmount)}
+        {order.items.length} items · {formatCurrency(order.totalAmount ?? 0)}
       </div>
 
       {nextStatus && (

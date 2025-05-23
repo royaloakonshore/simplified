@@ -3,6 +3,13 @@
 import * as React from "react";
 import { type InventoryItem, MaterialType } from "@prisma/client";
 import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  RowSelectionState,
+} from "@tanstack/react-table";
+import {
   Table,
   TableBody,
   TableCell,
@@ -12,17 +19,18 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge"; // Import Badge
-import { formatCurrency } from "@/lib/utils"; // Assuming a currency formatter exists
-import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface InventoryTableProps {
-  items: InventoryItem[]; // TODO: Include quantityOnHand later
+  items: InventoryItem[];
   isLoading: boolean;
-  // TODO: Add pagination props
+  rowSelection: RowSelectionState;
+  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>;
 }
 
-// Helper function to format MaterialType
 const formatMaterialType = (type: MaterialType) => {
   switch (type) {
     case MaterialType.raw_material:
@@ -34,31 +42,113 @@ const formatMaterialType = (type: MaterialType) => {
   }
 };
 
-export function InventoryTable({ items, isLoading }: InventoryTableProps) {
+export const columns: ColumnDef<InventoryItem>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "sku",
+    header: "SKU",
+    cell: ({ row }) => <div className="font-mono">{row.getValue("sku")}</div>,
+  },
+  {
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+  },
+  {
+    accessorKey: "unitOfMeasure",
+    header: "UoM",
+  },
+  {
+    accessorKey: "costPrice",
+    header: () => <div className="text-right">Cost Price</div>,
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("costPrice") || "0");
+      return <div className="text-right">{formatCurrency(amount)}</div>;
+    },
+  },
+  {
+    accessorKey: "salesPrice",
+    header: () => <div className="text-right">Sales Price</div>,
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("salesPrice") || "0");
+      return <div className="text-right">{formatCurrency(amount)}</div>;
+    },
+  },
+  {
+    accessorKey: "materialType",
+    header: "Type",
+    cell: ({ row }) => {
+      const type: MaterialType = row.getValue("materialType");
+      return (
+        <Badge variant={type === MaterialType.manufactured ? "default" : "secondary"}>
+          {formatMaterialType(type)}
+        </Badge>
+      );
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const item = row.original;
+      return (
+        <Link href={`/inventory/${item.id}/edit`} passHref>
+          <Button variant="outline" size="sm">
+            Edit
+          </Button>
+        </Link>
+      );
+    },
+  },
+];
+
+export function InventoryTable({ items, isLoading, rowSelection, setRowSelection }: InventoryTableProps) {
+  const table = useReactTable({
+    data: items,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    onRowSelectionChange: setRowSelection,
+    state: {
+      rowSelection,
+    },
+  });
+
   if (isLoading) {
     return (
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead><Skeleton className="h-5 w-20" /></TableHead>
-            <TableHead><Skeleton className="h-5 w-40" /></TableHead>
-            <TableHead><Skeleton className="h-5 w-16" /></TableHead>
-            <TableHead className="text-right"><Skeleton className="h-5 w-24" /></TableHead>
-            <TableHead className="text-right"><Skeleton className="h-5 w-24" /></TableHead>
-            <TableHead><Skeleton className="h-5 w-28" /></TableHead>
-            <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+            {[...Array(columns.length)].map((_, i) => (
+              <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {[...Array(5)].map((_, i) => (
             <TableRow key={i}>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+              {[...Array(columns.length)].map((_, j) => (
+                <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+              ))}
             </TableRow>
           ))}
         </TableBody>
@@ -71,46 +161,49 @@ export function InventoryTable({ items, isLoading }: InventoryTableProps) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>SKU</TableHead>
-          <TableHead>Name</TableHead>
-          {/* <TableHead>Quantity</TableHead> */}
-          <TableHead>UoM</TableHead>
-          <TableHead className="text-right">Cost Price</TableHead>
-          <TableHead className="text-right">Sales Price</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell className="font-mono">{item.sku}</TableCell>
-            <TableCell className="font-medium">{item.name}</TableCell>
-            {/* <TableCell>TODO</TableCell> */}
-            <TableCell>{item.unitOfMeasure}</TableCell>
-            <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
-            <TableCell className="text-right">{formatCurrency(item.salesPrice)}</TableCell>
-            <TableCell>
-                <Badge variant={item.materialType === MaterialType.manufactured ? "default" : "secondary"}>
-                    {formatMaterialType(item.materialType)}
-                </Badge>
-            </TableCell>
-            <TableCell>
-              <Link href={`/inventory/${item.id}/edit`} passHref>
-                <Button variant="outline" size="sm">
-                  Edit
-                </Button>
-              </Link>
-              {/* Add Delete button later */}
-              {/* Add Adjust Stock button later */}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-    // TODO: Add pagination controls
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No results.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 } 

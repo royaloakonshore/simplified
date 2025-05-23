@@ -70,7 +70,7 @@ export function KanbanCard({ order, isOverlay }: KanbanCardProps) {
       </CardHeader>
       <CardContent className="p-2 text-xs space-y-1">
         <p>Customer: {order.customer?.name ?? 'N/A'}</p>
-        <p>Total: {formatCurrency(order.totalAmount.toNumber())}</p>
+        <p>Total: {formatCurrency((order.totalAmount ?? 0).toString())}</p>
         {/* Add more relevant details */}
       </CardContent>
     </Card>

@@ -160,7 +160,7 @@ export default function OrderTable({
                         {order.status.replace('_', ' ').toUpperCase()}
                      </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{formatCurrency(order.totalAmount)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(order.totalAmount ?? 0)}</TableCell>
                    <TableCell className="text-right">
                      <Button variant="outline" size="sm" asChild>
                        <Link href={`/orders/${order.id}`}>View</Link>

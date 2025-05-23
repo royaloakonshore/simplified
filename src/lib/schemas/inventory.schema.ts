@@ -7,14 +7,14 @@ export const inventoryItemBaseSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
   name: z.string().min(1, 'Item name is required'),
   description: z.string().optional(),
-  unitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
+  unitOfMeasure: z.string().min(1, 'Unit of Measure is required').optional().default('kpl'),
   costPrice: z.coerce
     .number({ invalid_type_error: 'Cost price must be a number' })
     .nonnegative('Cost price must be non-negative'),
   salesPrice: z.coerce
     .number({ invalid_type_error: 'Sales price must be a number' })
     .nonnegative('Sales price must be non-negative'),
-  materialType: z.nativeEnum(PrismaMaterialType).default(PrismaMaterialType.raw_material),
+  materialType: z.nativeEnum(PrismaMaterialType).optional().default(PrismaMaterialType.raw_material),
   minimumStockLevel: z.coerce
     .number({ invalid_type_error: 'Min stock level must be a number' })
     .nonnegative('Min stock level must be non-negative')
@@ -74,4 +74,7 @@ export type CreateInventoryItemInput = z.infer<typeof createInventoryItemSchema>
 export type UpdateInventoryItemInput = z.infer<typeof updateInventoryItemSchema>;
 export type InventoryTransactionInput = z.infer<typeof inventoryTransactionSchema>;
 export type AdjustStockInput = z.infer<typeof adjustStockSchema>;
-export type ListInventoryItemsInput = z.infer<typeof listInventoryItemsSchema>; 
+export type ListInventoryItemsInput = z.infer<typeof listInventoryItemsSchema>;
+
+// Exporting the inferred type for form values
+export type InventoryItemFormValues = z.infer<typeof inventoryItemBaseSchema>; 

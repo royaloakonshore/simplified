@@ -366,15 +366,25 @@ export const orderRouter = createTRPCRouter({
             items: {
               create: mappedItemsForCreation,
             },
+            // qrIdentifier will be set in a subsequent update within this transaction
           },
           include: { items: true, customer: true },
         });
 
-        if (newOrder.status === OrderStatus.confirmed) {
-          await checkAndAllocateStock(newOrder.id, tx);
+        // Now update the newOrder with the qrIdentifier
+        const updatedOrderWithQr = await tx.order.update({
+          where: { id: newOrder.id },
+          data: {
+            qrIdentifier: `ORDER:${newOrder.id}`
+          },
+          include: orderDetailIncludeArgs // Ensure we return the full order details
+        });
+
+        if (updatedOrderWithQr.status === OrderStatus.confirmed) {
+          await checkAndAllocateStock(updatedOrderWithQr.id, tx);
         }
 
-        return newOrder;
+        return updatedOrderWithQr;
       });
     }),
 

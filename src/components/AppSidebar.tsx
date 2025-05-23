@@ -11,6 +11,7 @@ import {
     Truck,
     Settings as SettingsIcon, // Renamed to avoid conflict
     Building2, // For placeholder team switcher
+    QrCode as QrCodeIcon, // Added QrCodeIcon
     type LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -97,6 +98,7 @@ const mainNavItemsData: NavItemDefinition[] = [
         ],
     },
     { title: 'Production', url: '/production', icon: Truck, isCollapsible: false },
+    { title: 'Scan', url: '/scan', icon: QrCodeIcon, isCollapsible: false }, // Added Scan page
     { title: 'Settings', url: '/settings', icon: SettingsIcon, isCollapsible: false },
 ];
 
