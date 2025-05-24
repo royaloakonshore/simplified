@@ -20,7 +20,7 @@ import { Customer, Address, AddressType } from '@/lib/types/customer.types';
 import { UUID, createUUID, createDecimal } from '@/lib/types/branded';
 import { CreateInvoiceSchema as CorrectCreateInvoiceSchema } from "@/lib/schemas/invoice.schema";
 import { z } from 'zod';
-import { OrderStatus as PrismaOrderStatus, InvoiceStatus as PrismaInvoiceStatus, InventoryItem, MaterialType } from '@prisma/client';
+import { OrderStatus as PrismaOrderStatus, InvoiceStatus as PrismaInvoiceStatus, InventoryItem } from '@prisma/client';
 
 // Define the return type for actions that return success/data/error
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };

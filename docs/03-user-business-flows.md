@@ -25,12 +25,14 @@ This document details key user and business process flows within the ERP system.
 2.  **Navigate to Inventory:** User selects 'Inventory' from the navigation sidebar.
 3.  **Create New Item:**
     *   User clicks 'Add New Item'.
-    *   Fills in the `InventoryForm` (SKU, Name, Description, Unit of Measure ('kpl'), Cost Price, Sales Price).
+    *   Fills in the `InventoryForm` (SKU, Name, Description, Unit of Measure ('kpl'), **VAT-exclusive Cost Price**, **VAT-exclusive Sales Price**).
+    *   User selects **`Item Type`** (`RAW_MATERIAL` or `MANUFACTURED_GOOD`).
+    *   User enters initial `quantity` on hand.
     *   Saves the item. **[Backend: `inventory.actions.createItem`]**
-4.  **Record Initial Stock / Replenishment:**
-    *   User navigates to the newly created item's detail page.
-    *   User clicks 'Adjust Stock' or 'Record Purchase'.
-    *   Enters quantity received (e.g., 100), selects transaction type ('Initial Stock' or 'Purchase Receipt'), adds optional notes/reference.
+4.  **Record Initial Stock / Replenishment:** (This is covered by initial quantity in step 3, or via stock adjustments)
+    *   User navigates to an item's detail page.
+    *   User clicks 'Adjust Stock'.
+    *   Enters quantity received/deducted, selects transaction type ('Initial Stock', 'Purchase Receipt', 'Adjustment'), adds optional notes/reference.
     *   Saves the adjustment. **[Backend: `inventory.actions.adjustStock`]** (Creates an `InventoryTransaction`, updates calculated `InventoryItem.quantityOnHand`).
 5.  **Create Sales Order:**
     *   (Sales Rep) Navigates to 'Orders'.
@@ -46,21 +48,24 @@ This document details key user and business process flows within the ERP system.
     *   System checks if sufficient stock exists for all line items.
         *   If yes: Order status changes to 'Confirmed'. Inventory for the items is marked as 'allocated' or `quantityOnHand` is reduced (depending on chosen inventory model). **[Backend: `order.actions.updateOrderStatus` to 'confirmed', trigger inventory allocation/update `inventory.actions.updateStock`]**
         *   If no: Show error message indicating insufficient stock. Order remains 'Draft'.
-7.  **Process Order (Production/Fulfillment View):**
+7.  **Process Order (Production/Fulfillment View for Work Orders):**
     *   (Fulfillment Staff) Navigates to the 'Production' or 'Fulfillment' view (Kanban/Table).
-    *   Finds the 'Confirmed' order.
+    *   Finds a 'Confirmed' `Order` of `orderType = WORK_ORDER`.
     *   Updates status manually as it moves through stages (e.g., 'Picking' -> 'Packing' -> 'Ready for Shipment'). **[Backend: `order.actions.updateOrderStatus`]**
+    *   **System Action (if applicable):** When an `Order` (type `WORK_ORDER`) status changes to `in_production`, the system identifies `MANUFACTURED_GOOD` items in the order. For each, it uses their `BillOfMaterial` to create negative `InventoryTransaction` records for the component raw materials, reducing their `quantityOnHand`.
 8.  **Mark Order as Shipped/Completed:**
     *   Once ready, user marks the order as 'Shipped' or 'Completed'.
     *   This signifies the order is ready for invoicing. **[Backend: `order.actions.updateOrderStatus` to 'shipped']**
 9.  **Generate Invoice:**
-    *   (Finance Clerk) Navigates to the detail page of a 'Shipped' order.
-    *   User clicks the 'Create Invoice' button.
-    *   System pre-populates the invoice form with customer details, line items, prices, and totals from the order.
-    *   User reviews the invoice, sets the due date (or accepts default), and can add notes or set VAT Reverse Charge.
-    *   Saves the invoice (status 'Draft'). **[Backend: `invoice.createFromOrder` tRPC mutation]**
-    *   **System Action:** Order status is updated to `INVOICED`. **[Backend: `invoice.createFromOrder` tRPC mutation]**
-    *   **UI Flow:** A modal appears: "Invoice draft [invoice_number] created. Go to draft?" (Yes/No).
+    *   (Finance Clerk) Navigates to the detail page of a 'Shipped' order or creates a manual invoice.
+    *   User clicks the 'Create Invoice' button (if from order).
+    *   System pre-populates the invoice form with customer details, line items (using **VAT-exclusive sales prices**), prices, and totals from the order.
+    *   User reviews the invoice, sets the due date, and can add notes or set VAT Reverse Charge.
+    *   **System Action (Profit Calculation):** For each line item, the system calculates and stores `calculatedUnitCost` (from `InventoryItem.costPrice` or `BillOfMaterial.totalCalculatedCost`), `calculatedUnitProfit`, and `calculatedLineProfit` (all VAT-exclusive).
+    *   **System Action (Totals):** `Invoice.totalAmount` is stored as the sum of net line totals (VAT-exclusive). `Invoice.totalVatAmount` stores the sum of VAT per line. Customer payable total is net + VAT.
+    *   Saves the invoice (status 'Draft'). **[Backend: `invoice.createFromOrder` or `invoice.createManual` tRPC mutation]**
+    *   System Action: Order status is updated to `INVOICED` (if applicable).
+    *   UI Flow: A modal appears: "Invoice draft [invoice_number] created. Go to draft?" (Yes/No).
         *   Yes: Navigates to the new invoice draft page.
         *   No: Modal closes, user remains on the order page (which now shows status `INVOICED`).
 10. **Send Invoice:**
@@ -80,9 +85,23 @@ This document details key user and business process flows within the ERP system.
 
 ## 3. Other Key Flows (Summary)
 
-*   **Customer Creation:** Navigate to Customers -> Add New -> Fill Form (inc. Finvoice details like VAT ID, OVT) -> Save. **[Backend: `customer.actions.createCustomer`]**
-*   **Inventory Adjustment:** Navigate to Inventory Item -> Adjust Stock -> Enter Quantity (+/-), Reason -> Save. **[Backend: `inventory.actions.adjustStock`]**
-*   **Manual Invoice Creation:** Navigate to Invoices -> Add New -> Select Customer -> Add Line Items Manually -> Set Due Date -> Save as Draft. **[Backend: `invoice.actions.createManualInvoice`]**
+*   **Customer Creation:** Navigate to Customers -> Add New -> Fill Form -> Save. **[Backend: `customer.actions.createCustomer`]**
+*   **BOM Creation (for `MANUFACTURED_GOOD` Inventory Items):**
+    *   Navigate to the detail view of a "Manufactured Good" Inventory Item.
+    *   Manage BOMs: Create New BOM.
+    *   Add component `InventoryItem`s (`RAW_MATERIAL` type) and quantities.
+    *   Enter optional **VAT-exclusive `manualLaborCost`**.
+    *   System displays calculated total BOM cost (based on components' VAT-exclusive `costPrice` + labor cost). This is saved to `BillOfMaterial.totalCalculatedCost`.
+    *   Save the BOM.
+*   **Viewing Customer Details & History (NEW):**
+    1.  User navigates to Customers section.
+    2.  User selects a customer from the list.
+    3.  The Customer Detail Page is displayed.
+    4.  The page shows:
+        *   General customer information (name, contact, VAT ID, etc.).
+        *   A section/tab for "Order History" listing all orders associated with the customer. Key details per order: Order Number, Date, Status, Net Total. Each order links to its full detail page.
+        *   A section/tab for "Invoice History" listing all invoices associated with the customer. Key details per invoice: Invoice Number, Date, Status, Net Total, VAT Amount, Gross Total. Each invoice links to its full detail page.
+        *   A summary displaying "Total Net Revenue from Customer" (calculated from relevant invoices, VAT-exclusive).
 
 ## 4. Backend Interaction Focus
 
@@ -107,10 +126,10 @@ This document details key user and business process flows within the ERP system.
 1.  **Item Creation:**
     *   User navigates to Inventory section.
     *   User clicks "Add Item".
-    *   User fills in item details (SKU, Name, Type: Raw Material/Manufactured, Prices, UoM, Stock Levels).
+    *   User fills in item details (SKU, Name, Type: Raw Material/Manufactured, Prices, UoM, Stock Levels). **[PENDING: UI/Logic for selecting Type (Raw Material/Manufactured) and inputting initial `quantity` more clearly during creation. Define how `quantity` applies to manufactured vs. raw items.]**
     *   User checks/unchecks "Show in Pricelist".
     *   User saves the item.
-2.  **BOM Creation (for Manufactured Items):**
+2.  **BOM Creation (for Manufactured Items):** **[PENDING: Full Implementation of BOM creation, editing, and linking to Manufactured Items]**
     *   User navigates to the detail view of a "Manufactured" Inventory Item.
     *   User clicks "Manage BOMs" (or similar action).
     *   User clicks "Create New BOM".
@@ -143,7 +162,7 @@ This document details key user and business process flows within the ERP system.
     *   User enters discounts (Amount or %) per line item if applicable.
     *   (Work Order only): User sees BOM details; Pricing hidden.
     *   (Quotation only): User sees Pricing; BOM details hidden.
-    *   User saves the Order (initially as Draft).
+    *   User saves the Order (initially as Draft). **[PENDING: Review default status assignment and potential user choices. PENDING: PDF Export/Print button on Order Detail page.]**
 2.  **Quotation Flow:**
     *   User updates Quotation status (e.g., Sent, Accepted, Lost).
     *   If Accepted, user might have an action to "Convert to Work Order" (creates a new Work Order linked to the Quote) or "Create Invoice".
@@ -157,7 +176,7 @@ This document details key user and business process flows within the ERP system.
     *   If created from Order, line items, customer, discounts are pre-filled.
     *   User fills remaining details (Dates, Notes).
     *   User checks "VAT Reverse Charge" if applicable.
-    *   User saves Invoice (Draft status).
+    *   User saves Invoice (Draft status). **[PENDING: Review default status assignment and potential user choices.]**
 5.  **Invoice Processing:**
     *   User updates status (Sent, Paid, Cancelled).
     *   User records payments.
@@ -167,10 +186,10 @@ This document details key user and business process flows within the ERP system.
     *   User clicks "Create Credit Note".
     *   System generates a new Invoice linked to the original, with negative amounts and `CREDITED` status, and updates the original Invoice status.
 
-## 4. Production Flow (Simple)
+## 4. Production Flow (Simple - Based on Work Orders)
 
-1.  User navigates to Production section.
-2.  User views Work Orders (where `orderType` is `work_order` and status is relevant, e.g., `in_production`, potentially other custom stages).
-3.  View excludes pricing information.
-4.  User drags cards (Kanban) or updates status (Table) to reflect progress through defined production stages.
-5.  Updating status here might trigger updates back to the original Order status (e.g., moving to final stage sets Order to 'Shipped').
+1.  User navigates to Production section (Kanban or Table view).
+2.  User views `Order` entities where `orderType` is `WORK_ORDER` and status is relevant (e.g., `confirmed`, `in_production`).
+3.  View excludes pricing information but shows items and quantities.
+4.  User drags cards (Kanban) or updates status (Table) to reflect progress through defined production stages (e.g. updates `Order.productionStep` or `Order.status`).
+5.  Updating status here (e.g., to `in_production` or to `shipped`) might trigger other backend actions like inventory deduction (for `in_production`) or marking ready for invoicing (for `shipped`).

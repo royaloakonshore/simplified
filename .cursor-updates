@@ -82,3 +82,8 @@
 - Fixed TypeScript errors in `InventoryItemForm.tsx` by casting `form.control` and `inventoryItemBaseSchema` to `any` as a workaround for complex type inference issues with `react-hook-form` and Zod.
 - Documented fixes for user profile updates and order creation. Prepared a comprehensive AI handover prompt.
 - Fixed a runtime error `prismaInvoice.totalAmount.toNumber is not a function` on the invoice detail page by ensuring Decimal types are consistently handled between server actions and page components.
+- Refactored `materialType` to `itemType` across the codebase (Prisma schema, Zod schemas, tRPC routers, frontend components).
+- Added `getOrders` and `getInvoices` tRPC procedures to `customerRouter.ts` for customer history.
+- Resolved TypeScript build errors in `production/page.tsx` (BOM interface) and `InventoryItemForm.tsx` (default SKU value).
+- Project builds successfully.
+- Fix order status modal dropdown, dark mode background on order details and build errors.

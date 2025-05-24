@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { type InventoryItem, MaterialType } from "@prisma/client";
+import { type InventoryItem, ItemType } from "@prisma/client";
 import {
   ColumnDef,
   flexRender,
@@ -31,12 +31,12 @@ interface InventoryTableProps {
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>;
 }
 
-const formatMaterialType = (type: MaterialType) => {
+const formatItemType = (type: ItemType) => {
   switch (type) {
-    case MaterialType.raw_material:
+    case ItemType.RAW_MATERIAL:
       return "Raw Material";
-    case MaterialType.manufactured:
-      return "Manufactured";
+    case ItemType.MANUFACTURED_GOOD:
+      return "Manufactured Good";
     default:
       return type;
   }
@@ -96,13 +96,13 @@ export const columns: ColumnDef<InventoryItem>[] = [
     },
   },
   {
-    accessorKey: "materialType",
+    accessorKey: "itemType",
     header: "Type",
     cell: ({ row }) => {
-      const type: MaterialType = row.getValue("materialType");
+      const type: ItemType = row.getValue("itemType");
       return (
-        <Badge variant={type === MaterialType.manufactured ? "default" : "secondary"}>
-          {formatMaterialType(type)}
+        <Badge variant={type === ItemType.MANUFACTURED_GOOD ? "default" : "secondary"}>
+          {formatItemType(type)}
         </Badge>
       );
     },

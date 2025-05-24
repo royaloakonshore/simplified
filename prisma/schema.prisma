@@ -26,6 +26,8 @@ model User {
   sessions       Session[]
   orders         Order[]
   invoices       Invoice[]
+  Company        Company?  @relation(fields: [companyId], references: [id])
+  companyId      String?
 
   @@schema("public")
 }
@@ -117,47 +119,50 @@ model Customer {
   addresses            Address[]
   orders               Order[]
   invoices             Invoice[]
-
-  @@schema("public")
-}
-
-enum MaterialType {
-  raw_material
-  manufactured
+  Company              Company?  @relation(fields: [companyId], references: [id])
+  companyId            String?
 
   @@schema("public")
 }
 
 model InventoryItem {
-  id                String                 @id @default(cuid())
-  companyId         String? // TODO: Add when multi-tenancy is implemented
-  sku               String                 @unique
-  name              String
-  description       String?
-  category          String?   // E.g., "Raw Material", "Finished Good"
-  unitOfMeasure     String?   // E.g., "pcs", "kg", "m"
-  costPrice         Decimal?  @db.Decimal(10, 2)
-  salesPrice        Decimal   @db.Decimal(10, 2)
-  materialType      MaterialType           @default(raw_material)
-  minimumStockLevel Decimal                @default(0) @db.Decimal(10, 2)
-  reorderLevel      Decimal?  @db.Decimal(10, 2)
-  quantityOnHand    Decimal   @default(0) @db.Decimal(10, 2) // Calculated field
-  supplierId        String?   // Link to a potential Supplier model (future)
-  imageUrl          String?
-  notes             String?
-  showInPricelist   Boolean  @default(true) // New field for pricelist visibility
-  qrIdentifier      String?   @unique // New field for QR code data
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  transactions      InventoryTransaction[]
-  orderItems        OrderItem[]
-  invoiceItems      InvoiceItem[]
-  billOfMaterial    BillOfMaterial? // Relation to the BOM if this is a manufactured item
-  bomsAsComponent   BillOfMaterialItem[]   @relation("RawMaterialComponent") // Where this item is used as a raw material
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([name])
-  @@index([category])
-  // @@index([companyId]) // TODO: Add when multi-tenancy is implemented
+  sku                 String?            @unique
+  name                String
+  description         String?
+  minimumStockLevel   Decimal            @default(0) @db.Decimal(10, 2)
+  reorderLevel        Decimal?           @db.Decimal(10, 2)
+  qrIdentifier        String?            @unique
+  unitOfMeasure       String? // e.g., 'kpl', 'kg', 'm'
+  costPrice           Decimal            @default(0)
+  salesPrice          Decimal            @default(0)
+  quantityOnHand      Decimal            @default(0) // For raw materials or pre-built manufactured goods
+  showInPricelist     Boolean            @default(true)
+  internalRemarks     String?
+  supplierId          String?
+  supplier            Supplier?          @relation(fields: [supplierId], references: [id])
+  inventoryCategoryId String?
+  inventoryCategory   InventoryCategory? @relation(fields: [inventoryCategoryId], references: [id])
+
+  // New fields for BOM and ItemType
+  itemType        ItemType             @default(RAW_MATERIAL)
+  bom             BillOfMaterial?      @relation("ManufacturedItemBOM")
+  componentInBOMs BillOfMaterialItem[] @relation("ComponentItemInBOMs")
+  // End new fields
+
+  orderItems            OrderItem[]
+  invoiceItems          InvoiceItem[]
+  inventoryTransactions InventoryTransaction[]
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([supplierId])
+  @@index([inventoryCategoryId])
   @@schema("public")
 }
 
@@ -204,38 +209,32 @@ enum OrderType {
   @@schema("public")
 }
 
-enum InventoryMaterialType {
-  raw_material
-  manufactured
-
-  @@schema("public")
-}
-
 model Order {
-  id                      String        @id @default(cuid())
-  companyId               String? // TODO: Add when multi-tenancy is implemented
-  orderNumber             String        @unique
-  customerId              String
-  customer                Customer      @relation(fields: [customerId], references: [id])
-  orderDate               DateTime      @default(now())
-  deliveryDate            DateTime? // New field for planned delivery
-  status                  OrderStatus   @default(draft)
-  orderType               OrderType     @default(work_order)
-  totalAmount             Decimal?      @db.Decimal(10, 2)
-  notes                   String?
-  qrIdentifier            String?       @unique // New field for QR code data
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
-  productionStep          String?       // Link to current step in a potential Kanban board
-  userId                  String        // Link to the user who created the order
-  user                    User          @relation(fields: [userId], references: [id])
-  items                   OrderItem[]   // Added inverse relation for OrderItem
-  invoices                Invoice[]     @relation("OrderToInvoices") // Added inverse relation for Invoice
+  id             String      @id @default(cuid())
+  companyId      String? // Comment removed
+  orderNumber    String      @unique
+  customerId     String
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  orderDate      DateTime    @default(now())
+  deliveryDate   DateTime?
+  status         OrderStatus @default(draft)
+  orderType      OrderType   @default(work_order)
+  totalAmount    Decimal?    @db.Decimal(10, 2)
+  notes          String?
+  qrIdentifier   String?     @unique
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  productionStep String?
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  items          OrderItem[]
+  invoices       Invoice[]   @relation("OrderToInvoices")
+  Company        Company?    @relation(fields: [companyId], references: [id])
 
   @@index([customerId])
   @@index([status])
   @@index([orderType])
-  // @@index([companyId]) // TODO: Add when multi-tenancy is implemented
+  @@index([companyId]) // Index uncommented and comment removed
   @@schema("public")
 }
 
@@ -280,7 +279,7 @@ model Invoice {
   isCreditNote      Boolean       @default(false)
   originalInvoiceId String?       @unique // For credit notes, ID of the original invoice
   creditNoteId      String?       @unique // For original invoices, ID of the credit note that credits this one
-  userId            String?       // Added: ID of the user who created/managed this invoice
+  userId            String? // Added: ID of the user who created/managed this invoice
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -293,6 +292,8 @@ model Invoice {
 
   originalInvoice Invoice? @relation("CreditNoteToOriginal", fields: [originalInvoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   creditNote      Invoice? @relation("CreditNoteToOriginal") // Relation for the original invoice to its credit note
+  Company         Company? @relation(fields: [companyId], references: [id])
+  companyId       String?
 
   @@index([customerId])
   @@index([orderId])
@@ -301,19 +302,26 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id                 String        @id @default(cuid())
+  id                 String   @id @default(cuid())
   invoiceId          String
   inventoryItemId    String // Renamed from itemId
   description        String?
-  quantity           Decimal       @db.Decimal(10, 2)
-  unitPrice          Decimal       @db.Decimal(10, 2)
-  vatRatePercent     Decimal       @db.Decimal(5, 2)
-  discountAmount     Decimal?      @db.Decimal(10, 2)
-  discountPercentage Decimal?      @db.Decimal(5, 2) // Renamed from discountPercent
-  invoice            Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  inventoryItem      InventoryItem @relation(fields: [inventoryItemId], references: [id]) // Renamed relation from item
+  quantity           Decimal  @db.Decimal(10, 2)
+  unitPrice          Decimal  @db.Decimal(10, 2) // This is NET (VAT-exclusive)
+  vatRatePercent     Decimal  @db.Decimal(5, 2)
+  discountAmount     Decimal? @db.Decimal(10, 2)
+  discountPercentage Decimal? @db.Decimal(5, 2) // Renamed from discountPercent
 
-  @@map("invoice_items") // Explicitly map table name
+  // New fields for profitability tracking
+  calculatedUnitCost   Decimal? @db.Decimal(10, 2) // Cost of the item at the time of sale (VAT-exclusive)
+  calculatedUnitProfit Decimal? @db.Decimal(10, 2) // Profit per unit at the time of sale (VAT-exclusive)
+  calculatedLineProfit Decimal? @db.Decimal(10, 2) // Total profit for this line at the time of sale (VAT-exclusive)
+  // End new fields
+
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id]) // Renamed relation from item
+
+  @@map("invoice_items")
   @@schema("public")
 }
 
@@ -329,27 +337,27 @@ model Payment {
 }
 
 model Settings {
-  id                      String  @id @default(cuid())
+  id String @id @default(cuid())
   // companyId               String  @unique // TODO: Add when multi-tenancy is implemented (needs to be @unique for findFirst/update logic in settings router or tied to user)
 
-  companyName             String  // Was String, remains String (required by schema)
-  vatId                   String  // Was String, remains String (required by schema)
-  domicile                String  // New, String (required by schema)
-  
-  streetAddress           String  // Was String, remains String (required by schema)
-  postalCode              String  // Was String, remains String (required by schema)
-  city                    String  // Was String, remains String (required by schema)
-  countryCode             String  // Renamed from country, String (required by schema)
-  countryName             String  // New, String (required by schema)
+  companyName String // Was String, remains String (required by schema)
+  vatId       String // Was String, remains String (required by schema)
+  domicile    String // New, String (required by schema)
 
-  bankAccountIBAN         String  // Renamed from bankAccountIban, String (required by schema)
-  bankAccountBIC          String  // Renamed from bankSwiftBic, String (required by schema)
-  
+  streetAddress String // Was String, remains String (required by schema)
+  postalCode    String // Was String, remains String (required by schema)
+  city          String // Was String, remains String (required by schema)
+  countryCode   String // Renamed from country, String (required by schema)
+  countryName   String // New, String (required by schema)
+
+  bankAccountIBAN String // Renamed from bankAccountIban, String (required by schema)
+  bankAccountBIC  String // Renamed from bankSwiftBic, String (required by schema)
+
   // Optional fields from schema
-  website                 String? // New, optional
-  sellerIdentifier        String? // Renamed from ovtId, optional
+  website                    String? // New, optional
+  sellerIdentifier           String? // Renamed from ovtId, optional
   sellerIntermediatorAddress String? // Renamed from finvoiceIntermediator, optional
-  bankName                String? // Was String?, remains String? (optional)
+  bankName                   String? // Was String?, remains String? (optional)
 
   // Fields to review/remove from old model if not in new schema:
   // phone                   String? // Not in settingsSchema, was optional
@@ -357,8 +365,8 @@ model Settings {
   // finvoiceIntermediatorId String? // Removed as sellerIntermediatorAddress should cover the OVT/identifier
 
   // For now, I will comment them out. If they are truly unused, they can be deleted later.
-  phone                   String? @map("settings_phone") // Keep but map to avoid breaking old data if any, or remove if unused
-  email                   String? @map("settings_email") // Keep but map, or remove if unused
+  phone String? @map("settings_phone") // Keep but map to avoid breaking old data if any, or remove if unused
+  email String? @map("settings_email") // Keep but map, or remove if unused
   // finvoiceIntermediatorId String? // Removed as sellerIntermediatorAddress should cover the OVT/identifier
 
   createdAt DateTime @default(now())
@@ -368,30 +376,103 @@ model Settings {
 }
 
 model BillOfMaterial {
-  id                 String               @id @default(cuid())
-  name               String
-  manufacturedItemId String               @unique // Link to the manufactured InventoryItem
-  manufacturedItem   InventoryItem        @relation(fields: [manufacturedItemId], references: [id])
-  manualLaborCost    Decimal              @default(0) @db.Decimal(10, 2)
-  items              BillOfMaterialItem[] @relation("BOMComponents")
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  // Remove incorrect relation to Invoice
-  // Invoice            Invoice?               @relation(fields: [invoiceId], references: [id])
-  // invoiceId          String?
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  name                String  @unique
+  description         String?
+  manualLaborCost     Decimal @default(0)
+  totalCalculatedCost Decimal @default(0) // To be updated by application logic
+
+  manufacturedItemId String               @unique
+  manufacturedItem   InventoryItem        @relation("ManufacturedItemBOM", fields: [manufacturedItemId], references: [id], onDelete: Cascade)
+  items              BillOfMaterialItem[]
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
   @@schema("public")
 }
 
 model BillOfMaterialItem {
-  id                String         @id @default(cuid())
-  billOfMaterialId  String
-  billOfMaterial    BillOfMaterial @relation(name: "BOMComponents", fields: [billOfMaterialId], references: [id], onDelete: Cascade)
-  rawMaterialItemId String // Link to the raw material InventoryItem
-  rawMaterialItem   InventoryItem  @relation(name: "RawMaterialComponent", fields: [rawMaterialItemId], references: [id])
-  quantity          Decimal        @db.Decimal(10, 2) // Quantity of this raw material needed
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  quantity Decimal
+
+  billOfMaterialId String
+  billOfMaterial   BillOfMaterial @relation(fields: [billOfMaterialId], references: [id], onDelete: Cascade)
+
+  componentItemId String
+  componentItem   InventoryItem @relation("ComponentItemInBOMs", fields: [componentItemId], references: [id], onDelete: Cascade) // Cascade delete if component item is deleted? Or restrict? For now, Cascade.
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([billOfMaterialId, componentItemId])
+  @@index([companyId])
+  @@schema("public")
+}
+
+enum ItemType {
+  RAW_MATERIAL
+  MANUFACTURED_GOOD
+
+  @@schema("public")
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String   @unique
+
+  users               User[]
+  customers           Customer[]
+  orders              Order[]
+  invoices            Invoice[]
+  inventoryItems      InventoryItem[]
+  inventoryCategories InventoryCategory[]
+  suppliers           Supplier[]
+  billOfMaterials     BillOfMaterial[]
+  billOfMaterialItems BillOfMaterialItem[]
+
+  @@schema("public")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  contactInfo String?
+
+  inventoryItems InventoryItem[]
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@schema("public")
+}
+
+model InventoryCategory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+
+  inventoryItems InventoryItem[]
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId])
   @@schema("public")
 }

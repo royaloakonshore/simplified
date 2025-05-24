@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type InventoryItem, MaterialType as PrismaMaterialType } from "@prisma/client";
+import { type InventoryItem, ItemType as PrismaItemType } from "@prisma/client";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from 'qrcode.react';
@@ -46,13 +46,13 @@ export function InventoryItemForm({
     resolver: zodResolver(inventoryItemBaseSchema as any),
     defaultValues: initialData
       ? {
-          sku: initialData.sku,
+          sku: initialData.sku ?? '',
           name: initialData.name,
           description: initialData.description ?? undefined,
           unitOfMeasure: initialData.unitOfMeasure ?? 'kpl',
           costPrice: initialData.costPrice !== null ? parseFloat(initialData.costPrice.toString()) : 0,
           salesPrice: initialData.salesPrice !== null ? parseFloat(initialData.salesPrice.toString()) : 0,
-          materialType: initialData.materialType ?? PrismaMaterialType.raw_material,
+          itemType: initialData.itemType ?? PrismaItemType.RAW_MATERIAL,
           minimumStockLevel: initialData.minimumStockLevel !== null ? parseFloat(initialData.minimumStockLevel.toString()) : 0,
           reorderLevel: initialData.reorderLevel !== null ? parseFloat(initialData.reorderLevel.toString()) : 0,
         }
@@ -63,7 +63,7 @@ export function InventoryItemForm({
           unitOfMeasure: 'kpl',
           costPrice: 0,
           salesPrice: 0,
-          materialType: PrismaMaterialType.raw_material,
+          itemType: PrismaItemType.RAW_MATERIAL,
           minimumStockLevel: 0,
           reorderLevel: 0,
         },
@@ -180,15 +180,15 @@ export function InventoryItemForm({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField
                     control={form.control as any}
-                    name="materialType"
+                    name="itemType"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Material Type*</FormLabel>
+                        <FormLabel>Item Type*</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select material type" /></SelectTrigger></FormControl>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select item type" /></SelectTrigger></FormControl>
                             <SelectContent>
-                            <SelectItem value={PrismaMaterialType.raw_material}>Raw Material</SelectItem>
-                            <SelectItem value={PrismaMaterialType.manufactured}>Manufactured</SelectItem>
+                            <SelectItem value={PrismaItemType.RAW_MATERIAL}>Raw Material</SelectItem>
+                            <SelectItem value={PrismaItemType.MANUFACTURED_GOOD}>Manufactured Good</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />
@@ -261,6 +261,12 @@ export function InventoryItemForm({
             ? (formMode === 'scan-edit' ? "Processing..." : (initialData ? "Saving..." : "Creating...")) 
             : (formMode === 'scan-edit' ? "Adjust Stock & Update Price" : (initialData ? "Save Changes" : "Create Item"))}
         </Button>
+
+        {initialData && formMode === 'full' && (
+          <Button type="button" variant="outline" onClick={() => router.back()} className="w-full md:w-auto">
+            Cancel
+          </Button>
+        )}
       </form>
 
       {initialData && initialData.qrIdentifier && formMode === 'full' && (

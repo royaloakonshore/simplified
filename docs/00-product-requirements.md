@@ -34,8 +34,9 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
 
 - **Requirements:**
     - CRUD operations for Inventory Items.
-    - Categorize items as Raw Material or Manufactured.
+    - Categorize items as Raw Material or Manufactured. **[PENDING: UI/Logic for selection and distinction]**
     - Track SKU, Name, Description, Unit of Measure.
+    - Track `quantity` for items (e.g., stock level). **[PENDING: Clarify purpose for manufactured items vs. raw materials]**
     - Store Cost Price (for raw materials/manual entry) and Sales Price.
     - Define Minimum Stock Level and Reorder Level for stock alerts.
     - **Pricelist Functionality:**
@@ -52,7 +53,7 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
 
 ### 4.3. Bill of Materials (BOM) - "Products"
 
-- **Requirements:**
+- **Requirements:** **[PENDING: Full BOM module implementation - CRUD, linking, cost calculation]**
     - Define BOMs for "Manufactured" Inventory Items.
     - Link a BOM to one manufactured item.
     - List required component items (Raw Materials) and their quantities.
@@ -71,9 +72,10 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
     - Link to Customer.
     - Add line items referencing Inventory Items (filtered by "Show in Pricelist").
     - **Line Item Enhancements:** Include columns/fields for Discount Amount and Discount % (mutually calculated).
-    - Track Order Status (e.g., Draft, Confirmed, In Production, Shipped, Cancelled - potentially adjusted based on `orderType`).
+    - Track Order Status (e.g., Draft, Confirmed, In Production, Shipped, Cancelled - potentially adjusted based on `orderType`). **[PENDING: Review status assignment on creation]**
     - Link to generated Invoice(s).
     - Link to Production workflow.
+    - **PDF Export/Print:** Ability to generate a PDF version of the order. **[PENDING]**
 - **UI:** Table view (showing `orderType`), Detail view, Create/Edit form (dynamic based on `orderType`).
 
 ### 4.5. Production Workflow
@@ -93,7 +95,7 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
     - Sequential Invoice Numbering.
     - Link to Customer and originating Order (optional).
     - Include Invoice Date, Due Date.
-    - Track Invoice Status (Draft, Sent, Paid, Overdue, Cancelled, Credited).
+    - Track Invoice Status (Draft, Sent, Paid, Overdue, Cancelled, Credited). **[PENDING: Review status assignment on creation]**
     - **Line Item Enhancements:** Include columns/fields for Discount Amount and Discount % (mutually calculated). Include VAT Rate % dropdown (populated with Finnish VAT levels), defaulting from selected item.
     - **VAT Reverse Charge:** Checkbox on Invoice form. If checked, forces all line item VAT rates to 0% and adds explanatory text to the Invoice display/PDF.
     - Calculate Totals (Subtotal, VAT Amount, Grand Total), considering discounts.
@@ -101,6 +103,7 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
     - **Credit Notes:** Ability to create a Credit Note for an existing Invoice (creates linked invoice with negative amounts, updates original status).
     - **Finvoice Compliance:** Generate Finvoice 3.0 XML exports, correctly mapping customer details, line items, VAT (including reverse charge), and payment information.
     - **PDF Generation:** Generate printable PDF versions of Invoices.
+    - Company details for invoicing/Finvoice (Name, VAT ID, Bank Info, Address, Finvoice Intermediator details). **[Partially Implemented: UI for settings exists; PENDING: Full integration into Finvoice generation service]**
 - **UI:** Table view, Detail view, Create/Edit form, Payment recording interface.
 
 ### 4.7. Dashboard
@@ -131,3 +134,51 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
 - More complex production scheduling.
 - Direct bank integrations.
 - User roles and permissions within a company.
+
+## Key Features & Modules
+
+### 1.  Core Financials & Invoicing
+    *   **Invoicing:** Create, send, and manage invoices.
+        *   Generate from sales orders or create manually.
+        *   Support for discounts (percentage/amount per line).
+        *   Automatic calculation of VAT (standard rates, e.g., Finnish VAT). All user-entered prices and costs for items, BOM components, and BOM labor are **VAT-exclusive**.
+        *   VAT Reverse Charge mechanism.
+        *   Invoice numbering (sequential, customizable prefix).
+        *   Track invoice status (Draft, Sent, Paid, Overdue, Cancelled, Credited).
+        *   Record payments against invoices.
+        *   Credit Note generation from existing invoices.
+        *   Finvoice 3.0 XML export (Netvisor compatible).
+        *   PDF generation for invoices and credit notes.
+    *   **Profitability Tracking (NEW):**
+        *   The system must calculate and store profit for each invoiced item.
+        *   Profit is defined as (Net Sales Price - Net Unit Cost).
+        *   Net Unit Cost is `InventoryItem.costPrice` for raw materials, or the calculated Bill of Material cost for manufactured goods (components' `costPrice`s + `manualLaborCost` from BOM).
+        *   All user-entered costs and prices for items, BOM components, and BOM labor are **VAT-exclusive**.
+        *   Invoice net totals and line item profits should be available for reporting and dashboard views.
+
+### 2.  Inventory Management
+    *   Manage inventory items: raw materials and manufactured goods (`itemType`).
+    *   Item details: SKU, name, description, unit of measure, **VAT-exclusive cost price, VAT-exclusive sales price**, stock levels (`quantityOnHand`), supplier info.
+    *   Inventory transactions: track purchases, sales, adjustments.
+    *   Low stock alerts.
+    *   **Bill of Materials (BOM):**
+        *   Define BOMs for manufactured goods, linking component items (raw materials) and their quantities.
+        *   Include optional **VAT-exclusive manual labor cost** per BOM.
+        *   System calculates total BOM cost (sum of component costs + labor cost).
+    *   Pricelist generation for selected manufactured goods.
+    *   Support for QR code identifiers on items for quick scanning.
+
+### 4.  Customer Relationship Management (CRM)
+    *   Manage customer database: contact details, addresses (billing/shipping).
+    *   Store customer-specific information for Finvoice (VAT ID, OVT, Intermediator).
+    *   **Customer Order/Invoice History (NEW):**
+        *   Customer detail pages must display a history of their associated orders and invoices.
+        *   Information to include: Order/Invoice Number, Date, Status, Net Total.
+        *   Direct links from the history items to the full order/invoice detail page.
+        *   A summary of total net revenue (from paid/sent invoices, VAT-exclusive) from the customer should be displayed on their detail page.
+
+### 6.  Reporting & Dashboards
+    *   Overview dashboard: key metrics (e.g., sales overview, open orders, due invoices).
+    *   Basic sales reports (e.g., sales by customer, sales by item).
+    *   Inventory reports (e.g., stock levels, stock valuation - based on **VAT-exclusive cost price**).
+    *   **Profitability Reporting (NEW):** Dashboard views and reports on profit margins (overall, by product, by customer - based on invoiced item profits).

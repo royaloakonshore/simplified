@@ -136,7 +136,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-md shadow overflow-hidden">
+    <div className="bg-white rounded-md shadow overflow-hidden">
       {/* Order Header */}
       <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex flex-wrap justify-between items-center gap-4">
@@ -270,28 +270,38 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border bg-background">
-                        {order.items.map(orderItem => (
-                            <tr key={orderItem.id}>
-                                <td className="px-4 py-2 text-sm">
-                                    <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
-                                      {orderItem.inventoryItem.name}
-                                    </Link>
-                                    <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
-                                </td>
-                                <td className="px-4 py-2 text-right text-sm">{orderItem.quantity.toString()}</td>
-                                <td className="px-4 py-2 text-right text-sm">{formatCurrency(orderItem.unitPrice)}</td>
-                                <td className="px-4 py-2 text-right text-sm">
-                                    {formatCurrency(new Prisma.Decimal(orderItem.quantity).mul(orderItem.unitPrice).sub(orderItem.discountAmount ?? 0) )}
-                                    {/* TODO: Better discount display logic needed if percentage is used */}
-                                    {orderItem.discountAmount && orderItem.discountAmount.gt(0) && (
-                                        <div className="text-xs text-red-500">(-{formatCurrency(orderItem.discountAmount)})</div>
-                                    )}
-                                    {orderItem.discountPercentage && orderItem.discountPercentage.gt(0) && (
-                                         <div className="text-xs text-red-500">(-{orderItem.discountPercentage.toString()}%)</div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
+                        {order.items.map(orderItem => {
+                            // Ensure values used in Decimal operations are Decimals
+                            const quantity = new Prisma.Decimal(orderItem.quantity);
+                            const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
+                            const discountAmount = orderItem.discountAmount ? new Prisma.Decimal(orderItem.discountAmount) : new Prisma.Decimal(0);
+                            const discountPercentage = orderItem.discountPercentage ? new Prisma.Decimal(orderItem.discountPercentage) : null;
+
+                            const lineItemTotal = quantity.mul(unitPrice).sub(discountAmount);
+
+                            return (
+                                <tr key={orderItem.id}>
+                                    <td className="px-4 py-2 text-sm">
+                                        <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
+                                          {orderItem.inventoryItem.name}
+                                        </Link>
+                                        <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
+                                    </td>
+                                    <td className="px-4 py-2 text-right text-sm">{quantity.toString()}</td>
+                                    <td className="px-4 py-2 text-right text-sm">{formatCurrency(unitPrice)}</td>
+                                    <td className="px-4 py-2 text-right text-sm">
+                                        {formatCurrency(lineItemTotal)} 
+                                        {/* Corrected discount display */}
+                                        {discountAmount.gt(0) && (
+                                            <div className="text-xs text-red-500">(-{formatCurrency(discountAmount)})</div>
+                                        )}
+                                        {discountPercentage && discountPercentage.gt(0) && (
+                                             <div className="text-xs text-red-500">(-{discountPercentage.toString()}%)</div>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                      <tfoot className="bg-muted/50 border-t">
                         <tr>

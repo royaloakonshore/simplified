@@ -5,7 +5,7 @@ import { api } from "@/lib/trpc/react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
 import { KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider } from '@/components/ui/kanban';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { OrderStatus, OrderType } from '@prisma/client';
+import { OrderStatus, OrderType, ItemType } from '@prisma/client';
 import type { Customer, InventoryItem, BillOfMaterial, BillOfMaterialItem, User, Prisma as PrismaTypes } from '@prisma/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,18 +37,15 @@ interface KanbanOrder {
   orderType?: OrderType | string;
   notes?: string | null;
   productionStep?: string | null;
-  // deliveryDate is intentionally made optional here as it's temporarily excluded from backend payload
   deliveryDate?: Date | null; 
-  // totalAmount is intentionally made optional here as it's excluded from backend payload for production view
   totalAmount?: PrismaTypes.Decimal | null;
-
   customer: Pick<Customer, 'id' | 'name'> | null;
   items: (
     {
-      inventoryItem: Pick<InventoryItem, 'id' | 'name' | 'sku' | 'materialType'> & {
-        billOfMaterial: (BillOfMaterial & {
+      inventoryItem: Pick<InventoryItem, 'id' | 'name' | 'sku' | 'itemType'> & {
+        bom: (BillOfMaterial & {
           items: (BillOfMaterialItem & {
-            rawMaterialItem: Pick<InventoryItem, 'id' | 'name' | 'sku'>;
+            componentItem: Pick<InventoryItem, 'id' | 'name' | 'sku'>;
           })[]
         }) | null;
       };
@@ -56,7 +53,7 @@ interface KanbanOrder {
     }
   )[];
   user: Pick<User, 'id' | 'name' | 'firstName'> | null;
-  totalQuantity: PrismaTypes.Decimal; // This is calculated and added in the backend
+  totalQuantity: PrismaTypes.Decimal;
 }
 
 type KanbanColumn = {
@@ -138,11 +135,11 @@ function ProductionPageContent() {
       {order.deliveryDate && <p className="text-muted-foreground">Due: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
       <div className="mt-1 flex flex-wrap gap-1">
         {order.items.map(item => (
-          item.inventoryItem.billOfMaterial ? (
+          item.inventoryItem.bom ? (
             <Badge key={`${order.id}-${item.inventoryItem.id}-bom`} variant="secondary" className="text-xs">
-              BOM: {item.inventoryItem.billOfMaterial.name || item.inventoryItem.name}
+              BOM: {item.inventoryItem.bom.name || item.inventoryItem.name}
             </Badge>
-          ) : item.inventoryItem.materialType === 'manufactured' ? (
+          ) : item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD ? (
             <Badge key={`${order.id}-${item.inventoryItem.id}-mfd`} variant="outline" className="text-xs">
               Mfd: {item.inventoryItem.name}
             </Badge>

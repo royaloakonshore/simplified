@@ -1,9 +1,10 @@
 import { UUID, Decimal } from './branded';
+// import { ItemType } from '@prisma/client'; // Ideal import, but handled in component files
 
-export enum MaterialType {
-  RawMaterial = 'raw_material',
-  Manufactured = 'manufactured',
-}
+// export enum MaterialType { // REMOVE THIS ENUM
+//   RawMaterial = 'raw_material',
+//   Manufactured = 'manufactured',
+// }
 
 export enum TransactionType {
   Purchase = 'purchase',
@@ -19,7 +20,8 @@ export interface InventoryItem {
   unitOfMeasure: string; // Free text field (e.g., 'kpl', 'ltr')
   costPrice: number;
   salesPrice: number;
-  materialType: MaterialType;
+  // materialType: MaterialType; // Old field
+  itemType: string; // Placeholder for ItemType from @prisma/client (e.g., 'RAW_MATERIAL' | 'MANUFACTURED_GOOD')
   minimumStockLevel: number; // To determine criticality
   reorderLevel: number; // When purchases are needed
   createdAt?: Date;
@@ -45,7 +47,8 @@ export interface InventoryItemDomain {
   unitOfMeasure: string;
   costPrice: Decimal;
   salesPrice: Decimal;
-  materialType: MaterialType;
+  // materialType: MaterialType; // Old field
+  itemType: string; // Placeholder for ItemType from @prisma/client
   minimumStockLevel: Decimal;
   reorderLevel: Decimal;
   createdAt: Date;

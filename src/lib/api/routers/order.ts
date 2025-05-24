@@ -16,7 +16,7 @@ import {
   deleteManyOrdersSchema,
   sendManyOrdersToProductionSchema
 } from "@/lib/schemas/order.schema";
-import { OrderStatus, OrderType, Prisma, TransactionType, InventoryTransaction, MaterialType } from "@prisma/client";
+import { OrderStatus, OrderType, Prisma, TransactionType, InventoryTransaction, ItemType } from "@prisma/client";
 
 // Helper to define the include structure for OrderDetail consistently
 const orderDetailIncludeArgs = {
@@ -129,11 +129,11 @@ async function handleProductionStockDeduction(orderId: string, tx: Prisma.Transa
         include: {
           inventoryItem: {
             include: {
-              billOfMaterial: {
+              bom: {
                 include: {
                   items: {
                     include: {
-                      rawMaterialItem: true,
+                      componentItem: true,
                     },
                   },
                 },
@@ -146,7 +146,6 @@ async function handleProductionStockDeduction(orderId: string, tx: Prisma.Transa
   });
 
   if (!order) {
-    // Should not happen if called correctly, but good to check
     console.error(`Order not found for stock deduction: ${orderId}`);
     return;
   }
@@ -156,29 +155,30 @@ async function handleProductionStockDeduction(orderId: string, tx: Prisma.Transa
   for (const orderItem of order.items) {
     const orderedQuantity = new Prisma.Decimal(orderItem.quantity);
 
-    // Check if the item is manufactured and has a Bill of Material
     if (
-      orderItem.inventoryItem.materialType === MaterialType.manufactured &&
-      orderItem.inventoryItem.billOfMaterial &&
-      orderItem.inventoryItem.billOfMaterial.items.length > 0
+      orderItem.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD &&
+      orderItem.inventoryItem.bom &&
+      orderItem.inventoryItem.bom.items.length > 0
     ) {
-      // Deduct BOM components
-      for (const bomItem of orderItem.inventoryItem.billOfMaterial.items) {
-        const requiredRawMaterialQuantity = new Prisma.Decimal(bomItem.quantity).mul(orderedQuantity);
+      for (const bomItem of orderItem.inventoryItem.bom.items) {
+        if (!bomItem.componentItem) {
+            console.warn(`Skipping BOM item ${bomItem.id} for order ${order.orderNumber} due to missing componentItem data.`);
+            continue;
+        }
+        const requiredComponentQuantity = new Prisma.Decimal(bomItem.quantity).mul(orderedQuantity);
         transactionsToCreate.push({
-          itemId: bomItem.rawMaterialItemId,
-          quantity: requiredRawMaterialQuantity.negated(),
-          type: TransactionType.sale, // Or a specific "production_consumption" type
+          itemId: bomItem.componentItemId,
+          quantity: requiredComponentQuantity.negated(),
+          type: TransactionType.sale,
           reference: `Production for Order ${order.orderNumber} (Item: ${orderItem.inventoryItem.name})`,
-          note: `Raw material ${bomItem.rawMaterialItem.name} consumed for ${orderItem.inventoryItem.name}`,
+          note: `Component ${bomItem.componentItem.name} consumed for ${orderItem.inventoryItem.name}`,
         });
       }
     } else {
-      // Deduct the item itself (raw material or manufactured item without BOM processing)
       transactionsToCreate.push({
         itemId: orderItem.inventoryItemId,
         quantity: orderedQuantity.negated(),
-        type: TransactionType.sale, // Or a specific "production_consumption" type
+        type: TransactionType.sale,
         reference: `Production for Order ${order.orderNumber}`,
         note: `Item ${orderItem.inventoryItem.name} consumed/allocated for production`,
       });
@@ -187,8 +187,6 @@ async function handleProductionStockDeduction(orderId: string, tx: Prisma.Transa
 
   if (transactionsToCreate.length > 0) {
     await tx.inventoryTransaction.createMany({ data: transactionsToCreate });
-    // TODO: Implement alert generation for negative stock if any transaction results in it.
-    // This could involve checking stock levels after these transactions for the affected items.
   }
 }
 
@@ -224,12 +222,12 @@ const productionOrderPayload = {
             id: true,
             name: true,
             sku: true,
-            materialType: true,
-            billOfMaterial: {
+            itemType: true,
+            bom: {
               include: {
                 items: {
                   include: {
-                    rawMaterialItem: { select: { id: true, name: true, sku: true } },
+                    componentItem: { select: { id: true, name: true, sku: true } },
                   },
                 },
               },

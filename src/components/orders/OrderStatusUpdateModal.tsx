@@ -144,7 +144,7 @@ export default function OrderStatusUpdateModal({
                 <SelectTrigger>
                   <SelectValue placeholder="Select new status" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="z-[9999]">
                   {availableTransitions.map(status => (
                     <SelectItem key={status} value={status}>
                       {status.replace('_',' ').toUpperCase()}

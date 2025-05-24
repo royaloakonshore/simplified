@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { MaterialType, TransactionType } from '../types/inventory.types';
-import { MaterialType as PrismaMaterialType } from '@prisma/client'; // Import enum from Prisma Client
+import { ItemType, TransactionType } from '@prisma/client'; // ADDED ItemType, kept TransactionType from here
 
 // Base schema for inventory item fields
 export const inventoryItemBaseSchema = z.object({
@@ -14,7 +13,7 @@ export const inventoryItemBaseSchema = z.object({
   salesPrice: z.coerce
     .number({ invalid_type_error: 'Sales price must be a number' })
     .nonnegative('Sales price must be non-negative'),
-  materialType: z.nativeEnum(PrismaMaterialType).optional().default(PrismaMaterialType.raw_material),
+  itemType: z.nativeEnum(ItemType).optional().default(ItemType.RAW_MATERIAL), // NEW
   minimumStockLevel: z.coerce
     .number({ invalid_type_error: 'Min stock level must be a number' })
     .nonnegative('Min stock level must be non-negative')
@@ -64,7 +63,7 @@ export const listInventoryItemsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional(),
-  materialType: z.nativeEnum(MaterialType).optional(),
+  itemType: z.nativeEnum(ItemType).optional(), // NEW
   sortBy: z.enum(['sku', 'name', 'quantityOnHand', 'costPrice', 'createdAt']).default('name'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
 });

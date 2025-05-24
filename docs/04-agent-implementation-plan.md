@@ -27,54 +27,66 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 7.  **Invoice Module (Initial):** Schema, tRPC router (List, Get, Create), List/Detail/Form components. (DONE - Basic form implemented)
 8.  **Production Module (Basic):** Schema stubs (if any), Kanban view component (basic), link from Orders. (DONE - Basic Kanban implemented)
 
-**Phase 2: Feature Enhancement & Integration (Current Focus)**
+**Phase 2: BOM, Inventory, Order/Invoice Workflow Enhancements & Initial Multi-Tenancy Refinement
 
-9.  **Order Module - Quote/Work Order:** ✅ COMPLETED
-    *   Add `orderType` enum and field to `Order` schema.
-    *   Update `OrderForm` with conditional logic/UI for Quote vs. Work Order.
-    *   Update `OrderListContent` to show `orderType`.
-    *   Refine Order statuses if needed based on type.
-10. **Order/Invoice Line Item Enhancements:** ✅ PARTIALLY COMPLETED (Invoice VAT & Order Status update)
-    *   Add `discountAmount`, `discountPercentage` to `OrderItem`/`InvoiceItem` schemas. (Done for InvoiceItem & OrderItem in schema, UI/logic pending for OrderItem)
-    *   Add `vatReverseCharge` flag to `Invoice` schema. (Done)
-    *   Update `OrderForm`/`InvoiceForm` item tables with discount fields. (Partially for InvoiceForm, pending for OrderForm)
-    *   Add VAT dropdown (Finnish levels) to `InvoiceForm` items. (Done, default 24% - corrected)
-    *   Add VAT Reverse Charge checkbox to `InvoiceForm`. (Done)
-    *   Update backend total calculations for discounts. (Done for Invoice, pending for Order)
-    *   Update backend invoice creation to handle `vatReverseCharge` (set VAT to 0). (Done)
-    *   **New:** Order status updated to `INVOICED` upon invoice creation from order. (Done)
-    *   **New:** Default VAT rate for invoices now 24%. (Corrected)
-    *   **New:** User Profile Update (`firstName` handling) and Order Creation (`userId` foreign key constraint) issues resolved. **[Critical Fixes Implemented]**
-    *   **TODO:** Implement date-aware VAT logic for invoices.
-11. **BOM Module:** 🔜 PLANNED NEXT
-    *   Define `BillOfMaterial` and `BillOfMaterialItem` schemas.
-    *   Create tRPC router (`bom.ts`) with CRUD procedures.
-    *   Implement BOM Create/Edit form UI.
-    *   Implement backend BOM cost calculation logic.
-12. **Inventory - Pricelist & Stock Alerts:** 🔜 PLANNED
-    *   Add `showInPricelist` field to `InventoryItem` schema.
-    *   Update Inventory list UI with "Show Pricelist" button and filtering logic.
-    *   Implement tRPC query for pricelist data.
-    *   Add "Add to Pricelist" checkbox to Inventory item form.
-    *   Implement negative stock alert detection logic (querying transactions).
-    *   Add Stock Alert display UI (e.g., table in Inventory page, Dashboard widget).
-    *   Implement recurring Toast notifications for active alerts.
-13. **Inventory Deduction for Production:** 🔜 PLANNED
-    *   Modify `order.updateStatus` tRPC mutation to create negative `InventoryTransaction` records based on BOMs when status changes to `in_production`.
-    *   Handle negative stock case by generating alert, not failing transaction.
-14. **Finvoice Enhancements:**
-    *   Update `finvoice.service.ts` to map discounts correctly.
-    *   Update `finvoice.service.ts` to handle `vatReverseCharge` flag (set VAT to 0, add exemption reason code/text).
-15. **PDF Generation (Invoice & Pricelist):**
-    *   Choose/set up server-side PDF generation library (e.g., Puppeteer).
-    *   Create API routes or Inngest functions triggered by tRPC mutations.
-    *   Develop basic PDF templates.
-16. **Production View Simplification:**
-    *   Update Production module tRPC queries to exclude pricing fields.
-    *   Ensure Production UI does not display prices.
-17. **Item Selection Dropdown:**
-    *   Update item selection in `OrderForm`/`InvoiceForm` to use a searchable Combobox.
-    *   Implement tRPC query (`inventory.getSelectableItems`) filtering by `showInPricelist`.
+**Status:** In Progress (Schema adjustments for BOM/Inventory/Production completed, Profitability/Customer History features planned)
+
+**Core Objectives:** Implement Bill of Materials, refine inventory item properties, streamline order-to-invoice workflow, and begin integrating robust multi-tenancy context. Introduce profitability tracking and enhanced customer views.
+
+**Key Tasks & Features:**
+
+1.  **Bill of Materials (BOM) Creation & Editing:**
+    *   **Schema:** `BillOfMaterial` and `BillOfMaterialItem` Prisma schemas defined and migrated. `InventoryItem.itemType` (`RAW_MATERIAL`/`MANUFACTURED_GOOD`) dictates BOM applicability.
+    *   **Backend (tRPC `bom.ts`):** Implement full CRUD operations for `BillOfMaterial` and `BillOfMaterialItem`.
+        *   **Crucial:** When a `BillOfMaterial` is created or updated (components, quantities, `manualLaborCost` changed), the `totalCalculatedCost` (VAT-exclusive) on the `BillOfMaterial` model **must** be recalculated and saved. This involves summing (component `InventoryItem.costPrice` \* quantity) for all items, plus `manualLaborCost`.
+    *   **UI:** Develop UI for BOM creation, viewing, and editing: linking component `InventoryItem`s (must be `RAW_MATERIAL`) to a parent `MANUFACTURED_GOOD` `InventoryItem`, specifying quantities, and `manualLaborCost` (VAT-exclusive).
+
+2.  **Inventory Item Enhancements & Refinement:**
+    *   **Item Type (`itemType`):** The `InventoryItem.itemType` field is now the sole determinant for `RAW_MATERIAL` vs. `MANUFACTURED_GOOD`. The old `materialType` field has been removed. All related logic and UI must be updated to use `itemType`.
+        *   Forms for item creation/editing must clearly present `itemType` selection.
+        *   Ensure all costs/prices (`costPrice`, `salesPrice`) entered are explicitly stated and handled as **VAT-exclusive**.
+    *   **Quantity:** `InventoryItem.quantityOnHand` meaning is consistent for both types (physical stock).
+
+3.  **Price List Functionality:** (No direct changes from recent schema updates, but ensure it correctly sources `salesPrice` which is VAT-exclusive).
+
+4.  **Order/Invoice Creation Workflow & Production Trigger:**
+    *   **Invoice Totals:** Ensure `invoiceRouter.create` and `invoiceRouter.createFromOrder` correctly calculate and save `Invoice.totalAmount` as the **NET (VAT-exclusive) total**, and `Invoice.totalVatAmount` as the sum of line VATs. User-facing totals will be `totalAmount + totalVatAmount`.
+    *   **Production Trigger:** The logic in `orderRouter` (or relevant server action) that handles `Order.status` changes to `in_production` (for `orderType = WORK_ORDER`) must:
+        *   Identify `MANUFACTURED_GOOD` items in the order (via `InventoryItem.itemType`).
+        *   For each, fetch its `BillOfMaterial`.
+        *   Deduct the required quantities of component `InventoryItem`s (raw materials) from `InventoryItem.quantityOnHand` by creating appropriate `InventoryTransaction` records.
+
+5.  **Order Detail Page - PDF Export/Print:** (Existing task, ensure it uses net prices and calculates VAT correctly for display).
+
+6.  **Finvoice Seller Details Integration:** (Existing task, no direct impact from these schema changes, but ensure data like company name, VAT ID etc. is sourced correctly for the now VAT-exclusive system).
+
+7.  **NEW - Profitability Tracking Implementation:**
+    *   **Backend Logic (`invoiceRouter` create/update operations):**
+        *   When creating/updating `InvoiceItem` records:
+            *   Fetch the linked `InventoryItem`.
+            *   Calculate `calculatedUnitCost` (VAT-exclusive): 
+                *   If `RAW_MATERIAL`: `InventoryItem.costPrice`.
+                *   If `MANUFACTURED_GOOD`: `InventoryItem.bom.totalCalculatedCost`.
+            *   Calculate `calculatedUnitProfit` (VAT-exclusive): `InvoiceItem.unitPrice` (net, after discounts) - `calculatedUnitCost`.
+            *   Calculate `calculatedLineProfit` (VAT-exclusive): `calculatedUnitProfit` * `InvoiceItem.quantity`.
+            *   Store these three new fields in the `InvoiceItem` record.
+    *   **Dashboard Integration:**
+        *   Develop tRPC procedures to fetch and aggregate `InvoiceItem.calculatedLineProfit` for dashboard display (e.g., total profit, profit by product/customer over time).
+        *   Implement UI widgets on the main dashboard.
+
+8.  **NEW - Customer Order/Invoice History & Revenue Summary:**
+    *   **Backend (tRPC `customer.ts`):**
+        *   Create or enhance a procedure (e.g., `customer.getWithHistory`) to fetch a specific `Customer` along with their `Order[]` and `Invoice[]` relations.
+        *   Ensure orders and invoices are sufficiently populated with key details (number, date, status, net totals, VAT, gross totals for invoices).
+    *   **Frontend (`app/(erp)/customers/[id]/page.tsx`):**
+        *   Develop the customer detail page UI.
+        *   Display customer information.
+        *   Display sortable/filterable tables for Order History and Invoice History.
+        *   Calculate and display "Total Net Revenue from Customer" (sum of `Invoice.totalAmount` for relevant invoices).
+
+**Multi-Tenancy Context (`companyId`):**
+*   The `companyId` field (currently optional) has been added to core models (`InventoryItem`, `BillOfMaterial`, `BillOfMaterialItem`, `Supplier`, `InventoryCategory`, `Invoice`, `Order`, `Customer`, etc.).
+*   **Future Task:** Plan and execute data backfill for `companyId` on existing records. Then, make `companyId` non-nullable on these models and update tRPC procedures to enforce company-scoped data access via `ctx.companyId` (using `companyProtectedProcedure` where appropriate).
 
 **Phase 3: Refinement & Advanced Features**
 

@@ -250,4 +250,49 @@ export const customerRouter = createTRPCRouter({
         });
       }
     }),
+
+  getOrders: protectedProcedure
+    .input(z.object({
+      customerId: z.string().cuid(),
+      // Optional: Add pagination/filtering params here if needed later
+      // limit: z.number().min(1).max(100).optional().default(10),
+      // cursor: z.string().cuid().optional(), 
+    }))
+    .query(async ({ ctx, input }) => {
+      const { customerId } = input;
+      // TODO: Add companyId filter: companyId: ctx.companyId
+      const orders = await prisma.order.findMany({
+        where: {
+          customerId: customerId,
+        },
+        orderBy: { orderDate: 'desc' }, 
+        // Minimal include for order history list
+        include: {
+          // customer: { select: { name: true } }, // Customer name already known from context
+          items: { select: { id: true } } // Just to get a count or basic info if needed
+        }
+      });
+      return orders.map(order => ({ ...order, itemCount: order.items.length }));
+    }),
+
+  getInvoices: protectedProcedure
+    .input(z.object({
+      customerId: z.string().cuid(),
+      // Optional: Add pagination/filtering params here if needed later
+    }))
+    .query(async ({ ctx, input }) => {
+      const { customerId } = input;
+      // TODO: Add companyId filter: companyId: ctx.companyId
+      const invoices = await prisma.invoice.findMany({
+        where: {
+          customerId: customerId,
+        },
+        orderBy: { invoiceDate: 'desc' },
+        // Minimal include for invoice history list
+        include: {
+          items: { select: { id: true } } // Just to get a count or basic info if needed
+        }
+      });
+      return invoices.map(invoice => ({ ...invoice, itemCount: invoice.items.length }));
+    }),
 }); 

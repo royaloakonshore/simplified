@@ -111,8 +111,8 @@ erp-system/
 - Key additions based on recent requirements:
     - `Order` model: Added `orderType` enum (`quotation`, `work_order`). Added `discountAmount`, `discountPercentage` to `OrderItem`.
     - `Invoice` model: Added `vatReverseCharge` boolean. Added `discountAmount`, `discountPercentage` to `InvoiceItem`.
-    - `InventoryItem` model: Added `showInPricelist` boolean.
-    - **New Models:** `BillOfMaterial` and `BillOfMaterialItem` to manage BOM structures.
+    - `InventoryItem` model: Added `showInPricelist` boolean. **[PENDING: Clarification and schema update for quantity/type distinction - e.g., explicit `quantity` field, `itemType` enum (RAW_MATERIAL, MANUFACTURED_GOOD)]**
+    - **New Models:** `BillOfMaterial` and `BillOfMaterialItem` to manage BOM structures. **[PENDING: Schema definition and full implementation]**
 - Use Prisma Migrate (`npx prisma migrate dev`) for schema changes.
 - **Stock Alerts:** Negative stock levels are permitted but should trigger application-level alerts (mechanism TBD - likely involves querying aggregated transactions).
 
@@ -218,7 +218,105 @@ erp-system/
 - **Discounts:** Implemented in `OrderForm`/`InvoiceForm` line items. Calculation logic ensures amount/percentage consistency. Backend calculates totals *after* discounts.
 - **VAT Reverse Charge:** Checkbox in `InvoiceForm`. If true, backend (`invoice.create`/`update`) forces line item VAT to 0 and flags the invoice. Finvoice service (`finvoice.service.ts`) needs specific XML mapping for this flag.
 - **Pricelist:** Inventory list view includes filtering logic based on `materialType` and `showInPricelist`. Separate PDF export function uses dedicated tRPC query.
-- **BOMs:** Managed via new `/boms` route/components and `bom.ts` tRPC router. Cost calculation performed server-side.
-- **Inventory Deduction:** Logic within `order.updateStatus` tRPC mutation triggers inventory transactions when status becomes `in_production`.
-- **Stock Alerts:** Negative stock is handled by creating standard inventory transactions. A separate mechanism (e.g., dashboard query, dedicated alert table/view) is needed to identify and display items with negative calculated stock or below thresholds.
-- **PDF Generation:** Planned strategy is server-side generation (e.g., Puppeteer via tRPC/Inngest) for Invoices and Pricelists. Requires template design.
+- **BOMs:** Managed via new `/boms` route/components and `bom.ts` tRPC router. Cost calculation performed server-side. **[PENDING: Full implementation of CRUD, linking, and cost calculation]**
+- **Inventory Deduction:** Logic within `order.updateStatus` tRPC mutation triggers inventory transactions when status becomes `in_production`. **[CONFIRMED: Basic logic in place for BOM components, needs verification for negative stock handling alerts]**
+- **Stock Alerts:** Negative stock is handled by creating standard inventory transactions. A separate mechanism (e.g., dashboard query, dedicated alert table/view) is needed to identify and display items with negative calculated stock or below thresholds. **[Alert display PENDING]**
+- **PDF Generation:** Planned strategy is server-side generation (e.g., Puppeteer via tRPC/Inngest) for Invoices and Pricelists. **[PENDING: Implementation for Orders, Invoices, Pricelists. Order PDF generation is a specific upcoming task.]**
+- **Finvoice Seller Details Integration:** **[PENDING: Full integration of Company Settings from the database into the Finvoice generation service, replacing placeholder/env var data in `finvoice.service.ts` and related actions/tRPC calls.]**
+
+### Prisma Schema (`prisma/schema.prisma`)
+
+The full schema is maintained in `prisma/schema.prisma`. Key models and recent changes include:
+
+*   **`InventoryItem`**: 
+    *   Manages both raw materials and manufactured goods, differentiated by `itemType: ItemType` (enum `RAW_MATERIAL`, `MANUFACTURED_GOOD`). The `materialType` field has been removed.
+    *   Stores VAT-exclusive `costPrice` and `salesPrice`.
+    *   Links to `BillOfMaterial` (if `itemType` is `MANUFACTURED_GOOD`) via `bom`.
+    *   Links to `BillOfMaterialItem` (if used as a component) via `componentInBOMs`.
+    *   No longer directly related to `ProductionOrder` models.
+*   **`BillOfMaterial`**: Defines components for a manufactured `InventoryItem`.
+    *   `manualLaborCost` is VAT-exclusive.
+    *   `totalCalculatedCost` (VAT-exclusive) is calculated and stored based on component costs and labor. This calculation occurs on BOM save/update.
+*   **`BillOfMaterialItem`**: Links a component `InventoryItem` and its quantity to a `BillOfMaterial`.
+*   **`InvoiceItem`**: Represents a line item on an invoice.
+    *   `unitPrice` is stored VAT-exclusive.
+    *   New fields for profitability tracking (all VAT-exclusive and optional):
+        *   `calculatedUnitCost`: The unit cost of the item at the time of invoicing.
+        *   `calculatedUnitProfit`: `unitPrice` - `calculatedUnitCost`.
+        *   `calculatedLineProfit`: `calculatedUnitProfit` * `quantity` (after discounts).
+*   **`Invoice`**:
+    *   `totalAmount` stores the **VAT-exclusive sum** of all invoice line net totals.
+    *   `totalVatAmount` stores the sum of all invoice line VAT amounts.
+    *   The customer-payable gross total is `totalAmount + totalVatAmount`.
+*   **Removed Models**: `MaterialType` enum, `ProductionOrder`, `ProductionOrderInput`, `ProductionOrderOutput` have been removed to simplify the production flow, which is now driven by `Order` status.
+*   **Multi-tenancy**: `companyId` (currently optional, target non-nullable) links most core entities to a `Company`.
+
+#### Key Calculation Logic & Data Flows
+
+*   **BOM Cost Calculation (`BillOfMaterial.totalCalculatedCost`)**:
+    1.  Triggered on `BillOfMaterial` create/update.
+    2.  For each `BillOfMaterialItem` in the BOM:
+        *   Fetch the component `InventoryItem`'s `costPrice` (VAT-exclusive).
+        *   Multiply by `BillOfMaterialItem.quantity`.
+    3.  Sum all component line costs.
+    4.  Add `BillOfMaterial.manualLaborCost` (VAT-exclusive).
+    5.  Store the result in `BillOfMaterial.totalCalculatedCost`.
+
+*   **Invoice Line Profitability (`InvoiceItem` profit fields)**:
+    1.  Triggered during `Invoice` creation/finalization (e.g., in `invoiceRouter.create`).
+    2.  For each `InvoiceItem`:
+        *   Fetch the corresponding `InventoryItem`.
+        *   Determine `calculatedUnitCost` (VAT-exclusive):
+            *   If `InventoryItem.itemType` is `RAW_MATERIAL`, `calculatedUnitCost` = `InventoryItem.costPrice`.
+            *   If `InventoryItem.itemType` is `MANUFACTURED_GOOD`, `calculatedUnitCost` = `InventoryItem.bom.totalCalculatedCost` (cost at time of BOM definition).
+        *   `calculatedUnitProfit` = (`InvoiceItem.unitPrice` after line discounts) - `calculatedUnitCost`.
+        *   `calculatedLineProfit` = `calculatedUnitProfit` * `InvoiceItem.quantity`.
+        *   Store these values in the `InvoiceItem` record.
+
+*   **Invoice Totals (`Invoice` model)**:
+    1.  Triggered during `Invoice` creation/finalization.
+    2.  For each `InvoiceItem`:
+        *   Line Net Total = `InvoiceItem.unitPrice` (VAT-exclusive) * `InvoiceItem.quantity` (after line discounts).
+        *   Line VAT = Line Net Total * (`InvoiceItem.vatRatePercent` / 100).
+    3.  `Invoice.totalAmount` = Sum of all Line Net Totals.
+    4.  `Invoice.totalVatAmount` = Sum of all Line VATs.
+
+*   **Customer Order/Invoice History & Revenue Summary (Customer Detail Page)**:
+    1.  User navigates to a customer's detail page.
+    2.  Fetch `Customer` data along with related `Order[]` and `Invoice[]` records.
+    3.  Display `Order` history (key fields: number, date, status, net total).
+    4.  Display `Invoice` history (key fields: number, date, status, net total, VAT amount, gross total).
+    5.  Calculate Total Customer Revenue: Sum `Invoice.totalAmount` (net) for invoices with status like 'Paid' or 'Sent'.
+
+### Data Model & Relationships (Illustrative)
+
+Simplified textual representation of key financial and inventory flows:
+
+```
+Company (Manages all below)
+  |
+  +-- User (Belongs to a Company, creates transactions)
+  |
+  +-- Customer (Belongs to a Company)
+  |     |
+  |     +-- Order[] (Links to Customer, User)
+  |     |     |
+  |     |     +-- OrderItem[] (Links to Order, InventoryItem)
+  |     |
+  |     +-- Invoice[] (Links to Customer, User, optionally Order)
+  |           |
+  |           +-- InvoiceItem[] (Links to Invoice, InventoryItem)
+  |                 (Fields: unitPrice (net), calculatedUnitCost (net), calculatedUnitProfit (net), calculatedLineProfit (net))
+  |
+  +-- InventoryItem (Belongs to a Company)
+  |     (Fields: itemType, costPrice (net), salesPrice (net))
+  |     |
+  |     +-- (If MANUFACTURED_GOOD) BillOfMaterial? (one-to-one)
+  |           (Fields: manualLaborCost (net), totalCalculatedCost (net))
+  |           |
+  |           +-- BillOfMaterialItem[] (Links to BillOfMaterial, component InventoryItem)
+  |
+  +-- BillOfMaterial (Belongs to a Company, see above)
+  |
+  +-- Settings (Company-specific settings, e.g., for Finvoice seller details)
+```

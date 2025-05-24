@@ -186,3 +186,58 @@ When working with Prisma in this project, remember these important steps:
 **Next Steps:**
 - Continue with planned feature development, starting with QR Code generation and the mobile scanning page.
 - Thoroughly document these new features as they are implemented. 
+
+## 2025-05-24: Decimal Conversion Runtime Error Fix & Current Status
+
+**Goal:** Resolve runtime error on invoice detail page and document current project status and next steps.
+
+**Summary:**
+
+1.  **Runtime Error Fix (`prismaInvoice.totalAmount.toNumber`):**
+    *   **Problem:** A runtime error `TypeError: prismaInvoice.totalAmount.toNumber is not a function` was occurring on the invoice detail page (`src/app/(erp)/invoices/[id]/page.tsx`).
+    *   **Investigation:**
+        *   The error occurred within the `mapPrismaInvoiceToLocal` function in the page component.
+        *   It was identified that the `getInvoiceById` server action (`src/lib/actions/invoice.actions.ts`) also contained a `mapPrismaInvoiceToLocal` function.
+        *   This server-side mapper was already converting Prisma `Decimal` types (like `totalAmount`) to JavaScript `number`s using `.toNumber()`.
+        *   When this pre-converted `number` reached the page component's mapper, calling `.toNumber()` on it again caused the error.
+    *   **Solution:** Modified the `mapPrismaInvoiceToLocal` function within `src/lib/actions/invoice.actions.ts` to *not* call `.toNumber()` on `Decimal` fields. Instead, these fields are now passed through as Prisma `Decimal` objects. The existing mapper in `src/app/(erp)/invoices/[id]/page.tsx` correctly handles the `.toNumber()` conversion, thus resolving the error.
+    *   **Outcome:** The invoice detail page now renders correctly without the runtime error. The build was successful post-fix.
+
+**Current Project Status & Pending Features:**
+
+The core ERP application is progressing, with key modules like Orders, Invoices, Customers, and basic Inventory in place. Authentication and user settings are functional. Recent efforts focused on stabilizing existing features and UI refinements.
+
+However, several significant features and enhancements are pending implementation:
+
+1.  **Bill of Materials (BOM):**
+    *   Full CRUD operations for BOMs (creation, editing, viewing, deletion).
+    *   Linking BOMs to manufactured inventory items.
+    *   Cost calculation for BOMs.
+2.  **Inventory Item Enhancements:**
+    *   Adding a `quantity` field to `InventoryItem` (clarify if for stock or other purposes, especially for manufactured items).
+    *   Implementing a clear distinction and selection mechanism for `InventoryItem` types (e.g., `RAW_MATERIAL`, `MANUFACTURED_GOOD`).
+    *   Logic for how these types interact with BOMs and stock.
+3.  **Price Lists:**
+    *   Functionality to add/manage items (including BOM-defined manufactured goods) in price lists.
+    *   A dedicated "Price List View" in the UI.
+4.  **Order & Invoice Workflow:**
+    *   Review and potentially offer user choices for status assignment upon creation of new Orders and Invoices (e.g., create Order as `confirmed`, Invoice as `sent`).
+5.  **Order Details Page:**
+    *   Implement a "PDF Export/Print" button for orders.
+6.  **Finvoice Seller Details:**
+    *   Integrate actual seller company settings (from `Settings` model) into `finvoice.service.ts` and the `generateAndDownloadFinvoice` action/tRPC endpoint, replacing placeholder data.
+7.  **General UI/UX Refinements:**
+    *   Continued focus on consistency, mobile responsiveness, and addressing any minor UI bugs or inconsistencies.
+
+**Next Immediate Steps (High Priority):**
+
+*   Address the pending features listed above, likely starting with BOM functionality and the related inventory item enhancements as these are critical for manufacturing flows.
+*   Integrate company settings into Finvoice generation.
+*   Clarify requirements for Inventory Item `quantity` and `type` to ensure correct implementation.
+*   Define the scope and information for the "Price List View".
+*   Determine the desired behavior for Order/Invoice status assignment on creation.
+*   Investigate and select a PDF generation approach for order printing.
+
+**Next Steps:**
+- Continue with planned feature development, starting with QR Code generation and the mobile scanning page.
+- Thoroughly document these new features as they are implemented. 
