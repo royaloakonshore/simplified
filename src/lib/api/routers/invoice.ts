@@ -226,20 +226,20 @@ export const invoiceRouter = createTRPCRouter({
 
       const dataForInvoiceCreate: Prisma.InvoiceCreateInput = {
         customer: { connect: { id: customerId } },
-        invoiceNumber: nextInvoiceNumber,
-        invoiceDate,
-        dueDate,
+            invoiceNumber: nextInvoiceNumber,
+            invoiceDate,
+            dueDate,
         status: InvoiceStatus.draft,
-        notes,
+            notes,
         vatReverseCharge,
         totalAmount: subTotal, // NET amount
-        totalVatAmount: totalVatAmountValue,
+            totalVatAmount: totalVatAmountValue, 
         user: { connect: { id: userId } },
         ...(orderId && { order: { connect: { id: orderId } } }),
-        items: {
+            items: {
           create: invoiceItemsToCreate.map(item => ({
             inventoryItemId: item.inventoryItemId,
-            description: item.description,
+                description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             vatRatePercent: item.vatRatePercent,
@@ -248,8 +248,8 @@ export const invoiceRouter = createTRPCRouter({
             calculatedUnitCost: item.calculatedUnitCost,
             calculatedUnitProfit: item.calculatedUnitProfit,
             calculatedLineProfit: item.calculatedLineProfit,
-          })),
-        },
+              })),
+            },
       };
 
       const newInvoice = await prisma.invoice.create({
@@ -425,18 +425,18 @@ export const invoiceRouter = createTRPCRouter({
         const finalDueDate = inputDueDate ?? new Date(new Date(finalInvoiceDate).setDate(finalInvoiceDate.getDate() + 14)); 
 
         const invoiceCreateDataFromOrder: Prisma.InvoiceCreateInput = {
-          invoiceNumber: nextInvoiceNumber,
+            invoiceNumber: nextInvoiceNumber,
           customer: { connect: { id: order.customerId } },
-          invoiceDate: finalInvoiceDate,
-          dueDate: finalDueDate,
-          notes: notes ?? order.notes, 
+            invoiceDate: finalInvoiceDate,
+            dueDate: finalDueDate,
+            notes: notes ?? order.notes, 
           order: { connect: { id: order.id } },
-          status: InvoiceStatus.draft, 
+            status: InvoiceStatus.draft, 
           totalAmount: subTotal, // NET amount
-          totalVatAmount: totalVatAmountValue,
-          vatReverseCharge: vatReverseCharge,
+            totalVatAmount: totalVatAmountValue,
+            vatReverseCharge: vatReverseCharge,
           user: { connect: { id: userId } },
-          items: {
+            items: {
             create: invoiceItemsData.map(item => ({
               inventoryItemId: item.inventoryItemId,
               description: item.description,
@@ -756,8 +756,8 @@ export const invoiceRouter = createTRPCRouter({
             return {
               where: { id: item.id! },
               data: {
-                inventoryItemId: item.itemId,
-                description: item.description,
+            inventoryItemId: item.itemId,
+            description: item.description,
                 quantity,
                 unitPrice,
                 vatRatePercent: new Decimal(item.vatRatePercent),

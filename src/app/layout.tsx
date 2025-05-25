@@ -7,11 +7,12 @@ import ClientProvider from "@/components/ClientProvider";
 import { ThemeAwareToast } from "@/components/theme/ThemeAwareToast";
 
 export const metadata: Metadata = {
-  title: "Simplified ERP",
-  description: "A modern ERP system for small to medium-sized businesses",
-  icons: {
-    icon: "/favicon.ico",
-  },
+  title: "Simplified ERP - Base Test",
+  description: "Minimal root layout test",
+  // Optionally, keep icons if not suspect, or remove for extreme minimality
+  // icons: {
+  //   icon: "/favicon.ico",
+  // },
 };
 
 export default function RootLayout({
@@ -22,12 +23,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ClientProvider>
-          <TRPCReactProvider>
-            {children}
+        <TRPCReactProvider>
+          <ClientProvider>
             <ThemeAwareToast />
-          </TRPCReactProvider>
-        </ClientProvider>
+            {children}
+          </ClientProvider>
+        </TRPCReactProvider>
       </body>
     </html>
   );

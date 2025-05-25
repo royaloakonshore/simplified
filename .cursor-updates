@@ -86,4 +86,4 @@
 - Added `getOrders` and `getInvoices` tRPC procedures to `customerRouter.ts` for customer history.
 - Resolved TypeScript build errors in `production/page.tsx` (BOM interface) and `InventoryItemForm.tsx` (default SKU value).
 - Project builds successfully.
-- Fix order status modal dropdown, dark mode background on order details and build errors.
+- Wrapped application with TRPCReactProvider in `src/app/layout.tsx` to fix tRPC context error.
