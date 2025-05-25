@@ -17,74 +17,6 @@ This ERP system utilizes a modern web architecture based on Next.js (App Router)
 - **Database Hosting:** PostgreSQL (e.g., via Supabase, Neon, local)
 - **Authentication:** NextAuth.js (with Prisma Adapter)
 
-## 3. Directory Structure (`/src`)
-
-```
-erp-system/
-├── .env.local             # Environment variables (Supabase keys, etc.) - MANAGED BY USER
-├── .eslintrc.json         # ESLint configuration
-├── .gitignore
-├── .prettierrc.json       # Prettier configuration
-├── components.json        # Shadcn UI configuration
-├── next.config.mjs        # Next.js configuration
-├── package.json
-├── postcss.config.js      # PostCSS configuration (for Tailwind)
-├── public/
-│   └── ...                # Static assets
-├── README.md
-├── src/
-│   ├── app/               # Next.js App Router
-│   │   ├── (auth)/        # Authentication routes (login, signup)
-│   │   │   └── ...
-│   │   ├── (main)/        # Main application layout (requires auth)
-│   │   │   ├── layout.tsx # Main authenticated layout
-│   │   │   ├── dashboard/ # Main dashboard page
-│   │   │   │   └── page.tsx
-│   │   │   ├── customers/ # Customer management feature
-│   │   │   │   └── ...
-│   │   │   ├── inventory/ # Inventory management feature
-│   │   │   │   └── ...
-│   │   │   ├── orders/    # Order management feature
-│   │   │   │   └── ...
-│   │   │   └── invoices/  # Invoicing feature
-│   │   │       └── ...
-│   │   ├── api/           # API routes (if needed beyond Server Actions)
-│   │   │   └── ...
-│   │   ├── favicon.ico
-│   │   ├── globals.css    # Global styles (Tailwind base, Shadcn theme)
-│   │   ├── layout.tsx     # Root layout
-│   │   └── page.tsx       # Root (landing/public) page
-│   ├── components/        # Reusable UI components
-│   │   ├── auth/          # Auth-specific components (forms)
-│   │   ├── core/          # Core application components (layout, nav)
-│   │   ├── forms/         # General form components/wrappers
-│   │   ├── icons/         # Icon components
-│   │   └── ui/            # Shadcn UI components (auto-generated/customized)
-│   ├── lib/               # Core logic, utilities, types, services
-│   │   ├── api/           # tRPC API definitions
-│   │   │   ├── root.ts      # Root tRPC router
-│   │   │   ├── trpc.ts      # tRPC server setup
-│   │   │   └── routers/     # Feature-specific routers (e.g., customer.ts)
-│   │   ├── constants.ts   # Application-wide constants
-│   │   ├── db.ts          # Prisma client instance
-│   │   ├── errors.ts      # Custom error types/handling
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── schemas/       # Zod validation schemas (organized by feature)
-│   │   ├── services/      # Business logic services (e.g., Finvoice)
-│   │   │   └── finvoice.service.ts
-│   │   ├── store/         # Zustand global state store (if needed)
-│   │   ├── trpc/          # tRPC client setup
-│   │   │   └── react.tsx    # React Query provider for tRPC
-│   │   ├── types/         # Core TypeScript types and interfaces (branded types)
-│   │   └── utils.ts       # Utility functions
-│   ├── middleware.ts    # Next.js middleware (NextAuth session handling)
-│   └── ...              # Other src files as needed
-├── tailwind.config.ts     # Tailwind CSS configuration
-├── tsconfig.json          # TypeScript configuration
-└── tests/                 # Vitest configuration and test setup (Optional top-level)
-    └── ...
-```
-
 ## 4. Component Strategy
 
 - **Server Components First:** Default to Server Components for data fetching and rendering static or server-rendered content.
@@ -108,13 +40,15 @@ erp-system/
 ## 7. Database Design
 
 - See `prisma/schema.prisma` for the database schema.
-- Key additions based on recent requirements:
-    - `Order` model: Added `orderType` enum (`quotation`, `work_order`). Added `discountAmount`, `discountPercentage` to `OrderItem`.
-    - `Invoice` model: Added `vatReverseCharge` boolean. Added `discountAmount`, `discountPercentage` to `InvoiceItem`.
-    - `InventoryItem` model: Added `showInPricelist` boolean. **[PENDING: Clarification and schema update for quantity/type distinction - e.g., explicit `quantity` field, `itemType` enum (RAW_MATERIAL, MANUFACTURED_GOOD)]**
-    - **New Models:** `BillOfMaterial` and `BillOfMaterialItem` to manage BOM structures. **[PENDING: Schema definition and full implementation]**
+- Key changes and clarifications:
+    - `Order` model: `orderType` enum (`quotation`, `work_order`). `OrderItem` has `discountAmount`, `discountPercentage`.
+    - `Invoice` model: `vatReverseCharge` boolean. `InvoiceItem` has `discountAmount`, `discountPercentage`.
+    - `InventoryItem` model: Uses `itemType: ItemType` (enum `RAW_MATERIAL`, `MANUFACTURED_GOOD`) to differentiate. The old `materialType` field is removed. `quantityOnHand` is a calculated field based on `InventoryTransaction`s. Has `showInPricelist` boolean.
+    - `BillOfMaterial` and `BillOfMaterialItem` models manage BOM structures. `BillOfMaterial.totalCalculatedCost` is calculated on save/update based on component VAT-exclusive costs and VAT-exclusive `manualLaborCost`. Backend tRPC procedures for CRUD operations are implemented; UI is pending.
+    - `InvoiceItem` model: Includes `calculatedUnitCost`, `calculatedUnitProfit`, `calculatedLineProfit` (all optional, VAT-exclusive Decimals) for profitability tracking.
+    - `Invoice` model: `totalAmount` is stored as the sum of NET line totals (VAT-exclusive). `totalVatAmount` stores the sum of VAT calculated from these net line totals. Customer payable total is `totalAmount + totalVatAmount`.
 - Use Prisma Migrate (`npx prisma migrate dev`) for schema changes.
-- **Stock Alerts:** Negative stock levels are permitted but should trigger application-level alerts (mechanism TBD - likely involves querying aggregated transactions).
+- **Stock Alerts:** Negative stock levels are permitted (negative `InventoryTransaction`s are created). Application-level alerts are generated based on calculated `quantityOnHand` falling below thresholds or going negative. Display of these alerts is pending.
 
 ## 8. Architecture Layout & Project Structure
 
@@ -218,9 +152,9 @@ erp-system/
 - **Discounts:** Implemented in `OrderForm`/`InvoiceForm` line items. Calculation logic ensures amount/percentage consistency. Backend calculates totals *after* discounts.
 - **VAT Reverse Charge:** Checkbox in `InvoiceForm`. If true, backend (`invoice.create`/`update`) forces line item VAT to 0 and flags the invoice. Finvoice service (`finvoice.service.ts`) needs specific XML mapping for this flag.
 - **Pricelist:** Inventory list view includes filtering logic based on `materialType` and `showInPricelist`. Separate PDF export function uses dedicated tRPC query.
-- **BOMs:** Managed via new `/boms` route/components and `bom.ts` tRPC router. Cost calculation performed server-side. **[PENDING: Full implementation of CRUD, linking, and cost calculation]**
-- **Inventory Deduction:** Logic within `order.updateStatus` tRPC mutation triggers inventory transactions when status becomes `in_production`. **[CONFIRMED: Basic logic in place for BOM components, needs verification for negative stock handling alerts]**
-- **Stock Alerts:** Negative stock is handled by creating standard inventory transactions. A separate mechanism (e.g., dashboard query, dedicated alert table/view) is needed to identify and display items with negative calculated stock or below thresholds. **[Alert display PENDING]**
+- **BOMs:** Managed via `bom.ts` tRPC router (CRUD operations exist). `BillOfMaterial.totalCalculatedCost` calculation (VAT-exclusive components + VAT-exclusive labor) happens server-side on upsert. **[UI for creating/editing BOMs on the frontend is PENDING]**
+- **Inventory Deduction:** Logic within `order.updateStatus` tRPC mutation (when status becomes `in_production` for `WORK_ORDER` type) creates negative `InventoryTransaction`s for BOM components. This correctly reduces `quantityOnHand` for raw materials. Negative stock is allowed.
+- **Stock Alerts:** Negative stock is handled by creating standard inventory transactions. A separate mechanism (e.g., dashboard query, dedicated alert table/view) is needed to identify and display items with negative calculated stock or below thresholds. **[Alert display UI PENDING]**
 - **PDF Generation:** Planned strategy is server-side generation (e.g., Puppeteer via tRPC/Inngest) for Invoices and Pricelists. **[PENDING: Implementation for Orders, Invoices, Pricelists. Order PDF generation is a specific upcoming task.]**
 - **Finvoice Seller Details Integration:** **[PENDING: Full integration of Company Settings from the database into the Finvoice generation service, replacing placeholder/env var data in `finvoice.service.ts` and related actions/tRPC calls.]**
 
@@ -233,20 +167,21 @@ The full schema is maintained in `prisma/schema.prisma`. Key models and recent c
     *   Stores VAT-exclusive `costPrice` and `salesPrice`.
     *   Links to `BillOfMaterial` (if `itemType` is `MANUFACTURED_GOOD`) via `bom`.
     *   Links to `BillOfMaterialItem` (if used as a component) via `componentInBOMs`.
-    *   No longer directly related to `ProductionOrder` models.
+    *   `quantityOnHand` is a calculated field, derived from summing `InventoryTransaction` quantities.
 *   **`BillOfMaterial`**: Defines components for a manufactured `InventoryItem`.
     *   `manualLaborCost` is VAT-exclusive.
-    *   `totalCalculatedCost` (VAT-exclusive) is calculated and stored based on component costs and labor. This calculation occurs on BOM save/update.
+    *   `totalCalculatedCost` (VAT-exclusive) is calculated and stored based on component VAT-exclusive `costPrice`s and `manualLaborCost`. This calculation occurs on BOM save/update via the `bomRouter`.
 *   **`BillOfMaterialItem`**: Links a component `InventoryItem` and its quantity to a `BillOfMaterial`.
 *   **`InvoiceItem`**: Represents a line item on an invoice.
-    *   `unitPrice` is stored VAT-exclusive.
-    *   New fields for profitability tracking (all VAT-exclusive and optional):
-        *   `calculatedUnitCost`: The unit cost of the item at the time of invoicing.
-        *   `calculatedUnitProfit`: `unitPrice` - `calculatedUnitCost`.
-        *   `calculatedLineProfit`: `calculatedUnitProfit` * `quantity` (after discounts).
+    *   `unitPrice` is stored VAT-exclusive (this is the price before line item discount).
+    *   The actual selling price per unit (after discount) is used for profit calculation.
+    *   New fields for profitability tracking (all VAT-exclusive and optional `Decimal`s):
+        *   `calculatedUnitCost`: The unit cost of the item at the time of invoicing (from `InventoryItem.costPrice` or `BillOfMaterial.totalCalculatedCost`).
+        *   `calculatedUnitProfit`: (Selling Price Per Unit After Discount) - `calculatedUnitCost`.
+        *   `calculatedLineProfit`: `calculatedUnitProfit` * `quantity`.
 *   **`Invoice`**:
-    *   `totalAmount` stores the **VAT-exclusive sum** of all invoice line net totals.
-    *   `totalVatAmount` stores the sum of all invoice line VAT amounts.
+    *   `totalAmount` stores the **VAT-exclusive sum** of all invoice line net totals (i.e., after line discounts, before VAT).
+    *   `totalVatAmount` stores the sum of all invoice line VAT amounts (calculated from net line totals).
     *   The customer-payable gross total is `totalAmount + totalVatAmount`.
 *   **Removed Models**: `MaterialType` enum, `ProductionOrder`, `ProductionOrderInput`, `ProductionOrderOutput` have been removed to simplify the production flow, which is now driven by `Order` status.
 *   **Multi-tenancy**: `companyId` (currently optional, target non-nullable) links most core entities to a `Company`.

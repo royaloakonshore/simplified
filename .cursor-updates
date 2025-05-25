@@ -90,3 +90,5 @@
 - Removed specific dark mode background from OrderDetail.tsx.
 - Increased z-index of SelectContent in select.tsx to potentially fix dropdown visibility in modals.
 - Verified that `Invoice.totalAmount` is correctly stored as NET amount in `invoiceRouter.ts` (create, createFromOrder, update mutations). No changes were needed.
+- Updated documentation (PRD, Architecture, User Flows, Implementation Plan) with recent progress and next steps.
+- Generated AI handover prompt for a fresh chat session.
