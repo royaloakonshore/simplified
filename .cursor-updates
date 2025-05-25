@@ -87,3 +87,5 @@
 - Resolved TypeScript build errors in `production/page.tsx` (BOM interface) and `InventoryItemForm.tsx` (default SKU value).
 - Project builds successfully.
 - Wrapped application with TRPCReactProvider in `src/app/layout.tsx` to fix tRPC context error.
+- Removed specific dark mode background from OrderDetail.tsx.
+- Increased z-index of SelectContent in select.tsx to potentially fix dropdown visibility in modals.

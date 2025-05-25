@@ -136,7 +136,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-md shadow overflow-hidden">
+    <div className="bg-white rounded-md shadow overflow-hidden">
       {/* Order Header */}
       <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex flex-wrap justify-between items-center gap-4">
