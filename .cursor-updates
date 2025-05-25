@@ -89,3 +89,4 @@
 - Wrapped application with TRPCReactProvider in `src/app/layout.tsx` to fix tRPC context error.
 - Removed specific dark mode background from OrderDetail.tsx.
 - Increased z-index of SelectContent in select.tsx to potentially fix dropdown visibility in modals.
+- Verified that `Invoice.totalAmount` is correctly stored as NET amount in `invoiceRouter.ts` (create, createFromOrder, update mutations). No changes were needed.
