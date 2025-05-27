@@ -92,3 +92,5 @@
 - Verified that `Invoice.totalAmount` is correctly stored as NET amount in `invoiceRouter.ts` (create, createFromOrder, update mutations). No changes were needed.
 - Updated documentation (PRD, Architecture, User Flows, Implementation Plan) with recent progress and next steps.
 - Generated AI handover prompt for a fresh chat session.
+- Modified `invoiceRouter.createFromOrder` to use the actual `defaultVatRatePercent` from `InventoryItem` for each line item, instead of the placeholder `25.5`. Added a `TODO` for company-level VAT fallback.
+- Attempted to fix build errors in `InvoiceListContent.tsx` (related to `keepPreviousData` and Prisma type imports) and `EditInventoryItemPage.tsx` (related to `isPending` vs `isLoading`). Build is currently failing due to new errors introduced during these fixes and persistent issues in `InvoiceListContent.tsx` and `httpBatchStreamLink` import in `src/lib/trpc/react.tsx`.

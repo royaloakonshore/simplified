@@ -10,6 +10,11 @@ import { InventoryItemForm } from '@/components/inventory/InventoryItemForm';
 import { toast } from 'react-toastify';
 import { type InventoryItemFormValues } from '@/lib/schemas/inventory.schema';
 import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { AdjustStockFormValues, adjustStockFormSchema } from '@/lib/schemas/inventory.schema';
+import { InventoryTransactionType } from '@/lib/schemas/inventory.schema';
+import { utils } from '@/lib/trpc/react';
+import { FullPageLoader } from '@/components/FullPageLoader';
 
 export default function EditInventoryItemPage() {
   const router = useRouter();
@@ -25,48 +30,70 @@ export default function EditInventoryItemPage() {
     { enabled: !!itemId }
   );
 
+  const {
+    handleSubmit: handleSubmitAdjustStock,
+    control: controlAdjustStock,
+    reset: resetAdjustStock,
+    formState: { errors: errorsAdjustStock },
+  } = useForm<AdjustStockFormValues>({
+    resolver: zodResolver(adjustStockFormSchema),
+    defaultValues: {
+      quantity: 1,
+      type: InventoryTransactionType.ADJUSTMENT, // Default to ADJUSTMENT
+      notes: "",
+    },
+  });
+
   const updateMutation = api.inventory.update.useMutation({
-    onSuccess: () => {
-      toast.success('Inventory item updated successfully!');
-      router.push('/inventory');
-    },
-    onError: (err) => {
-      toast.error(`Failed to update item: ${err.message}`);
-    },
-  });
-
-  const adjustStockScanMutation = api.inventory.adjustStockFromScan.useMutation({
     onSuccess: (data) => {
-      toast.success(data.message || 'Stock adjusted successfully!');
-      refetchItem();
-      router.push('/scan');
+      toast.success(`Inventory item ${data.name} updated successfully.`);
+      utils.inventory.getById.invalidate({ id });
+      // refetch(); // already done by invalidate
+      if (currentFormMode === "edit") {
+        // Potentially switch back to view or stay in edit mode
+      }
     },
-    onError: (err) => {
-      toast.error(`Failed to adjust stock: ${err.message}`);
+    onError: (error) => {
+      toast.error(`Failed to update item: ${error.message}`);
     },
   });
 
-  const handleSubmit = (
-    values: InventoryItemFormValues, 
-    mode: 'full' | 'scan-edit', 
-    quantityAdjustment?: number
-  ) => {
-    if (!itemId) return;
+  const adjustStockScanMutation = api.inventory.adjustStockByScan.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Stock adjusted successfully for item via scan. New quantity: ${data.updatedItem.quantityOnHand}`);
+      utils.inventory.getById.invalidate({ id });
+      resetAdjustStock(); 
+    },
+    onError: (error) => {
+      toast.error(`Failed to adjust stock by scan: ${error.message}`);
+    },
+  });
 
-    if (mode === 'scan-edit') {
-      if (quantityAdjustment === undefined || quantityAdjustment === 0) {
-        if (quantityAdjustment === undefined && values.costPrice !== item?.costPrice?.toNumber()) {
-            updateMutation.mutate({ ...values, id: itemId, salesPrice: values.salesPrice ?? 0 });
-            return;
-        }
+  const onSubmitProp = (data: InventoryItemFormValues | AdjustStockFormValues) => {
+    if (currentFormMode === "edit" || currentFormMode === "create") {
+      // Type guard to ensure data is InventoryItemFormValues
+      if ('name' in data) { 
+        const updateData: UpdateInventoryItemInput = { 
+          id: item.id, 
+          ...data,
+          costPrice: data.costPrice !== null && data.costPrice !== undefined ? Number(data.costPrice) : null,
+          salesPrice: data.salesPrice !== null && data.salesPrice !== undefined ? Number(data.salesPrice) : null,
+          minStockLevel: data.minStockLevel !== null && data.minStockLevel !== undefined ? Number(data.minStockLevel) : null,
+          reorderLevel: data.reorderLevel !== null && data.reorderLevel !== undefined ? Number(data.reorderLevel) : null,
+        };
+        updateMutation.mutate(updateData);
       }
-      adjustStockScanMutation.mutate({
-        itemId,
-        quantityAdjustment: quantityAdjustment || 0,
-        newCostPrice: values.costPrice, 
-      });
-    } else {
-      updateMutation.mutate({ ...values, id: itemId, salesPrice: values.salesPrice ?? 0 });
+    } else if (currentFormMode === "adjustStock") {
+      // Type guard to ensure data is AdjustStockFormValues
+      if ('quantity' in data && 'type' in data) {
+        adjustStockScanMutation.mutate({ 
+          itemId: item.id, // item.id should be available from the page context
+          quantity: Number(data.quantity), 
+          type: data.type as InventoryTransactionType, 
+          notes: data.notes, 
+          qrIdentifier: item.qrIdentifier || undefined // Pass QR identifier if available
+        });
+      }
     }
   };
 
@@ -125,9 +152,9 @@ export default function EditInventoryItemPage() {
       <Card className="max-w-2xl mx-auto">
         <CardContent className="pt-6">
           <InventoryItemForm 
-            onSubmitProp={handleSubmit} 
+            onSubmitProp={onSubmitProp} 
             initialData={item}
-            isLoading={updateMutation.isPending || adjustStockScanMutation.isPending}
+            isLoading={updateMutation.isLoading || adjustStockScanMutation.isLoading}
             formMode={currentFormMode}
           />
         </CardContent>

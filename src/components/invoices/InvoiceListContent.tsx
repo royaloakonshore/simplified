@@ -21,9 +21,8 @@ import {
   // ColumnFilter, // Unused?
   VisibilityState
 } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal, Eye } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Eye, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { keepPreviousData } from '@tanstack/react-query'; // Import for placeholderData
 
 // Import base Prisma types and the runtime enum InvoiceStatus
 import { type Invoice, type Customer, InvoiceStatus } from '@prisma/client';
@@ -47,6 +46,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { DataTableSkeleton } from '@/components/common/DataTableSkeleton';
@@ -225,17 +225,17 @@ export default function InvoiceListContent({
   const sortDirection = sorting[0]?.desc ? 'desc' : 'asc';
 
   // 5. Fix tRPC query input types
-  const { data, isLoading, error, isFetching } = api.invoice.list.useQuery(
+  const { data, isLoading, error, refetch, isFetching } = api.invoice.list.useQuery(
     {
-      pagination: { page, perPage, sortBy, sortDirection },
-      filters: {
-        searchTerm: searchTerm || undefined,
-        status: status ?? undefined,
-      },
+      page: page,
+      perPage: perPage,
+      sortBy: sortBy,
+      sortDirection: sortDirection,
+      searchTerm: searchTerm,
+      status: status ?? undefined,
     },
     {
-      // Use placeholderData from tanstack/react-query
-      placeholderData: keepPreviousData,
+      placeholderData: (previousData) => previousData,
     }
   );
 
@@ -283,7 +283,11 @@ export default function InvoiceListContent({
     return <div className="text-red-600 p-4">Error loading invoices: {error.message}</div>;
   }
 
-  // Render table
+  const handleStatusFilterChange = (status: InvoiceStatus | null) => {
+    setStatus(status);
+    setPage(1); // Reset to first page on filter change
+  };
+
   return (
     <div className="space-y-4">
         <div className="flex items-center justify-between">

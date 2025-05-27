@@ -38,27 +38,25 @@ const getOrderBy = (
   }
 };
 
+// Define a combined input type for the list procedure
+const listInvoicesInputSchema = invoicePaginationSchema.merge(invoiceFilterSchema);
+
 export const invoiceRouter = createTRPCRouter({
   // Procedure to list invoices with pagination and filtering
   list: protectedProcedure
-    .input(
-      z.object({
-        pagination: invoicePaginationSchema,
-        filters: invoiceFilterSchema,
-      })
-    )
+    .input(listInvoicesInputSchema) // Use the combined schema
     .query(async ({ ctx, input }) => {
-      const { page, perPage, sortBy, sortDirection } = input.pagination;
-      const { searchTerm, status } = input.filters;
-      const skip = (page - 1) * perPage;
-      const orderBy = getOrderBy(sortBy, sortDirection);
+      // Destructure with types known from listInvoicesInputSchema
+      const { page, perPage, sortBy, sortDirection, customerId, status, fromDate, toDate, searchTerm } = input;
+      // const companyId = ctx.companyId; // TODO: Get companyId from context
 
-      // Construct where clause
       const whereClause: Prisma.InvoiceWhereInput = {
-        // TODO: Add companyId filter when multi-tenancy is implemented
-        // companyId: ctx.companyId,
-        status: status ?? undefined,
-        ...(searchTerm && {
+        // companyId, // Filter by company
+        ...(customerId && { customerId }),
+        ...(status && { status }),
+        ...(fromDate && { invoiceDate: { gte: fromDate } }), 
+        ...(toDate && { invoiceDate: { lte: toDate } }),     
+        ...(searchTerm && { 
           OR: [
             { invoiceNumber: { contains: searchTerm, mode: 'insensitive' } },
             { customer: { name: { contains: searchTerm, mode: 'insensitive' } } },
@@ -67,27 +65,29 @@ export const invoiceRouter = createTRPCRouter({
         }),
       };
 
+      const orderBy = getOrderBy(sortBy, sortDirection);
+
       const [invoices, totalCount] = await prisma.$transaction([
         prisma.invoice.findMany({
           where: whereClause,
           orderBy,
-          skip,
-          take: perPage,
+          skip: (page - 1) * perPage, 
+          take: perPage,             
           include: {
-            customer: { select: { id: true, name: true } }, // Include customer name
-            items: { select: { id: true } }, // Just count items for performance
+            customer: { select: { id: true, name: true } }, 
+            items: { select: { id: true } }, 
           },
         }),
         prisma.invoice.count({ where: whereClause }),
       ]);
 
       return {
-        data: invoices.map(inv => ({ ...inv, itemCount: inv.items.length })),
+        data: invoices,
         meta: {
           totalCount,
           page,
-          perPage,
-          totalPages: Math.ceil(totalCount / perPage),
+          perPage, 
+          totalPages: Math.ceil(totalCount / perPage), 
         },
       };
     }),
@@ -317,9 +317,9 @@ export const invoiceRouter = createTRPCRouter({
             id: { in: orderInventoryItemIds },
             // TODO: companyId: ctx.companyId, // Filter by company when available
           },
-          select: { id: true, costPrice: true },
+          select: { id: true, costPrice: true, defaultVatRatePercent: true }, // Added defaultVatRatePercent
         });
-        const inventoryItemCostMap = new Map(inventoryItemsFromDb.map(item => [item.id, item.costPrice]));
+        const inventoryItemDetailsMap = new Map(inventoryItemsFromDb.map(item => [item.id, { costPrice: item.costPrice, defaultVatRatePercent: item.defaultVatRatePercent }]));
 
         const invoiceItemsData = order.items.map(orderItem => {
           if (!orderItem.inventoryItem) {
@@ -347,15 +347,19 @@ export const invoiceRouter = createTRPCRouter({
           const lineTotal = lineNetUnitPrice.times(quantity); // NET line total after discount
           subTotal = subTotal.plus(lineTotal);
           
-          // Using a placeholder default VAT rate as InventoryItem.defaultVatRatePercent is not yet implemented
-          const vatRate = new Prisma.Decimal(25.5); 
+          const itemDetails = inventoryItemDetailsMap.get(orderItem.inventoryItemId);
+          // Fallback VAT rate logic: InventoryItem.defaultVatRatePercent -> Company Settings (TODO) -> Hardcoded default
+          // For now, company settings fallback is not implemented, will use hardcoded if item-specific is null.
+          const vatRate = itemDetails?.defaultVatRatePercent !== null && itemDetails?.defaultVatRatePercent !== undefined
+            ? new Prisma.Decimal(itemDetails.defaultVatRatePercent)
+            : new Prisma.Decimal(25.5); // TODO: Replace 25.5 with company setting fallback
 
           if (!vatReverseCharge) {
             const itemVat = lineTotal.times(vatRate.div(100));
             totalVatAmountValue = totalVatAmountValue.plus(itemVat);
           }
 
-          const calculatedUnitCost = inventoryItemCostMap.get(orderItem.inventoryItemId) ?? new Prisma.Decimal(0);
+          const calculatedUnitCost = itemDetails?.costPrice ?? new Prisma.Decimal(0);
           const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
           const calculatedLineProfit = calculatedUnitProfit.times(quantity);
 
@@ -789,13 +793,15 @@ export const invoiceRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
-      // Ensure related items are deleted first if cascade delete is not set up properly for InvoiceItems
-      // await prisma.invoiceItem.deleteMany({ where: { invoiceId: input.id } }); 
-      // This is usually handled by `onDelete: Cascade` in Prisma schema for the relation.
-      // Assuming InvoiceItem.invoice relation has onDelete: Cascade or similar handling.
-      
-      await prisma.invoice.delete({ where: { id: input.id } });
-      return { success: true };
+      // TODO: Add companyId check
+      // const companyId = ctx.companyId;
+      await prisma.invoice.delete({
+        where: { 
+          id: input.id,
+          // companyId: companyId 
+        },
+      });
+      return { success: true, id: input.id };
     }),
 
 }); 
