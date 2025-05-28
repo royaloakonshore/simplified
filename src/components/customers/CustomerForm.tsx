@@ -401,7 +401,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
         </Card>
 
         <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={createCustomer.isPending || updateCustomer.isPending}>
+            <Button type="submit" disabled={createCustomer.isLoading || updateCustomer.isLoading}>
             {initialData ? 'Update Customer' : 'Create Customer'}
             </Button>
         </div>

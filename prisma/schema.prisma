@@ -140,6 +140,7 @@ model InventoryItem {
   costPrice           Decimal            @default(0)
   salesPrice          Decimal            @default(0)
   quantityOnHand      Decimal            @default(0) // For raw materials or pre-built manufactured goods
+  defaultVatRatePercent Decimal?           @db.Decimal(5, 2) // Default VAT rate for this item
   showInPricelist     Boolean            @default(true)
   internalRemarks     String?
   supplierId          String?
@@ -358,6 +359,7 @@ model Settings {
   sellerIdentifier           String? // Renamed from ovtId, optional
   sellerIntermediatorAddress String? // Renamed from finvoiceIntermediator, optional
   bankName                   String? // Was String?, remains String? (optional)
+  defaultInvoicePaymentTermsDays Int?    // Added field for default payment terms
 
   // Fields to review/remove from old model if not in new schema:
   // phone                   String? // Not in settingsSchema, was optional

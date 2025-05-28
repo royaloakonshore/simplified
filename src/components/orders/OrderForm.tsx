@@ -379,7 +379,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             name={`items.${index}.quantity`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isLoading} className="text-right" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -391,7 +391,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             name={`items.${index}.unitPrice`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isLoading} className="text-right" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -400,7 +400,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                         <TableCell className="w-[120px]">
                           <FormField
                             control={updateForm.control}
-                            name={`items.${index}.discountPercent`} // Corrected from discountPercentage
+                            name={`items.${index}.discountPercent`}
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="sr-only">Discount %</FormLabel>
@@ -412,7 +412,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                     {...field} 
                                     value={field.value ?? ''}
                                     onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                    disabled={updateOrderMutation.isPending} 
+                                    disabled={updateOrderMutation.isLoading} 
                                     className="text-right" 
                                   />
                                 </FormControl>
@@ -436,7 +436,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                     {...field} 
                                     value={field.value ?? ''}
                                     onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                    disabled={updateOrderMutation.isPending} 
+                                    disabled={updateOrderMutation.isLoading} 
                                     className="text-right" 
                                   />
                                 </FormControl>
@@ -475,11 +475,11 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   type="button" 
                   variant="outline" 
                   onClick={() => handleCreateInvoice(order?.id)}
-                  disabled={!order || updateOrderMutation.isPending || createInvoiceMutation.isPending}
+                  disabled={!order || updateOrderMutation.isLoading || createInvoiceMutation.isLoading}
                 >
-                  {createInvoiceMutation.isPending ? "Creating Invoice..." : "Create Invoice"}
+                  {createInvoiceMutation.isLoading ? "Creating Invoice..." : "Create Invoice"}
                 </Button>
-                <Button type="submit" disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending}>{updateOrderMutation.isPending ? 'Saving...' : 'Save Changes'}</Button>
+                <Button type="submit" disabled={updateOrderMutation.isLoading || createInvoiceMutation.isLoading}>{updateOrderMutation.isLoading ? 'Saving...' : 'Save Changes'}</Button>
               </div>
             </CardFooter>
           </Card>
@@ -678,16 +678,14 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   )}
                 />
               </CardContent>
-              <CardFooter className="flex justify-between items-center">
-                <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(createForm))}</span>
-                <div className="flex space-x-2">
-                    <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2" disabled={createOrderMutation.isPending}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" disabled={createOrderMutation.isPending || (createForm.formState.isSubmitted && !createForm.formState.isValid)}>
-                        {createOrderMutation.isPending ? "Creating..." : "Create Order"}
-                    </Button>
-                </div>
+              <CardFooter className="flex justify-end space-x-2">
+                  <span className="text-lg font-semibold mr-auto">Total: {formatCurrency(calculateTotal(createForm))}</span>
+                  <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2" disabled={createOrderMutation.isLoading}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createOrderMutation.isLoading || (createForm.formState.isSubmitted && !createForm.formState.isValid)}>
+                    {createOrderMutation.isLoading ? "Creating..." : "Create Order"}
+                  </Button>
               </CardFooter>
             </Card>
           </form>

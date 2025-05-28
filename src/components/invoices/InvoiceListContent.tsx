@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-// import { useSearchParams, useRouter, usePathname } from 'next/navigation'; // Keep removed if not using URL state
+import { useState, useMemo } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/trpc/react';
 import {
   ColumnDef,
@@ -14,21 +14,20 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   PaginationState,
-  // Column, // Unused?
-  // Row, // Unused?
-  // CellContext, // Infer from ColumnDef
-  // HeaderContext, // Infer from ColumnDef
-  // ColumnFilter, // Unused?
-  VisibilityState
+  VisibilityState,
+  type Column,
+  type Row,
 } from '@tanstack/react-table';
 import { ArrowUpDown, MoreHorizontal, Eye, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from '@/components/ui/input';
 
 // Import base Prisma types and the runtime enum InvoiceStatus
-import { type Invoice, type Customer, InvoiceStatus } from '@prisma/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-// Assuming these common components exist and handle their own imports/props correctly
+import { type Invoice, type Customer, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
+
 import { DataTablePagination } from '@/components/common/DataTablePagination';
 import { DataTableFacetedFilter } from '@/components/common/DataTableFacetedFilter';
 import {
@@ -48,143 +47,174 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { DataTableSkeleton } from '@/components/common/DataTableSkeleton';
-import { formatCurrency, formatDate } from '@/lib/utils'; // Assuming utils exist
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Skeleton } from "@/components/ui/skeleton";
 import { type Decimal } from "@prisma/client/runtime/library";
 
+// Helper component for table headers
+function DataTableColumnHeader<TData, TValue>({
+  column,
+  title,
+}: {
+  column: Column<TData, TValue>;
+  title: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    >
+      {title}
+      <ArrowUpDown className="ml-2 h-4 w-4" />
+    </Button>
+  );
+}
+
+// Helper component for row actions
+// Forward declaration for InvoiceTableRowData
+declare global {
+  interface InvoiceTableRowData extends Invoice {
+    customer: Pick<Customer, 'id' | 'name'>;
+    items: { id: string }[];
+    totalAmount: Decimal;
+    totalVatAmount: Decimal;
+  }
+}
+
+function DataTableRowActions<TData extends { id: string }>({
+  row,
+}: {
+  row: Row<TData>;
+}) {
+  const invoice = row.original as unknown as InvoiceTableRowData;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href={`/invoices/${invoice.id}`}>View Details</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => console.log("Delete invoice", invoice.id)}
+          className="text-red-600"
+        >
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Helper component for status badge
+function InvoiceStatusBadge({ status }: { status: PrismaInvoiceStatus }) {
+  let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+  switch (status) {
+    case PrismaInvoiceStatus.paid:
+      variant = "default";
+      break;
+    case PrismaInvoiceStatus.sent:
+      variant = "default";
+      break;
+    case PrismaInvoiceStatus.overdue:
+    case PrismaInvoiceStatus.cancelled:
+      variant = "destructive";
+      break;
+    case PrismaInvoiceStatus.draft:
+    case PrismaInvoiceStatus.credited:
+      variant = "secondary";
+      break;
+    default:
+      variant = "outline";
+  }
+  return <Badge variant={variant} className="capitalize">{status.replace("_", " ")}</Badge>;
+}
+
+
 // 1. Define the precise data type for the table rows based on tRPC output
-// Includes all Invoice fields + specific includes + mapped itemCount
-type InvoiceTableRowData = Invoice & {
-  itemCount: number;
-  customer: { id: string; name: string } | null; 
-  items: { id: string }[]; // Included for itemCount calculation, might be needed elsewhere
+export type InvoiceTableRowData = Invoice & {
+  customer: Pick<Customer, 'id' | 'name'>;
+  items: { id: string }[]; // Assuming we only need item count or similar from items array for the list view
+  totalAmount: Decimal;
+  totalVatAmount: Decimal;
+  // status: PrismaInvoiceStatus; // Already part of Invoice type
 };
 
 // 2. Define columns using the correct row data type
 const columns: ColumnDef<InvoiceTableRowData>[] = [
   {
-    accessorKey: "invoiceNumber",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Invoice #
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
     ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "invoiceNumber",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Invoice #" />,
+    cell: ({ row }) => <Link href={`/invoices/${row.original.id}`} className="hover:underline">{row.getValue("invoiceNumber")}</Link>
   },
   {
     accessorKey: "customer.name",
-    header: "Customer",
-    cell: ({ row }) => row.original.customer?.name ?? 'N/A',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Customer" />,
+    cell: ({ row }) => row.original.customer.name
   },
   {
     accessorKey: "invoiceDate",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Invoice Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => formatDate(row.getValue("invoiceDate") as Date),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
+    cell: ({ row }) => formatDate(row.getValue("invoiceDate") as Date)
   },
   {
     accessorKey: "dueDate",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Due Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => formatDate(row.getValue("dueDate") as Date),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Due Date" />,
+    cell: ({ row }) => formatDate(row.getValue("dueDate") as Date)
   },
   {
     accessorKey: "totalAmount",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="text-right w-full justify-end"
-      >
-        Amount
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const amountRaw = row.getValue("totalAmount");
-      const amount = typeof amountRaw === 'object' && amountRaw !== null && 'toNumber' in amountRaw 
-                     ? (amountRaw as Decimal).toNumber() 
-                     : Number(amountRaw) || 0;
-      const formatted = formatCurrency(amount);
-      return <div className="text-right">{formatted}</div>;
-    },
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Net Amount" />,
+    cell: ({ row }) => formatCurrency(row.getValue("totalAmount") as Decimal)
+  },
+  {
+    accessorKey: "totalVatAmount",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="VAT" />,
+    cell: ({ row }) => formatCurrency(row.getValue("totalVatAmount") as Decimal)
   },
   {
     accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-        const status = row.getValue("status") as InvoiceStatus;
-        // Correct Badge variant - use secondary for draft
-        let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-        if (status === InvoiceStatus.paid) variant = "default";
-        if (status === InvoiceStatus.overdue) variant = "destructive";
-        if (status === InvoiceStatus.sent) variant = "outline";
-
-        return <Badge variant={variant} className="capitalize">{status.toLowerCase().replace('_', ' ')}</Badge>;
-    },
-    },
-  {
-    accessorKey: "itemCount", // Display itemCount
-    header: "Items",
-    cell: ({ row }) => <div className="text-center">{row.original.itemCount}</div>,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+    cell: ({ row }) => <InvoiceStatusBadge status={row.getValue("status") as PrismaInvoiceStatus} />,
+    filterFn: (row, id, value) => value.includes(row.getValue(id)),
   },
   {
     id: "actions",
-    cell: ({ row }) => {
-      const invoice = row.original;
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(invoice.invoiceNumber)}
-            >
-              Copy Invoice #
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <Link href={`/invoices/${invoice.id}`} passHref>
-              <DropdownMenuItem>View Details</DropdownMenuItem>
-            </Link>
-            {invoice.customer?.id && (
-               <Link href={`/customers/${invoice.customer.id}`} passHref>
-                 <DropdownMenuItem>View Customer</DropdownMenuItem>
-               </Link>
-            )}
-            {/* Add other actions like Edit, Credit, Delete later */}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
+    cell: ({ row }) => <DataTableRowActions row={row} />,
   },
 ];
 
 // 4. Correctly type statusOptions for DataTableFacetedFilter
-const statusOptions: { label: string; value: InvoiceStatus }[] = Object.values(InvoiceStatus).map(status => ({
+const statusOptions: { label: string; value: PrismaInvoiceStatus }[] = Object.values(PrismaInvoiceStatus).map(status => ({
     value: status,
     label: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace('_', ' '),
 }));
@@ -194,7 +224,7 @@ interface InvoiceListContentProps {
   initialPage?: number;
   initialPerPage?: number;
   initialSearchTerm?: string;
-  initialStatus?: InvoiceStatus | null;
+  initialStatus?: PrismaInvoiceStatus | null;
   initialSortBy?: string;
   initialSortDirection?: 'asc' | 'desc';
 }
@@ -210,7 +240,7 @@ export default function InvoiceListContent({
   const [page, setPage] = useState(initialPage);
   const [perPage, setPerPage] = useState(initialPerPage);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
-  const [status, setStatus] = useState<InvoiceStatus | null>(initialStatus);
+  const [status, setStatus] = useState<PrismaInvoiceStatus | null>(initialStatus);
   const [sorting, setSorting] = useState<SortingState>([
     { id: initialSortBy, desc: initialSortDirection === 'desc' },
   ]);
@@ -224,19 +254,30 @@ export default function InvoiceListContent({
   const sortBy = sorting[0]?.id;
   const sortDirection = sorting[0]?.desc ? 'desc' : 'asc';
 
-  // 5. Fix tRPC query input types
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+
+  // Debounce search term
+  useMemo(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  const queryInput = useMemo(() => ({
+    page,
+    limit: perPage,
+    searchTerm: debouncedSearchTerm,
+    status: status ?? undefined,
+    // Add other filters as needed, e.g., date ranges
+  }), [page, perPage, debouncedSearchTerm, status]);
+
   const { data, isLoading, error, refetch, isFetching } = api.invoice.list.useQuery(
-    {
-      page: page,
-      perPage: perPage,
-      sortBy: sortBy,
-      sortDirection: sortDirection,
-      searchTerm: searchTerm,
-      status: status ?? undefined,
-    },
-    {
-      placeholderData: (previousData) => previousData,
-    }
+    queryInput
   );
 
   // 6. Derive pagination state directly from component state (no parseInt needed)
@@ -283,10 +324,15 @@ export default function InvoiceListContent({
     return <div className="text-red-600 p-4">Error loading invoices: {error.message}</div>;
   }
 
-  const handleStatusFilterChange = (status: InvoiceStatus | null) => {
+
+  const handleStatusFilterChange = (status: PrismaInvoiceStatus | null) => {
     setStatus(status);
     setPage(1); // Reset to first page on filter change
   };
+
+  const selectedOriginalInvoiceIds = useMemo(() => {
+    return table.getSelectedRowModel().flatRows.map(row => row.original.id);
+  }, [table]);
 
   return (
     <div className="space-y-4">
@@ -294,7 +340,12 @@ export default function InvoiceListContent({
             <Input
                 placeholder="Search invoices..."
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                const currentParams = new URLSearchParams(searchParams.toString());
+                currentParams.set('search', event.target.value);
+                currentParams.set('page', '1'); // Reset to page 1 on search
+                router.push(`${pathname}?${currentParams.toString()}`);
+              }}
                 className="max-w-sm"
             />
             <div className="flex items-center space-x-2">

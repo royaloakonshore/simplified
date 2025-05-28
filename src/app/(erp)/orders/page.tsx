@@ -286,27 +286,22 @@ function OrderListContent() {
           <div className="flex items-center space-x-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
+                <Button variant="outline" disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading}>
                   Actions <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Bulk Actions ({selectedOrderIds.length} selected)</DropdownMenuLabel>
                 <DropdownMenuItem 
-                  onClick={() => openConfirmationModal('sendToProduction')} 
-                  disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}
+                  disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isLoading}
+                  onClick={() => openConfirmationModal('delete')}
                 >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send to Production
+                  {deleteOrdersMutation.isLoading ? "Deleting..." : "Delete Selected"}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  onClick={() => openConfirmationModal('delete')} 
-                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-700/20"
-                  disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}
+                  disabled={selectedOrderIds.length === 0 || sendToProductionMutation.isLoading}
+                  onClick={() => openConfirmationModal('sendToProduction')}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Selected
+                  {sendToProductionMutation.isLoading ? "Sending..." : "Send to Production"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -328,9 +323,9 @@ function OrderListContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAction} disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
-              {(deleteOrdersMutation.isPending || sendToProductionMutation.isPending) ? "Processing..." : "Continue"}
+            <AlertDialogCancel disabled={deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction} disabled={deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading}>
+              {(deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading) ? "Processing..." : "Continue"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

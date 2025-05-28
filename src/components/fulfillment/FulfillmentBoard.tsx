@@ -103,11 +103,11 @@ export default function FulfillmentBoard({
       {nextStatus && (
         <Button
           onClick={() => handleUpdateStatus(order.id, nextStatus)}
-          disabled={updateStatusMutation.isPending && updateStatusMutation.variables?.id === order.id}
+          disabled={updateStatusMutation.isLoading && updateStatusMutation.variables?.id === order.id}
           className="w-full"
           size="sm"
         >
-          {updateStatusMutation.isPending && updateStatusMutation.variables?.id === order.id ? 'Updating...' :
+          {updateStatusMutation.isLoading && updateStatusMutation.variables?.id === order.id ? 'Updating...' :
            (nextStatus === OrderStatus.in_production ? 'Start Production' :
             nextStatus === OrderStatus.shipped ? 'Mark as Shipped' :
             nextStatus === OrderStatus.cancelled ? 'Cancel Order' : 'Update Status')

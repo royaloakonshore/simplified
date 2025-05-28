@@ -26,6 +26,12 @@ export const InvoiceItemSchema = baseInvoiceItemSchema.extend({
   // invoiceId: z.string().cuid().optional(), // Will be set by the backend
 });
 
+// Schema for an invoice item when creating an invoice.
+export const CreateInvoiceItemSchema = baseInvoiceItemSchema;
+
+// Schema for an invoice item when updating an invoice (includes optional ID).
+export const UpdateInvoiceItemSchema = InvoiceItemSchema;
+
 // Schema for creating a new invoice (manual or from order)
 export const CreateInvoiceSchema = z.object({
   customerId: z.string().cuid({ message: 'Valid Customer ID is required' }),

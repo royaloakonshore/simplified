@@ -8,22 +8,23 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/trpc/react';
 import { InventoryItemForm } from '@/components/inventory/InventoryItemForm';
 import { toast } from 'react-toastify';
-import { type InventoryItemFormValues } from '@/lib/schemas/inventory.schema';
+import { type InventoryItemFormValues, type UpdateInventoryItemInput, adjustStockFormSchema, InventoryTransactionType, type AdjustStockFormValues } from '@/lib/schemas/inventory.schema';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { AdjustStockFormValues, adjustStockFormSchema } from '@/lib/schemas/inventory.schema';
-import { InventoryTransactionType } from '@/lib/schemas/inventory.schema';
-import { utils } from '@/lib/trpc/react';
-import { FullPageLoader } from '@/components/FullPageLoader';
+import { useForm, type Resolver } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { TRPCClientErrorLike } from '@trpc/react-query';
+import type { InventoryItem } from '@prisma/client';
+import type { AppRouter } from "@/lib/api/root";
 
 export default function EditInventoryItemPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const itemId = params.id as string;
+  const utils = api.useUtils();
 
   const formModeQuery = searchParams.get('mode');
-  const currentFormMode = (formModeQuery === 'scan-edit') ? 'scan-edit' : 'full';
+  const currentFormMode: 'scan-edit' | 'full' = (formModeQuery === 'scan-edit') ? 'scan-edit' : 'full';
 
   const { data: item, isLoading, error, refetch: refetchItem } = api.inventory.getById.useQuery(
     { id: itemId },
@@ -36,62 +37,53 @@ export default function EditInventoryItemPage() {
     reset: resetAdjustStock,
     formState: { errors: errorsAdjustStock },
   } = useForm<AdjustStockFormValues>({
-    resolver: zodResolver(adjustStockFormSchema),
+    resolver: zodResolver(adjustStockFormSchema as z.Schema<AdjustStockFormValues>),
     defaultValues: {
-      quantity: 1,
-      type: InventoryTransactionType.ADJUSTMENT, // Default to ADJUSTMENT
-      notes: "",
+      itemId: itemId,
+      quantityChange: 1,
+      note: "",
     },
   });
 
   const updateMutation = api.inventory.update.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: InventoryItem) => {
       toast.success(`Inventory item ${data.name} updated successfully.`);
-      utils.inventory.getById.invalidate({ id });
-      // refetch(); // already done by invalidate
-      if (currentFormMode === "edit") {
-        // Potentially switch back to view or stay in edit mode
-      }
+      utils.inventory.getById.invalidate({ id: itemId });
     },
-    onError: (error) => {
+    onError: (error: TRPCClientErrorLike<AppRouter>) => {
       toast.error(`Failed to update item: ${error.message}`);
     },
   });
 
-  const adjustStockScanMutation = api.inventory.adjustStockByScan.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Stock adjusted successfully for item via scan. New quantity: ${data.updatedItem.quantityOnHand}`);
-      utils.inventory.getById.invalidate({ id });
+  const adjustStockScanMutation = api.inventory.adjustStockFromScan.useMutation({
+    onSuccess: (data: { success: boolean, message: string }) => {
+      toast.success(data.message);
+      utils.inventory.getById.invalidate({ id: itemId });
       resetAdjustStock(); 
     },
-    onError: (error) => {
+    onError: (error: TRPCClientErrorLike<AppRouter>) => {
       toast.error(`Failed to adjust stock by scan: ${error.message}`);
     },
   });
 
   const onSubmitProp = (data: InventoryItemFormValues | AdjustStockFormValues) => {
-    if (currentFormMode === "edit" || currentFormMode === "create") {
-      // Type guard to ensure data is InventoryItemFormValues
-      if ('name' in data) { 
+    if (currentFormMode === "full") {
+      if ('name' in data && item) {
         const updateData: UpdateInventoryItemInput = { 
           id: item.id, 
           ...data,
-          costPrice: data.costPrice !== null && data.costPrice !== undefined ? Number(data.costPrice) : null,
-          salesPrice: data.salesPrice !== null && data.salesPrice !== undefined ? Number(data.salesPrice) : null,
-          minStockLevel: data.minStockLevel !== null && data.minStockLevel !== undefined ? Number(data.minStockLevel) : null,
-          reorderLevel: data.reorderLevel !== null && data.reorderLevel !== undefined ? Number(data.reorderLevel) : null,
+          costPrice: data.costPrice !== null && data.costPrice !== undefined ? Number(data.costPrice) : 0,
+          salesPrice: data.salesPrice !== null && data.salesPrice !== undefined ? Number(data.salesPrice) : 0,
+          minimumStockLevel: data.minimumStockLevel !== null && data.minimumStockLevel !== undefined ? Number(data.minimumStockLevel) : 0,
+          reorderLevel: data.reorderLevel !== null && data.reorderLevel !== undefined ? Number(data.reorderLevel) : 0,
         };
         updateMutation.mutate(updateData);
       }
-    } else if (currentFormMode === "adjustStock") {
-      // Type guard to ensure data is AdjustStockFormValues
-      if ('quantity' in data && 'type' in data) {
+    } else if (currentFormMode === "scan-edit") {
+      if ('quantityChange' in data && item) {
         adjustStockScanMutation.mutate({ 
-          itemId: item.id, // item.id should be available from the page context
-          quantity: Number(data.quantity), 
-          type: data.type as InventoryTransactionType, 
-          notes: data.notes, 
-          qrIdentifier: item.qrIdentifier || undefined // Pass QR identifier if available
+          itemId: item.id, 
+          quantityAdjustment: Number(data.quantityChange),
         });
       }
     }

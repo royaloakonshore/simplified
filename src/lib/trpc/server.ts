@@ -19,4 +19,7 @@ const createContext = cache(async () => {
   });
 });
 
-export const api = createAppCaller(createContext);
+export const api = async () => {
+  const ctx = await createContext();
+  return createAppCaller(ctx);
+};

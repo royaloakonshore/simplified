@@ -18,6 +18,7 @@ export const settingsSchema = z.object({
   sellerIdentifier: z.string().optional().nullable(),
   sellerIntermediatorAddress: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
+  defaultInvoicePaymentTermsDays: z.coerce.number().int().min(0).optional().nullable(),
 });
 
 export type SettingsInput = z.infer<typeof settingsSchema>; 

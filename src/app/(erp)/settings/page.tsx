@@ -235,7 +235,7 @@ export default function SettingsPage() {
                  <Input
                     id="firstName"
                     {...profileForm.register('firstName')}
-                    disabled={updateProfileMutation.isPending}
+                    disabled={updateProfileMutation.isLoading}
                  />
                  {profileForm.formState.errors.firstName && (
                    <p className="text-sm text-destructive">{profileForm.formState.errors.firstName.message}</p>
@@ -246,7 +246,7 @@ export default function SettingsPage() {
                  <Input
                     id="name"
                     {...profileForm.register('name')}
-                    disabled={updateProfileMutation.isPending}
+                    disabled={updateProfileMutation.isLoading}
                  />
                  {profileForm.formState.errors.name && (
                    <p className="text-sm text-destructive">{profileForm.formState.errors.name.message}</p>
@@ -254,8 +254,8 @@ export default function SettingsPage() {
              </div>
           </CardContent>
           <CardFooter>
-             <Button type="submit" disabled={updateProfileMutation.isPending} className="ml-auto">
-                {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
+             <Button type="submit" disabled={updateProfileMutation.isLoading}>
+                {updateProfileMutation.isLoading ? 'Saving...' : 'Save Changes'}
              </Button>
           </CardFooter>
          </form>
@@ -276,7 +276,7 @@ export default function SettingsPage() {
                      id="currentPassword"
                      type="password"
                      {...passwordForm.register('currentPassword')}
-                     disabled={changePasswordMutation.isPending}
+                     disabled={changePasswordMutation.isLoading}
                   />
                   {passwordForm.formState.errors.currentPassword && (
                      <p className="text-sm text-destructive">{passwordForm.formState.errors.currentPassword.message}</p>
@@ -289,7 +289,7 @@ export default function SettingsPage() {
                     id="newPassword"
                     type="password"
                     {...passwordForm.register('newPassword')}
-                    disabled={changePasswordMutation.isPending}
+                    disabled={changePasswordMutation.isLoading}
                  />
                  {passwordForm.formState.errors.newPassword && (
                    <p className="text-sm text-destructive">{passwordForm.formState.errors.newPassword.message}</p>
@@ -301,7 +301,7 @@ export default function SettingsPage() {
                     id="confirmPassword"
                     type="password"
                     {...passwordForm.register('confirmPassword')}
-                    disabled={changePasswordMutation.isPending}
+                    disabled={changePasswordMutation.isLoading}
                  />
                  {passwordForm.formState.errors.confirmPassword && (
                    <p className="text-sm text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
@@ -309,8 +309,8 @@ export default function SettingsPage() {
              </div>
           </CardContent>
           <CardFooter>
-             <Button type="submit" disabled={changePasswordMutation.isPending} className="ml-auto">
-                {changePasswordMutation.isPending ? 'Saving...' : 'Change Password'}
+             <Button type="submit" disabled={changePasswordMutation.isLoading}>
+                {changePasswordMutation.isLoading ? "Changing..." : "Change Password"}
              </Button>
           </CardFooter>
          </form>
@@ -327,114 +327,102 @@ export default function SettingsPage() {
             {/* Company Name */}
             <div className="grid gap-2">
               <Label htmlFor="companyName">Company Name *</Label>
-              <Input id="companyName" {...settingsForm.register('companyName')} disabled={updateSettingsMutation.isPending} />
+              <Input id="companyName" {...settingsForm.register('companyName')} disabled={updateSettingsMutation.isLoading} />
               {settingsForm.formState.errors.companyName && <p className="text-sm text-destructive">{settingsForm.formState.errors.companyName.message}</p>}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* VAT ID (Y-tunnus) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="vatId">VAT ID / Y-tunnus *</Label>
-                <Input id="vatId" {...settingsForm.register('vatId')} disabled={updateSettingsMutation.isPending} />
+                <Label htmlFor="vatId">VAT ID *</Label>
+                <Input id="vatId" {...settingsForm.register('vatId')} disabled={updateSettingsMutation.isLoading} />
                 {settingsForm.formState.errors.vatId && <p className="text-sm text-destructive">{settingsForm.formState.errors.vatId.message}</p>}
               </div>
-              {/* Domicile */}
               <div className="grid gap-2">
-                <Label htmlFor="domicile">Domicile (Kotipaikka) *</Label>
-                <Input id="domicile" {...settingsForm.register('domicile')} disabled={updateSettingsMutation.isPending} />
+                <Label htmlFor="domicile">Domicile (Kotipaikka)</Label>
+                <Input id="domicile" {...settingsForm.register('domicile')} disabled={updateSettingsMutation.isLoading} />
                 {settingsForm.formState.errors.domicile && <p className="text-sm text-destructive">{settingsForm.formState.errors.domicile.message}</p>}
               </div>
             </div>
 
-            {/* Seller Identifier (OVT for Finvoice sender) */}
             <div className="grid gap-2">
-              <Label htmlFor="sellerIdentifier">Seller OVT Identifier (Verkkolaskuosoite)</Label>
-              <Input id="sellerIdentifier" {...settingsForm.register('sellerIdentifier')} placeholder="Optional: Your company's OVT for sending e-invoices" disabled={updateSettingsMutation.isPending} />
-              {settingsForm.formState.errors.sellerIdentifier && <p className="text-sm text-destructive">{settingsForm.formState.errors.sellerIdentifier.message}</p>}
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-4">
-                {/* Street Address */}
-                <div className="grid gap-2 md:col-span-2">
-                    <Label htmlFor="streetAddress">Street Address *</Label>
-                    <Input id="streetAddress" {...settingsForm.register('streetAddress')} disabled={updateSettingsMutation.isPending} />
-                    {settingsForm.formState.errors.streetAddress && <p className="text-sm text-destructive">{settingsForm.formState.errors.streetAddress.message}</p>}
-                </div>
-                {/* Postal Code */}
-                <div className="grid gap-2">
-                    <Label htmlFor="postalCode">Postal Code *</Label>
-                    <Input id="postalCode" {...settingsForm.register('postalCode')} disabled={updateSettingsMutation.isPending} />
-                    {settingsForm.formState.errors.postalCode && <p className="text-sm text-destructive">{settingsForm.formState.errors.postalCode.message}</p>}
-                </div>
+              <Label htmlFor="streetAddress">Street Address *</Label>
+              <Input id="streetAddress" {...settingsForm.register('streetAddress')} disabled={updateSettingsMutation.isLoading} />
+              {settingsForm.formState.errors.streetAddress && <p className="text-sm text-destructive">{settingsForm.formState.errors.streetAddress.message}</p>}
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4">
-              {/* City */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="postalCode">Postal Code *</Label>
+                <Input id="postalCode" {...settingsForm.register('postalCode')} disabled={updateSettingsMutation.isLoading} />
+                {settingsForm.formState.errors.postalCode && <p className="text-sm text-destructive">{settingsForm.formState.errors.postalCode.message}</p>}
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="city">City *</Label>
-                <Input id="city" {...settingsForm.register('city')} disabled={updateSettingsMutation.isPending} />
+                <Input id="city" {...settingsForm.register('city')} disabled={updateSettingsMutation.isLoading} />
                 {settingsForm.formState.errors.city && <p className="text-sm text-destructive">{settingsForm.formState.errors.city.message}</p>}
               </div>
-              {/* Country Code */}
-              <div className="grid gap-2">
-                <Label htmlFor="countryCode">Country Code (e.g., FI) *</Label>
-                <Input id="countryCode" {...settingsForm.register('countryCode')} disabled={updateSettingsMutation.isPending} />
-                {settingsForm.formState.errors.countryCode && <p className="text-sm text-destructive">{settingsForm.formState.errors.countryCode.message}</p>}
-              </div>
-              {/* Country Name */}
-              <div className="grid gap-2">
-                <Label htmlFor="countryName">Country Name (e.g., Finland) *</Label>
-                <Input id="countryName" {...settingsForm.register('countryName')} disabled={updateSettingsMutation.isPending} />
-                {settingsForm.formState.errors.countryName && <p className="text-sm text-destructive">{settingsForm.formState.errors.countryName.message}</p>}
-              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                    <Label htmlFor="countryCode">Country Code *</Label>
+                    <Input id="countryCode" {...settingsForm.register('countryCode')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.countryCode && <p className="text-sm text-destructive">{settingsForm.formState.errors.countryCode.message}</p>}
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="countryName">Country Name</Label>
+                    <Input id="countryName" {...settingsForm.register('countryName')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.countryName && <p className="text-sm text-destructive">{settingsForm.formState.errors.countryName.message}</p>}
+                </div> 
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="bankAccountIBAN">Bank Account IBAN *</Label>
+                    <Input id="bankAccountIBAN" {...settingsForm.register('bankAccountIBAN')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.bankAccountIBAN && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankAccountIBAN.message}</p>}
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="bankAccountBIC">Bank Account BIC *</Label>
+                    <Input id="bankAccountBIC" {...settingsForm.register('bankAccountBIC')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.bankAccountBIC && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankAccountBIC.message}</p>}
+                </div>
             </div>
             
-            {/* Website */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="bankName">Bank Name</Label>
+                    <Input id="bankName" {...settingsForm.register('bankName')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.bankName && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankName.message}</p>}
+                </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="website">Website URL</Label>
+                    <Input id="website" {...settingsForm.register('website')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.website && <p className="text-sm text-destructive">{settingsForm.formState.errors.website.message}</p>}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                    <Label htmlFor="sellerIdentifier">Seller Identifier (OVT)</Label>
+                    <Input id="sellerIdentifier" {...settingsForm.register('sellerIdentifier')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.sellerIdentifier && <p className="text-sm text-destructive">{settingsForm.formState.errors.sellerIdentifier.message}</p>}
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="sellerIntermediatorAddress">Seller Intermediator Address</Label>
+                    <Input id="sellerIntermediatorAddress" {...settingsForm.register('sellerIntermediatorAddress')} disabled={updateSettingsMutation.isLoading} />
+                    {settingsForm.formState.errors.sellerIntermediatorAddress && <p className="text-sm text-destructive">{settingsForm.formState.errors.sellerIntermediatorAddress.message}</p>}
+                </div>
+            </div>
             <div className="grid gap-2">
-              <Label htmlFor="website">Website</Label>
-              <Input id="website" {...settingsForm.register('website')} placeholder="Optional: https://company.com" disabled={updateSettingsMutation.isPending} />
-              {settingsForm.formState.errors.website && <p className="text-sm text-destructive">{settingsForm.formState.errors.website.message}</p>}
+                <Label htmlFor="defaultInvoicePaymentTermsDays">Default Invoice Payment Terms (Days)</Label>
+                <Input type="number" id="defaultInvoicePaymentTermsDays" {...settingsForm.register('defaultInvoicePaymentTermsDays', { valueAsNumber: true })} disabled={updateSettingsMutation.isLoading} />
+                {settingsForm.formState.errors.defaultInvoicePaymentTermsDays && <p className="text-sm text-destructive">{settingsForm.formState.errors.defaultInvoicePaymentTermsDays.message}</p>}
             </div>
-
-            <hr className="my-4" />
-            <h3 className="text-lg font-medium">Bank Details</h3>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* IBAN */}
-              <div className="grid gap-2">
-                <Label htmlFor="bankAccountIBAN">Bank Account IBAN *</Label>
-                <Input id="bankAccountIBAN" {...settingsForm.register('bankAccountIBAN')} disabled={updateSettingsMutation.isPending} />
-                {settingsForm.formState.errors.bankAccountIBAN && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankAccountIBAN.message}</p>}
-              </div>
-              {/* BIC */}
-              <div className="grid gap-2">
-                <Label htmlFor="bankAccountBIC">BIC *</Label>
-                <Input id="bankAccountBIC" {...settingsForm.register('bankAccountBIC')} disabled={updateSettingsMutation.isPending} />
-                {settingsForm.formState.errors.bankAccountBIC && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankAccountBIC.message}</p>}
-              </div>
-            </div>
-            {/* Bank Name */}
-            <div className="grid gap-2">
-              <Label htmlFor="bankName">Bank Name</Label>
-              <Input id="bankName" {...settingsForm.register('bankName')} placeholder="Optional: Name of the bank" disabled={updateSettingsMutation.isPending} />
-              {settingsForm.formState.errors.bankName && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankName.message}</p>}
-            </div>
-
-
-            <hr className="my-4" />
-            <h3 className="text-lg font-medium">Finvoice Operator (for sending e-invoices)</h3>
-            
-            {/* Seller Intermediator Address (OVT for Finvoice operator) */}
-            <div className="grid gap-2">
-              <Label htmlFor="sellerIntermediatorAddress">E-invoice Operator Address (Välittäjän OVT-tunnus)</Label>
-              <Input id="sellerIntermediatorAddress" {...settingsForm.register('sellerIntermediatorAddress')} placeholder="Optional: Your e-invoice operator's OVT" disabled={updateSettingsMutation.isPending} />
-              {settingsForm.formState.errors.sellerIntermediatorAddress && <p className="text-sm text-destructive">{settingsForm.formState.errors.sellerIntermediatorAddress.message}</p>}
-            </div>
-
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={updateSettingsMutation.isPending} className="ml-auto">
-              {updateSettingsMutation.isPending ? 'Saving Settings...' : 'Save Company Settings'}
+            <Button type="submit" className="ml-auto" disabled={updateSettingsMutation.isLoading}>
+              {updateSettingsMutation.isLoading ? "Saving Settings..." : "Save Settings"}
             </Button>
           </CardFooter>
         </form>

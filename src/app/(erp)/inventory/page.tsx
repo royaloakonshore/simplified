@@ -101,9 +101,9 @@ function InventoryListContent() {
         <h1 className="text-2xl font-bold">Inventory Items</h1>
         <div className="flex items-center space-x-2">
           {selectedOriginalItemIds.length > 0 && (
-            <Button onClick={handlePrintSelected} variant="outline" disabled={generatePdfMutation.isPending}>
+            <Button onClick={handlePrintSelected} variant="outline" disabled={generatePdfMutation.isLoading}>
               <PrinterIcon className="mr-2 h-4 w-4" />
-              {generatePdfMutation.isPending ? `Generating PDF (${selectedOriginalItemIds.length})...` : `Print QR Tags (${selectedOriginalItemIds.length})`}
+              {generatePdfMutation.isLoading ? `Generating PDF (${selectedOriginalItemIds.length})...` : `Print QR Tags (${selectedOriginalItemIds.length})`}
             </Button>
           )}
           <Button asChild>

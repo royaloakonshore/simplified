@@ -11,7 +11,7 @@ import { toast } from 'react-toastify';
 import { QRCodeSVG } from 'qrcode.react'; // Import QRCodeSVG
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, FileTextIcon, QrCodeIcon } from 'lucide-react'; // Added QrCodeIcon for potential use
+import { Terminal, FileTextIcon, QrCodeIcon, Loader2 } from 'lucide-react'; // Added QrCodeIcon for potential use
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge"; // Use Shadcn badge
 import ClientOnly from "@/components/ClientOnly"; // Import ClientOnly
@@ -152,10 +152,13 @@ export default function OrderDetail({ order }: OrderDetailProps) {
               <Button 
                 size="sm" 
                 onClick={handleCreateInvoice}
-                disabled={createInvoiceFromOrderMutation.isPending}
+                disabled={createInvoiceFromOrderMutation.isLoading}
               >
-                {createInvoiceFromOrderMutation.isPending ? (
-                  'Creating Invoice...'
+                {createInvoiceFromOrderMutation.isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Invoice...
+                  </>
                 ) : (
                   <><FileTextIcon className="mr-2 h-4 w-4" /> Create Invoice</>
                 )}

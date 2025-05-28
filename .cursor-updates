@@ -94,3 +94,9 @@
 - Generated AI handover prompt for a fresh chat session.
 - Modified `invoiceRouter.createFromOrder` to use the actual `defaultVatRatePercent` from `InventoryItem` for each line item, instead of the placeholder `25.5`. Added a `TODO` for company-level VAT fallback.
 - Attempted to fix build errors in `InvoiceListContent.tsx` (related to `keepPreviousData` and Prisma type imports) and `EditInventoryItemPage.tsx` (related to `isPending` vs `isLoading`). Build is currently failing due to new errors introduced during these fixes and persistent issues in `InvoiceListContent.tsx` and `httpBatchStreamLink` import in `src/lib/trpc/react.tsx`.
+- Add `defaultVatRatePercent` to `InventoryItem` model and regenerate Prisma client.
+- Correct `OrderStatus.invoiced` to `OrderStatus.INVOICED`.
+- Ensure Zod schemas are correctly inferred as types using `z.infer<typeof ...>` in `invoice.ts`.
+- Fix minor issues in `invoice.ts` related to Decimal conversion and removal of non-existent `userLastModified` field.
+- Move helper functions in `InvoiceListContent.tsx` to top-level scope to fix syntax errors.
+- Verified that `isPending` was already updated to `isLoading` in relevant files.

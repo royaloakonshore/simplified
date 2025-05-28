@@ -76,4 +76,9 @@ export type AdjustStockInput = z.infer<typeof adjustStockSchema>;
 export type ListInventoryItemsInput = z.infer<typeof listInventoryItemsSchema>;
 
 // Exporting the inferred type for form values
-export type InventoryItemFormValues = z.infer<typeof inventoryItemBaseSchema>; 
+export type InventoryItemFormValues = z.infer<typeof inventoryItemBaseSchema>;
+
+// Aliased exports for use in forms or specific components
+export { adjustStockSchema as adjustStockFormSchema };
+export { TransactionType as InventoryTransactionType }; // Re-export Prisma enum if needed directly by this name
+export type { AdjustStockInput as AdjustStockFormValues }; 

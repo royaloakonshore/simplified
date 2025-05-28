@@ -1,14 +1,12 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { createTRPCRouter, protectedProcedure } from "@/lib/api/trpc";
-import { CreateInvoiceSchema, UpdateInvoiceSchema, invoiceFilterSchema, invoicePaginationSchema, createInvoiceFromOrderSchema } from "@/lib/schemas/invoice.schema";
-import { InvoiceStatus, OrderStatus, Prisma, PrismaClient } from '@prisma/client'; // Import PrismaClient for transaction typing, OrderStatus
-import { Decimal } from '@prisma/client/runtime/library'; // Import Decimal
-import { prisma } from "@/lib/db"; // Import prisma client directly
-import { generateFinvoiceXml, type SellerSettings } from "@/lib/services/finvoice.service"; // Import the service AND SellerSettings type
-import { createAppCaller } from "@/lib/api/root"; // Import createAppCaller
-// Settings type will be inferred from the settings router output or can be explicitly imported if needed.
-// import type { Settings } from "@prisma/client"; 
+import { CreateInvoiceSchema, UpdateInvoiceSchema, invoiceFilterSchema, invoicePaginationSchema, createInvoiceFromOrderSchema, type CreateInvoiceItemSchema, type UpdateInvoiceItemSchema } from "@/lib/schemas/invoice.schema";
+import { Prisma, PrismaClient, InvoiceStatus, OrderStatus, type OrderItem, type InventoryItem, type ItemType, type Address, type InvoiceItem as PrismaInvoiceItem } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library'; 
+import { prisma } from "@/lib/db"; 
+import { generateFinvoiceXml, type SellerSettings } from "@/lib/services/finvoice.service"; 
+import { createAppCaller } from "@/lib/api/root"; 
 
 // Type alias for Prisma Transaction Client
 type PrismaTransactionClient = Omit<PrismaClient, '\$connect' | '\$disconnect' | '\$on' | '\$transaction' | '\$use' | '\$extends'>;
@@ -31,48 +29,56 @@ const getOrderBy = (
       return { totalAmount: direction };
     case 'status':
       return { status: direction };
-    case 'customerName': // Requires relation sorting
+    case 'customerName': 
     return { customer: { name: direction } };
     default:
-  return { invoiceDate: direction }; // Fallback default sort
+  return { invoiceDate: direction }; 
   }
 };
 
-// Define a combined input type for the list procedure
 const listInvoicesInputSchema = invoicePaginationSchema.merge(invoiceFilterSchema);
 
 export const invoiceRouter = createTRPCRouter({
-  // Procedure to list invoices with pagination and filtering
   list: protectedProcedure
-    .input(listInvoicesInputSchema) // Use the combined schema
+    .input(listInvoicesInputSchema) 
     .query(async ({ ctx, input }) => {
-      // Destructure with types known from listInvoicesInputSchema
-      const { page, perPage, sortBy, sortDirection, customerId, status, fromDate, toDate, searchTerm } = input;
-      // const companyId = ctx.companyId; // TODO: Get companyId from context
+      const { 
+        page = 1, 
+        perPage = 10, 
+        sortBy, 
+        sortDirection, 
+        customerId, 
+        status, 
+        fromDate, 
+        toDate, 
+        searchTerm 
+      } = input;
 
-      const whereClause: Prisma.InvoiceWhereInput = {
-        // companyId, // Filter by company
-        ...(customerId && { customerId }),
-        ...(status && { status }),
-        ...(fromDate && { invoiceDate: { gte: fromDate } }), 
-        ...(toDate && { invoiceDate: { lte: toDate } }),     
-        ...(searchTerm && { 
-          OR: [
-            { invoiceNumber: { contains: searchTerm, mode: 'insensitive' } },
-            { customer: { name: { contains: searchTerm, mode: 'insensitive' } } },
-            { notes: { contains: searchTerm, mode: 'insensitive' } },
-          ],
-        }),
-      };
+      const whereClause: Prisma.InvoiceWhereInput = {};
 
-      const orderBy = getOrderBy(sortBy, sortDirection);
+      if (customerId) whereClause.customerId = customerId as string;
+      if (status) whereClause.status = status as InvoiceStatus;
+      if (fromDate) whereClause.invoiceDate = typeof whereClause.invoiceDate === 'object' && whereClause.invoiceDate !== null && !Array.isArray(whereClause.invoiceDate) ? { ...whereClause.invoiceDate, gte: fromDate as Date } : { gte: fromDate as Date }; 
+      if (toDate) whereClause.invoiceDate = typeof whereClause.invoiceDate === 'object' && whereClause.invoiceDate !== null && !Array.isArray(whereClause.invoiceDate) ? { ...whereClause.invoiceDate, lte: toDate as Date } : { lte: toDate as Date };     
+      if (searchTerm) {
+        whereClause.OR = [
+          { invoiceNumber: { contains: searchTerm as string, mode: 'insensitive' } },
+          { customer: { name: { contains: searchTerm as string, mode: 'insensitive' } } },
+          { notes: { contains: searchTerm as string, mode: 'insensitive' } },
+        ];
+      }
+
+      const orderBy = getOrderBy(sortBy as string | undefined, sortDirection as 'asc' | 'desc' | undefined);
+
+      const numericPage = Number(page);
+      const numericPerPage = Number(perPage);
 
       const [invoices, totalCount] = await prisma.$transaction([
         prisma.invoice.findMany({
           where: whereClause,
           orderBy,
-          skip: (page - 1) * perPage, 
-          take: perPage,             
+          skip: (numericPage - 1) * numericPerPage, 
+          take: numericPerPage,             
           include: {
             customer: { select: { id: true, name: true } }, 
             items: { select: { id: true } }, 
@@ -85,31 +91,29 @@ export const invoiceRouter = createTRPCRouter({
         data: invoices,
         meta: {
           totalCount,
-          page,
-          perPage, 
-          totalPages: Math.ceil(totalCount / perPage), 
+          page: numericPage,
+          perPage: numericPerPage, 
+          totalPages: Math.ceil(totalCount / numericPerPage), 
         },
       };
     }),
 
-  // Procedure to get a single invoice by ID
   get: protectedProcedure
     .input(z.object({ id: z.string().cuid() }))
     .query(async ({ ctx, input }) => {
       const invoice = await prisma.invoice.findUnique({
         where: {
           id: input.id,
-          // TODO: Add companyId filter: companyId: ctx.companyId,
         },
         include: {
           customer: true,
           items: {
             include: {
-              inventoryItem: true, // Corrected from item to inventoryItem
+              inventoryItem: true, 
             },
           },
           order: true,
-          payments: true, // Added payments here
+          payments: true, 
         },
       });
 
@@ -122,53 +126,50 @@ export const invoiceRouter = createTRPCRouter({
       return invoice;
     }),
     
-  // Procedure to create a new invoice
   create: protectedProcedure
     .input(CreateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
       const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge } = input;
       const userId = ctx.session.user.id;
-      // TODO: Add companyId from ctx when multi-tenancy is fully implemented for invoice creation
-      // const companyId = ctx.companyId;
 
-      let subTotal = new Decimal(0); // Represents NET total
+      let subTotal = new Decimal(0); 
       let totalVatAmountValue = new Decimal(0);
 
-      // Fetch all inventory items to get their cost prices
       const inventoryItemIds = items.map(item => item.itemId);
       const inventoryItemsFromDb = await prisma.inventoryItem.findMany({
         where: {
           id: { in: inventoryItemIds },
-          // TODO: companyId: companyId, // Filter by company when available
         },
-        select: { id: true, costPrice: true, itemType: true }, // Select costPrice and itemType
+        select: { id: true, costPrice: true, itemType: true, salesPrice: true, defaultVatRatePercent: true },
       });
-      const inventoryItemMap = new Map(inventoryItemsFromDb.map(item => [item.id, item]));
+      // Explicitly define the type for the map's values
+      type MappedInventoryItem = Pick<InventoryItem, 'id' | 'costPrice' | 'itemType' | 'salesPrice' | 'defaultVatRatePercent'>;
+      const inventoryItemMap = new Map<string, MappedInventoryItem>(
+        inventoryItemsFromDb.map((item): [string, MappedInventoryItem] => [item.id, item])
+      );
 
-      // Prepare line items and calculate totals
-      const invoiceItemsToCreate = await Promise.all(items.map(async (item) => {
-        const unitPrice = new Decimal(item.unitPrice); // Assuming item.unitPrice is NET
+      const invoiceItemsToCreate = await Promise.all(items.map(async (item: z.infer<typeof CreateInvoiceItemSchema>) => {
+        const unitPrice = new Decimal(item.unitPrice); 
         const quantity = new Decimal(item.quantity);
-        let lineNetUnitPrice = unitPrice; // This is the price after line item discount
+        let lineNetUnitPrice = unitPrice; 
 
-        // Apply discount to determine actual selling price per unit for profit calculation
         if (item.discountPercent != null && item.discountPercent > 0) {
           const discountMultiplier = new Decimal(1).minus(new Decimal(item.discountPercent).div(100));
           lineNetUnitPrice = unitPrice.times(discountMultiplier);
         } else if (item.discountAmount != null && item.discountAmount > 0) {
-          // discountAmount is for the whole line, so convert to per-unit discount for lineNetUnitPrice
           if (quantity.greaterThan(0)) {
             const perUnitDiscount = new Decimal(item.discountAmount).div(quantity);
             lineNetUnitPrice = unitPrice.sub(perUnitDiscount).greaterThanOrEqualTo(0) ? unitPrice.sub(perUnitDiscount) : new Decimal(0);
           }
         }
         
-        const lineTotal = lineNetUnitPrice.times(quantity); // NET line total after discount
+        const lineTotal = lineNetUnitPrice.times(quantity); 
         subTotal = subTotal.plus(lineTotal);
 
         let itemVat = new Decimal(0);
         if (!vatReverseCharge) {
-          itemVat = lineTotal.times(new Decimal(item.vatRatePercent).div(100));
+          const vatRateForCalc = new Decimal(item.vatRatePercent);
+          itemVat = lineTotal.times(vatRateForCalc.div(100));
           totalVatAmountValue = totalVatAmountValue.plus(itemVat);
         }
 
@@ -176,8 +177,11 @@ export const invoiceRouter = createTRPCRouter({
         if (!inventoryItemDetails) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: `Inventory item with ID ${item.itemId} not found.` });
         }
+        
+        // Use salesPrice as a fallback if unitPrice on item is not definitive or for reference
+        const referenceUnitPrice = inventoryItemDetails.salesPrice ?? new Decimal(0);
 
-        const calculatedUnitCost = inventoryItemDetails.costPrice ?? new Decimal(0); // Fallback to 0 if costPrice is null
+        const calculatedUnitCost = inventoryItemDetails.costPrice ?? new Decimal(0); 
         const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
         const calculatedLineProfit = calculatedUnitProfit.times(quantity);
 
@@ -185,7 +189,7 @@ export const invoiceRouter = createTRPCRouter({
           inventoryItemId: item.itemId,
           description: item.description,
           quantity,
-          unitPrice, // Original NET unit price before discount (as per schema expectation for unitPrice field)
+          unitPrice, 
           vatRatePercent: new Decimal(item.vatRatePercent),
           discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
           discountPercent: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
@@ -196,15 +200,12 @@ export const invoiceRouter = createTRPCRouter({
       }));
 
       if (vatReverseCharge) {
-        totalVatAmountValue = new Decimal(0); // Explicitly zero out VAT if reverse charge
+        totalVatAmountValue = new Decimal(0); 
       }
 
-      // Sequential Invoice Number Logic (existing code, ensure it's complete in actual file)
-      // ... (invoice number logic as previously seen) ...
-      let nextInvoiceNumber = 'INV-00001'; // Placeholder if logic not fully visible
+      let nextInvoiceNumber = 'INV-00001'; 
       const lastInvoice = await prisma.invoice.findFirst({
         orderBy: { createdAt: 'desc' }, 
-        // where: { companyId }, // TODO: Filter by companyId for sequential numbering per company
         select: { invoiceNumber: true }
       });
       if (lastInvoice && lastInvoice.invoiceNumber) {
@@ -219,10 +220,8 @@ export const invoiceRouter = createTRPCRouter({
             nextInvoiceNumber = prefix + newNumericPart.toString().padStart(paddingLength, '0');
         } catch (e) {
             console.error("Failed to parse last invoice number:", lastInvoice.invoiceNumber, e);
-            // Fallback or throw error if number generation is critical
         }
       }
-      // End of invoice number logic section
 
       const dataForInvoiceCreate: Prisma.InvoiceCreateInput = {
         customer: { connect: { id: customerId } },
@@ -232,7 +231,7 @@ export const invoiceRouter = createTRPCRouter({
         status: InvoiceStatus.draft,
             notes,
         vatReverseCharge,
-        totalAmount: subTotal, // NET amount
+        totalAmount: subTotal, 
             totalVatAmount: totalVatAmountValue, 
         user: { connect: { id: userId } },
         ...(orderId && { order: { connect: { id: orderId } } }),
@@ -257,7 +256,6 @@ export const invoiceRouter = createTRPCRouter({
         include: { items: true, customer: true },
       });
 
-      // If created from an order, update order status
       if (orderId) {
         await prisma.order.update({
           where: { id: orderId },
@@ -271,219 +269,191 @@ export const invoiceRouter = createTRPCRouter({
   createFromOrder: protectedProcedure
     .input(createInvoiceFromOrderSchema)
     .mutation(async ({ ctx, input }) => {
-      const { orderId, invoiceDate, dueDate: inputDueDate, notes, vatReverseCharge } = input;
+      const { orderId, invoiceDate, dueDate, notes, vatReverseCharge } = input;
       const userId = ctx.session.user.id;
 
-      return prisma.$transaction(async (tx) => {
-        const order = await tx.order.findUnique({
-          where: { id: orderId },
-          include: {
-            customer: true,
-            items: { include: { inventoryItem: true } },
-          },
-        });
-
-        if (!order) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+      type OrderWithIncludes = Prisma.OrderGetPayload<{
+        include: {
+          customer: true,
+          items: { include: { inventoryItem: true } }
         }
+      }>;
+      
+      type OrderItemWithInventory = Prisma.OrderItemGetPayload<{
+        include: { inventoryItem: true }
+      }>;
 
-        if (!order.customer) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order customer is missing' });
-        }
-
-        // Refined Order Status Check: Only allow from SHIPPED orders
-        if (order.status !== OrderStatus.shipped) {
-          throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: `Invoice can only be created for orders with status SHIPPED. Current status: ${order.status}`,
-          });
-        }
-        
-        // Enable Duplicate Invoice Check
-        const existingInvoice = await tx.invoice.findFirst({
-          where: { orderId: order.id, isCreditNote: false } // Ensure it's not a credit note for the same order
-        });
-        if (existingInvoice) {
-          throw new TRPCError({ code: 'CONFLICT', message: `An invoice (${existingInvoice.invoiceNumber}) already exists for order ${order.orderNumber}.` });
-        }
-
-        let subTotal = new Prisma.Decimal(0);
-        let totalVatAmountValue = new Prisma.Decimal(0);
-
-        // Fetch all inventory items related to the order items to get their cost prices
-        const orderInventoryItemIds = order.items.map(item => item.inventoryItemId);
-        const inventoryItemsFromDb = await tx.inventoryItem.findMany({
-          where: {
-            id: { in: orderInventoryItemIds },
-            // TODO: companyId: ctx.companyId, // Filter by company when available
-          },
-          select: { id: true, costPrice: true, defaultVatRatePercent: true }, // Added defaultVatRatePercent
-        });
-        const inventoryItemDetailsMap = new Map(inventoryItemsFromDb.map(item => [item.id, { costPrice: item.costPrice, defaultVatRatePercent: item.defaultVatRatePercent }]));
-
-        const invoiceItemsData = order.items.map(orderItem => {
-          if (!orderItem.inventoryItem) {
-            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Inventory item details missing for order item ${orderItem.id}` });
-          }
-          const unitPrice = new Prisma.Decimal(orderItem.unitPrice); // Original NET unit price from order
-          const quantity = new Prisma.Decimal(orderItem.quantity);
-          let lineNetUnitPrice = unitPrice; // This is the price after line item discount
-
-          // Apply discount from order item if present
-          const discountPercentageValue = orderItem.discountPercentage;
-          const discountAmountValue = orderItem.discountAmount;
-
-          if (discountPercentageValue != null && new Prisma.Decimal(discountPercentageValue).gt(0)) {
-            const discountMultiplier = new Prisma.Decimal(1).minus(new Prisma.Decimal(discountPercentageValue).div(100));
-            lineNetUnitPrice = lineNetUnitPrice.times(discountMultiplier);
-          } else if (discountAmountValue != null && new Prisma.Decimal(discountAmountValue).gt(0)) {
-            // discountAmount is for the whole line, so convert to per-unit discount
-            if (quantity.greaterThan(0)){
-                const perUnitDiscount = new Prisma.Decimal(discountAmountValue).div(quantity);
-                lineNetUnitPrice = lineNetUnitPrice.sub(perUnitDiscount).greaterThanOrEqualTo(0) ? lineNetUnitPrice.sub(perUnitDiscount) : new Prisma.Decimal(0);
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              inventoryItem: { 
+                select: { 
+                  id: true, 
+                  name: true, 
+                  salesPrice: true, 
+                  costPrice: true, 
+                  defaultVatRatePercent: true // Added this line
+                }
+              }
             }
           }
-
-          const lineTotal = lineNetUnitPrice.times(quantity); // NET line total after discount
-          subTotal = subTotal.plus(lineTotal);
-          
-          const itemDetails = inventoryItemDetailsMap.get(orderItem.inventoryItemId);
-          // Fallback VAT rate logic: InventoryItem.defaultVatRatePercent -> Company Settings (TODO) -> Hardcoded default
-          // For now, company settings fallback is not implemented, will use hardcoded if item-specific is null.
-          const vatRate = itemDetails?.defaultVatRatePercent !== null && itemDetails?.defaultVatRatePercent !== undefined
-            ? new Prisma.Decimal(itemDetails.defaultVatRatePercent)
-            : new Prisma.Decimal(25.5); // TODO: Replace 25.5 with company setting fallback
-
-          if (!vatReverseCharge) {
-            const itemVat = lineTotal.times(vatRate.div(100));
-            totalVatAmountValue = totalVatAmountValue.plus(itemVat);
-          }
-
-          const calculatedUnitCost = itemDetails?.costPrice ?? new Prisma.Decimal(0);
-          const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
-          const calculatedLineProfit = calculatedUnitProfit.times(quantity);
-
-          return {
-            inventoryItemId: orderItem.inventoryItemId,
-            description: orderItem.inventoryItem.name, 
-            quantity: orderItem.quantity, 
-            unitPrice: orderItem.unitPrice, // Store original NET unit price from order
-            vatRatePercent: vatRate, 
-            discountAmount: orderItem.discountAmount, 
-            discountPercent: orderItem.discountPercentage, 
-            calculatedUnitCost,
-            calculatedUnitProfit,
-            calculatedLineProfit,
-          };
-        });
-        
-        if (vatReverseCharge) {
-          totalVatAmountValue = new Prisma.Decimal(0);
         }
-        // const finalTotalAmount = subTotal.plus(totalVatAmountValue); // Commented out, not needed
+      }) as OrderWithIncludes | null;
 
-        // Generate Invoice Number 
-        // This logic could be extracted to a shared utility function for consistency
-        const lastInvoice = await tx.invoice.findFirst({
-          orderBy: { createdAt: 'desc' }, 
-          select: { invoiceNumber: true }
-        });
-        let nextInvoiceNumber = 'INV-00001'; 
-        if (lastInvoice && lastInvoice.invoiceNumber) {
-          try {
+      if (!order) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+      }
+      if (!order.customer) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order customer not found' });
+      }
+      if (order.status === OrderStatus.cancelled || order.status === OrderStatus.draft) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: `Order status is ${order.status}, cannot create invoice.` });
+      }
+
+      let subTotal = new Decimal(0);
+      let totalVatAmountValue = new Decimal(0);
+
+      // TODO: Fetch company default VAT rate if inventory item VAT is not set
+      const companyDefaultVatRate = new Decimal(25.5); // Placeholder
+
+      const invoiceItemsToCreate = order.items.map((orderItem: OrderItemWithInventory) => {
+        if (!orderItem.inventoryItem) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Inventory item for order item ${orderItem.id} not found or not correctly included.`});
+        }
+        const unitPrice = orderItem.unitPrice ?? orderItem.inventoryItem.salesPrice ?? new Decimal(0);
+        const quantity = new Decimal(orderItem.quantity);
+        const lineTotal = unitPrice.times(quantity);
+        subTotal = subTotal.plus(lineTotal);
+
+        let itemVat = new Decimal(0);
+        // Use inventory item's default VAT rate, fallback to company default
+        const vatRateForCalc = orderItem.inventoryItem.defaultVatRatePercent ?? companyDefaultVatRate;
+        
+        if (!vatReverseCharge) {
+          itemVat = lineTotal.times(vatRateForCalc.div(100));
+          totalVatAmountValue = totalVatAmountValue.plus(itemVat);
+        }
+        
+        const calculatedUnitCost = orderItem.inventoryItem.costPrice ?? new Decimal(0);
+        const calculatedUnitProfit = unitPrice.minus(calculatedUnitCost);
+        const calculatedLineProfit = calculatedUnitProfit.times(quantity);
+
+        return {
+          inventoryItemId: orderItem.inventoryItemId,
+          description: orderItem.inventoryItem.name, // Using inventory item name as description
+          quantity,
+          unitPrice,
+          vatRatePercent: vatRateForCalc, 
+          // Discounts are not directly transferred from order items in this version
+          discountAmount: null, 
+          discountPercent: null,
+          calculatedUnitCost,
+          calculatedUnitProfit,
+          calculatedLineProfit,
+          orderItemId: orderItem.id, // Link to original order item
+        };
+      });
+      
+      if (vatReverseCharge) {
+        totalVatAmountValue = new Decimal(0);
+      }
+
+      let nextInvoiceNumber = 'INV-00001';
+      const lastInvoice = await prisma.invoice.findFirst({
+        orderBy: { createdAt: 'desc' },
+        select: { invoiceNumber: true }
+      });
+      if (lastInvoice && lastInvoice.invoiceNumber) {
+         try {
             let numericPart = parseInt(lastInvoice.invoiceNumber.replace(/\D/g, ''), 10);
-            if (isNaN(numericPart)) numericPart = 0; 
-
+            if (isNaN(numericPart)) numericPart = 0;
             const newNumericPart = numericPart + 1;
             const prefixMatch = lastInvoice.invoiceNumber.match(/^([^0-9]*)/);
             const prefix = prefixMatch && prefixMatch[0] ? prefixMatch[0] : 'INV-';
-            
             const lastNumericString = lastInvoice.invoiceNumber.replace(/^[^0-9]*/, '');
-            const paddingLength = lastNumericString.length > 0 ? lastNumericString.length : 5;
-
+            const paddingLength = lastNumericString.length > 0 ? lastNumericString.length : 5; // Default to 5 if no numeric part found
             nextInvoiceNumber = prefix + newNumericPart.toString().padStart(paddingLength, '0');
-
-          } catch (e) {
-            console.error("Error generating next invoice number:", e);
-            nextInvoiceNumber = `INV-${Date.now()}`;
-          }
+        } catch (e) {
+            console.error("Failed to parse last invoice number:", lastInvoice.invoiceNumber, e);
+            // Fallback or re-throw error if critical
         }
-        
-        // Simplified collision check and resolution
-        let N = 0;
-        let tempInvoiceNumber = nextInvoiceNumber;
-        while (await tx.invoice.findUnique({ where: { invoiceNumber: tempInvoiceNumber } })) {
-          N++;
-          const prefixMatch = nextInvoiceNumber.match(/^([^0-9]*)/);
-          const baseNumber = nextInvoiceNumber.replace(/^[^0-9]*/, '').replace(/-Retry-\d+$/, ''); 
-          const prefix = prefixMatch && prefixMatch[0] ? prefixMatch[0] : 'INV-';
-          tempInvoiceNumber = `${prefix}${baseNumber}-Retry-${N}`;
-          if (N > 5) { 
-             throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to generate a unique invoice number after multiple retries.' });
-          }
-        }
-        nextInvoiceNumber = tempInvoiceNumber;
+      }
 
-
-        const finalInvoiceDate = invoiceDate ?? new Date();
-        const finalDueDate = inputDueDate ?? new Date(new Date(finalInvoiceDate).setDate(finalInvoiceDate.getDate() + 14)); 
-
-        const invoiceCreateDataFromOrder: Prisma.InvoiceCreateInput = {
-            invoiceNumber: nextInvoiceNumber,
-          customer: { connect: { id: order.customerId } },
-            invoiceDate: finalInvoiceDate,
-            dueDate: finalDueDate,
-            notes: notes ?? order.notes, 
-          order: { connect: { id: order.id } },
-            status: InvoiceStatus.draft, 
-          totalAmount: subTotal, // NET amount
-            totalVatAmount: totalVatAmountValue,
-            vatReverseCharge: vatReverseCharge,
-          user: { connect: { id: userId } },
-            items: {
-            create: invoiceItemsData.map(item => ({
-              inventoryItemId: item.inventoryItemId,
-              description: item.description,
-              quantity: new Prisma.Decimal(item.quantity),
-              unitPrice: new Prisma.Decimal(item.unitPrice),
-              vatRatePercent: new Prisma.Decimal(item.vatRatePercent),
-              discountAmount: item.discountAmount ? new Prisma.Decimal(item.discountAmount) : null,
-              discountPercent: item.discountPercent ? new Prisma.Decimal(item.discountPercent) : null,
-              calculatedUnitCost: item.calculatedUnitCost,
-              calculatedUnitProfit: item.calculatedUnitProfit,
-              calculatedLineProfit: item.calculatedLineProfit,
-            })),
-          },
-        };
-
-        const newInvoice = await tx.invoice.create({
-          data: invoiceCreateDataFromOrder,
+      const dataForInvoiceCreate: Prisma.InvoiceCreateInput = {
+        customer: { connect: { id: order.customerId } },
+        invoiceNumber: nextInvoiceNumber,
+        invoiceDate,
+        dueDate,
+        status: InvoiceStatus.draft,
+        notes,
+        vatReverseCharge,
+        totalAmount: subTotal,
+        totalVatAmount: totalVatAmountValue,
+        user: { connect: { id: userId } },
+        order: { connect: { id: orderId } },
+        items: {
+          create: invoiceItemsToCreate.map((item: { // Added explicit type here
+            inventoryItemId: string;
+            description: string;
+            quantity: Decimal;
+            unitPrice: Decimal;
+            vatRatePercent: Decimal;
+            discountAmount: Decimal | null;
+            discountPercent: Decimal | null;
+            calculatedUnitCost: Decimal;
+            calculatedUnitProfit: Decimal;
+            calculatedLineProfit: Decimal;
+            orderItemId: string;
+          }) => ({
+            inventoryItemId: item.inventoryItemId,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            vatRatePercent: item.vatRatePercent,
+            discountAmount: item.discountAmount,
+            discountPercent: item.discountPercent,
+            calculatedUnitCost: item.calculatedUnitCost,
+            calculatedUnitProfit: item.calculatedUnitProfit,
+            calculatedLineProfit: item.calculatedLineProfit,
+            orderItem: { connect: { id: item.orderItemId } },
+          })),
+        },
+      };
+      
+      const newInvoice = await prisma.$transaction(async (tx) => {
+        const createdInvoice = await tx.invoice.create({
+          data: dataForInvoiceCreate,
         });
 
-        // Update Order status to INVOICED
         await tx.order.update({
-          where: { id: order.id },
+          where: { id: orderId },
           data: { status: OrderStatus.INVOICED },
         });
-
-        return newInvoice;
+        
+        // Create audit log entry for invoice creation
+        // await tx.auditLog.create({ ... });
+        
+        return createdInvoice;
       });
+
+      return newInvoice;
     }),
 
-  // Procedure to generate Finvoice XML for an invoice
   generateFinvoice: protectedProcedure
     .input(z.object({ invoiceId: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
       const { invoiceId } = input;
 
-      // 1. Fetch the invoice data with customer and items
       const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId },
         include: {
           customer: { include: { addresses: true } },
           items: { include: { inventoryItem: true } },
           order: true,
-          payments: true, // Added payments here
+          payments: true, 
         },
       });
 
@@ -491,8 +461,7 @@ export const invoiceRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found." });
       }
 
-      // 2. Fetch company settings by creating a caller for the settings router
-      const caller = createAppCaller(ctx); // Create a caller instance with the current context
+      const caller = createAppCaller(ctx); 
       let companySettings;
       try {
         companySettings = await caller.settings.get();
@@ -511,18 +480,19 @@ export const invoiceRouter = createTRPCRouter({
         });
       }
       
-      // Map Prisma Invoice to the Invoice type expected by finvoice.service.ts
+      type InvoiceItemForXml = Prisma.InvoiceItemGetPayload<{ include: { inventoryItem: true } }>;
+
       const mappedInvoiceForXml: import('@/lib/types/invoice.types').Invoice = {
         id: invoice.id as import('@/lib/types/branded').UUID,
         invoiceNumber: invoice.invoiceNumber,
         invoiceDate: invoice.invoiceDate,
         dueDate: invoice.dueDate,
-        status: invoice.status as import('@/lib/types/invoice.types').InvoiceStatus, // Prisma enum is compatible
+        status: invoice.status as import('@/lib/types/invoice.types').InvoiceStatus, 
         totalAmount: invoice.totalAmount as unknown as import('@/lib/types/branded').Decimal,
         totalVatAmount: invoice.totalVatAmount as unknown as import('@/lib/types/branded').Decimal,
         vatReverseCharge: invoice.vatReverseCharge,
         notes: invoice.notes ?? undefined,
-        paymentDate: invoice.payments?.[0]?.paymentDate ?? undefined, // Assuming latest payment if any
+        paymentDate: invoice.payments?.[0]?.paymentDate ?? undefined, 
         createdAt: invoice.createdAt,
         updatedAt: invoice.updatedAt,
         customerId: invoice.customerId as import('@/lib/types/branded').UUID,
@@ -536,16 +506,16 @@ export const invoiceRouter = createTRPCRouter({
           intermediatorAddress: invoice.customer.intermediatorAddress,
           createdAt: invoice.customer.createdAt,
           updatedAt: invoice.customer.updatedAt,
-          addresses: invoice.customer.addresses.map(addr => ({
+          addresses: invoice.customer.addresses.map((addr: Address) => ({
             id: addr.id as import('@/lib/types/branded').UUID,
-            type: addr.type as import('@/lib/types/customer.types').AddressType, // Prisma enum is compatible
+            type: addr.type as import('@/lib/types/customer.types').AddressType, 
             streetAddress: addr.streetAddress,
             city: addr.city,
             postalCode: addr.postalCode,
             countryCode: addr.countryCode,
           })),
         },
-        items: invoice.items.map(item => ({
+        items: invoice.items.map((item: InvoiceItemForXml) => ({
           id: item.id as import('@/lib/types/branded').UUID,
           invoiceId: item.invoiceId as import('@/lib/types/branded').UUID,
           description: item.description ?? item.inventoryItem?.name ?? 'N/A',
@@ -553,53 +523,45 @@ export const invoiceRouter = createTRPCRouter({
           unitPrice: item.unitPrice as unknown as import('@/lib/types/branded').Decimal,
           vatRatePercent: item.vatRatePercent as unknown as import('@/lib/types/branded').Decimal,
           discountAmount: item.discountAmount as unknown as import('@/lib/types/branded').Decimal ?? null,
-          discountPercent: item.discountPercentage as unknown as import('@/lib/types/branded').Decimal ?? null,
-          // inventoryItemId: item.inventoryItemId as import('@/lib/types/branded').UUID, // If needed by service
+          discountPercent: item.discountPercentage as unknown as import('@/lib/types/branded').Decimal ?? null, 
         })),
         orderId: invoice.orderId as import('@/lib/types/branded').UUID ?? undefined,
         order: invoice.order ? {
           id: invoice.order.id as import('@/lib/types/branded').UUID,
           orderNumber: invoice.order.orderNumber,
-          createdAt: invoice.order.orderDate, // Mapped orderDate to createdAt
+          createdAt: invoice.order.orderDate, 
           customerId: invoice.order.customerId as import('@/lib/types/branded').UUID,
           status: invoice.order.status as import('@/lib/types/order.types').OrderStatus,
           totalAmount: invoice.order.totalAmount as unknown as import('@/lib/types/branded').Decimal, 
           notes: invoice.order.notes ?? undefined,
           updatedAt: invoice.order.updatedAt,
-          // Provide minimal valid customer and items to satisfy Order type
           customer: { 
             id: invoice.order.customerId as import('@/lib/types/branded').UUID, 
-            name: invoice.customer.name, // Use invoice customer's name as a placeholder
-            // other Customer fields can be minimal or undefined if allowed by Customer type in order.types.ts
-            addresses: [], // Empty array for addresses
-          } as import('@/lib/types/customer.types').Customer, // Cast to Customer type
-          items: [], // Empty array for items
+            name: invoice.customer.name, 
+            addresses: [], 
+          } as import('@/lib/types/customer.types').Customer, 
+          items: [], 
         } : undefined,
-        // credit note fields can be mapped if/when credit notes are implemented
       };
 
-      // Map companySettings (Prisma Settings type) to SellerSettings type (from finvoice.service.ts).
-      // Uses settingsSchema for field names from DB (e.g., companySettings.vatId corresponds to SellerSettings.vatId).
       const mappedSettingsForXml: SellerSettings = {
         companyName: companySettings.companyName ?? "Missing Company Name",
-        vatId: companySettings.vatId ?? "Missing VAT ID", // from settings.schema.ts
-        domicile: companySettings.domicile ?? "Missing Domicile", // from settings.schema.ts
-        streetAddress: companySettings.streetAddress ?? "Missing Street Address", // from settings.schema.ts
-        postalCode: companySettings.postalCode ?? "Missing Postal Code", // from settings.schema.ts
-        city: companySettings.city ?? "Missing City", // from settings.schema.ts
-        countryCode: companySettings.countryCode ?? "FI", // from settings.schema.ts
-        countryName: companySettings.countryName ?? "Finland", // from settings.schema.ts
-        bankAccountIBAN: companySettings.bankAccountIBAN ?? "Missing IBAN", // from settings.schema.ts
-        bankAccountBIC: companySettings.bankAccountBIC ?? "Missing BIC", // from settings.schema.ts
+        vatId: companySettings.vatId ?? "Missing VAT ID", 
+        domicile: companySettings.domicile ?? "Missing Domicile", 
+        streetAddress: companySettings.streetAddress ?? "Missing Street Address", 
+        postalCode: companySettings.postalCode ?? "Missing Postal Code", 
+        city: companySettings.city ?? "Missing City", 
+        countryCode: companySettings.countryCode ?? "FI", 
+        countryName: companySettings.countryName ?? "Finland", 
+        bankAccountIBAN: companySettings.bankAccountIBAN ?? "Missing IBAN", 
+        bankAccountBIC: companySettings.bankAccountBIC ?? "Missing BIC", 
 
-        // Optional fields in SellerSettings, map from companySettings (from settings.schema.ts)
         website: companySettings.website || undefined,
         sellerIdentifier: companySettings.sellerIdentifier || undefined,
         sellerIntermediatorAddress: companySettings.sellerIntermediatorAddress || undefined,
         bankName: companySettings.bankName || undefined,
       };
 
-      // 3. Generate Finvoice XML
       try {
         const xmlString = generateFinvoiceXml(mappedInvoiceForXml, mappedSettingsForXml);
         return { xmlString };
@@ -612,68 +574,53 @@ export const invoiceRouter = createTRPCRouter({
       }
     }),
 
-  // Update an existing invoice
   update: protectedProcedure
     .input(UpdateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
-      const { id, customerId, invoiceDate, dueDate, notes, items: inputItems, orderId, vatReverseCharge, status } = input;
-      const userId = ctx.session.user.id; // Needed if you update who last modified, or for new items if not company-scoped
+      const { id, items: inputItems, ...restOfInput } = input;
+      const userId = ctx.session.user.id;
 
-      // Fetch the existing invoice to compare items and get current vatReverseCharge if not in input
+      // Fetch the existing invoice to ensure it exists and for audit/comparison if needed
       const existingInvoice = await prisma.invoice.findUnique({
         where: { id },
-        include: { items: true },
+        include: { items: true } 
       });
 
       if (!existingInvoice) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invoice not found' });
       }
-
-      const dataToUpdate: Prisma.InvoiceUpdateInput = {};
-      // Initialize inventoryItemCostMap here to be accessible in both blocks
-      let inventoryItemCostMap = new Map<string, Decimal | null>();
-
-      if (customerId !== undefined) dataToUpdate.customer = { connect: { id: customerId } };
-      if (invoiceDate !== undefined) dataToUpdate.invoiceDate = invoiceDate;
-      if (dueDate !== undefined) dataToUpdate.dueDate = dueDate;
-      if (notes !== undefined) dataToUpdate.notes = notes;
-      if (orderId !== undefined) dataToUpdate.order = orderId ? { connect: { id: orderId } } : { disconnect: true };
-      if (status !== undefined) dataToUpdate.status = status;
       
-      const currentVatReverseCharge = vatReverseCharge !== undefined ? vatReverseCharge : existingInvoice.vatReverseCharge;
-      if (vatReverseCharge !== undefined) dataToUpdate.vatReverseCharge = vatReverseCharge; 
-
-      // If items or vatReverseCharge are being updated, totals need recalculation.
-      if (inputItems || vatReverseCharge !== undefined) {
-        let newSubTotal = new Decimal(0);
-        let newTotalVatAmount = new Decimal(0);
-
-        // Fetch cost prices for all relevant inventory items if items are changing
-        // inventoryItemCostMap is already declared in the higher scope
-        if (inputItems) {
-          const inventoryItemIds = inputItems.map(item => item.itemId);
-          const inventoryItemsFromDb = await prisma.inventoryItem.findMany({
-            where: { id: { in: inventoryItemIds } /* TODO: Add companyId filter */ },
-            select: { id: true, costPrice: true },
+      // Forbid editing if invoice is not in draft status
+      if (existingInvoice.status !== InvoiceStatus.draft) {
+          throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: `Invoice cannot be updated as its status is '${existingInvoice.status}'. Only draft invoices can be edited.`,
           });
-          // Populate the map if inputItems are present
-          inventoryItemCostMap = new Map(inventoryItemsFromDb.map(item => [item.id, item.costPrice]));
-        }
-        
-        const itemsForCalcInput = inputItems ? inputItems : existingInvoice.items.map(item => ({
-          id: item.id,
-          itemId: item.inventoryItemId,
-          description: item.description ?? undefined,
-          unitPrice: item.unitPrice.toNumber(),
-          quantity: item.quantity.toNumber(),
-          vatRatePercent: item.vatRatePercent.toNumber(),
-          discountAmount: item.discountAmount?.toNumber(),
-          discountPercent: item.discountPercentage?.toNumber(),
-        }));
+      }
 
-        // This loop is for calculating totals (newSubTotal, newTotalVatAmount)
-        // Profitability will be calculated when preparing the actual create/update operations for items later.
-        for (const item of itemsForCalcInput) {
+
+      let subTotal = new Decimal(0);
+      let totalVatAmountValue = new Decimal(0);
+      let invoiceItemsToCreateOrUpdate: Prisma.InvoiceItemUncheckedCreateNestedManyWithoutInvoiceInput | Prisma.InvoiceItemUpdateManyWithoutInvoiceNestedInput | undefined = undefined;
+
+
+      if (inputItems && inputItems.length > 0) {
+        const inventoryItemIds = inputItems.map(item => item.itemId).filter(id => id) as string[];
+        
+        const inventoryItemsFromDb = await prisma.inventoryItem.findMany({
+          where: { id: { in: inventoryItemIds } },
+          select: { id: true, costPrice: true, itemType: true, salesPrice: true, defaultVatRatePercent: true },
+        });
+        // Explicitly define the type for the map's values
+        type MappedUpdateInventoryItem = Pick<InventoryItem, 'id' | 'costPrice' | 'itemType' | 'salesPrice' | 'defaultVatRatePercent'>;
+        const inventoryItemMap = new Map<string, MappedUpdateInventoryItem>(
+          inventoryItemsFromDb.map((dbItem): [string, MappedUpdateInventoryItem] => [dbItem.id, dbItem])
+        );
+        
+        // TODO: Fetch company default VAT rate if inventory item VAT is not set
+        const companyDefaultVatRate = new Decimal(25.5); // Placeholder
+        
+        const processedItems = await Promise.all(inputItems.map(async (item: z.infer<typeof UpdateInvoiceItemSchema>) => {
           const unitPrice = new Decimal(item.unitPrice);
           const quantity = new Decimal(item.quantity);
           let lineNetUnitPrice = unitPrice;
@@ -683,122 +630,130 @@ export const invoiceRouter = createTRPCRouter({
             lineNetUnitPrice = unitPrice.times(discountMultiplier);
           } else if (item.discountAmount != null && item.discountAmount > 0) {
             if (quantity.greaterThan(0)) {
-              const perUnitDiscount = new Decimal(item.discountAmount).div(quantity);
+              // Ensure item.discountAmount is a number before creating Decimal
+              const discountAmountValue = typeof item.discountAmount === 'number' ? item.discountAmount : 0;
+              const perUnitDiscount = new Decimal(discountAmountValue).div(quantity);
               lineNetUnitPrice = unitPrice.sub(perUnitDiscount).greaterThanOrEqualTo(0) ? unitPrice.sub(perUnitDiscount) : new Decimal(0);
             }
           }
+
           const lineTotal = lineNetUnitPrice.times(quantity);
-          newSubTotal = newSubTotal.plus(lineTotal);
+          subTotal = subTotal.plus(lineTotal);
 
-          if (!currentVatReverseCharge) {
-            const itemVat = lineTotal.times(new Decimal(item.vatRatePercent).div(100));
-            newTotalVatAmount = newTotalVatAmount.plus(itemVat);
+          let itemVat = new Decimal(0);
+          const vatRateForCalc = item.vatRatePercent !== undefined ? new Decimal(item.vatRatePercent) : 
+                                 (item.itemId ? inventoryItemMap.get(item.itemId)?.defaultVatRatePercent : undefined) ?? companyDefaultVatRate;
+
+          if (!input.vatReverseCharge && vatRateForCalc) { // Check input.vatReverseCharge instead of existingInvoice.vatReverseCharge
+            itemVat = lineTotal.times(vatRateForCalc.div(100));
+            totalVatAmountValue = totalVatAmountValue.plus(itemVat);
           }
-        }
-        
-        if (currentVatReverseCharge) {
-            newTotalVatAmount = new Decimal(0);
-        }
-        dataToUpdate.totalAmount = newSubTotal;
-        dataToUpdate.totalVatAmount = newTotalVatAmount;
-      }
+          
+          const inventoryItemDetails = item.itemId ? inventoryItemMap.get(item.itemId) : null;
+          // salesPrice can be used as a reference or fallback if needed
+          const referenceUnitPrice = inventoryItemDetails?.salesPrice ?? new Decimal(0);
 
-      if (inputItems) {
-        // If we didn't fetch costs earlier (e.g. only vatReverseCharge changed), fetch them now.
-        if (inventoryItemCostMap.size === 0) {
-            const inventoryItemIds = inputItems.map(item => item.itemId);
-            const inventoryItemsFromDb = await prisma.inventoryItem.findMany({
-                where: { id: { in: inventoryItemIds } /* TODO: Add companyId filter */ },
-                select: { id: true, costPrice: true },
-            });
-            inventoryItemCostMap = new Map(inventoryItemsFromDb.map(item => [item.id, item.costPrice]));
-        }
 
-        const itemIdsFromInput = inputItems.map(item => item.id).filter(id => id !== undefined) as string[];
-        const itemsToCreate = inputItems.filter(item => !item.id);
-        const itemsToUpdate = inputItems.filter(item => item.id);
-        const itemsToDelete = existingInvoice.items.filter(existingItem => !itemIdsFromInput.includes(existingItem.id));
-
-        dataToUpdate.items = {
-          create: itemsToCreate.map(item => {
-            const unitPrice = new Decimal(item.unitPrice);
-            const quantity = new Decimal(item.quantity);
-            let lineNetUnitPrice = unitPrice;
-            if (item.discountPercent != null && item.discountPercent > 0) {
-              lineNetUnitPrice = unitPrice.times(new Decimal(1).minus(new Decimal(item.discountPercent).div(100)));
-            } else if (item.discountAmount != null && item.discountAmount > 0 && quantity.greaterThan(0)) {
-              lineNetUnitPrice = unitPrice.sub(new Decimal(item.discountAmount).div(quantity)).clamp(0, Infinity);
-            }
-            const calculatedUnitCost = inventoryItemCostMap.get(item.itemId) ?? new Decimal(0);
-            const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
-            const calculatedLineProfit = calculatedUnitProfit.times(quantity);
-            return {
-              inventoryItemId: item.itemId,
-              description: item.description,
-              quantity,
-              unitPrice,
-              vatRatePercent: new Decimal(item.vatRatePercent),
-              discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
-              discountPercent: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
-              calculatedUnitCost,
-              calculatedUnitProfit,
-              calculatedLineProfit,
-            };
-          }),
-          updateMany: itemsToUpdate.map(item => {
-            const unitPrice = new Decimal(item.unitPrice);
-            const quantity = new Decimal(item.quantity);
-            let lineNetUnitPrice = unitPrice;
-            if (item.discountPercent != null && item.discountPercent > 0) {
-              lineNetUnitPrice = unitPrice.times(new Decimal(1).minus(new Decimal(item.discountPercent).div(100)));
-            } else if (item.discountAmount != null && item.discountAmount > 0 && quantity.greaterThan(0)) {
-              lineNetUnitPrice = unitPrice.sub(new Decimal(item.discountAmount).div(quantity)).clamp(0, Infinity);
-            }
-            const calculatedUnitCost = inventoryItemCostMap.get(item.itemId) ?? new Decimal(0);
-            const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
-            const calculatedLineProfit = calculatedUnitProfit.times(quantity);
-            return {
-              where: { id: item.id! },
-              data: {
-            inventoryItemId: item.itemId,
+          const calculatedUnitCost = inventoryItemDetails?.costPrice ?? new Decimal(0);
+          const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
+          const calculatedLineProfit = calculatedUnitProfit.times(quantity);
+          
+          const itemData = {
             description: item.description,
-                quantity,
-                unitPrice,
-                vatRatePercent: new Decimal(item.vatRatePercent),
-                discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
-                discountPercent: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
-                calculatedUnitCost,
-                calculatedUnitProfit,
-                calculatedLineProfit,
-              },
-            };
-          }),
-          deleteMany: itemsToDelete.map(item => ({ id: item.id })),
+            quantity,
+            unitPrice,
+            vatRatePercent: vatRateForCalc ?? new Decimal(0), // Ensure vatRatePercent is always a Decimal
+            discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
+            discountPercent: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
+            calculatedUnitCost,
+            calculatedUnitProfit,
+            calculatedLineProfit,
+            ...(item.itemId && { inventoryItemId: item.itemId }), 
+          };
+
+          if (item.id) { // Existing item, prepare for update
+            return { where: { id: item.id }, data: itemData };
+          } else { // New item, prepare for create
+            if (!item.itemId) { // New items must have an itemId
+                 throw new TRPCError({ code: 'BAD_REQUEST', message: `New invoice item must have an itemId.` });
+            }
+            return { ...itemData, inventoryItemId: item.itemId }; // Ensure inventoryItemId is included for creation
+          }
+        }));
+
+        const itemsToUpdate = processedItems.filter(item => 'where' in item) as { where: { id: string }, data: any }[];
+        const itemsToCreate = processedItems.filter(item => !('where' in item)) as any[];
+
+
+        invoiceItemsToCreateOrUpdate = {
+          ...(itemsToCreate.length > 0 && { create: itemsToCreate.map(item => ({ // Added explicit type here
+             inventoryItemId: item.inventoryItemId,
+             description: item.description,
+             quantity: item.quantity,
+             unitPrice: item.unitPrice,
+             vatRatePercent: item.vatRatePercent,
+             discountAmount: item.discountAmount,
+             discountPercent: item.discountPercent,
+             calculatedUnitCost: item.calculatedUnitCost,
+             calculatedUnitProfit: item.calculatedUnitProfit,
+             calculatedLineProfit: item.calculatedLineProfit,
+          }))}),
+          ...(itemsToUpdate.length > 0 && { update: itemsToUpdate.map(item => ({ where: item.where, data: item.data })) }),
         };
+        
+        // Handle deletion of items not present in the input
+        const inputItemIds = inputItems.map(i => i.id).filter(id => id) as string[];
+        const itemsToDelete = existingInvoice.items.filter(existingItem => !inputItemIds.includes(existingItem.id));
+        if (itemsToDelete.length > 0) {
+          if (!invoiceItemsToCreateOrUpdate) invoiceItemsToCreateOrUpdate = {}; // Initialize if undefined
+          (invoiceItemsToCreateOrUpdate as Prisma.InvoiceItemUpdateManyWithoutInvoiceNestedInput).deleteMany = itemsToDelete.map(item => ({ id: item.id }));
+        }
+
+      } else if (inputItems && inputItems.length === 0) { // If items array is empty, delete all existing items
+          invoiceItemsToCreateOrUpdate = {
+              deleteMany: { invoiceId: id },
+          };
+          subTotal = new Decimal(0);
+          totalVatAmountValue = new Decimal(0);
       }
+      // If inputItems is undefined, items are not being changed, so subTotal and totalVatAmountValue will also remain unchanged unless explicitly recalculated or passed in input.
+      // For this implementation, if inputItems is undefined, we do not modify existing items or totals based on items.
+      // Client should send empty array [] to clear items, or full array to update/replace.
+
+      const dataForUpdate: Prisma.InvoiceUpdateInput = {
+        ...restOfInput,
+        ...(inputItems && { // Only update totals if items were part of the input
+            totalAmount: subTotal,
+            totalVatAmount: totalVatAmountValue,
+        }),
+        ...(invoiceItemsToCreateOrUpdate && { items: invoiceItemsToCreateOrUpdate }),
+      };
+      
+      // Remove undefined fields from dataForUpdate to prevent Prisma errors
+      Object.keys(dataForUpdate).forEach(key => {
+        if (dataForUpdate[key as keyof typeof dataForUpdate] === undefined) {
+          delete dataForUpdate[key as keyof typeof dataForUpdate];
+        }
+      });
 
       const updatedInvoice = await prisma.invoice.update({
         where: { id },
-        data: dataToUpdate,
+        data: dataForUpdate,
         include: {
-          items: true,
           customer: true,
+          items: { include: { inventoryItem: true }}, // Also include inventoryItem for consistency
         },
       });
 
       return updatedInvoice;
     }),
 
-  // TODO: Add delete procedure
   delete: protectedProcedure
     .input(z.object({ id: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: Add companyId check
-      // const companyId = ctx.companyId;
       await prisma.invoice.delete({
         where: { 
           id: input.id,
-          // companyId: companyId 
         },
       });
       return { success: true, id: input.id };

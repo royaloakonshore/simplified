@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogHeader, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 
 interface OrderStatusUpdateModalProps {
   orderId: string | null;
@@ -159,14 +160,14 @@ export default function OrderStatusUpdateModal({
         )}
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline" disabled={updateStatusMutation.isPending}>Cancel</Button>
+            <Button variant="outline" disabled={updateStatusMutation.isLoading}>Cancel</Button>
           </DialogClose>
           {order && availableTransitions.length > 0 && (
             <Button
               onClick={handleStatusChangeSubmit}
-              disabled={updateStatusMutation.isPending || !selectedStatus || isLoadingOrder || !!orderError}
+              disabled={updateStatusMutation.isLoading || !selectedStatus || isLoadingOrder || !!orderError}
             >
-              {updateStatusMutation.isPending ? 'Updating...' : 'Confirm Update'}
+              {updateStatusMutation.isLoading ? 'Updating...' : 'Confirm Update'}
             </Button>
           )}
         </DialogFooter>

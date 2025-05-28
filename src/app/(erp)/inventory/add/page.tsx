@@ -39,7 +39,7 @@ export default function AddInventoryItemPage() {
         <CardContent className="pt-6">
           <InventoryItemForm 
             onSubmitProp={handleSubmit}
-            isLoading={createMutation.isPending} 
+            isLoading={createMutation.isLoading}
             formMode="full"
           />
         </CardContent>
