@@ -8,6 +8,15 @@ import {
   getCoreRowModel,
   useReactTable,
   RowSelectionState,
+  ColumnFiltersState,
+  VisibilityState,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  type Table as ReactTableType,
+  type Column,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -23,12 +32,31 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import EditableQuantityCell from "./EditableQuantityCell";
+import { api } from "@/lib/trpc/react";
+import { Input } from "@/components/ui/input";
+import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
+
+// Define a more specific type for items in the table
+// Omit original Decimal fields from InventoryItem, then add them as strings
+export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel'> & { 
+  quantityOnHand: string; 
+  costPrice: string; 
+  salesPrice: string; 
+  minimumStockLevel: string; 
+  reorderLevel: string | null; 
+  // inventoryCategory is already included from base InventoryItem if the `include` in Prisma query is correct
+  // If inventoryCategory is NOT on base InventoryItem or needs specific typing for the row:
+  inventoryCategory: { id: string; name: string } | null; 
+};
 
 interface InventoryTableProps {
-  items: InventoryItem[];
+  items: InventoryItemRowData[]; 
   isLoading: boolean;
   rowSelection: RowSelectionState;
   setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>;
+  onDataChange: () => void;
+  categoryOptions: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }[];
 }
 
 const formatItemType = (type: ItemType) => {
@@ -42,7 +70,7 @@ const formatItemType = (type: ItemType) => {
   }
 };
 
-export const columns: ColumnDef<InventoryItem>[] = [
+export const columns: ColumnDef<InventoryItemRowData>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -83,7 +111,7 @@ export const columns: ColumnDef<InventoryItem>[] = [
     accessorKey: "costPrice",
     header: () => <div className="text-right">Cost Price</div>,
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("costPrice") || "0");
+      const amount = parseFloat(row.getValue("costPrice") || "0"); // Now receives string
       return <div className="text-right">{formatCurrency(amount)}</div>;
     },
   },
@@ -91,8 +119,18 @@ export const columns: ColumnDef<InventoryItem>[] = [
     accessorKey: "salesPrice",
     header: () => <div className="text-right">Sales Price</div>,
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("salesPrice") || "0");
+      const amount = parseFloat(row.getValue("salesPrice") || "0"); // Now receives string
       return <div className="text-right">{formatCurrency(amount)}</div>;
+    },
+  },
+  {
+    accessorKey: "quantityOnHand",
+    header: () => <div className="text-right">Qty on Hand</div>,
+    cell: ({ row, table }) => {
+      const itemWithStrQty = row.original as InventoryItemRowData;
+      const meta = table.options.meta as { onDataChange?: () => void };
+      // EditableQuantityCell now expects item.quantityOnHand to be a string
+      return <EditableQuantityCell item={itemWithStrQty} onUpdate={meta?.onDataChange ?? (() => {})} />;
     },
   },
   {
@@ -105,6 +143,14 @@ export const columns: ColumnDef<InventoryItem>[] = [
           {formatItemType(type)}
         </Badge>
       );
+    },
+  },
+  {
+    accessorKey: "inventoryCategory",
+    header: "Category",
+    cell: ({ row }) => {
+      const item = row.original as InventoryItemRowData; // Use the specific type
+      return item.inventoryCategory ? item.inventoryCategory.name : "N/A";
     },
   },
   {
@@ -122,15 +168,62 @@ export const columns: ColumnDef<InventoryItem>[] = [
   },
 ];
 
-export function InventoryTable({ items, isLoading, rowSelection, setRowSelection }: InventoryTableProps) {
+interface InventoryTableToolbarProps<TData> {
+  table: ReactTableType<TData>;
+  categoryOptions: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }[];
+}
+
+function InventoryTableToolbar<TData>({ table, categoryOptions }: InventoryTableToolbarProps<TData>) {
+  const isFiltered = table.getState().columnFilters.length > 0;
+
+  return (
+    <div className="flex items-center justify-between py-4">
+      <div className="flex flex-1 items-center space-x-2">
+        <Input
+          placeholder="Search SKU, name, description..."
+          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+          onChange={(event) =>
+            table.getColumn("name")?.setFilterValue(event.target.value)
+          }
+          className="h-8 w-[150px] lg:w-[250px]"
+        />
+        {table.getColumn("inventoryCategory") && categoryOptions.length > 0 && (
+          <DataTableFacetedFilter
+            column={table.getColumn("inventoryCategory")}
+            title="Category"
+            options={categoryOptions}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function InventoryTable({ items, isLoading, rowSelection, setRowSelection, onDataChange, categoryOptions }: InventoryTableProps) {
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+
   const table = useReactTable({
     data: items,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    onRowSelectionChange: setRowSelection,
+    columns, // Columns might need to be a function of categoryOptions if they use them directly for filtering
     state: {
       rowSelection,
+      columnFilters,
+      columnVisibility,
     },
+    onRowSelectionChange: setRowSelection,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(), // For client-side filtering
+    getPaginationRowModel: getPaginationRowModel(), // If adding pagination controls
+    getSortedRowModel: getSortedRowModel(), // If adding sorting controls
+    getFacetedRowModel: getFacetedRowModel(), // For faceted filters
+    getFacetedUniqueValues: getFacetedUniqueValues(), // For faceted filters
+    meta: {
+        onDataChange,
+        // categoryOptions, // Pass categoryOptions to columns if needed via meta
+    }
   });
 
   if (isLoading) {
@@ -161,49 +254,53 @@ export function InventoryTable({ items, isLoading, rowSelection, setRowSelection
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+    <div className="space-y-4">
+      <InventoryTableToolbar table={table} categoryOptions={categoryOptions} />
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {/* Add DataTablePagination component here if implementing pagination */}
     </div>
   );
 } 

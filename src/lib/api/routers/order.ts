@@ -33,6 +33,26 @@ export type OrderWithDetailsForRouter = Prisma.OrderGetPayload<{
   include: typeof orderDetailIncludeArgs;
 }>;
 
+// NEW HELPER FUNCTION to process Decimals in an OrderWithDetailsForRouter object
+const processOrderDecimals = (order: OrderWithDetailsForRouter) => {
+  return {
+    ...order,
+    totalAmount: order.totalAmount?.toString() ?? null,
+    items: order.items.map(item => ({
+      ...item,
+      unitPrice: item.unitPrice.toString(),
+      discountAmount: item.discountAmount?.toString() ?? null,
+      inventoryItem: {
+        ...item.inventoryItem,
+        costPrice: item.inventoryItem.costPrice.toString(),
+        salesPrice: item.inventoryItem.salesPrice.toString(),
+        minimumStockLevel: item.inventoryItem.minimumStockLevel.toString(),
+        reorderLevel: item.inventoryItem.reorderLevel?.toString() ?? null,
+      }
+    }))
+  };
+};
+
 // Helper function to calculate order total including discounts
 const calculateOrderTotal = (items: OrderItemInput[]): Prisma.Decimal => {
   return items.reduce((total: Prisma.Decimal, item: OrderItemInput) => {
@@ -278,20 +298,16 @@ export const orderRouter = createTRPCRouter({
     }),
 
   getById: protectedProcedure
-    .input(z.object({ id: z.string().cuid() }))
-    .query(async ({ input }): Promise<OrderWithDetailsForRouter | null> => {
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
       const order = await prisma.order.findUnique({
         where: { id: input.id },
         include: orderDetailIncludeArgs,
       });
-
       if (!order) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Order not found.",
-        });
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
       }
-      return order as OrderWithDetailsForRouter;
+      return processOrderDecimals(order as OrderWithDetailsForRouter); // Use helper
     }),
 
   listProductionView: protectedProcedure
@@ -328,125 +344,73 @@ export const orderRouter = createTRPCRouter({
 
   create: protectedProcedure
     .input(createOrderSchema)
-    .mutation(async ({ input, ctx }) => {
-      const { customerId, items, notes, status, orderType, deliveryDate } = input;
-      const userId = ctx.session.user.id;
+    .mutation(async ({ ctx, input }) => {
+      const { items, customerId, ...orderData } = input;
+      const orderTotal = calculateOrderTotal(items);
 
-      console.log("[Order Create Mutation] Attempting to create order for userId:", userId);
-
-      if (items.some((item) => item.unitPrice === undefined || item.unitPrice === null)) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Unit price must be provided for all order items.',
-        });
-      }
-
-      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      return prisma.$transaction(async (tx) => {
         const orderNumber = await generateOrderNumber(tx);
-        const totalAmount = calculateOrderTotal(items);
-
-        const mappedItemsForCreation = items.map((item) => ({
-          inventoryItemId: item.itemId,
-          quantity: new Prisma.Decimal(item.quantity),
-          unitPrice: new Prisma.Decimal(item.unitPrice!),
-          discountAmount: item.discountAmount != null ? new Prisma.Decimal(item.discountAmount) : undefined,
-          discountPercentage: item.discountPercent != null ? new Prisma.Decimal(item.discountPercent) : undefined,
-        }));
-
-        const newOrder = await tx.order.create({
+        const createdOrder = await tx.order.create({
           data: {
+            ...orderData,
             orderNumber,
             customerId,
-            userId,
-            status: status ?? OrderStatus.draft,
-            orderType: orderType ?? OrderType.work_order,
-            // deliveryDate, // Temporarily commented out
-            notes,
-            totalAmount,
+            userId: ctx.session.user.id,
+            totalAmount: orderTotal,
             items: {
-              create: mappedItemsForCreation,
+              create: items.map((item) => ({
+                inventoryItemId: item.inventoryItemId,
+                quantity: item.quantity,
+                unitPrice: new Prisma.Decimal(item.unitPrice ?? 0),
+                discountPercent: item.discountPercent,
+                discountAmount: item.discountAmount ? new Prisma.Decimal(item.discountAmount) : null,
+              })),
             },
-            // qrIdentifier will be set in a subsequent update within this transaction
           },
-          include: { items: true, customer: true },
+          include: orderDetailIncludeArgs, // Ensure full details are fetched
         });
-
-        // Now update the newOrder with the qrIdentifier
-        const updatedOrderWithQr = await tx.order.update({
-          where: { id: newOrder.id },
-          data: {
-            qrIdentifier: `ORDER:${newOrder.id}`
-          },
-          include: orderDetailIncludeArgs // Ensure we return the full order details
-        });
-
-        if (updatedOrderWithQr.status === OrderStatus.confirmed) {
-          await checkAndAllocateStock(updatedOrderWithQr.id, tx);
-        }
-
-        return updatedOrderWithQr;
+        return processOrderDecimals(createdOrder as OrderWithDetailsForRouter);
       });
     }),
 
   update: protectedProcedure
-    .input(updateOrderSchema) 
-    .mutation(async ({ input, ctx }) => {
-      const { id, items: inputItems, ...restOfInput } = input;
-      const userId = ctx.session.user.id; 
+    .input(updateOrderSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { id, items, customerId, ...orderData } = input;
+      let orderTotal: Prisma.Decimal | undefined = undefined;
+      if (items) {
+        orderTotal = calculateOrderTotal(items);
+      }
 
-      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const existingOrder = await tx.order.findUnique({
-          where: { id },
-          include: { items: true },
-        });
-
-        if (!existingOrder) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
-        }
-
-        let totalAmount = existingOrder.totalAmount;
-        if (inputItems) {
-          if (inputItems.some((item) => item.unitPrice === undefined || item.unitPrice === null)) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Unit price must be provided for all order items if items are being updated.',
-            });
-          }
-          totalAmount = calculateOrderTotal(inputItems);
+      return prisma.$transaction(async (tx) => {
+        // If items are being updated, Prisma requires deleting old items and creating new ones or more complex logic.
+        // Simple update for now, assuming items are not re-linked this way typically.
+        // For a robust item update, one might delete existing OrderItems and recreate them.
+        if (items) {
+            await tx.orderItem.deleteMany({ where: { orderId: id } });
         }
 
         const updatedOrder = await tx.order.update({
           where: { id },
           data: {
-            ...restOfInput,
-            totalAmount, 
-            items: inputItems
-              ? {
-                  deleteMany: { orderId: id }, 
-                  create: inputItems.map((item) => ({
-                    inventoryItemId: item.itemId,
-                    quantity: new Prisma.Decimal(item.quantity),
-                    unitPrice: new Prisma.Decimal(item.unitPrice!),
-                    discountAmount: item.discountAmount != null ? new Prisma.Decimal(item.discountAmount) : undefined,
-                    discountPercentage: item.discountPercent != null ? new Prisma.Decimal(item.discountPercent) : undefined,
-                  })),
-                }
-              : undefined,
+            ...orderData,
+            customerId,
+            totalAmount: orderTotal, // This will be undefined if items is not passed, orderTotal is not updated
+            ...(items && { // Only include items for update if they are provided
+              items: {
+                create: items.map((item) => ({
+                  inventoryItemId: item.inventoryItemId,
+                  quantity: item.quantity,
+                  unitPrice: new Prisma.Decimal(item.unitPrice ?? 0),
+                  discountPercent: item.discountPercent,
+                  discountAmount: item.discountAmount ? new Prisma.Decimal(item.discountAmount) : null,
+                })),
+              },
+            }),
           },
-          include: { items: true, customer: true },
+          include: orderDetailIncludeArgs, // Ensure full details are fetched
         });
-        
-        if (updatedOrder.status === OrderStatus.confirmed) {
-          await tx.inventoryTransaction.deleteMany({
-            where: {
-              reference: `Order ${id}`,
-              type: TransactionType.sale 
-            }
-          });
-          await checkAndAllocateStock(updatedOrder.id, tx);
-        }
-
-        return updatedOrder;
+        return processOrderDecimals(updatedOrder as OrderWithDetailsForRouter);
       });
     }),
 

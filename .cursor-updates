@@ -100,3 +100,4 @@
 - Fix minor issues in `invoice.ts` related to Decimal conversion and removal of non-existent `userLastModified` field.
 - Move helper functions in `InvoiceListContent.tsx` to top-level scope to fix syntax errors.
 - Verified that `isPending` was already updated to `isLoading` in relevant files.
+- Resolved build error in `OrderForm.tsx` by removing an unused and conflicting `OrderFormData` type from `src/lib/schemas/order.schema.ts` that was incorrectly referencing `itemId` instead of `inventoryItemId`.

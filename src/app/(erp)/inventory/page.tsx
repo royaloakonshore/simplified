@@ -3,13 +3,14 @@
 import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { api } from "@/lib/trpc/react";
-import { InventoryTable, columns } from '@/components/inventory/InventoryTable';
+import { InventoryTable, columns, type InventoryItemRowData } from '@/components/inventory/InventoryTable';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from 'react';
 import { type RowSelectionState, useReactTable, getCoreRowModel } from "@tanstack/react-table";
 import { PrinterIcon } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { type ItemType } from '@prisma/client';
 
 // Skeleton for the inventory page
 function InventoryPageSkeleton() {
@@ -29,12 +30,34 @@ function InventoryPageSkeleton() {
 // Component to handle fetching and displaying inventory data
 function InventoryListContent() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const utils = api.useUtils();
 
-  const { data, error, isLoading } = api.inventory.list.useQuery({});
+  const { data: queryData, error, isLoading, refetch: refetchInventoryList } = api.inventory.list.useQuery({});
+  const { data: categoriesData } = api.inventory.getAllCategories.useQuery();
+
+  const categoryOptions = useMemo(() => {
+    if (!categoriesData) return [];
+    return categoriesData.map(cat => ({ label: cat.name, value: cat.id }));
+  }, [categoriesData]);
+
+  const itemsForTable: InventoryItemRowData[] = useMemo(() => {
+    if (!queryData?.data) return [];
+    // queryData.data are items from api.inventory.list
+    // These items already have base InventoryItem fields, with costPrice, salesPrice, etc., converted to string by the router.
+    // InventoryItemRowData expects these string fields, and base InventoryItem fields for the rest (e.g. defaultVatRatePercent as Decimal).
+    return queryData.data.map(apiItem => {
+      return {
+        ...apiItem, // This should provide most fields correctly aligned.
+        // Ensure Date types for createdAt and updatedAt if they might be strings from JSON
+        createdAt: new Date(apiItem.createdAt),
+        updatedAt: new Date(apiItem.updatedAt),
+        // itemType should be fine if router passes it as the enum or a compatible string
+        // inventoryCategory from apiItem should match InventoryItemRowData.inventoryCategory
+      } as InventoryItemRowData; // Cast is still useful for ensuring full type compatibility
+    });
+  }, [queryData]);
 
   const table = useReactTable({
-    data: data?.items ?? [],
+    data: itemsForTable, 
     columns,
     state: {
       rowSelection,
@@ -48,7 +71,6 @@ function InventoryListContent() {
   const generatePdfMutation = api.inventory.generateQrCodePdf.useMutation({
     onSuccess: (data) => {
       if (data.success && data.pdfBase64) {
-        // Create a blob from the base64 PDF data
         const byteCharacters = atob(data.pdfBase64);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -56,19 +78,16 @@ function InventoryListContent() {
         }
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: 'application/pdf' });
-
-        // Create a link and trigger download
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = 'inventory_qr_tags.pdf';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(link.href); // Clean up
-
+        URL.revokeObjectURL(link.href);
         toast.success(data.message);
-        setRowSelection({}); // Clear selection
-      } else if (data.success) { // Successful but no PDF data
+        setRowSelection({});
+      } else if (data.success) {
         toast.info(data.message);
       } else {
         toast.error(data.message || 'PDF generation failed for an unknown reason.');
@@ -80,8 +99,8 @@ function InventoryListContent() {
   });
 
   const selectedOriginalItemIds = useMemo(() => {
-    return table.getSelectedRowModel().flatRows.map(row => row.original.id);
-  }, [table, rowSelection]); // Depend on table instance and rowSelection
+    return table.getSelectedRowModel().flatRows.map(row => (row.original as InventoryItemRowData).id);
+  }, [table, rowSelection]);
 
   const handlePrintSelected = () => {
     if (selectedOriginalItemIds.length === 0) {
@@ -90,6 +109,25 @@ function InventoryListContent() {
     }
     generatePdfMutation.mutate({ itemIds: selectedOriginalItemIds });
   };
+
+  const handleDataChange = () => {
+    refetchInventoryList();
+  };
+
+  if (isLoading && !queryData && !error) { // Adjusted loading check
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Inventory Items</h1>
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-10 w-32" /> 
+            <Skeleton className="h-10 w-36" />
+          </div>
+        </div>
+        <InventoryPageSkeleton />
+      </div>
+    );
+  }
 
   if (error) {
     return <div className="text-red-600">Error loading inventory: {error.message}</div>;
@@ -112,10 +150,12 @@ function InventoryListContent() {
         </div>
       </div>
       <InventoryTable 
-        items={data?.items ?? []} 
-        isLoading={isLoading && !data && !error}
+        items={itemsForTable} 
+        isLoading={isLoading && !queryData && !error} // Adjusted loading check
         rowSelection={rowSelection}
         setRowSelection={setRowSelection}
+        onDataChange={handleDataChange}
+        categoryOptions={categoryOptions} 
       /> 
     </div>
   );

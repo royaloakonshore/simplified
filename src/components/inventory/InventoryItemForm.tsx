@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type InventoryItem, ItemType as PrismaItemType } from "@prisma/client";
+import { type InventoryItem, ItemType as PrismaItemType, InventoryTransaction } from "@prisma/client";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from 'qrcode.react';
@@ -26,9 +26,34 @@ import { toast } from 'react-toastify';
 import { api } from "@/lib/trpc/react";
 import { inventoryItemBaseSchema, type InventoryItemFormValues } from "@/lib/schemas/inventory.schema";
 
+// Type for what the form receives as initialData (item from API with processed Decimals)
+export interface ProcessedInventoryItemApiData {
+  id: string; // Keep ID for context (e.g. edit vs create)
+  sku: string | null;
+  name: string;
+  description: string | null;
+  unitOfMeasure: string | null;
+  itemType: PrismaItemType; // Prisma enum
+  inventoryCategoryId: string | null;
+  // Stringified Decimal fields
+  costPrice: string | null;
+  salesPrice: string | null;
+  minimumStockLevel: string | null;
+  reorderLevel: string | null;
+  quantityOnHand: string | null; // Current total quantity, for display or context
+  // Parsed Decimal fields
+  defaultVatRatePercent?: number | null;
+  // Other InventoryItem fields if needed by the form for display (not for form submission values directly)
+  qrIdentifier?: string | null;
+  showInPricelist?: boolean | null;
+  internalRemarks?: string | null;
+  createdAt?: Date; // For display if needed
+  updatedAt?: Date; // For display if needed
+}
+
 interface InventoryItemFormProps {
-  initialData?: InventoryItem & { qrIdentifier?: string | null };
-  onSubmitProp: (values: InventoryItemFormValues, mode: 'full' | 'scan-edit', quantityAdjustment?: number) => void;
+  initialData?: ProcessedInventoryItemApiData;
+  onSubmitProp: (values: InventoryItemFormValues, mode: 'full' | 'scan-edit', initialStockOrAdjustment?: number) => void;
   isLoading?: boolean;
   formMode?: 'full' | 'scan-edit';
 }
@@ -45,17 +70,37 @@ export function InventoryItemForm({
   const form = useForm<InventoryItemFormValues>({
     resolver: zodResolver(inventoryItemBaseSchema as any),
     defaultValues: initialData
-      ? {
-          sku: initialData.sku ?? '',
-          name: initialData.name,
-          description: initialData.description ?? undefined,
-          unitOfMeasure: initialData.unitOfMeasure ?? 'kpl',
-          costPrice: initialData.costPrice !== null ? parseFloat(initialData.costPrice.toString()) : 0,
-          salesPrice: initialData.salesPrice !== null ? parseFloat(initialData.salesPrice.toString()) : 0,
-          itemType: initialData.itemType ?? PrismaItemType.RAW_MATERIAL,
-          minimumStockLevel: initialData.minimumStockLevel !== null ? parseFloat(initialData.minimumStockLevel.toString()) : 0,
-          reorderLevel: initialData.reorderLevel !== null ? parseFloat(initialData.reorderLevel.toString()) : 0,
-        }
+      ? (() => {
+          const getNumericValue = (value: string | null | undefined, defaultValue: number = 0): number => {
+            if (value === null || value === undefined) return defaultValue;
+            const num = parseFloat(value);
+            return isNaN(num) ? defaultValue : num;
+          };
+          const getOptionalNumericValue = (value: string | null | undefined, defaultValue?: number): number | undefined => {
+            if (value === null || value === undefined) return defaultValue;
+            const num = parseFloat(value);
+            return isNaN(num) ? defaultValue : num;
+          };
+
+          return {
+            sku: initialData.sku ?? '',
+            name: initialData.name ?? '',
+            description: initialData.description ?? undefined,
+            unitOfMeasure: initialData.unitOfMeasure ?? 'kpl',
+            costPrice: getNumericValue(initialData.costPrice, 0), 
+            salesPrice: getNumericValue(initialData.salesPrice, 0),
+            itemType: initialData.itemType ?? PrismaItemType.RAW_MATERIAL,
+            minimumStockLevel: getNumericValue(initialData.minimumStockLevel, 0),
+            reorderLevel: getNumericValue(initialData.reorderLevel, 0),
+            quantityOnHand: initialData.id && formMode === 'full' 
+                              ? undefined 
+                              : getNumericValue(initialData.quantityOnHand, 0),
+            defaultVatRatePercent: initialData.defaultVatRatePercent ?? undefined,
+            showInPricelist: initialData.showInPricelist ?? true,
+            internalRemarks: initialData.internalRemarks ?? undefined,
+            inventoryCategoryId: initialData.inventoryCategoryId ?? undefined,
+          };
+        })()
       : {
           sku: '',
           name: '',
@@ -66,38 +111,22 @@ export function InventoryItemForm({
           itemType: PrismaItemType.RAW_MATERIAL,
           minimumStockLevel: 0,
           reorderLevel: 0,
+          quantityOnHand: 0,
+          defaultVatRatePercent: undefined,
+          showInPricelist: true,
+          internalRemarks: undefined,
+          inventoryCategoryId: undefined,
         },
   });
 
   const [quantityAdjustment, setQuantityAdjustment] = React.useState<number | undefined>(undefined);
 
-  const createItem = api.inventory.create.useMutation({
-    onSuccess: () => {
-      toast.success('Inventory item created successfully!');
-      utils.inventory.list.invalidate();
-      router.push('/inventory');
-    },
-    onError: (error) => {
-      toast.error(`Error creating item: ${error.message}`);
-    },
-  });
-
-  const updateItem = api.inventory.update.useMutation({
-    onSuccess: () => {
-      toast.success('Inventory item updated successfully!');
-      utils.inventory.list.invalidate();
-      if (initialData) {
-          utils.inventory.getById.invalidate({ id: initialData.id });
-      }
-      router.push('/inventory');
-    },
-    onError: (error) => {
-      toast.error(`Error updating item: ${error.message}`);
-    },
-  });
+  // Mutations for create/update are now handled by the parent page (EditInventoryItemPage, AddInventoryItemPage)
+  // This form component will call onSubmitProp, which triggers those mutations.
 
   function onSubmit(values: InventoryItemFormValues) {
-    onSubmitProp(values, formMode, formMode === 'scan-edit' ? quantityAdjustment : undefined);
+    const stockAmount = values.quantityOnHand;
+    onSubmitProp(values, formMode, formMode === 'full' ? stockAmount : quantityAdjustment);
   }
 
   return (
@@ -142,7 +171,24 @@ export function InventoryItemForm({
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <FormField
+                    control={form.control as any}
+                    name="quantityOnHand" // This field is for initial stock on create, or adjustment amount on edit
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>{initialData?.id ? "Adjust Stock Quantity By" : "Initial Quantity on Hand"}</FormLabel>
+                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormDescription>
+                            {initialData?.id 
+                                ? "Enter amount to adjust by (e.g., 10 to add, -5 to remove). Current actual stock is managed by transactions."
+                                : "Enter the initial stock quantity for this new item."
+                            }
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
                 <FormField
                     control={form.control as any}
                     name="unitOfMeasure"
@@ -154,13 +200,15 @@ export function InventoryItemForm({
                     </FormItem>
                     )}
                 />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                     control={form.control as any}
                     name="costPrice"
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Cost Price (€)*</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                        <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
@@ -171,7 +219,7 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Sales Price (€)*</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                        <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
@@ -201,7 +249,7 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Minimum Stock Level</FormLabel>
-                        <FormControl><Input type="number" step="1" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                        <FormControl><Input type="number" {...field} /></FormControl>
                         <FormDescription>Optional warning level.</FormDescription>
                         <FormMessage />
                     </FormItem>
@@ -213,13 +261,24 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Reorder Level</FormLabel>
-                        <FormControl><Input type="number" step="1" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                        <FormControl><Input type="number" {...field} /></FormControl>
                         <FormDescription>Optional reorder trigger level.</FormDescription>
                         <FormMessage />
                     </FormItem>
                     )}
                 />
             </div>
+            {initialData?.qrIdentifier && (
+                 <div className="pt-4">
+                    <FormLabel>QR Code</FormLabel>
+                    <div className="mt-2 p-4 border rounded-md inline-block bg-white">
+                        <ClientOnly fallback={<p>Loading QR Code...</p>}>
+                            <QRCodeSVG value={initialData.qrIdentifier} size={128} />
+                        </ClientOnly>
+                    </div>
+                    <FormDescription className="mt-2">Current QR code identifier: {initialData.qrIdentifier}</FormDescription>
+                </div>
+            )}
           </>
         )}
 
@@ -247,39 +306,24 @@ export function InventoryItemForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Update Cost Price (€) (Optional)</FormLabel>
-                  <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
-                  <FormDescription>If you are recording a purchase, you can update the cost price.</FormDescription>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormDescription>If cost price has changed, update it here.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
         )}
-
-        <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
-          {isLoading 
-            ? (formMode === 'scan-edit' ? "Processing..." : (initialData ? "Saving..." : "Creating...")) 
-            : (formMode === 'scan-edit' ? "Adjust Stock & Update Price" : (initialData ? "Save Changes" : "Create Item"))}
-        </Button>
-
-        {initialData && formMode === 'full' && (
-          <Button type="button" variant="outline" onClick={() => router.back()} className="w-full md:w-auto">
-            Cancel
-          </Button>
-        )}
-      </form>
-
-      {initialData && initialData.qrIdentifier && formMode === 'full' && (
-        <div className="mt-10 pt-6 border-t">
-          <h3 className="text-lg font-semibold mb-3">Item QR Code</h3>
-          <div className="flex flex-col items-center md:items-start">
-            <ClientOnly>
-              <QRCodeSVG value={initialData.qrIdentifier} size={128} bgColor={"#ffffff"} fgColor={"#000000"} level={"Q"} />
-            </ClientOnly>
-            <p className="text-sm text-muted-foreground mt-2">Scan for item details/editing.</p>
-          </div>
+        
+        <div className="flex justify-end space-x-3">
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+                Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Saving..." : (initialData?.id && formMode === 'full' ? "Save Changes" : (formMode === 'scan-edit' ? "Adjust Stock" : "Create Item"))}
+            </Button>
         </div>
-      )}
+      </form>
     </Form>
   );
 } 

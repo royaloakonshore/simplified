@@ -28,6 +28,20 @@ import {
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { toast } from 'react-toastify';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { PackageSearch } from 'lucide-react';
+import Link from 'next/link';
+import { Input } from "@/components/ui/input";
 
 // Define the structure of an order for the Kanban board more specifically
 interface KanbanOrder {
@@ -67,6 +81,40 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
   { id: OrderStatus.in_production, name: 'In Production', color: '#3b82f6' }, // blue-500
   { id: OrderStatus.shipped, name: 'Ready for Shipping/Shipped', color: '#22c55e' }, // green-500 
 ];
+
+// Helper to render BOM details
+const renderBomDetails = (bom: NonNullable<KanbanOrder['items'][number]['inventoryItem']['bom']>, orderItemQuantity: PrismaTypes.Decimal) => {
+  return (
+    <ScrollArea className="max-h-[400px]">
+      <div className="space-y-2">
+        <p className="font-semibold">BOM: {bom.name || 'Unnamed BOM'}</p>
+        <p className="text-sm text-muted-foreground">
+          Required components for {orderItemQuantity.toString()} unit(s) of the final product:
+        </p>
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Component SKU</TableHead>
+              <TableHead>Component Name</TableHead>
+              <TableHead className="text-right">Qty / Unit</TableHead>
+              <TableHead className="text-right">Total Required</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {bom.items.map(bomItem => (
+              <TableRow key={bomItem.id}>
+                <TableCell>{bomItem.componentItem.sku}</TableCell>
+                <TableCell>{bomItem.componentItem.name}</TableCell>
+                <TableCell className="text-right">{bomItem.quantity.toString()}</TableCell>
+                <TableCell className="text-right">{(bomItem.quantity.times(orderItemQuantity)).toString()}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </ScrollArea>
+  );
+};
 
 function ProductionPageContent() {
   const [activeView, setActiveView] = useState<string>("kanban");
@@ -129,19 +177,62 @@ function ProductionPageContent() {
 
   const renderKanbanCardContent = (order: KanbanOrder) => (
     <div className="space-y-1 text-sm">
-      <p className="font-semibold text-base truncate">{order.orderNumber}</p>
-      <p className="text-muted-foreground truncate">{order.customer?.name || 'N/A'}</p>
-      <p className="text-muted-foreground">Qty: {order.totalQuantity.toString()}</p>
+      <div className="flex justify-between items-start">
+        <div>
+            <p className="font-semibold text-base truncate">{order.orderNumber}</p>
+            <p className="text-muted-foreground truncate">{order.customer?.name || 'N/A'}</p>
+        </div>
+        {/* BOM Dialog Trigger for the whole order - if any item has a BOM */}
+        {order.items.some(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && item.inventoryItem.bom) && (
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                        <PackageSearch className="h-4 w-4" />
+                        <span className="sr-only">View BOMs</span>
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Bill of Materials for Order: {order.orderNumber}</DialogTitle>
+                        <DialogDescription>
+                            Components required for manufactured items in this order.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[60vh] pr-3">
+                        <div className="space-y-4">
+                        {order.items.map(orderItem => (
+                            orderItem.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && orderItem.inventoryItem.bom ? (
+                            <Card key={orderItem.inventoryItem.id}>
+                                <CardHeader className="pb-2 pt-4">
+                                    <CardTitle className="text-md">
+                                        {orderItem.inventoryItem.name} (Qty: {orderItem.quantity.toString()})
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                {renderBomDetails(orderItem.inventoryItem.bom, orderItem.quantity)}
+                                </CardContent>
+                            </Card>
+                            ) : null
+                        ))}
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="outline">Close</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        )}
+      </div>
+      <p className="text-muted-foreground">Total Items: {order.totalQuantity.toString()}</p>
       {order.deliveryDate && <p className="text-muted-foreground">Due: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
+      {/* Minimal item type badges below, detailed BOMs in dialog */}
       <div className="mt-1 flex flex-wrap gap-1">
         {order.items.map(item => (
-          item.inventoryItem.bom ? (
-            <Badge key={`${order.id}-${item.inventoryItem.id}-bom`} variant="secondary" className="text-xs">
-              BOM: {item.inventoryItem.bom.name || item.inventoryItem.name}
-            </Badge>
-          ) : item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD ? (
-            <Badge key={`${order.id}-${item.inventoryItem.id}-mfd`} variant="outline" className="text-xs">
-              Mfd: {item.inventoryItem.name}
+          item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD ? (
+            <Badge key={`${order.id}-${item.inventoryItem.id}-mfd`} variant={item.inventoryItem.bom ? "secondary" : "outline"} className="text-xs">
+              {item.inventoryItem.name} (Mfd{item.inventoryItem.bom ? ", BOM" : ""})
             </Badge>
           ) : null
         ))}
@@ -152,6 +243,16 @@ function ProductionPageContent() {
   const columns = React.useMemo<ColumnDef<KanbanOrder>[]>(() => [
     { accessorKey: "orderNumber", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Order #</Button> },
     { accessorKey: "customer.name", header: "Customer", cell: ({ row }) => row.original.customer?.name || 'N/A' },
+    { 
+        accessorKey: "items", 
+        header: "Manufactured Items", 
+        cell: ({row}) => {
+            const mfdItems = row.original.items
+                .filter(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD)
+                .map(item => `${item.inventoryItem.name} (x${item.quantity.toString()})${item.inventoryItem.bom ? ' - BOM' : ''}`);
+            return mfdItems.length > 0 ? mfdItems.join(", ") : "N/A";
+        }
+    },
     { accessorKey: "status", header: "Status" },
     { accessorKey: "totalQuantity", header: "Total Qty", cell: ({row}) => row.original.totalQuantity.toString() },
     { 
@@ -162,6 +263,18 @@ function ProductionPageContent() {
         return deliveryDate ? new Date(deliveryDate).toLocaleDateString() : 'N/A';
       } 
     },
+    {
+        id: 'actions',
+        cell: ({ row }) => {
+            const order = row.original;
+            // Could add a similar DialogTrigger here for table view if needed
+            return (
+                <Link href={`/orders/${order.id}`} passHref>
+                    <Button variant="outline" size="sm">View</Button>
+                </Link>
+            )
+        }
+    }
   ], []);
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -248,61 +361,60 @@ function ProductionPageContent() {
         </DndContext>
       </TabsContent>
       <TabsContent value="table" className="flex-grow">
-         <Card>
-            <CardHeader>
-                <CardTitle>Production Orders</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <DataTableToolbar 
-                    table={table}
-                    globalFilter={globalFilter}
-                    setGlobalFilter={setGlobalFilter}
-                />
-                <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
-                                    {header.isPlaceholder
-                                    ? null
-                                    : flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext()
-                                        )}
-                                </TableHead>
-                                ))}
-                            </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody>
-                            {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                key={row.id}
-                                data-state={row.getIsSelected() && "selected"}
-                                >
-                                {row.getVisibleCells().map((cell) => (
-                                    <TableCell key={cell.id}>
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                    </TableCell>
-                                ))}
-                                </TableRow>
-                            ))
-                            ) : (
-                            <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
-                                No production orders found.
-                                </TableCell>
-                            </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-                <DataTablePagination table={table} />
-            </CardContent>
-         </Card>
+         {/* Basic Toolbar for Table View */}
+        <div className="flex items-center py-4">
+            <Input
+                placeholder="Filter orders... (e.g., by order number, customer)"
+                value={globalFilter ?? ''}
+                onChange={(event) => setGlobalFilter(event.target.value)}
+                className="max-w-sm"
+            />
+        </div>
+        <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                        return (
+                        <TableHead key={header.id}>
+                            {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                                )}
+                        </TableHead>
+                        );
+                    })}
+                    </TableRow>
+                ))}
+                </TableHeader>
+                <TableBody>
+                {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                    <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                    >
+                        {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                        ))}
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                        No results.
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+        </div>
+        <DataTablePagination table={table} />
       </TabsContent>
     </Tabs>
   );
@@ -310,30 +422,11 @@ function ProductionPageContent() {
 
 export default function ProductionPage() {
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Production</h1>
-      </div>
-      <Suspense fallback={
-        <div className="space-y-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
-              <div className="flex space-x-2">
-                <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
-                <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="border rounded-md h-64 bg-muted/5 animate-pulse"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      }>
-        <ProductionPageContent />
-      </Suspense>
+    // Ensure the parent container allows the Tabs component to fill height
+    <div className="container mx-auto py-6 px-4 md:px-6 h-[calc(100vh-var(--header-height)-theme(spacing.12))]"> 
+        <Suspense fallback={<div>Loading production view...</div>}>
+         <ProductionPageContent />
+        </Suspense>
     </div>
   );
 } 

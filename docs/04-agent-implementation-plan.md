@@ -1,85 +1,92 @@
 # Agent Implementation Plan - Simplified ERP System
 
-This plan outlines the step-by-step implementation process for the AI agent building the ERP system. Each major step represents a logical unit of work, potentially suitable for a separate development session/chat context.
+This plan outlines the step-by-step implementation process for the AI agent building the ERP system. Each major step represents a logical unit of work.
 
 **Core Principle:** Build foundational elements first, then layer features module by module. Prioritize backend (types, schemas, actions, DB interactions) before frontend UI implementation within each module.
 
-**Testing:** Tests (unit, integration) should be written alongside or immediately after implementing the corresponding functionality for each step.
+**Current Context & Progress:**
+The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. Recent work focused on resolving build/type errors and ensuring `InventoryItem.defaultVatRatePercent` is used in invoice creation.
 
 --- --- ---
 
 **Phase 0: Preparation (USER)**
 
-*   User sets up a new project directory.
-*   User initializes the project using a suitable starter template (e.g., `next-ai-starter` or similar recommended Next.js/Supabase/Shadcn template).
-*   User installs all base dependencies (`npm install` or equivalent).
-*   User configures `.env.local` with Supabase URL and Anon Key.
-*   User copies the updated documentation files (from the `docs/project-overview/` directory generated in the previous session) into the new project's `docs/` folder.
+*   Completed.
 
 **Phase 1: Foundation & Core Modules (Largely Complete)**
 
 1.  **Setup & Config:** (DONE)
-2.  **Authentication:** NextAuth (Email/Credentials), Prisma Adapter, Sign-in, Settings (Profile/Password). (DONE - Email provider temporarily disabled due to build issues).
+2.  **Authentication:** NextAuth (Email/Credentials), Prisma Adapter, Sign-in, Settings (Profile/Password). (DONE - Email provider re-enabled after date-picker fixes).
 3.  **Core Layout:** Main app layout, Shadcn Sidebar. (DONE)
-4.  **Customer Module:** Schema, tRPC (CRUD), List/Detail/Form. (DONE)
-5.  **Inventory Module:** Schema (Item, Transaction, ItemType), tRPC (CRUD for Item, AdjustStock), List/Detail/Form. (DONE - `itemType` implemented, `materialType` removed).
+4.  **Customer Module:** Schema, tRPC (CRUD), List/Detail/Form, Advanced Table, Edit Dialog. (DONE)
+5.  **Inventory Module:** Schema (Item, Transaction, ItemType, Category), tRPC (CRUD for Item, AdjustStock), Basic List/Detail/Form. (DONE - `itemType` implemented, `defaultVatRatePercent` added).
 6.  **Order Module:** Schema, tRPC (CRUD), List/Detail/Form. (DONE - Quote/Work Order logic in place).
-7.  **Invoice Module:** Schema (incl. profitability fields), tRPC (List, Get, Create, Update), List/Detail/Form. `totalAmount` confirmed NET. Profitability calculation logic in tRPC DONE. (DONE)
-8.  **Production Module (Simplified):** Kanban view, driven by Order status. (DONE)
+7.  **Invoice Module:** Schema (incl. profitability fields), tRPC (List, Get, Create, Update, `createFromOrder` using item VAT), List/Detail/Form. (DONE)
+8.  **Production Module (Simplified):** Kanban view, driven by Order status. Inventory deduction for BOM components on `in_production` status. (DONE)
 9.  **Bill of Materials (BOM) Backend:** Schema (`BillOfMaterial`, `BillOfMaterialItem`), tRPC router (`bom.ts` for CRUD & `totalCalculatedCost` calculation). (DONE)
 
-**Phase 2: UI Implementation for Backend Features & Enhancements**
+**Phase 2: UI Implementation, Module Enhancements & New Features**
 
 **Status:** In Progress
 
-**Core Objectives:** Implement UIs for BOM management, Customer History, and Profitability. Address placeholder VAT rate in invoice creation from order. Continue refining UI/UX across modules.
+**Core Objectives:** Enhance Inventory module with requested features, implement UI for BOMs and Customer History, develop Dashboard and Reporting, and complete PDF generation and Finvoice integration.
 
 **Key Tasks & Features (Prioritized Next Steps):**
 
-1.  **Invoice Creation from Order - VAT Rate:**
-    *   **Task:** Modify `invoiceRouter.createFromOrder` to use the actual `defaultVatRatePercent` from `InventoryItem` for each line item, instead of the placeholder `25.5`.
-    *   **Consideration:** Add a company-level default VAT rate in Settings as a fallback if `InventoryItem.defaultVatRatePercent` is null.
+1.  **Inventory Module Enhancements (NEW REQUIREMENTS):**
+    *   **Editable `quantityOnHand` in Forms:**
+        *   Modify `InventoryItemForm.tsx` to allow setting/editing `quantityOnHand`.
+        *   During creation, this sets the initial stock (creates an `InventoryTransaction`).
+        *   During edit, this triggers a stock adjustment (creates an `InventoryTransaction`).
+        *   Update `inventory.upsert` or add new tRPC mutation if needed to handle this logic cleanly.
+    *   **Editable `quantityOnHand` in Inventory Table:**
+        *   Modify the Inventory list table (`src/app/(erp)/inventory/page.tsx` and related components) to display `quantityOnHand` as an inline-editable column.
+        *   Implement a new tRPC mutation for quick, direct stock adjustment from this table cell.
+    *   **Product Category in Table & Filtering:**
+        *   Add `InventoryCategory.name` as a column in the Inventory list table.
+        *   Implement filtering by `InventoryCategory` using `DataTableFacetedFilter` or similar.
+    *   **Advanced Inventory Table Features:**
+        *   Add a search bar to the Inventory list table.
+        *   Implement robust client-side or server-side filtering (beyond category), sorting, and pagination for the Inventory list table, similar to `CustomerTable`.
 
-2.  **Bill of Materials (BOM) - UI Implementation:** **[PENDING]**
-    *   **UI:** Develop UI for BOM creation, viewing, and editing on the frontend. This includes:
-        *   A way to navigate to/from an `InventoryItem` (type `MANUFACTURED_GOOD`) to its BOM(s).
-        *   Forms to add/remove `BillOfMaterialItem`s (linking `RAW_MATERIAL` `InventoryItem`s as components).
-        *   Input for `manualLaborCost` (VAT-exclusive).
-        *   Display of the system-calculated `totalCalculatedCost`.
-        *   Calls to the existing `bomRouter` tRPC procedures.
+2.  **Production Kanban/Table - BOM Information View (NEW REQUIREMENT):**
+    *   **UI:** In the Production Kanban view (`src/app/(erp)/production/page.tsx`), for orders containing `MANUFACTURED_GOOD` items, implement a way to view BOM information directly on the Kanban card or in an associated modal/expandable section.
+    *   This view should list component `InventoryItem`s and their required quantities for each manufactured item in the order.
+    *   Fetch necessary BOM data via existing tRPC procedures if possible, or create new ones.
 
-3.  **Customer Order/Invoice History & Revenue Summary - UI Implementation:** **[PENDING]**
-    *   **Frontend (`app/(erp)/customers/[id]/page.tsx`):**
-        *   Develop the customer detail page UI sections for Order History and Invoice History using the existing tRPC procedures.
-        *   Implement tables (sortable/filterable) for displaying these histories.
-        *   Calculate and display "Total Net Revenue from Customer" (sum of `Invoice.totalAmount` for relevant invoices, VAT-exclusive).
+3.  **Bill of Materials (BOM) - UI Implementation:** **[PENDING]**
+    *   **UI:** Develop UI for BOM creation, viewing, and editing. This includes forms to add/remove `BillOfMaterialItem`s, input for `manualLaborCost`, display of `totalCalculatedCost`, and linking to/from `InventoryItem` (type `MANUFACTURED_GOOD`). Calls existing `bomRouter`.
 
-4.  **Profitability Tracking - Dashboard/Reporting UI:** **[PENDING]**
-    *   **Dashboard Integration:**
-        *   Develop tRPC procedures to fetch and aggregate `InvoiceItem.calculatedLineProfit` for dashboard display (e.g., total profit, profit by product/customer over time).
-        *   Implement UI widgets/charts on the main dashboard to visualize this data.
+4.  **Customer Order/Invoice History & Revenue Summary - UI Implementation:** **[PENDING]**
+    *   **Frontend (`app/(erp)/customers/[id]/page.tsx`):** Develop UI sections for Order/Invoice History (tables) and display Total Net Revenue from Customer, using existing tRPC procedures.
 
-5.  **Outstanding UI/UX & Minor Fixes:**
-    *   **Order Detail Page - PDF Export/Print:** Implement. **[PENDING]**
-    *   **Inventory - Pricelist PDF Export:** Implement. **[PENDING]**
-    *   **Invoice - PDF Export:** Implement. **[PENDING]**
-    *   **Finvoice Seller Details Integration:** Fully integrate Company Settings from DB into `finvoice.service.ts`. **[PENDING]**
-    *   **Stock Alerts Display:** Implement UI to show stock alerts. **[PENDING]**
-    *   **Nodemailer Build Issue:** Investigate and resolve the `nodemailer` build error to re-enable the NextAuth EmailProvider. **[PENDING]**
-    *   **Order Status Update Modal Dropdown:** Verify if z-index change fixed it. If not, further investigate. **[Testing Pending]**
+5.  **Dashboard & Reporting - Initial Implementation:** **[PENDING]**
+    *   **Dashboard:** Populate the existing dashboard page (`src/app/(erp)/dashboard/page.tsx`) with initial key metrics (e.g., overdue invoices, orders to ship, low stock items - tRPC procedures needed).
+    *   **Profitability:** Display basic profitability insights (e.g., total profit) using aggregated `InvoiceItem.calculatedLineProfit` data (tRPC procedures needed).
+
+6.  **PDF Generation:** **[PENDING]**
+    *   Implement server-side PDF generation for Invoices, Orders, Pricelists, and Credit Notes. Define tRPC endpoints to trigger generation and download.
+
+7.  **Finvoice Seller Details Integration:** **[PENDING]**
+    *   Fully integrate Company Settings from DB into `finvoice.service.ts`, replacing any placeholders.
+
+8.  **Credit Note Flow - UI & Full Workflow:** **[PENDING]**
+    *   Implement UI for creating credit notes from existing invoices, and managing their lifecycle.
+
+9.  **Stock Alerts Display:** **[PENDING]**
+    *   Implement UI to show stock alerts (low stock based on min/reorder levels, negative stock) on the dashboard or relevant item pages.
+
+10. **Testing & Refinement:** Continuously test implemented features and refine UI/UX.
 
 **Multi-Tenancy Context (`companyId`):**
-*   The `companyId` field is present but optional on core models.
-*   **Future Task:** Plan and execute data backfill for `companyId`. Then, make `companyId` non-nullable and update tRPC procedures to enforce company-scoped data access (e.g., using `companyProtectedProcedure`).
+*   `companyId` is present but optional on core models. Future task: Make non-nullable and enforce company-scoped data access via tRPC.
 
-**Phase 3: Refinement & Advanced Features (Later Focus)**
+**Phase 3: Advanced Features & Polish (Later Focus)**
 
-*   **Robust Invoice Numbering:** Implement DB sequence or locking for enterprise-grade sequential numbering if current logic proves insufficient under high concurrency (current logic is generally fine for small businesses).
-*   **Performance Optimization:** Add DB indexes as needed, review query efficiency, implement caching/prefetching if performance issues arise.
-*   **Testing:** Expand unit/integration tests for critical logic.
-*   **Multi-Tenancy Enforcement:** Implement fully scoped data access using `companyId`.
-*   **Advanced Reporting:** Develop more detailed and customizable reports.
-*   **UI/UX Polish:** General refinements, confirmations, advanced filtering/sorting etc.
-*   **Admin User Management UI:** (From old Step 6) List users, invite/create, update roles, activate/deactivate. This is a significant feature for later.
-
-**Removed Sections (Previously Step 6 & 7, and old Agent Starting Point):** The old detailed Step 6 (Settings & Finalization) and Step 7 (UI Polish & Shadcn Blocks) have been broken down and their relevant pending items (like Admin User Management, PDF generation, Finvoice settings integration, specific Shadcn block integrations) are now incorporated into the prioritized task list or noted as future/later focus items. The initial "Agent Starting Point" is no longer relevant.
+*   Robust sequential numbering for invoices/orders.
+*   Performance optimization (DB indexing, query review).
+*   Expanded test coverage.
+*   Full multi-tenancy enforcement.
+*   Advanced, customizable reporting.
+*   Comprehensive UI/UX polish.
+*   Admin User Management UI.

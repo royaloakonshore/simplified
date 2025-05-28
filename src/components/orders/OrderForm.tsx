@@ -100,11 +100,13 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   const createForm = useForm<CreateFormValues>({
     resolver: zodResolver(createOrderSchema) as any, 
     defaultValues: {
-      customerId: '',
-      notes: '',
-      status: OrderStatus.draft,
-      orderType: OrderType.work_order, 
-      items: [{ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }], // Added discount fields
+        customerId: '',
+        notes: '',
+        status: OrderStatus.draft,
+        orderType: OrderType.work_order,
+        orderDate: new Date(), // Added orderDate
+        deliveryDate: undefined, // Added deliveryDate
+        items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }],
     },
   });
   const { fields: createFields, append: createAppend, remove: createRemove } = useFieldArray({
@@ -135,7 +137,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined, 
             items: order.items.map((orderItem: ProcessedOrderItem) => ({
                 id: orderItem.id,
-                itemId: orderItem.inventoryItemId, 
+                inventoryItemId: orderItem.inventoryItemId, 
                 quantity: orderItem.quantity,
                 unitPrice: orderItem.unitPrice,
                 discountAmount: orderItem.discountAmount ?? null,
@@ -148,7 +150,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             notes: '',
             status: OrderStatus.draft,
             orderType: OrderType.work_order,
-            items: [{ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }],
+            items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }],
         });
     }
   }, [order, isEditMode, updateForm, createForm]);
@@ -237,11 +239,11 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     if (selectedItem) {
       if (isEditMode) {
         const updateFormInstance = formInstance as UpdateFormInstance;
-        updateFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
+        updateFormInstance.setValue(`items.${index}.inventoryItemId`, selectedItem.id, { shouldValidate: true });
         updateFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice, { shouldValidate: true });
       } else {
         const createFormInstance = formInstance as CreateFormInstance;
-        createFormInstance.setValue(`items.${index}.itemId`, selectedItem.id, { shouldValidate: true });
+        createFormInstance.setValue(`items.${index}.inventoryItemId`, selectedItem.id, { shouldValidate: true });
         createFormInstance.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice, { shouldValidate: true });
       }
     }
@@ -361,7 +363,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                         <TableCell>
                            <FormField
                               control={updateForm.control}
-                              name={`items.${index}.itemId`}
+                              name={`items.${index}.inventoryItemId`}
                               render={({ field: itemField }) => (
                                 <FormItem>
                                   <Select onValueChange={(v) => handleItemChange(index, v, updateForm)} value={itemField.value}>
@@ -451,7 +453,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                     ))}
                   </TableBody>
                 </Table>
-                <Button type="button" variant="outline" size="sm" onClick={() => updateAppend({ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} >Add Item</Button> 
+                <Button type="button" variant="outline" size="sm" onClick={() => updateAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} >Add Item</Button> 
                  {updateForm.formState.errors.items && typeof updateForm.formState.errors.items === 'object' && 'message' in updateForm.formState.errors.items && (
                     <p className="text-sm font-medium text-destructive">{updateForm.formState.errors.items.message as string}</p>
                  )}
@@ -567,7 +569,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             <TableCell>
                               <FormField
                                 control={createForm.control}
-                                name={`items.${index}.itemId`}
+                                name={`items.${index}.inventoryItemId`}
                                 render={({ field }) => (
                                   <FormItem>
                                     <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value}>
@@ -658,7 +660,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                       })}
                     </TableBody>
                   </Table>
-                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => createAppend({ itemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })}> 
+                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => createAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })}> 
                      <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                   </Button>
                   {createForm.formState.errors.items && typeof createForm.formState.errors.items === 'object' && 'message' in createForm.formState.errors.items && (

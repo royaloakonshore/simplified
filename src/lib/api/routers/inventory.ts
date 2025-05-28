@@ -10,48 +10,74 @@ import {
   adjustStockSchema,
   inventoryItemBaseSchema,
   type InventoryItemFormValues,
+  listInventoryItemsSchema,
 } from "@/lib/schemas/inventory.schema";
-import { TransactionType, Prisma } from '@prisma/client'; // Import enum and Prisma for Decimal
+import { TransactionType, Prisma, ItemType } from '@prisma/client'; // Import enum and Prisma for Decimal
 import { TRPCError } from '@trpc/server';
 import puppeteer from 'puppeteer';
 import QRCode from 'qrcode';
 
 export const inventoryRouter = createTRPCRouter({
   list: protectedProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).nullish(),
-        cursor: z.string().nullish(),
-        // TODO: Add filters (name, sku, materialType?)
-      })
-    )
+    .input(listInventoryItemsSchema)
     .query(async ({ input }) => {
-      const limit = input.limit ?? 10;
-      const { cursor } = input;
+      const { search, itemType, sortBy, sortDirection, page = 1, perPage = 10 } = input;
 
-      // Fetch items
-      const items = await prisma.inventoryItem.findMany({
-        take: limit + 1,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: {
-          name: 'asc', // Default sort by name
-        },
-        // TODO: Add where clause for filters
-      });
-
-      // Determine next cursor
-      let nextCursor: typeof cursor | undefined = undefined;
-      if (items.length > limit) {
-        const nextItem = items.pop();
-        nextCursor = nextItem!.id;
+      const whereClause: Prisma.InventoryItemWhereInput = {};
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+      if (itemType) {
+        whereClause.itemType = itemType;
       }
 
-      // TODO: Consider calculating quantityOnHand here or in a separate procedure/view
-      // For now, just returning items.
+      const orderBy: Prisma.InventoryItemOrderByWithRelationInput = { [sortBy]: sortDirection };
+      
+      const skip = (page - 1) * perPage;
+      const take = perPage;
+
+      const [itemsFromDb, totalCount] = await prisma.$transaction([
+        prisma.inventoryItem.findMany({
+          take,
+          skip,
+          orderBy,
+          where: whereClause,
+          include: { inventoryCategory: { select: { name: true, id: true}} }
+        }),
+        prisma.inventoryItem.count({ where: whereClause })
+      ]);
+      
+      // Calculate quantityOnHand for each item
+      const itemsWithQuantity = await Promise.all(
+        itemsFromDb.map(async (item) => {
+          const transactions = await prisma.inventoryTransaction.aggregate({
+            _sum: { quantity: true },
+            where: { itemId: item.id },
+          });
+          const quantityOnHandDecimal = transactions._sum.quantity ?? new Prisma.Decimal(0);
+          return {
+            ...item,
+            costPrice: item.costPrice.toString(),
+            salesPrice: item.salesPrice.toString(),
+            minimumStockLevel: item.minimumStockLevel.toString(),
+            reorderLevel: item.reorderLevel?.toString() ?? null,
+            quantityOnHand: quantityOnHandDecimal.toString(),
+          };
+        })
+      );
 
       return {
-        items,
-        nextCursor,
+        data: itemsWithQuantity,
+        meta: {
+            totalCount,
+            page,
+            perPage,
+            totalPages: Math.ceil(totalCount / perPage),
+        }
       };
     }),
 
@@ -60,8 +86,9 @@ export const inventoryRouter = createTRPCRouter({
     .query(async ({ input }) => {
         const item = await prisma.inventoryItem.findUnique({
             where: { id: input.id },
-            // Optionally include recent transactions or quantityOnHand calculation
-            // include: { transactions: { orderBy: { createdAt: 'desc' }, take: 10 } }
+            include: { 
+                inventoryCategory: true,
+             }
         });
         if (!item) {
             throw new TRPCError({
@@ -69,8 +96,146 @@ export const inventoryRouter = createTRPCRouter({
                 message: 'Inventory item not found.',
             });
         }
-        // TODO: Calculate quantityOnHand for the specific item
-        return item;
+        const transactions = await prisma.inventoryTransaction.aggregate({
+            _sum: { quantity: true },
+            where: { itemId: input.id },
+        });
+        const quantityOnHandDecimal = transactions._sum.quantity ?? new Prisma.Decimal(0);
+        
+        // Convert Decimal fields to strings before returning
+        return {
+          ...item,
+          costPrice: item.costPrice.toString(),
+          salesPrice: item.salesPrice.toString(),
+          minimumStockLevel: item.minimumStockLevel.toString(),
+          reorderLevel: item.reorderLevel?.toString() ?? null, 
+          quantityOnHand: quantityOnHandDecimal.toString(),
+        };
+    }),
+
+  createAndAdjustStock: protectedProcedure
+    .input(z.object({
+      itemData: createInventoryItemSchema,
+      initialStockQuantity: z.number().optional().default(0),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { itemData, initialStockQuantity } = input;
+      const userId = ctx.session.user.id;
+
+      const existingSku = await prisma.inventoryItem.findUnique({
+        where: { sku: itemData.sku },
+      });
+      if (existingSku) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'SKU already exists. Please use a unique SKU.',
+        });
+      }
+
+      return prisma.$transaction(async (tx) => {
+        const newItem = await tx.inventoryItem.create({
+          data: {
+            ...itemData,
+            qrIdentifier: 'temp',
+          },
+        });
+
+        await tx.inventoryItem.update({
+          where: { id: newItem.id },
+          data: { qrIdentifier: `ITEM:${newItem.id}` },
+        });
+
+        if (initialStockQuantity !== 0) {
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId: newItem.id,
+              quantity: new Prisma.Decimal(initialStockQuantity),
+              type: TransactionType.adjustment,
+              note: 'Initial stock on creation',
+            },
+          });
+        }
+        // Refetch to ensure all fields are present and then convert Decimals
+        const createdItem = await tx.inventoryItem.findUnique({ where: { id: newItem.id } });
+        if (!createdItem) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve created item.'});
+
+        return {
+            ...createdItem,
+            costPrice: createdItem.costPrice.toString(),
+            salesPrice: createdItem.salesPrice.toString(),
+            minimumStockLevel: createdItem.minimumStockLevel.toString(),
+            reorderLevel: createdItem.reorderLevel?.toString() ?? null,
+            // quantityOnHand is not directly on createdItem here, it's managed by transactions
+            // The list/getById will calculate and convert it.
+        };
+      });
+    }),
+
+  updateAndAdjustStock: protectedProcedure
+    .input(z.object({
+      itemData: updateInventoryItemSchema,
+      stockAdjustment: z.number().optional().default(0),
+      adjustmentNote: z.string().optional().default("Manual adjustment"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { itemData, stockAdjustment, adjustmentNote } = input;
+      const { id, ...dataToUpdate } = itemData;
+      const userId = ctx.session.user.id;
+
+      if (dataToUpdate.sku) {
+        const existingSku = await prisma.inventoryItem.findFirst({
+          where: {
+            sku: dataToUpdate.sku,
+            id: { not: id },
+          },
+        });
+        if (existingSku) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'SKU already exists. Please use a unique SKU.',
+          });
+        }
+      }
+
+      return prisma.$transaction(async (tx) => {
+        const updatedItem = await tx.inventoryItem.update({
+          where: { id },
+          data: dataToUpdate,
+        });
+
+        if (stockAdjustment !== 0) {
+          await tx.inventoryTransaction.create({
+            data: {
+              itemId: id,
+              quantity: new Prisma.Decimal(stockAdjustment),
+              type: TransactionType.adjustment,
+              note: adjustmentNote,
+              // userId: userId, // If tracking user for transaction
+            },
+          });
+        }
+        // Fetch the item again to get potentially updated quantityOnHand after transaction
+        const finalItem = await tx.inventoryItem.findUnique({ where: { id }});
+        if (!finalItem) throw new TRPCError({code: "INTERNAL_SERVER_ERROR", message: "Failed to refetch item after update."}) 
+        
+        const transactions = await tx.inventoryTransaction.aggregate({
+            _sum: { quantity: true },
+            where: { itemId: id },
+        });
+        const quantityOnHand = transactions._sum.quantity ?? new Prisma.Decimal(0);
+
+        return {
+          item: {
+            ...finalItem,
+            costPrice: finalItem.costPrice.toString(),
+            salesPrice: finalItem.salesPrice.toString(),
+            minimumStockLevel: finalItem.minimumStockLevel.toString(),
+            reorderLevel: finalItem.reorderLevel?.toString() ?? null,
+            quantityOnHand: quantityOnHand.toString(),
+          },
+          transactionCreated: stockAdjustment !== 0
+        };
+      });
     }),
 
   create: protectedProcedure
@@ -90,19 +255,24 @@ export const inventoryRouter = createTRPCRouter({
         where: { id: newItem.id },
         data: { qrIdentifier: `ITEM:${newItem.id}` }
       });
-      return updatedItemWithQr;
+      return {
+        ...updatedItemWithQr,
+        costPrice: updatedItemWithQr.costPrice.toString(),
+        salesPrice: updatedItemWithQr.salesPrice.toString(),
+        minimumStockLevel: updatedItemWithQr.minimumStockLevel.toString(),
+        reorderLevel: updatedItemWithQr.reorderLevel?.toString() ?? null,
+      };
     }),
 
   update: protectedProcedure
     .input(updateInventoryItemSchema)
     .mutation(async ({ input }) => {
       const { id, ...data } = input;
-      // Check if SKU is being changed and if the new SKU already exists
       if (data.sku) {
         const existingSku = await prisma.inventoryItem.findFirst({
             where: {
                 sku: data.sku,
-                id: { not: id } // Exclude the current item itself
+                id: { not: id }
             }
         });
         if (existingSku) {
@@ -113,12 +283,25 @@ export const inventoryRouter = createTRPCRouter({
         }
       }
       try {
-        return await prisma.inventoryItem.update({
+        const updatedItem = await prisma.inventoryItem.update({
           where: { id },
           data,
         });
+        const transactions = await prisma.inventoryTransaction.aggregate({
+            _sum: { quantity: true },
+            where: { itemId: id },
+        });
+        const quantityOnHandDecimal = transactions._sum.quantity ?? new Prisma.Decimal(0);
+
+        return {
+            ...updatedItem,
+            costPrice: updatedItem.costPrice.toString(),
+            salesPrice: updatedItem.salesPrice.toString(),
+            minimumStockLevel: updatedItem.minimumStockLevel.toString(),
+            reorderLevel: updatedItem.reorderLevel?.toString() ?? null,
+            quantityOnHand: quantityOnHandDecimal.toString(),
+        };
       } catch (error) {
-         // Handle potential Prisma errors (e.g., not found)
          throw new TRPCError({
            code: 'INTERNAL_SERVER_ERROR',
            message: 'Failed to update inventory item.',
@@ -129,12 +312,9 @@ export const inventoryRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      // TODO: Add checks - cannot delete if used in Orders, BOMs etc.?
-      // Need to check relationships before deleting.
       try {
         return await prisma.inventoryItem.delete({ where: { id: input.id } });
       } catch (error) {
-         // Handle potential Prisma errors (e.g., foreign key constraints)
          throw new TRPCError({
            code: 'INTERNAL_SERVER_ERROR',
            message: 'Failed to delete inventory item. It might be in use.',
@@ -156,13 +336,11 @@ export const inventoryRouter = createTRPCRouter({
       });
     }),
 
-  // New mutation for scan-based stock adjustment and optional cost price update
   adjustStockFromScan: protectedProcedure
     .input(z.object({
       itemId: z.string().cuid(),
-      quantityAdjustment: z.number(), // Can be positive or negative
+      quantityAdjustment: z.number(),
       newCostPrice: z.number().nonnegative().optional(),
-      // companyId: z.string().cuid().optional(), // For multi-tenancy if needed
     }))
     .mutation(async ({ ctx, input }) => {
       const { itemId, quantityAdjustment, newCostPrice } = input;
@@ -175,18 +353,15 @@ export const inventoryRouter = createTRPCRouter({
       }
 
       return prisma.$transaction(async (tx) => {
-        // 1. Create the inventory transaction
         await tx.inventoryTransaction.create({
           data: {
             itemId: itemId,
             quantity: new Prisma.Decimal(quantityAdjustment),
-            type: quantityAdjustment > 0 ? TransactionType.purchase : TransactionType.adjustment, // Or a new type e.g. SCAN_ADJUSTMENT
-            reference: 'Scanned Adjustment', // Or more specific reference if available
-            // userId: ctx.session.user.id, // If tracking who made the scan adjustment
+            type: quantityAdjustment > 0 ? TransactionType.purchase : TransactionType.adjustment,
+            reference: 'Scanned Adjustment',
           },
         });
 
-        // 2. Optionally update the cost price of the inventory item
         if (newCostPrice !== undefined) {
           await tx.inventoryItem.update({
             where: { id: itemId },
@@ -194,13 +369,9 @@ export const inventoryRouter = createTRPCRouter({
           });
         }
         
-        // 3. Fetch the updated item to return, or just a success message
-        // For simplicity, returning a success message. Client can re-fetch if needed.
         return { success: true, message: 'Stock adjusted and cost price updated successfully.' };
       });
     }),
-
-    // TODO: Add procedure to get quantityOnHand for an item or list
 
   generateQrCodePdf: protectedProcedure
     .input(z.object({ itemIds: z.array(z.string().cuid()) }))
@@ -299,5 +470,73 @@ export const inventoryRouter = createTRPCRouter({
         pdfBase64: (pdfBuffer as any).toString('base64'),
         message: 'QR Code PDF generated successfully.',
       };
+    }),
+
+  quickAdjustStock: protectedProcedure
+    .input(z.object({
+      itemId: z.string().cuid(),
+      newQuantityOnHand: z.number(), // The target quantity
+      originalQuantityOnHand: z.number(), // For calculating the adjustment
+      note: z.string().optional().default("Quick adjustment from table"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { itemId, newQuantityOnHand, originalQuantityOnHand, note } = input;
+      const userId = ctx.session.user.id;
+
+      const quantityAdjustment = new Prisma.Decimal(newQuantityOnHand).minus(new Prisma.Decimal(originalQuantityOnHand));
+
+      if (quantityAdjustment.isZero()) {
+        const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
+        if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+        const currentTransactions = await prisma.inventoryTransaction.aggregate({
+            _sum: { quantity: true },
+            where: { itemId: itemId },
+        });
+        const currentQuantityDecimal = currentTransactions._sum.quantity ?? new Prisma.Decimal(0);
+        return {
+           ...item,
+            costPrice: item.costPrice.toString(),
+            salesPrice: item.salesPrice.toString(),
+            minimumStockLevel: item.minimumStockLevel.toString(),
+            reorderLevel: item.reorderLevel?.toString() ?? null,
+            quantityOnHand: currentQuantityDecimal.toString()
+        }; 
+      }
+
+      await prisma.inventoryTransaction.create({
+        data: {
+          itemId,
+          quantity: quantityAdjustment,
+          type: TransactionType.adjustment,
+          note,
+        },
+      });
+
+      const updatedItem = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
+      if (!updatedItem) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found after adjustment" });
+      
+      const transactions = await prisma.inventoryTransaction.aggregate({
+        _sum: { quantity: true },
+        where: { itemId: itemId },
+      });
+      const quantityOnHandDecimal = transactions._sum.quantity ?? new Prisma.Decimal(0);
+
+      return {
+        ...updatedItem,
+        costPrice: updatedItem.costPrice.toString(),
+        salesPrice: updatedItem.salesPrice.toString(),
+        minimumStockLevel: updatedItem.minimumStockLevel.toString(),
+        reorderLevel: updatedItem.reorderLevel?.toString() ?? null,
+        quantityOnHand: quantityOnHandDecimal.toString(),
+      };
+    }),
+
+  getAllCategories: protectedProcedure
+    .query(async ({ ctx }) => {
+      return prisma.inventoryCategory.findMany({
+        // where: { companyId: ctx.companyId }, // If multi-tenancy for categories
+        orderBy: { name: 'asc' },
+        distinct: ['name'] // Ensure unique category names if needed, though ID is better for distinctness
+      });
     }),
 }); 

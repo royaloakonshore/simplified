@@ -24,14 +24,22 @@ export const inventoryItemBaseSchema = z.object({
     .nonnegative('Reorder level must be non-negative')
     .optional()
     .default(0),
+  quantityOnHand: z.coerce // For form input, will be used for initial stock or adjustment amount
+    .number({ invalid_type_error: 'Quantity on hand must be a number' })
+    .optional(), // Optional because it might not always be directly set (e.g., if calculated)
+  inventoryCategoryId: z.string().cuid("Invalid category ID").optional(), // ADDED inventoryCategoryId
+  showInPricelist: z.boolean().optional().default(true), // ADDED showInPricelist
+  internalRemarks: z.string().optional(), // ADDED internalRemarks
+  defaultVatRatePercent: z.coerce.number().nonnegative().optional(), // ADDED defaultVatRatePercent
 });
 
 // Schema for creating an inventory item
 export const createInventoryItemSchema = inventoryItemBaseSchema;
 
 // Schema for updating an inventory item (requires ID)
-export const updateInventoryItemSchema = inventoryItemBaseSchema.extend({
-  id: z.string(),
+// All fields from base should be optional for an update operation
+export const updateInventoryItemSchema = inventoryItemBaseSchema.partial().extend({
+  id: z.string(), // ID is still required for update
 });
 
 // Schema for inventory transaction

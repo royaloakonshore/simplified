@@ -40,17 +40,25 @@ const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "
 };
 
 // Define the expected shape of the order prop with includes
+// This now reflects that Decimals from the backend are converted to strings
 type OrderDetailProps = {
-  order: Order & {
-    qrIdentifier?: string | null; // Explicitly add, as Prisma type might lag
+  order: Omit<Order, 'totalAmount' | 'items'> & { // Omit original Decimal fields from base Order
+    totalAmount: string | null; // totalAmount is now string
+    qrIdentifier?: string | null;
     customer: Customer & {
-      addresses?: Address[] | null; // Make addresses optional
+      addresses?: Address[] | null;
     };
-    items: (OrderItem & {
-      inventoryItem: InventoryItem; // Changed from 'item' to 'inventoryItem'
+    items: (Omit<OrderItem, 'unitPrice' | 'discountAmount' | 'inventoryItem'> & {
+      unitPrice: string; // unitPrice is now string
+      discountAmount: string | null; // discountAmount is now string
+      inventoryItem: Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel'> & {
+        costPrice: string;
+        salesPrice: string;
+        minimumStockLevel: string;
+        reorderLevel: string | null;
+        // quantityOnHand is not part of base InventoryItem, so not included here unless explicitly added
+      };
     })[];
-    // Add stock status info if needed, fetched separately or included
-    // stockStatus?: { itemId: string; hasSufficientStock: boolean; }[];
   };
 };
 
