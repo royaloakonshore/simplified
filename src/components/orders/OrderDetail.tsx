@@ -156,13 +156,14 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             <Badge variant={getStatusBadgeVariant(order.status)}>
               {order.status.replace('_', ' ').toUpperCase()}
             </Badge>
-            {order.status === OrderStatus.shipped && (
+            {order.status !== OrderStatus.cancelled &&
+            order.status !== OrderStatus.INVOICED && (
               <Button 
-                size="sm" 
                 onClick={handleCreateInvoice}
-                disabled={createInvoiceFromOrderMutation.isLoading}
+                disabled={createInvoiceFromOrderMutation.isPending}
+                className="mt-4 md:mt-0"
               >
-                {createInvoiceFromOrderMutation.isLoading ? (
+                {createInvoiceFromOrderMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating Invoice...

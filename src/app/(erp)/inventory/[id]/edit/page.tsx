@@ -16,6 +16,10 @@ import { TRPCClientErrorLike } from '@trpc/react-query';
 import type { InventoryItem, InventoryTransaction, ItemType } from '@prisma/client';
 import type { AppRouter } from "@/lib/api/root";
 import { type ItemType as PrismaItemType } from '@prisma/client';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Prisma } from '@prisma/client';
 
 export default function EditInventoryItemPage() {
   const router = useRouter();
@@ -47,25 +51,27 @@ export default function EditInventoryItemPage() {
   });
 
   const updateAndAdjustStockMutation = api.inventory.updateAndAdjustStock.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Inventory item ${data.item.name} updated and stock adjusted successfully.`);
-      utils.inventory.getById.invalidate({ id: itemId });
-      utils.inventory.list.invalidate();
+    onSuccess: () => {
+      toast.success("Inventory item and stock updated successfully!");
+      router.push("/inventory");
+      router.refresh(); // Refetch data for the inventory list
     },
-    onError: (error: TRPCClientErrorLike<AppRouter>) => {
-      toast.error(`Failed to update item/adjust stock: ${error.message}`);
+    onError: (error) => {
+      toast.error(`Failed to update item and stock: ${error.message}`);
     },
   });
 
   const adjustStockScanMutation = api.inventory.adjustStockFromScan.useMutation({
-    onSuccess: (data: { success: boolean, message: string }) => {
-      toast.success(data.message);
-      utils.inventory.getById.invalidate({ id: itemId });
-      utils.inventory.list.invalidate();
-      resetAdjustStock(); 
+    onSuccess: (data: { success: boolean; message: string; itemName?: string; sku?: string; newQuantityOnHand?: string; }) => {
+      if (data.success) {
+        toast.success(data.message || `Stock adjusted for ${data.itemName} (SKU: ${data.sku}). New quantity: ${data.newQuantityOnHand}`);
+        router.refresh();
+      } else {
+        toast.error(data.message || "Failed to adjust stock by SKU scan.");
+      }
     },
     onError: (error: TRPCClientErrorLike<AppRouter>) => {
-      toast.error(`Failed to adjust stock by scan: ${error.message}`);
+      toast.error(`Error adjusting stock by SKU scan: ${error.message}`);
     },
   });
 
@@ -191,7 +197,7 @@ export default function EditInventoryItemPage() {
           <InventoryItemForm 
             onSubmitProp={onSubmitProp} 
             initialData={formInitialData}
-            isLoading={updateAndAdjustStockMutation.isLoading || adjustStockScanMutation.isLoading}
+            isLoading={updateAndAdjustStockMutation.isPending || adjustStockScanMutation.isPending}
             formMode={currentFormMode}
           />
         </CardContent>

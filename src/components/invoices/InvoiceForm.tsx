@@ -250,7 +250,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                     <FormItem className="col-span-2 md:col-span-2">
                       <FormLabel>Customer *</FormLabel>
                       <div className="flex items-center gap-2">
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isEditMode || createInvoiceMutation.isLoading}>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isEditMode || createInvoiceMutation.isPending}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a customer" />
@@ -258,19 +258,21 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                           </FormControl>
                           <SelectContent>
                             {customers.map(c => (
-                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                              <SelectItem value={c.id} key={c.id}>
+                                {c.name}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <Button 
                           type="button" 
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setIsAddCustomerDialogOpen(true)}
-                          disabled={createInvoiceMutation.isLoading}
+                          onClick={() => setIsAddCustomerDialogOpen(true)} 
+                          variant="outline" 
+                          size="sm" 
+                          className="ml-2"
+                          disabled={createInvoiceMutation.isPending}
                         >
-                          <UserPlus className="h-4 w-4" />
-                          <span className="sr-only">Add New Customer</span>
+                          <PlusCircle className="mr-2 h-4 w-4" /> Add New
                         </Button>
                       </div>
                       <FormMessage />
@@ -292,7 +294,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                 "w-full pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
                               )}
-                              disabled={createInvoiceMutation.isLoading}
+                              disabled={createInvoiceMutation.isPending}
                             >
                               {field.value ? (
                                 format(field.value, "PPP")
@@ -308,7 +310,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date: Date) => date > new Date() || date < new Date("1900-01-01") || createInvoiceMutation.isLoading}
+                            disabled={(date: Date) => date > new Date() || date < new Date("1900-01-01") || createInvoiceMutation.isPending}
                             initialFocus
                           />
                         </PopoverContent>
@@ -332,7 +334,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                 "w-full pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
                               )}
-                              disabled={createInvoiceMutation.isLoading}
+                              disabled={createInvoiceMutation.isPending}
                             >
                               {field.value ? (
                                 format(field.value, "PPP")
@@ -348,7 +350,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date: Date) => date < (form.getValues("invoiceDate") || new Date("1900-01-01")) || createInvoiceMutation.isLoading}
+                            disabled={(date: Date) => date < (form.getValues("invoiceDate") || new Date("1900-01-01")) || createInvoiceMutation.isPending}
                             initialFocus
                           />
                         </PopoverContent>
@@ -405,7 +407,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               name={`items.${index}.itemId`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value); }} defaultValue={field.value} disabled={createInvoiceMutation.isLoading}>
+                                  <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value); }} defaultValue={field.value} disabled={createInvoiceMutation.isPending}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
                                     <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
                                   </Select>
@@ -420,7 +422,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               name={`items.${index}.description`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input {...field} value={field.value ?? ''} disabled={createInvoiceMutation.isLoading} /></FormControl>
+                                  <FormControl><Input {...field} value={field.value ?? ''} disabled={createInvoiceMutation.isPending} /></FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -432,7 +434,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               name={`items.${index}.quantity`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createInvoiceMutation.isLoading} className="text-right" /></FormControl>
+                                  <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createInvoiceMutation.isPending} className="text-right" /></FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -450,7 +452,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                       step="0.01" 
                                       {...field} 
                                       onChange={e => field.onChange(parseFloat(e.target.value))} 
-                                      disabled={createInvoiceMutation.isLoading}
+                                      disabled={createInvoiceMutation.isPending}
                                       className="text-right"
                                     />
                                   </FormControl>
@@ -468,7 +470,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                   <Select
                                     onValueChange={(value) => field.onChange(parseFloat(value))}
                                     value={field.value?.toString()}
-                                    disabled={createInvoiceMutation.isLoading || watchVatReverseCharge}
+                                    disabled={createInvoiceMutation.isPending || watchVatReverseCharge}
                                   >
                                     <FormControl>
                                       <SelectTrigger>
@@ -502,7 +504,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                       value={field.value ?? ''}
                                       onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
                                       placeholder="e.g. 10"
-                                      disabled={createInvoiceMutation.isLoading}
+                                      disabled={createInvoiceMutation.isPending}
                                       className="w-full"
                                     />
                                   </FormControl>
@@ -525,7 +527,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                       value={field.value ?? ''}
                                       onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
                                       placeholder="e.g. 5.00"
-                                      disabled={createInvoiceMutation.isLoading}
+                                      disabled={createInvoiceMutation.isPending}
                                       className="w-full"
                                     />
                                   </FormControl>
@@ -538,7 +540,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             {formatCurrency(calculateLineTotal(itemValue))}
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={createInvoiceMutation.isLoading || fields.length <= 1}>
+                            <Button variant="ghost" size="icon" onClick={() => remove(index)} disabled={createInvoiceMutation.isPending || fields.length <= 1}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -553,7 +555,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                   size="sm"
                   className="mt-2"
                   onClick={() => append({ itemId: "", description: "", quantity: 1, unitPrice: 0, vatRatePercent: 24, discountAmount: null, discountPercent: null })}
-                  disabled={createInvoiceMutation.isLoading}
+                  disabled={createInvoiceMutation.isPending}
                 >
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                 </Button>
@@ -591,7 +593,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                         className="resize-none"
                         {...field}
                         value={field.value ?? ''}
-                        disabled={createInvoiceMutation.isLoading}
+                        disabled={createInvoiceMutation.isPending}
                       />
                     </FormControl>
                     <FormMessage />
@@ -624,7 +626,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             // });
                           }
                         }}
-                        disabled={createInvoiceMutation.isLoading} 
+                        disabled={createInvoiceMutation.isPending} 
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
@@ -638,21 +640,21 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
               />
             </CardContent>
             <CardFooter className="flex justify-end">
-              <Button type="button" variant="outline" onClick={() => router.back()} disabled={createInvoiceMutation.isLoading} className="mr-2">
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={createInvoiceMutation.isPending} className="mr-2">
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 disabled={
                   (isEditMode && false) || // Placeholder for updateInvoiceMutation.isLoading
-                  (!isEditMode && createInvoiceMutation.isLoading) || 
+                  (!isEditMode && createInvoiceMutation.isPending) || 
                   (!form.formState.isValid && form.formState.isSubmitted) 
                 }
               >
                 {
                   isEditMode 
                     ? (false ? "Updating..." : "Update Invoice") // Placeholder for updateInvoiceMutation.isLoading
-                    : (createInvoiceMutation.isLoading ? "Creating..." : "Create Invoice")
+                    : (createInvoiceMutation.isPending ? "Creating..." : "Create Invoice")
                 }
               </Button>
             </CardFooter>

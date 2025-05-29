@@ -27,7 +27,8 @@ async function getFormData() {
         id: true,
         name: true,
         salesPrice: true,
-        unitOfMeasure: true
+        unitOfMeasure: true,
+        sku: true // Added sku to the selection
     },
     orderBy: { name: 'asc' },
   });
@@ -92,6 +93,7 @@ async function AddOrderFormWrapper({ formDataPromise }: { formDataPromise: Retur
       ...item,
       salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
       unitOfMeasure: item.unitOfMeasure ?? '', // Provide default for null unitOfMeasure
+      sku: item.sku ?? '' // Provide default empty string for null SKU
     }));
 
     return (

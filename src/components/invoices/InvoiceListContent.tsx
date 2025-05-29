@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/trpc/react';
 import {
@@ -261,25 +261,35 @@ export default function InvoiceListContent({
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
 
   // Debounce search term
-  useMemo(() => {
+  useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
     }, 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  const queryInput = useMemo(() => ({
-    page,
-    limit: perPage,
-    searchTerm: debouncedSearchTerm,
-    status: status ?? undefined,
-    // Add other filters as needed, e.g., date ranges
-  }), [page, perPage, debouncedSearchTerm, status]);
+  const queryInput = useMemo(() => {
+    const currentSortById: string | undefined = sorting[0]?.id;
+    let currentSortDirectionValue: 'asc' | 'desc' | undefined = undefined;
+    if (sorting[0]) {
+      currentSortDirectionValue = sorting[0].desc ? 'desc' : 'asc';
+    }
+
+    return {
+      page,
+      perPage: perPage,
+      searchTerm: debouncedSearchTerm,
+      status: status ?? undefined,
+      sortBy: currentSortById,
+      sortDirection: currentSortById ? currentSortDirectionValue : undefined,
+    };
+  }, [page, perPage, debouncedSearchTerm, status, sorting]);
 
   const { data, isLoading, error, refetch, isFetching } = api.invoice.list.useQuery(
     queryInput
   );
 
+  // Hooks must be called before any conditional returns.
   // 6. Derive pagination state directly from component state (no parseInt needed)
   const pagination: PaginationState = {
     pageIndex: page - 1,
@@ -314,6 +324,10 @@ export default function InvoiceListContent({
     debugTable: process.env.NODE_ENV === 'development',
   });
 
+  const selectedOriginalInvoiceIds = useMemo(() => {
+    return table.getSelectedRowModel().flatRows.map(row => row.original.id);
+  }, [table]); // Pass table as dependency
+
   // Loading state
   if (isLoading && !data) {
     return <DataTableSkeleton columnCount={columns.length} rowCount={perPage} />;
@@ -329,10 +343,6 @@ export default function InvoiceListContent({
     setStatus(status);
     setPage(1); // Reset to first page on filter change
   };
-
-  const selectedOriginalInvoiceIds = useMemo(() => {
-    return table.getSelectedRowModel().flatRows.map(row => row.original.id);
-  }, [table]);
 
   return (
     <div className="space-y-4">

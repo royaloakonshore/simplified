@@ -5,7 +5,7 @@
 This ERP system utilizes a modern web architecture based on Next.js (App Router), React, TypeScript, and Prisma. It emphasizes server-side rendering (SSR) and React Server Components (RSC) for performance and reduced client-side load, with minimal, targeted use of Client Components for interactivity.
 
 **Current Context & Progress:**
-The system has a stable build with core modules for Invoicing, Orders (Quotes/Work Orders), Inventory, Customers, and basic Settings/User Management implemented. Key functionalities like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are in place. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. tRPC is used for API communication, and Prisma for database interactions. Recent work has focused on resolving build errors, type checking, and ensuring correct VAT handling in invoices (`InventoryItem.defaultVatRatePercent` is now used).
+The system has a stable build with core modules for Invoicing, Orders (Quotes/Work Orders), Inventory, Customers, and basic Settings/User Management implemented. Key functionalities like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are in place. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. tRPC is used for API communication, and Prisma for database interactions. Recent work has focused on resolving numerous build errors and type errors across the codebase. `InventoryItem.defaultVatRatePercent` is now correctly used in invoice creation. The project currently passes `npm run build` and `npx tsc --noEmit` shows only two minor 'implicit any' type errors in `src/lib/api/routers/invoice.ts` which need to be addressed.
 
 ## 2. Technology Stack
 
@@ -44,7 +44,7 @@ The system has a stable build with core modules for Invoicing, Orders (Quotes/Wo
 - See `prisma/schema.prisma` for the database schema.
 - Key features and recent changes:
     - `Order` model: `orderType` enum (`quotation`, `work_order`).
-    - `Invoice` model: `vatReverseCharge` boolean. `defaultVatRatePercent` from `InventoryItem` used in calculations.
+    - `Invoice` model: `vatReverseCharge` boolean. `defaultVatRatePercent` from `InventoryItem` used in calculations when creating invoices from orders. **TODO: Implement company-level default VAT rate as a fallback.**
     - `InventoryItem` model: Uses `itemType: ItemType`. `quantityOnHand` is calculated. `defaultVatRatePercent` field added. **New requirements include making `quantityOnHand` editable during creation/edit and via the inventory table, and adding `InventoryCategory` for filtering.**
     - `BillOfMaterial` and `BillOfMaterialItem` models manage BOM structures. Backend tRPC procedures for CRUD are implemented; UI is pending.
     - `InvoiceItem` model: Includes fields for profitability tracking.
@@ -129,12 +129,15 @@ The schema includes `InventoryItem.defaultVatRatePercent`. `quantityOnHand` is d
 *   **Customer History & Revenue:** Data fetched via tRPC for customer detail page (UI Pending).
 
 **Overall Next Steps (Summary from above):**
-1.  **Inventory Module Enhancements:** Editable quantity, category filtering, advanced table features.
-2.  **Production View Enhancements:** BOM display in Kanban/table.
-3.  **BOM Management UI.**
-4.  **Customer History UI.**
-5.  **Dashboard & Reporting Implementation.**
-6.  **PDF Generation for key documents.**
-7.  **Finalize Finvoice Integration & Credit Note Flow.**
-8.  **Implement Stock Alert Display.**
-9.  **Comprehensive Testing & UI/UX Refinement.**
+1.  **Fix Remaining Type Errors:** Address the 'implicit any' errors in `src/lib/api/routers/invoice.ts`.
+2.  **Company Default VAT Rate:** Implement the fallback logic for company-level default VAT rate.
+3.  **Inventory Module Enhancements:** Editable quantity, category filtering, advanced table features.
+4.  **Production View Enhancements:** BOM display in Kanban/table.
+5.  **BOM Management UI.**
+6.  **Customer History UI.**
+7.  **Dashboard & Reporting Implementation.**
+8.  **PDF Generation for key documents.**
+9.  **Finalize Finvoice Integration & Credit Note Flow.**
+10. **Implement Stock Alert Display.**
+11. **Prioritize Build Health:** Maintain passing `npm run build` and clean `npx tsc --noEmit` throughout development.
+12. **Comprehensive Testing & UI/UX Refinement.**

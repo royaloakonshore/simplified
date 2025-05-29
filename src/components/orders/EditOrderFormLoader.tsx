@@ -65,7 +65,8 @@ async function getEditFormData(orderId: string) {
             id: true,
             name: true,
             salesPrice: true,
-            unitOfMeasure: true
+            unitOfMeasure: true,
+            sku: true // Added sku to selection
         },
         orderBy: { name: 'asc' },
     });
@@ -121,6 +122,7 @@ export default async function EditOrderFormLoader({ orderId }: { orderId: string
       ...item,
       salesPrice: item.salesPrice.toNumber(),
       unitOfMeasure: item.unitOfMeasure ?? '', // Ensure unitOfMeasure is string
+      sku: item.sku ?? '' // Provide default empty string for null SKU
     }));
 
     // The `order` object itself contains Decimal fields in its `items` and `totalAmount`.

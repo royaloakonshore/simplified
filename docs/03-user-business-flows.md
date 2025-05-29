@@ -3,7 +3,7 @@
 This document details key user and business process flows within the ERP system.
 
 **Current Context & Progress:**
-The application has established user flows for core operations like login, profile updates, inventory item creation (basic), sales order creation and confirmation, invoicing from orders, and Finvoice export. The system uses tRPC for backend mutations and queries, with NextAuth for authentication. Recent work focused on build stabilization and ensuring VAT calculations are correct (using `InventoryItem.defaultVatRatePercent`). Several UI enhancements for tables (customers) have been made, and a basic Kanban board for production exists.
+The application has established user flows for core operations like login, profile updates, inventory item creation (basic), sales order creation and confirmation, invoicing from orders, and Finvoice export. The system uses tRPC for backend mutations and queries, with NextAuth for authentication. Recent work focused on build stabilization, resolving numerous type errors, and ensuring VAT calculations are correct (using `InventoryItem.defaultVatRatePercent` when creating invoices from orders). Several UI enhancements for tables (customers) have been made, and a basic Kanban board for production exists. The build is currently passing, with minor 'implicit any' type errors remaining in `src/lib/api/routers/invoice.ts`.
 
 ## 1. Core Entities & Lifecycle
 
@@ -52,7 +52,7 @@ The application has established user flows for core operations like login, profi
     *   Order status updated to 'shipped'. Ready for invoicing.
 10. **Generate Invoice:** **[Implemented]**
     *   (Finance Clerk) Creates Invoice from 'Shipped' order or manually.
-    *   System pre-populates from order, using `InventoryItem.salesPrice` and `InventoryItem.defaultVatRatePercent` (fallback to company default - TODO).
+    *   System pre-populates from order, using `InventoryItem.salesPrice` and `InventoryItem.defaultVatRatePercent`. **[Implemented. TODO: Implement company-level default VAT rate fallback if item-specific VAT is not set.]**
     *   Profit calculation occurs in backend. **[Implemented]**
     *   Saves invoice (status 'Draft'). Order status becomes `INVOICED`. **[Implemented]**
 11. **Send Invoice:** **[Implemented]**
@@ -82,18 +82,21 @@ The application has established user flows for core operations like login, profi
 *   **Inventory Category Management (Implicit):** Categories are created/managed via Prisma Studio or migrations for now. Future: UI for category CRUD if needed.
 
 **Next Steps (User Flow Focused):**
-1.  **Inventory Management Enhancements:**
+1.  **Resolve Remaining Type Errors:** Fix the implicit 'any' type issues in `src/lib/api/routers/invoice.ts`.
+2.  **Implement Company Default VAT Fallback:** Ensure the system uses a company-level default VAT rate if an `InventoryItem`'s `defaultVatRatePercent` is not set, during invoice creation from an order.
+3.  **Inventory Management Enhancements:**
     *   Implement UI for editing `quantityOnHand` during Inventory Item creation and edit (via `InventoryItemForm`).
     *   Develop the editable `quantityOnHand` column in the Inventory list table with quick adjustment functionality.
     *   Add Inventory Category column and filtering to the Inventory list.
     *   Implement advanced table features (search, sort, filter, pagination) for the Inventory list.
-2.  **Production Kanban/Table Enhancements:**
+4.  **Production Kanban/Table Enhancements:**
     *   Design and implement the BOM information view within Kanban cards/table rows for manufactured items in an order.
-3.  **BOM Management UI:**
+5.  **BOM Management UI:**
     *   Create the frontend forms and views for managing Bill of Materials linked to `MANUFACTURED_GOOD` items.
-4.  **Customer History UI:**
+6.  **Customer History UI:**
     *   Develop the UI on the Customer Detail Page to display order history, invoice history, and total net revenue.
-5.  **Refine Payment Recording:** Review and potentially enhance the UI for recording invoice payments.
-6.  **Credit Note Flow:** Implement the full user flow for creating and managing credit notes from existing invoices.
-7.  **Dashboard & Reporting Flows:** Define and implement user flows for accessing and interacting with dashboard metrics and reports.
-8.  **PDF Generation Access:** Ensure users can easily trigger and download PDF versions of Invoices, Orders, Pricelists, etc.
+7.  **Refine Payment Recording:** Review and potentially enhance the UI for recording invoice payments.
+8.  **Credit Note Flow:** Implement the full user flow for creating and managing credit notes from existing invoices.
+9.  **Dashboard & Reporting Flows:** Define and implement user flows for accessing and interacting with dashboard metrics and reports.
+10. **Build Health & Stability:** Maintain a clean build (`npm run build`) and TypeScript checks (`npx tsc --noEmit`) throughout development.
+11. **PDF Generation Access:** Ensure users can easily trigger and download PDF versions of Invoices, Orders, Pricelists, etc.

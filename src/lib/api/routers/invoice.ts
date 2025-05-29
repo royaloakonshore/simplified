@@ -316,8 +316,19 @@ export const invoiceRouter = createTRPCRouter({
       let subTotal = new Decimal(0);
       let totalVatAmountValue = new Decimal(0);
 
-      // TODO: Fetch company default VAT rate if inventory item VAT is not set
-      const companyDefaultVatRate = new Decimal(25.5); // Placeholder
+      // Fetch company settings to get the default VAT rate
+      const caller = createAppCaller(ctx);
+      let companyDefaultVatRate = new Decimal(0); // System default if no other VAT rate is found
+      try {
+        const companySettings = await caller.settings.get();
+        if (companySettings && companySettings.defaultVatRatePercent) {
+          companyDefaultVatRate = new Decimal(companySettings.defaultVatRatePercent.toString()); // Convert Decimal to string then to new Decimal
+        }
+      } catch (error) {
+        console.warn("Failed to fetch company settings for default VAT rate, using system default 0%:", error);
+        // Potentially throw TRPCError if company settings are crucial and must exist
+        // For now, we fall back to 0%
+      }
 
       const invoiceItemsToCreate = order.items.map((orderItem: OrderItemWithInventory) => {
         if (!orderItem.inventoryItem) {
@@ -329,8 +340,10 @@ export const invoiceRouter = createTRPCRouter({
         subTotal = subTotal.plus(lineTotal);
 
         let itemVat = new Decimal(0);
-        // Use inventory item's default VAT rate, fallback to company default
-        const vatRateForCalc = orderItem.inventoryItem.defaultVatRatePercent ?? companyDefaultVatRate;
+        // Use inventory item's default VAT rate, fallback to company default, then system default 0
+        const vatRateForCalc = orderItem.inventoryItem.defaultVatRatePercent !== null && orderItem.inventoryItem.defaultVatRatePercent !== undefined 
+          ? new Decimal(orderItem.inventoryItem.defaultVatRatePercent.toString()) 
+          : companyDefaultVatRate;
         
         if (!vatReverseCharge) {
           itemVat = lineTotal.times(vatRateForCalc.div(100));
@@ -614,13 +627,37 @@ export const invoiceRouter = createTRPCRouter({
         // Explicitly define the type for the map's values
         type MappedUpdateInventoryItem = Pick<InventoryItem, 'id' | 'costPrice' | 'itemType' | 'salesPrice' | 'defaultVatRatePercent'>;
         const inventoryItemMap = new Map<string, MappedUpdateInventoryItem>(
-          inventoryItemsFromDb.map((dbItem): [string, MappedUpdateInventoryItem] => [dbItem.id, dbItem])
+          inventoryItemsFromDb.map((dbItem: MappedUpdateInventoryItem): [string, MappedUpdateInventoryItem] => [dbItem.id, dbItem]) // Added explicit type for dbItem
         );
         
-        // TODO: Fetch company default VAT rate if inventory item VAT is not set
-        const companyDefaultVatRate = new Decimal(25.5); // Placeholder
+        // Fetch company settings to get the default VAT rate
+        const caller = createAppCaller(ctx);
+        let companyDefaultVatRate = new Decimal(0); // System default if no other VAT rate is found
+        try {
+          const companySettings = await caller.settings.get();
+          if (companySettings && companySettings.defaultVatRatePercent) {
+            companyDefaultVatRate = new Decimal(companySettings.defaultVatRatePercent.toString());
+          }
+        } catch (error) {
+          console.warn("Failed to fetch company settings for default VAT rate in invoice.update, using system default 0%:", error);
+        }
         
-        const processedItems = await Promise.all(inputItems.map(async (item: z.infer<typeof UpdateInvoiceItemSchema>) => {
+        // Define the structure for items that will be created or updated
+        interface ProcessedInvoiceItem {
+          id?: string; // Present for items to update
+          inventoryItemId: string;
+          description?: string | null;
+          quantity: Decimal;
+          unitPrice: Decimal;
+          vatRatePercent: Decimal;
+          discountAmount?: Decimal | null;
+          discountPercent?: Decimal | null;
+          calculatedUnitCost: Decimal;
+          calculatedUnitProfit: Decimal;
+          calculatedLineProfit: Decimal;
+        }
+        
+        const processedItems: Array<{ where?: { id: string }; data: ProcessedInvoiceItem } | ProcessedInvoiceItem> = await Promise.all(inputItems.map(async (item: z.infer<typeof UpdateInvoiceItemSchema>) => {
           const unitPrice = new Decimal(item.unitPrice);
           const quantity = new Decimal(item.quantity);
           let lineNetUnitPrice = unitPrice;
@@ -641,8 +678,10 @@ export const invoiceRouter = createTRPCRouter({
           subTotal = subTotal.plus(lineTotal);
 
           let itemVat = new Decimal(0);
-          const vatRateForCalc = item.vatRatePercent !== undefined ? new Decimal(item.vatRatePercent) : 
-                                 (item.itemId ? inventoryItemMap.get(item.itemId)?.defaultVatRatePercent : undefined) ?? companyDefaultVatRate;
+          const vatRateForCalc = item.vatRatePercent !== undefined ? new Decimal(item.vatRatePercent) :
+                                 (item.itemId && inventoryItemMap.get(item.itemId)?.defaultVatRatePercent !== null && inventoryItemMap.get(item.itemId)?.defaultVatRatePercent !== undefined 
+                                   ? new Decimal(inventoryItemMap.get(item.itemId)!.defaultVatRatePercent!.toString()) 
+                                   : companyDefaultVatRate);
 
           if (!input.vatReverseCharge && vatRateForCalc) { // Check input.vatReverseCharge instead of existingInvoice.vatReverseCharge
             itemVat = lineTotal.times(vatRateForCalc.div(100));
@@ -658,7 +697,7 @@ export const invoiceRouter = createTRPCRouter({
           const calculatedUnitProfit = lineNetUnitPrice.minus(calculatedUnitCost);
           const calculatedLineProfit = calculatedUnitProfit.times(quantity);
           
-          const itemData = {
+          const itemData: ProcessedInvoiceItem = { // Ensure itemData conforms to ProcessedInvoiceItem
             description: item.description,
             quantity,
             unitPrice,
@@ -668,25 +707,58 @@ export const invoiceRouter = createTRPCRouter({
             calculatedUnitCost,
             calculatedUnitProfit,
             calculatedLineProfit,
-            ...(item.itemId && { inventoryItemId: item.itemId }), 
+            inventoryItemId: "", // Placeholder, will be set below
           };
 
+          if (item.itemId) {
+            itemData.inventoryItemId = item.itemId;
+          }
+
           if (item.id) { // Existing item, prepare for update
+            if (!itemData.inventoryItemId && inventoryItemDetails) { // If itemId was not in input but exists from DB
+                itemData.inventoryItemId = inventoryItemDetails.id;
+            }
+            if (!itemData.inventoryItemId && !item.itemId && !existingInvoice.items.find(i => i.id === item.id)?.inventoryItemId) {
+                throw new TRPCError({ code: 'BAD_REQUEST', message: `Inventory item ID is missing for existing item ${item.id}.` });
+            } else if (!itemData.inventoryItemId && item.itemId) {
+                itemData.inventoryItemId = item.itemId;
+            } else if (!itemData.inventoryItemId) {
+                const existingLinkedItemId = existingInvoice.items.find(i => i.id === item.id)?.inventoryItemId;
+                if (!existingLinkedItemId) throw new TRPCError({ code: 'BAD_REQUEST', message: `Inventory item ID is missing and cannot be inferred for existing item ${item.id}.` });
+                itemData.inventoryItemId = existingLinkedItemId;
+            }
             return { where: { id: item.id }, data: itemData };
           } else { // New item, prepare for create
             if (!item.itemId) { // New items must have an itemId
                  throw new TRPCError({ code: 'BAD_REQUEST', message: `New invoice item must have an itemId.` });
             }
-            return { ...itemData, inventoryItemId: item.itemId }; // Ensure inventoryItemId is included for creation
+            itemData.inventoryItemId = item.itemId; // Ensure inventoryItemId is included for creation
+            return itemData; // Return ProcessedInvoiceItem directly
           }
         }));
 
-        const itemsToUpdate = processedItems.filter(item => 'where' in item) as { where: { id: string }, data: any }[];
-        const itemsToCreate = processedItems.filter(item => !('where' in item)) as any[];
+        const itemsToUpdate = processedItems.filter(
+          (item): item is { where: { id: string }; data: ProcessedInvoiceItem } => 'where' in item
+        );
+        const itemsToCreate = processedItems.filter(
+          (item): item is ProcessedInvoiceItem => !('where' in item)
+        );
 
+        interface InvoiceItemCreatePrismaData {
+          inventoryItemId: string;
+          description?: string | null;
+          quantity: Decimal;
+          unitPrice: Decimal;
+          vatRatePercent: Decimal;
+          discountAmount?: Decimal | null;
+          discountPercent?: Decimal | null;
+          calculatedUnitCost: Decimal;
+          calculatedUnitProfit: Decimal;
+          calculatedLineProfit: Decimal;
+        }
 
         invoiceItemsToCreateOrUpdate = {
-          ...(itemsToCreate.length > 0 && { create: itemsToCreate.map(item => ({ // Added explicit type here
+          ...(itemsToCreate.length > 0 && { create: itemsToCreate.map((item: InvoiceItemCreatePrismaData) => ({ 
              inventoryItemId: item.inventoryItemId,
              description: item.description,
              quantity: item.quantity,

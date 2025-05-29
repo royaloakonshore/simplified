@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogHeader, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { OrderType } from "@prisma/client";
 
 interface OrderStatusUpdateModalProps {
   orderId: string | null;
@@ -51,35 +53,28 @@ export default function OrderStatusUpdateModal({
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
 
-  const { data: order, isLoading: isLoadingOrder, error: orderError } = api.order.getById.useQuery(
-    { id: orderId! }, 
-    { enabled: !!orderId && isOpen } // Only fetch if orderId is present and modal is open
-  );
-
+  const { data: order, isLoading: isLoadingOrder, error: orderError, refetch } = api.order.getById.useQuery({ id: orderId as string }, { enabled: !!orderId });
   const updateStatusMutation = api.order.updateStatus.useMutation({
-    onSuccess: (updatedOrderData: Order) => {
-      toast.success(`Order ${updatedOrderData.orderNumber} status updated to ${updatedOrderData.status}`);
-      setMutationError(null);
-      setSelectedStatus('');
-      utils.order.getById.invalidate({ id: updatedOrderData.id });
-      utils.order.list.invalidate(); // Invalidate list as well
-      onOpenChange(false); // Close modal
+    onSuccess: async (updatedOrder) => {
+      toast.success(`Order ${updatedOrder.orderNumber} status updated to ${updatedOrder.status}`);
+      await utils.order.list.invalidate(); // Invalidate list to reflect changes
+      // also invalidate the specific order query if you have one for a detail page
+      if (orderId) {
+        await utils.order.getById.invalidate({ id: orderId }); 
+      }
       if (onStatusUpdated) onStatusUpdated();
+      onOpenChange(false); // Close modal on success
     },
-    onError: (err: TRPCClientErrorLike<AppRouter>) => {
-      const message = err.message ?? 'Failed to update order status.';
-      setMutationError(message);
-      toast.error(message);
-    },
+    onError: (error) => {
+      toast.error(`Error updating status: ${error.message}`);
+    }
   });
 
   useEffect(() => {
-    // Reset state when modal is closed or orderId changes
-    if (!isOpen) {
-      setSelectedStatus('');
-      setMutationError(null);
+    if (order && order.status !== selectedStatus) {
+        setSelectedStatus(order.status);
     }
-  }, [isOpen]);
+  }, [order, selectedStatus]);
 
   const getAvailableStatusTransitions = (currentStatus?: OrderStatus): OrderStatus[] => {
     if (!currentStatus) return [];
@@ -110,67 +105,60 @@ export default function OrderStatusUpdateModal({
 
   if (!isOpen) return null;
 
+  if (isLoadingOrder) return <Dialog open={isOpen} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>Loading...</DialogTitle></DialogHeader><Skeleton className="h-20 w-full" /></DialogContent></Dialog>;
+  if (orderError) return <Dialog open={isOpen} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>Error</DialogTitle></DialogHeader><p>Error loading order details: {orderError.message}</p></DialogContent></Dialog>;
+  if (!order) return <Dialog open={isOpen} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>Not Found</DialogTitle></DialogHeader><p>Order not found.</p></DialogContent></Dialog>;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update Order Status</DialogTitle>
+          <DialogTitle>{`Update Status for Order ${order.orderNumber}`}</DialogTitle>
         </DialogHeader>
-        {isLoadingOrder && (
-          <div className="py-4 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        )}
-        {orderError && (
-          <Alert variant="destructive" className="my-4">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Error Loading Order</AlertTitle>
-            <AlertDescription>{orderError.message}</AlertDescription>
-          </Alert>
-        )}
-        {!isLoadingOrder && !orderError && order && (
-          <div className="py-4 space-y-4">
-            {mutationError && (
-              <Alert variant="destructive">
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>Update Error</AlertTitle>
-                <AlertDescription>{mutationError}</AlertDescription>
-              </Alert>
-            )}
-            <div>Order: <span className="font-semibold">{order.orderNumber}</span></div>
-            <div>Current Status: <Badge variant={getStatusBadgeVariant(order.status)}>{order.status.replace('_',' ').toUpperCase()}</Badge></div>
-            {availableTransitions.length > 0 ? (
-              <Select onValueChange={(value) => setSelectedStatus(value as OrderStatus)} value={selectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select new status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTransitions.map(status => (
-                    <SelectItem key={status} value={status}>
-                      {status.replace('_',' ').toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+        <div className="space-y-4">
+          <p>Current status: <Badge variant={getStatusBadgeVariant(order.status)}>{order.status.replace("_", " ").toUpperCase()}</Badge></p>
+          
+          <div className="space-y-2">
+              <Label htmlFor="orderStatus">New Status</Label>
+              <Select onValueChange={(value) => setSelectedStatus(value as OrderStatus)} value={selectedStatus ?? order.status}>
+                  <SelectTrigger id="orderStatus">
+                      <SelectValue placeholder="Select new status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {Object.values(OrderStatus).map(status => (
+                          <SelectItem key={status} value={status} disabled={status === order.status}>
+                              {status.replace("_", " ").toUpperCase()}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
               </Select>
-            ) : (
-              <p className="text-sm text-muted-foreground">No further status transitions available for this order.</p>
-            )}
           </div>
-        )}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={updateStatusMutation.isLoading}>Cancel</Button>
-          </DialogClose>
-          {order && availableTransitions.length > 0 && (
-            <Button
-              onClick={handleStatusChangeSubmit}
-              disabled={updateStatusMutation.isLoading || !selectedStatus || isLoadingOrder || !!orderError}
-            >
-              {updateStatusMutation.isLoading ? 'Updating...' : 'Confirm Update'}
-            </Button>
+          
+          {selectedStatus === OrderStatus.shipped && (
+            <Alert>
+              <AlertDescription>
+                Updating to SHIPPED will make this order available for invoicing.
+              </AlertDescription>
+            </Alert>
           )}
-        </DialogFooter>
+           {selectedStatus === OrderStatus.in_production && order.orderType === OrderType.work_order && (
+            <Alert variant="default">
+              <AlertDescription>
+                Starting production for a WORK_ORDER will attempt to deduct Bill of Materials components from stock.
+              </AlertDescription>
+            </Alert>
+          )}
+
+        </div>
+        <div className="mt-6 flex justify-end space-x-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={updateStatusMutation.isPending}>Cancel</Button>
+          <Button 
+            onClick={handleStatusChangeSubmit} 
+            disabled={updateStatusMutation.isPending || !selectedStatus || isLoadingOrder || !!orderError || selectedStatus === order.status}
+          >
+            {updateStatusMutation.isPending ? 'Updating...' : 'Confirm Update'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

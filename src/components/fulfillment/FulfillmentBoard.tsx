@@ -10,7 +10,7 @@ import type { TRPCClientErrorLike } from "@trpc/client";
 import { toast } from 'react-toastify';
 import { Button } from "@/components/ui/button"; // Use Shadcn button
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
-import { Terminal } from 'lucide-react'; // Icons
+import { Terminal, CheckCircle2, MoveRight } from 'lucide-react'; // Icons
 
 // Simplified Order type for props, assuming necessary includes are done by the caller
 type BoardOrder = Order & {
@@ -103,11 +103,11 @@ export default function FulfillmentBoard({
       {nextStatus && (
         <Button
           onClick={() => handleUpdateStatus(order.id, nextStatus)}
-          disabled={updateStatusMutation.isLoading && updateStatusMutation.variables?.id === order.id}
+          disabled={updateStatusMutation.isPending && updateStatusMutation.variables?.id === order.id}
           className="w-full"
           size="sm"
         >
-          {updateStatusMutation.isLoading && updateStatusMutation.variables?.id === order.id ? 'Updating...' :
+          {updateStatusMutation.isPending && updateStatusMutation.variables?.id === order.id ? 'Updating...' :
            (nextStatus === OrderStatus.in_production ? 'Start Production' :
             nextStatus === OrderStatus.shipped ? 'Mark as Shipped' :
             nextStatus === OrderStatus.cancelled ? 'Cancel Order' : 'Update Status')

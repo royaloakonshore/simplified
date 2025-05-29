@@ -18,7 +18,7 @@ interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPrice' | 
 
 interface EditableQuantityCellProps {
   item: CellItemData;
-  onUpdate: () => void;
+  onUpdate: (newValue: number) => void;
 }
 
 export default function EditableQuantityCell({ item, onUpdate }: EditableQuantityCellProps) {
@@ -33,7 +33,8 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
       toast.success(`Stock for ${updatedItem.name} updated to ${updatedItem.quantityOnHand}`);
       utils.inventory.list.invalidate();
       setIsEditing(false);
-      onUpdate();
+      const newQty = typeof updatedItem.quantityOnHand === 'string' ? parseFloat(updatedItem.quantityOnHand) : updatedItem.quantityOnHand;
+      onUpdate(newQty ?? originalQuantity);
     },
     onError: (error) => {
       toast.error(`Failed to update stock: ${error.message}`);
@@ -57,6 +58,7 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
     }
     if (currentQuantity === originalQuantity) {
       setIsEditing(false);
+      onUpdate(currentQuantity);
       return;
     }
     quickAdjustStockMutation.mutate({
@@ -71,7 +73,7 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
     setIsEditing(false);
   };
 
-  if (quickAdjustStockMutation.isLoading) {
+  if (quickAdjustStockMutation.isPending) {
     return (
       <div className="flex items-center justify-end space-x-1">
         <Loader2 className="h-4 w-4 animate-spin" />

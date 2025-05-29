@@ -83,6 +83,7 @@ type OrderFormProps = {
     name: string;
     salesPrice: number; // Changed from Decimal (Prisma.Decimal)
     unitOfMeasure: string;
+    sku: string; // Added SKU
   }[];
   order?: ProcessedOrder; // Use the new ProcessedOrder type
   isEditMode?: boolean;
@@ -364,11 +365,12 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                            <FormField
                               control={updateForm.control}
                               name={`items.${index}.inventoryItemId`}
-                              render={({ field: itemField }) => (
+                              render={({ field }) => (
                                 <FormItem>
-                                  <Select onValueChange={(v) => handleItemChange(index, v, updateForm)} value={itemField.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select..."/></SelectTrigger></FormControl>
-                                    <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
+                                  <FormLabel className="sr-only">Item</FormLabel>
+                                  <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, updateForm); }} value={field.value} disabled={updateOrderMutation.isPending}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
+                                    <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
                                   </Select>
                                   <FormMessage />
                                 </FormItem>
@@ -381,7 +383,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             name={`items.${index}.quantity`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isLoading} className="text-right" /></FormControl>
+                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -393,7 +395,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             name={`items.${index}.unitPrice`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isLoading} className="text-right" /></FormControl>
+                                <FormLabel className="sr-only">Unit Price</FormLabel>
+                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -406,18 +409,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="sr-only">Discount %</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    placeholder="%" 
-                                    {...field} 
-                                    value={field.value ?? ''}
-                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                    disabled={updateOrderMutation.isLoading} 
-                                    className="text-right" 
-                                  />
-                                </FormControl>
+                                <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right"/></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -429,19 +421,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             name={`items.${index}.discountAmount`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="sr-only">Discount Amt</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    placeholder="Amt" 
-                                    {...field} 
-                                    value={field.value ?? ''}
-                                    onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                    disabled={updateOrderMutation.isLoading} 
-                                    className="text-right" 
-                                  />
-                                </FormControl>
+                                <FormLabel className="sr-only">Discount Amount</FormLabel>
+                                <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right"/></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -470,19 +451,19 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 )}
               />
             </CardContent>
-            <CardFooter className="flex justify-between items-center">
-              <span className="text-lg font-semibold">Total: {formatCurrency(calculateTotal(updateForm))}</span>
-              <div className="flex space-x-2">
-                <Button 
+            <CardFooter className="flex justify-end space-x-2">
+              <span className="text-lg font-semibold mr-auto">Total: {formatCurrency(calculateTotal(updateForm))}</span>
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending} className="mr-2">Cancel</Button>
+              <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="secondary"
                   onClick={() => handleCreateInvoice(order?.id)}
-                  disabled={!order || updateOrderMutation.isLoading || createInvoiceMutation.isLoading}
-                >
-                  {createInvoiceMutation.isLoading ? "Creating Invoice..." : "Create Invoice"}
-                </Button>
-                <Button type="submit" disabled={updateOrderMutation.isLoading || createInvoiceMutation.isLoading}>{updateOrderMutation.isLoading ? 'Saving...' : 'Save Changes'}</Button>
-              </div>
+                  disabled={!order || updateOrderMutation.isPending || createInvoiceMutation.isPending || order.status === OrderStatus.INVOICED || order.status === OrderStatus.cancelled}
+                  className="mr-2"
+              >
+                  {createInvoiceMutation.isPending ? "Creating Invoice..." : "Create Invoice"}
+              </Button>
+              <Button type="submit" disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending || (updateForm.formState.isSubmitted && !updateForm.formState.isValid)}>{updateOrderMutation.isPending ? 'Saving...' : 'Save Changes'}</Button>
             </CardFooter>
           </Card>
         </form>
@@ -572,9 +553,10 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 name={`items.${index}.inventoryItemId`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value}>
+                                    <FormLabel className="sr-only">Item</FormLabel>
+                                    <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value} disabled={createOrderMutation.isPending}>
                                       <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
-                                      <SelectContent>{inventoryItems.map(inv => <SelectItem key={inv.id} value={inv.id}>{inv.name}</SelectItem>)}</SelectContent>
+                                      <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
                                     </Select>
                                     <FormMessage />
                                   </FormItem>
@@ -587,7 +569,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 name={`items.${index}.quantity`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                    <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -599,7 +581,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 name={`items.${index}.unitPrice`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                                    <FormLabel className="sr-only">Unit Price</FormLabel>
+                                    <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -660,8 +643,13 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                       })}
                     </TableBody>
                   </Table>
-                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => createAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })}> 
-                     <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                  <Button 
+                    type="button" 
+                    onClick={() => createAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} 
+                    variant="outline" 
+                    className="mt-4 w-full md:w-auto"
+                    disabled={createOrderMutation.isPending}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                   </Button>
                   {createForm.formState.errors.items && typeof createForm.formState.errors.items === 'object' && 'message' in createForm.formState.errors.items && (
                     <p className="text-sm font-medium text-destructive">{(createForm.formState.errors.items as any).message as string}</p>
@@ -682,11 +670,11 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
               </CardContent>
               <CardFooter className="flex justify-end space-x-2">
                   <span className="text-lg font-semibold mr-auto">Total: {formatCurrency(calculateTotal(createForm))}</span>
-                  <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2" disabled={createOrderMutation.isLoading}>
+                  <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2" disabled={createOrderMutation.isPending}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createOrderMutation.isLoading || (createForm.formState.isSubmitted && !createForm.formState.isValid)}>
-                    {createOrderMutation.isLoading ? "Creating..." : "Create Order"}
+                  <Button type="submit" disabled={createOrderMutation.isPending || (createForm.formState.isSubmitted && !createForm.formState.isValid)}>
+                    {createOrderMutation.isPending ? "Creating..." : "Create Order"}
                   </Button>
               </CardFooter>
             </Card>

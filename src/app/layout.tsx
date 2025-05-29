@@ -5,6 +5,7 @@ import { TRPCReactProvider } from "@/lib/trpc/react";
 import { Metadata } from "next";
 import ClientProvider from "@/components/ClientProvider";
 import { ThemeAwareToast } from "@/components/theme/ThemeAwareToast";
+import { cookies } from 'next/headers';
 
 export const metadata: Metadata = {
   title: "Simplified ERP - Base Test",
@@ -20,10 +21,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cookieString = cookies().toString();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <TRPCReactProvider>
+        <TRPCReactProvider cookies={cookieString}>
           <ClientProvider>
             <ThemeAwareToast />
             {children}

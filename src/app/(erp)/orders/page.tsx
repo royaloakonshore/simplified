@@ -286,22 +286,22 @@ function OrderListContent() {
           <div className="flex items-center space-x-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading}>
+                <Button variant="outline" disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
                   Actions <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem 
-                  disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isLoading}
+                  disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isPending}
                   onClick={() => openConfirmationModal('delete')}
                 >
-                  {deleteOrdersMutation.isLoading ? "Deleting..." : "Delete Selected"}
+                  {deleteOrdersMutation.isPending ? "Deleting..." : "Delete Selected"}
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  disabled={selectedOrderIds.length === 0 || sendToProductionMutation.isLoading}
+                  disabled={selectedOrderIds.length === 0 || sendToProductionMutation.isPending}
                   onClick={() => openConfirmationModal('sendToProduction')}
                 >
-                  {sendToProductionMutation.isLoading ? "Sending..." : "Send to Production"}
+                  {sendToProductionMutation.isPending ? "Sending..." : "Send to Production"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -315,17 +315,17 @@ function OrderListContent() {
       <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>{confirmationAction === 'delete' ? "Confirm Deletion" : "Confirm Send to Production"}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. You are about to process {selectedOrderIds.length} order(s).
-              {confirmationAction === 'sendToProduction' && " This will attempt to send them to production (if applicable)."}
-              {confirmationAction === 'delete' && " This will permanently delete them."}
+              {confirmationAction === 'delete'
+                ? `Are you sure you want to delete ${selectedOrderIds.length} order(s)? This action cannot be undone.`
+                : `Are you sure you want to send ${selectedOrderIds.length} order(s) to production?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAction} disabled={deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading}>
-              {(deleteOrdersMutation.isLoading || sendToProductionMutation.isLoading) ? "Processing..." : "Continue"}
+            <AlertDialogCancel disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction} disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
+              {(deleteOrdersMutation.isPending || sendToProductionMutation.isPending) ? "Processing..." : "Continue"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

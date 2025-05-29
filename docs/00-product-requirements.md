@@ -5,7 +5,7 @@
 This document outlines the requirements for a simplified, multi-tenant ERP-style SaaS application targeting small businesses. The system integrates Invoicing, Inventory Management (including Bill of Materials), Order Processing (acting as Quotes/Work Orders), Production Workflows, and Customer Registry.
 
 **Current Context & Progress:**
-The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving type errors, and ensuring correct VAT handling (e.g., `defaultVatRatePercent` from `InventoryItem` is now used in invoice creation). The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth.
+The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving numerous type errors across the codebase, and ensuring correct VAT handling. Specifically, `InventoryItem.defaultVatRatePercent` is now correctly used when creating invoice line items from an order. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. The build is currently passing after extensive debugging and `npx prisma generate`. However, `src/lib/api/routers/invoice.ts` still has two minor 'implicit any' type errors that need addressing. The immediate next steps involve fixing these, then proceeding with broader feature enhancements and UI completion.
 
 ## 2. Goals
 
@@ -42,9 +42,9 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
 ### 1. Core Financials & Invoicing
     *   **Invoicing:**
         *   Create, send, and manage invoices. **[Implemented]**
-        *   Generate from sales orders (`orderType = WORK_ORDER`, status `shipped` or `INVOICED` after creation). **[Implemented, `INVOICED` status update on order confirmed]**
+        *   Generate from sales orders (`orderType = WORK_ORDER`, status `shipped` or `INVOICED` after creation). **[Implemented, `INVOICED` status update on order confirmed. `invoiceRouter.createFromOrder` now correctly uses `InventoryItem.defaultVatRatePercent`.]**
         *   Support for discounts (percentage/amount per line). **[Implemented]**
-        *   Automatic calculation of VAT. All user-entered prices and costs are **VAT-exclusive**. `Invoice.totalAmount` is stored NET. `Invoice.totalVatAmount` stores calculated VAT. `InventoryItem.defaultVatRatePercent` is used, with a placeholder fallback (TODO: company default VAT). **[Implemented]**
+        *   Automatic calculation of VAT. All user-entered prices and costs are **VAT-exclusive**. `Invoice.totalAmount` is stored NET. `Invoice.totalVatAmount` stores calculated VAT. `InventoryItem.defaultVatRatePercent` is used. **[Implemented. TODO: Implement company-level default VAT rate as a fallback if `InventoryItem.defaultVatRatePercent` is not set.]**
         *   VAT Reverse Charge mechanism (sets line item VAT to 0%, adds note). **[Implemented]**
         *   Sequential Invoice Numbering (e.g., INV-00001). **[Implemented]** Default status `draft`. **[Implemented]**
         *   Track invoice status (Draft, Sent, Paid, Overdue, Cancelled, Credited). **[Implemented]**
@@ -136,19 +136,20 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
     *   **Profitability Reporting (NEW):** Dashboard views and reports on profit margins (overall, by product, by customer - based on invoiced item profits). **[PENDING]**
 
 **Next Steps (High-Level):**
-1.  **Inventory Enhancements (as per new requirements):**
+1.  **Fix Remaining Type Errors:** Address the 'implicit any' errors in `src/lib/api/routers/invoice.ts`.
+2.  **Company Default VAT Rate:** Implement the fallback logic for company-level default VAT rate in `invoiceRouter.createFromOrder` and potentially other relevant places.
+3.  **Inventory Enhancements (as per new requirements):**
     *   Implement `quantityOnHand` editing in `InventoryItemForm` (creation/edit).
     *   Add editable `quantityOnHand` column to inventory table with quick adjustment mutation.
     *   Add "Product Category" column and filtering to inventory table.
     *   Enhance inventory table with search, advanced filtering, pagination, and sorting.
-2.  **Production Kanban/Table Enhancements:**
+4.  **Production Kanban/Table Enhancements:**
     *   Implement BOM information view within Kanban cards/table rows.
-3.  **Customer History UI:** Implement UI for displaying customer order/invoice history and total net revenue.
-4.  **BOM Management UI:** Develop the user interface for creating and managing Bills of Materials.
-5.  **Dashboard Implementation:** Populate the dashboard with actual data and metrics.
-6.  **Reporting Features:** Develop basic sales, inventory, and profitability reports.
-7.  **PDF Generation:** Implement PDF generation for Invoices, Credit Notes, Orders, and Pricelists.
-8.  **Finvoice Settings:** Complete full integration of company settings into Finvoice XML generation.
-9.  **Credit Note Flow:** Implement the full UI and backend logic for credit notes.
+5.  **Customer History UI:** Implement UI for displaying customer order/invoice history and total net revenue.
+6.  **BOM Management UI:** Develop the user interface for creating and managing Bills of Materials.
+7.  **Dashboard Implementation:** Populate the dashboard with actual data and metrics.
+8.  **Reporting Features:** Develop basic sales, inventory, and profitability reports.
+9.  **PDF Generation:** Implement PDF generation for Invoices, Credit Notes, Orders, and Pricelists.
 10. **Stock Alerts:** Develop UI for displaying stock alerts.
-11. **Testing & Refinement:** Thoroughly test all modules and refine UI/UX based on feedback.
+11. **Build Error Resolution & TypeScript Health:** Proactively address any new build errors or TypeScript issues that arise. Prioritize a clean `npx tsc --noEmit` and passing `npm run build`.
+12. **Testing & Refinement:** Thoroughly test all modules and refine UI/UX based on feedback.

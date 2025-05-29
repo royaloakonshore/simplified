@@ -51,11 +51,9 @@ export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice
 };
 
 interface InventoryTableProps {
-  items: InventoryItemRowData[]; 
+  table: ReactTableType<InventoryItemRowData>;
   isLoading: boolean;
-  rowSelection: RowSelectionState;
-  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>;
-  onDataChange: () => void;
+  onDataChange: (rowIndex: number, columnId: string, value: any) => void;
   categoryOptions: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }[];
 }
 
@@ -128,9 +126,17 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     header: () => <div className="text-right">Qty on Hand</div>,
     cell: ({ row, table }) => {
       const itemWithStrQty = row.original as InventoryItemRowData;
-      const meta = table.options.meta as { onDataChange?: () => void };
-      // EditableQuantityCell now expects item.quantityOnHand to be a string
-      return <EditableQuantityCell item={itemWithStrQty} onUpdate={meta?.onDataChange ?? (() => {})} />;
+      const meta = table.options.meta as { 
+        onDataChange?: (rowIndex: number, columnId: string, value: any) => void 
+      };
+      
+      const handleCellUpdate = (newValue: number) => { 
+        if (meta?.onDataChange) {
+          meta.onDataChange(row.index, 'quantityOnHand', newValue);
+        }
+      };
+
+      return <EditableQuantityCell item={itemWithStrQty} onUpdate={handleCellUpdate} />;
     },
   },
   {
@@ -199,34 +205,8 @@ function InventoryTableToolbar<TData>({ table, categoryOptions }: InventoryTable
   );
 }
 
-export function InventoryTable({ items, isLoading, rowSelection, setRowSelection, onDataChange, categoryOptions }: InventoryTableProps) {
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-
-  const table = useReactTable({
-    data: items,
-    columns, // Columns might need to be a function of categoryOptions if they use them directly for filtering
-    state: {
-      rowSelection,
-      columnFilters,
-      columnVisibility,
-    },
-    onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(), // For client-side filtering
-    getPaginationRowModel: getPaginationRowModel(), // If adding pagination controls
-    getSortedRowModel: getSortedRowModel(), // If adding sorting controls
-    getFacetedRowModel: getFacetedRowModel(), // For faceted filters
-    getFacetedUniqueValues: getFacetedUniqueValues(), // For faceted filters
-    meta: {
-        onDataChange,
-        // categoryOptions, // Pass categoryOptions to columns if needed via meta
-    }
-  });
-
-  if (isLoading) {
+export function InventoryTable({ table, isLoading, onDataChange, categoryOptions }: InventoryTableProps) {
+  if (isLoading && !table.getRowModel().rows.length) {
     return (
       <Table>
         <TableHeader>
@@ -249,7 +229,7 @@ export function InventoryTable({ items, isLoading, rowSelection, setRowSelection
     );
   }
 
-  if (!items || items.length === 0) {
+  if (!table.getRowModel().rows.length) {
     return <div>No inventory items found.</div>;
   }
 

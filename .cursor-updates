@@ -101,3 +101,18 @@
 - Move helper functions in `InvoiceListContent.tsx` to top-level scope to fix syntax errors.
 - Verified that `isPending` was already updated to `isLoading` in relevant files.
 - Resolved build error in `OrderForm.tsx` by removing an unused and conflicting `OrderFormData` type from `src/lib/schemas/order.schema.ts` that was incorrectly referencing `itemId` instead of `inventoryItemId`.
+- Resolved 'implicit any' TypeScript errors in `src/lib/api/routers/invoice.ts`.
+- Implemented company-level default VAT rate fallback: 
+  - Added `defaultVatRatePercent` to `Settings` model in `prisma/schema.prisma`.
+  - Updated `src/lib/schemas/settings.schema.ts` with the new field.
+  - Modified `src/lib/api/routers/settings.ts` to include the new field in the returned object and fixed type assertions.
+  - Updated `src/lib/api/routers/invoice.ts` (`createFromOrder` and `update` procedures) to fetch and use this company default VAT rate.
+  - Corrected type conversions for `defaultVatRatePercent` in `src/app/(erp)/settings/page.tsx`.
+- Addressed multiple linter errors across various files including `InvoiceListContent.tsx`, `OrderStatusUpdateModal.tsx`, and `inventory/page.tsx`.
+- Fixed React Hook order error in `InvoiceListContent.tsx`.
+- Addressed settings page issues: `settings.get` now returns `null` if no settings exist, `settings.update` only updates (no creation), and `SettingsPage.tsx` handles the null case by showing a message and disabling save.
+- Resolved build errors related to missing `sku` property in `orders/add/page.tsx` and `EditOrderFormLoader.tsx`.
+- Fixed build error in `layout.tsx` by passing the `cookies` prop to `TRPCReactProvider`.
+- Ensured `economicOrderQuantity` was correctly identified as not being part of the `InventoryItem` model, so its removal from a data mapping was not a feature regression.
+- Clarified that invoicing is not strictly tied to 'shipped' order status in the backend, aligning with user request.
+- Reviewed code changes for over-complication and performance, concluding that changes were generally for simplification, correctness, and leveraging existing performance patterns (React Query caching, server-side operations).

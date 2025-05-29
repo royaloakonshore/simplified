@@ -11,6 +11,7 @@ import {
 import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import SuperJSON from "superjson";
+import React from "react";
 
 import { type AppRouter } from "@/lib/api/root";
 
@@ -39,34 +40,53 @@ const wsClient =
       })
     : undefined;
 
-export function TRPCReactProvider(props: { children: React.ReactNode }) {
-  const queryClient = getQueryClient();
-
-  const [trpcClient] = useState(() =>
+export function TRPCReactProvider(props: { children: React.ReactNode, cookies: string }) {
+  const [queryClient] = React.useState(() => new QueryClient());
+  const [trpcClient] = React.useState(() =>
     api.createClient({
-      transformer: SuperJSON,
       links: [
         loggerLink({
           enabled: (op) =>
             process.env.NODE_ENV === "development" ||
             (op.direction === "down" && op.result instanceof Error),
         }),
-        splitLink({
-          condition: (op) => !!wsClient && op.type === "subscription",
-          true: wsLink({
-            client: wsClient!,
-          }),
-          false: httpBatchLink({
-            url: getBaseUrl() + "/api/trpc",
-            headers: () => {
-              return {
-                "x-trpc-source": "nextjs-react",
-              };
-            },
-          }),
-        }),
+        (() => {
+          if (typeof window === 'undefined') {
+            // Server-side rendering or RSC
+            return httpBatchLink({
+              url: getBaseUrl() + "/api/trpc",
+              headers() {
+                return {
+                  cookie: props.cookies,
+                  "x-trpc-source": "rsc",
+                };
+              },
+              transformer: SuperJSON,
+            });
+          }
+          // Client-side rendering
+          const wsClient = createWSClient({
+            url: getWSBaseUrl() + "/api/trpc",
+          });
+          return splitLink({
+            condition: (op) => op.type === 'subscription',
+            true: wsLink({
+              client: wsClient,
+              transformer: SuperJSON,
+            }),
+            false: httpBatchLink({
+              url: getBaseUrl() + "/api/trpc",
+              headers() {
+                return {
+                  "x-trpc-source": "nextjs-react",
+                };
+              },
+              transformer: SuperJSON,
+            }),
+          });
+        })(),
       ],
-    }),
+    })
   );
 
   return (
@@ -79,6 +99,12 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
 }
 
 function getBaseUrl() {
+  if (typeof window !== "undefined") return window.location.origin;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return `http://localhost:${process.env.PORT ?? 3000}`;
+}
+
+function getWSBaseUrl() {
   if (typeof window !== "undefined") return window.location.origin;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return `http://localhost:${process.env.PORT ?? 3000}`;

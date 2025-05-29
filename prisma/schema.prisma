@@ -360,6 +360,7 @@ model Settings {
   sellerIntermediatorAddress String? // Renamed from finvoiceIntermediator, optional
   bankName                   String? // Was String?, remains String? (optional)
   defaultInvoicePaymentTermsDays Int?    // Added field for default payment terms
+  defaultVatRatePercent      Decimal? @db.Decimal(5, 2) // Added: Company-level default VAT rate
 
   // Fields to review/remove from old model if not in new schema:
   // phone                   String? // Not in settingsSchema, was optional

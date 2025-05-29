@@ -164,7 +164,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
             <CardTitle>Y-tunnus Search</CardTitle>
@@ -401,8 +401,8 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
         </Card>
 
         <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={createCustomer.isLoading || updateCustomer.isLoading}>
-            {initialData ? 'Update Customer' : 'Create Customer'}
+            <Button type="submit" disabled={createCustomer.isPending || updateCustomer.isPending}>
+              {initialData ? (updateCustomer.isPending ? "Saving..." : "Save Changes") : (createCustomer.isPending ? "Creating..." : "Create Customer")}
             </Button>
         </div>
       </form>
