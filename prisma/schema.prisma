@@ -139,7 +139,7 @@ model InventoryItem {
   unitOfMeasure       String? // e.g., 'kpl', 'kg', 'm'
   costPrice           Decimal            @default(0)
   salesPrice          Decimal            @default(0)
-  quantityOnHand      Decimal            @default(0) // For raw materials or pre-built manufactured goods
+  quantityOnHand      Decimal            @default(0) // This is the single, directly editable field. Transactions will adjust this.
   defaultVatRatePercent Decimal?           @db.Decimal(5, 2) // Default VAT rate for this item
   showInPricelist     Boolean            @default(true)
   internalRemarks     String?
@@ -147,6 +147,11 @@ model InventoryItem {
   supplier            Supplier?          @relation(fields: [supplierId], references: [id])
   inventoryCategoryId String?
   inventoryCategory   InventoryCategory? @relation(fields: [inventoryCategoryId], references: [id])
+
+  // New fields from requirements
+  leadTimeDays        Int?    // Lead time in days
+  vendorSku           String? // Vendor-specific SKU
+  vendorItemName      String? // Vendor-specific item name
 
   // New fields for BOM and ItemType
   itemType        ItemType             @default(RAW_MATERIAL)

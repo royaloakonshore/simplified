@@ -13,7 +13,7 @@ export const inventoryItemBaseSchema = z.object({
   salesPrice: z.coerce
     .number({ invalid_type_error: 'Sales price must be a number' })
     .nonnegative('Sales price must be non-negative'),
-  itemType: z.nativeEnum(ItemType).optional().default(ItemType.RAW_MATERIAL), // NEW
+  itemType: z.nativeEnum(ItemType).optional().default(ItemType.RAW_MATERIAL),
   minimumStockLevel: z.coerce
     .number({ invalid_type_error: 'Min stock level must be a number' })
     .nonnegative('Min stock level must be non-negative')
@@ -23,14 +23,28 @@ export const inventoryItemBaseSchema = z.object({
     .number({ invalid_type_error: 'Reorder level must be a number' })
     .nonnegative('Reorder level must be non-negative')
     .optional()
-    .default(0),
-  quantityOnHand: z.coerce // For form input, will be used for initial stock or adjustment amount
+    .nullable(),
+  quantityOnHand: z.coerce
     .number({ invalid_type_error: 'Quantity on hand must be a number' })
-    .optional(), // Optional because it might not always be directly set (e.g., if calculated)
-  inventoryCategoryId: z.string().cuid("Invalid category ID").optional(), // ADDED inventoryCategoryId
-  showInPricelist: z.boolean().optional().default(true), // ADDED showInPricelist
-  internalRemarks: z.string().optional(), // ADDED internalRemarks
-  defaultVatRatePercent: z.coerce.number().nonnegative().optional(), // ADDED defaultVatRatePercent
+    .optional(),
+  inventoryCategoryId: z.string().cuid("Invalid category ID").optional(),
+  showInPricelist: z.boolean().optional().default(true),
+  internalRemarks: z.string().optional(),
+  defaultVatRatePercent: z.coerce
+    .number()
+    .nonnegative()
+    .optional()
+    .nullable(),
+
+  // New fields from requirements
+  leadTimeDays: z.coerce
+    .number({ invalid_type_error: 'Lead time must be a number' })
+    .int('Lead time must be an integer')
+    .nonnegative('Lead time must be non-negative')
+    .optional()
+    .nullable(),
+  vendorSku: z.string().optional().nullable(),
+  vendorItemName: z.string().optional().nullable(),
 });
 
 // Schema for creating an inventory item

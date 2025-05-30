@@ -43,6 +43,10 @@ export interface ProcessedInventoryItemApiData {
   quantityOnHand: string | null; // Current total quantity, for display or context
   // Parsed Decimal fields
   defaultVatRatePercent?: number | null;
+  // New fields for initialData
+  leadTimeDays?: number | null;
+  vendorSku?: string | null;
+  vendorItemName?: string | null;
   // Other InventoryItem fields if needed by the form for display (not for form submission values directly)
   qrIdentifier?: string | null;
   showInPricelist?: boolean | null;
@@ -76,10 +80,10 @@ export function InventoryItemForm({
             const num = parseFloat(value);
             return isNaN(num) ? defaultValue : num;
           };
-          const getOptionalNumericValue = (value: string | null | undefined, defaultValue?: number): number | undefined => {
-            if (value === null || value === undefined) return defaultValue;
-            const num = parseFloat(value);
-            return isNaN(num) ? defaultValue : num;
+          const getOptionalNumericValue = (value: string | number | null | undefined, defaultValue?: number): number | undefined | null => {
+            if (value === null || value === undefined) return defaultValue === undefined ? null : defaultValue;
+            const num = parseFloat(String(value)); // Ensure value is string for parseFloat
+            return isNaN(num) ? (defaultValue === undefined ? null : defaultValue) : num;
           };
 
           return {
@@ -92,13 +96,14 @@ export function InventoryItemForm({
             itemType: initialData.itemType ?? PrismaItemType.RAW_MATERIAL,
             minimumStockLevel: getNumericValue(initialData.minimumStockLevel, 0),
             reorderLevel: getNumericValue(initialData.reorderLevel, 0),
-            quantityOnHand: initialData.id && formMode === 'full' 
-                              ? undefined 
-                              : getNumericValue(initialData.quantityOnHand, 0),
+            quantityOnHand: getNumericValue(initialData.quantityOnHand, 0),
             defaultVatRatePercent: initialData.defaultVatRatePercent ?? undefined,
             showInPricelist: initialData.showInPricelist ?? true,
             internalRemarks: initialData.internalRemarks ?? undefined,
             inventoryCategoryId: initialData.inventoryCategoryId ?? undefined,
+            leadTimeDays: getOptionalNumericValue(initialData.leadTimeDays, undefined) as number | null | undefined,
+            vendorSku: initialData.vendorSku ?? undefined,
+            vendorItemName: initialData.vendorItemName ?? undefined,
           };
         })()
       : {
@@ -116,17 +121,17 @@ export function InventoryItemForm({
           showInPricelist: true,
           internalRemarks: undefined,
           inventoryCategoryId: undefined,
+          leadTimeDays: undefined,
+          vendorSku: undefined,
+          vendorItemName: undefined,
         },
   });
-
-  const [quantityAdjustment, setQuantityAdjustment] = React.useState<number | undefined>(undefined);
 
   // Mutations for create/update are now handled by the parent page (EditInventoryItemPage, AddInventoryItemPage)
   // This form component will call onSubmitProp, which triggers those mutations.
 
   function onSubmit(values: InventoryItemFormValues) {
-    const stockAmount = values.quantityOnHand;
-    onSubmitProp(values, formMode, formMode === 'full' ? stockAmount : quantityAdjustment);
+    onSubmitProp(values, formMode, values.quantityOnHand);
   }
 
   return (
@@ -174,16 +179,13 @@ export function InventoryItemForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <FormField
                     control={form.control as any}
-                    name="quantityOnHand" // This field is for initial stock on create, or adjustment amount on edit
+                    name="quantityOnHand" 
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>{initialData?.id ? "Adjust Stock Quantity By" : "Initial Quantity on Hand"}</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormLabel>Quantity on Hand*</FormLabel>
+                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
                         <FormDescription>
-                            {initialData?.id 
-                                ? "Enter amount to adjust by (e.g., 10 to add, -5 to remove). Current actual stock is managed by transactions."
-                                : "Enter the initial stock quantity for this new item."
-                            }
+                            Current total stock quantity. Changes will create an adjustment transaction.
                         </FormDescription>
                         <FormMessage />
                     </FormItem>
@@ -268,6 +270,44 @@ export function InventoryItemForm({
                     )}
                 />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FormField
+                control={form.control as any}
+                name="leadTimeDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lead Time (Days)</FormLabel>
+                    <FormControl><Input type="number" placeholder="e.g., 7" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
+                    <FormDescription>Estimated time to restock.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control as any}
+                name="vendorSku"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vendor SKU</FormLabel>
+                    <FormControl><Input placeholder="Vendor's SKU" {...field} /></FormControl>
+                    <FormDescription>Supplier's stock keeping unit.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control as any}
+                name="vendorItemName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vendor Item Name</FormLabel>
+                    <FormControl><Input placeholder="Vendor's Item Name" {...field} /></FormControl>
+                    <FormDescription>Supplier's name for the item.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             {initialData?.qrIdentifier && (
                  <div className="pt-4">
                     <FormLabel>QR Code</FormLabel>
@@ -285,20 +325,24 @@ export function InventoryItemForm({
         {formMode === 'scan-edit' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">Quick Update for: {initialData?.name} (SKU: {initialData?.sku})</h2>
-            <FormItem>
-              <FormLabel>Quantity Adjustment</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  step="1" 
-                  placeholder="e.g., 10 or -5" 
-                  value={quantityAdjustment === undefined ? '' : quantityAdjustment}
-                  onChange={e => setQuantityAdjustment(e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
-                />
-              </FormControl>
-              <FormDescription>Enter positive for stock in, negative for stock out. This will create an adjustment transaction.</FormDescription>
-              <FormMessage /> 
-            </FormItem>
+            <FormField
+                control={form.control as any}
+                name="quantityOnHand"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>New Quantity on Hand</FormLabel>
+                    <FormControl><Input 
+                                    type="number" 
+                                    step="1" 
+                                    {...field} 
+                                    onChange={e => field.onChange(parseFloat(e.target.value))}
+                                    placeholder="Enter new total quantity" 
+                                    /></FormControl>
+                    <FormDescription>Enter the new total stock quantity. An adjustment transaction will be created.</FormDescription>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
             
             <FormField
               control={form.control as any}
@@ -320,7 +364,7 @@ export function InventoryItemForm({
                 Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : (initialData?.id && formMode === 'full' ? "Save Changes" : (formMode === 'scan-edit' ? "Adjust Stock" : "Create Item"))}
+                {isLoading ? "Saving..." : (initialData?.id && formMode === 'full' ? "Save Changes" : (formMode === 'scan-edit' ? "Update Stock" : "Create Item"))}
             </Button>
         </div>
       </form>
