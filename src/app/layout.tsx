@@ -16,12 +16,15 @@ export const metadata: Metadata = {
   // },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieString = cookies().toString();
+  const cookieJar = cookies();
+  const cookieString = Object.entries(cookieJar)
+    .map(([name, value]) => `${name}=${typeof value === 'string' ? value : value.value}`)
+    .join('; ');
 
   return (
     <html lang="en" suppressHydrationWarning>

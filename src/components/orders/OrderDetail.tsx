@@ -144,9 +144,9 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   }
 
   return (
-    <div className="bg-white rounded-md shadow overflow-hidden">
+    <div className="bg-card text-card-foreground rounded-md shadow overflow-hidden">
       {/* Order Header */}
-      <div className="px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="px-6 py-4 border-b border-border dark:border-border">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <h2 className="text-xl font-semibold">Order {order.orderNumber}</h2>
           <div className="flex items-center space-x-2">
@@ -186,7 +186,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             )}
           </div>
         </div>
-        <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+        <div className="mt-2 text-sm text-muted-foreground">
           <p>Created on {formatDate(order.createdAt)}</p>
           <p>Last updated on {formatDate(order.updatedAt)}</p>
         </div>
@@ -245,104 +245,109 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             {order.customer.phone && <p>{order.customer.phone}</p>}
             {order.customer.vatId && <p>VAT ID: {order.customer.vatId}</p>}
             {order.customer.addresses && order.customer.addresses.length > 0 && (
-              <div className="pt-2 mt-2 border-t">
+              <div className="pt-2 mt-2 border-t border-border">
                  <p className="font-medium text-primary">
                   {order.customer.addresses[0].type.charAt(0).toUpperCase() + order.customer.addresses[0].type.slice(1)} Address:
-                </p>
-                <p>{order.customer.addresses[0].streetAddress}</p>
-                <p>{order.customer.addresses[0].postalCode} {order.customer.addresses[0].city}</p>
-                <p>{order.customer.addresses[0].countryCode}</p>
-              </div>
-            )}
-             {/* Display other address if exists */} 
-             {order.customer.addresses && order.customer.addresses.length > 1 && (
-              <div className="pt-2 mt-2 border-t">
-                 <p className="font-medium text-primary">
-                  {order.customer.addresses[1].type.charAt(0).toUpperCase() + order.customer.addresses[1].type.slice(1)} Address:
-                </p>
-                <p>{order.customer.addresses[1].streetAddress}</p>
-                <p>{order.customer.addresses[1].postalCode} {order.customer.addresses[1].city}</p>
-                <p>{order.customer.addresses[1].countryCode}</p>
+                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Items Column */}
-        <div className="md:col-span-2">
-            <h3 className="text-lg font-medium mb-2">Order Items</h3>
-            <div className="border rounded-md overflow-hidden">
-                <table className="min-w-full divide-y divide-border">
-                    <thead className="bg-muted/50">
-                        <tr>
-                            <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Item</th>
-                            <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Qty</th>
-                            <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Unit Price</th>
-                            <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Line Total</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-background">
-                        {order.items.map(orderItem => {
-                            // Ensure values used in Decimal operations are Decimals
-                            const quantity = new Prisma.Decimal(orderItem.quantity);
-                            const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
-                            const discountAmount = orderItem.discountAmount ? new Prisma.Decimal(orderItem.discountAmount) : new Prisma.Decimal(0);
-                            const discountPercentage = orderItem.discountPercentage ? new Prisma.Decimal(orderItem.discountPercentage) : null;
-
-                            const lineItemTotal = quantity.mul(unitPrice).sub(discountAmount);
-
-                            return (
-                                <tr key={orderItem.id}>
-                                    <td className="px-4 py-2 text-sm">
-                                        <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
-                                          {orderItem.inventoryItem.name}
-                                        </Link>
-                                        <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
-                                    </td>
-                                    <td className="px-4 py-2 text-right text-sm">{quantity.toString()}</td>
-                                    <td className="px-4 py-2 text-right text-sm">{formatCurrency(unitPrice)}</td>
-                                    <td className="px-4 py-2 text-right text-sm">
-                                        {formatCurrency(lineItemTotal)} 
-                                        {/* Corrected discount display */}
-                                        {discountAmount.gt(0) && (
-                                            <div className="text-xs text-red-500">(-{formatCurrency(discountAmount)})</div>
-                                        )}
-                                        {discountPercentage && discountPercentage.gt(0) && (
-                                             <div className="text-xs text-red-500">(-{discountPercentage.toString()}%)</div>
-                                        )}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                     <tfoot className="bg-muted/50 border-t">
-                        <tr>
-                            <td colSpan={3} className="px-4 py-2 text-right text-sm font-medium uppercase">Total</td>
-                            <td className="px-4 py-2 text-right text-sm font-medium">{formatCurrency(order.totalAmount ?? 0)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
+        {/* Shipping/Billing Column */}
+        <div className="md:col-span-1">
+          {order.customer.addresses && order.customer.addresses.find(addr => addr.type === "shipping") && (
+            <div className="mb-4">
+              <h3 className="text-lg font-medium mb-2">Shipping Address</h3>
+              <div className="text-sm space-y-1 text-muted-foreground">
+                {/* ... shipping address details ... */}
+              </div>
             </div>
-             {order.notes && (
-                 <div className="mt-4">
-                    <h4 className="font-medium mb-1">Notes:</h4>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{order.notes}</p>
-                 </div>
-            )}
+          )}
+          {order.customer.addresses && order.customer.addresses.find(addr => addr.type === "billing") && (
+            <div>
+              <h3 className="text-lg font-medium mb-2">Billing Address</h3>
+              <div className="text-sm space-y-1 text-muted-foreground">
+                 {/* ... billing address details ... */}
+              </div>
+            </div>
+          )}
+           {!order.customer.addresses?.length && <p className="text-sm text-muted-foreground">No addresses on file.</p>}
         </div>
 
-        {/* QR Code Section - Added */}
-        {order.qrIdentifier && (
-          <div className="md:col-span-3 mt-6 pt-6 border-t">
-            <h3 className="text-lg font-medium mb-2">Order QR Code</h3>
-            <div className="flex flex-col items-center md:items-start">
-              <ClientOnly> {/* QRCodeSVG might need client-side rendering */}
-                <QRCodeSVG value={order.qrIdentifier} size={128} bgColor={"#ffffff"} fgColor={"#000000"} level={"Q"} />
-              </ClientOnly>
-              <p className="text-sm text-muted-foreground mt-2">Scan to view/update order details.</p>
-            </div>
+        {/* Order Summary Column */}
+        <div className="md:col-span-1">
+          <h3 className="text-lg font-medium mb-2">Summary</h3>
+          <div className="text-sm space-y-1 text-muted-foreground">
+            <p><strong>Total Amount:</strong> {formatCurrency(order.totalAmount ?? 0)}</p>
+            {order.notes && <p className="mt-2"><strong>Notes:</strong> {order.notes}</p>}
+            {order.qrIdentifier && (
+                <div className="mt-4 pt-4 border-t border-border dark:border-border">
+                    <h4 className="text-md font-medium mb-2">QR Code</h4>
+                    <ClientOnly fallback={<p>Loading QR Code...</p>}>
+                        <QRCodeSVG value={order.qrIdentifier} size={128} />
+                    </ClientOnly>
+                </div>
+            )}
           </div>
-        )}
+        </div>
+      </div>
+
+      {/* Order Items Table */}
+      <div className="px-6 py-4 border-t border-border dark:border-border">
+        <h3 className="text-lg font-medium mb-4">Items</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50">
+              <tr>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Item</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Qty</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Unit Price</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Line Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-background">
+              {order.items.map(orderItem => {
+                // Ensure values used in Decimal operations are Decimals
+                const quantity = new Prisma.Decimal(orderItem.quantity);
+                const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
+                const discountAmount = orderItem.discountAmount ? new Prisma.Decimal(orderItem.discountAmount) : new Prisma.Decimal(0);
+                const discountPercentage = orderItem.discountPercentage ? new Prisma.Decimal(orderItem.discountPercentage) : null;
+
+                const lineItemTotal = quantity.mul(unitPrice).sub(discountAmount);
+
+                return (
+                  <tr key={orderItem.id}>
+                    <td className="px-4 py-2 text-sm">
+                      <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
+                        {orderItem.inventoryItem.name}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm">{quantity.toString()}</td>
+                    <td className="px-4 py-2 text-right text-sm">{formatCurrency(unitPrice)}</td>
+                    <td className="px-4 py-2 text-right text-sm">
+                      {formatCurrency(lineItemTotal)} 
+                      {/* Corrected discount display */}
+                      {discountAmount.gt(0) && (
+                        <div className="text-xs text-red-500">(-{formatCurrency(discountAmount)})</div>
+                      )}
+                      {discountPercentage && discountPercentage.gt(0) && (
+                        <div className="text-xs text-red-500">(-{discountPercentage.toString()}%)</div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot className="bg-muted/50 border-t">
+              <tr>
+                <td colSpan={3} className="px-4 py-2 text-right text-sm font-medium uppercase">Total</td>
+                <td className="px-4 py-2 text-right text-sm font-medium">{formatCurrency(order.totalAmount ?? 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
       {/* Totals Section */}

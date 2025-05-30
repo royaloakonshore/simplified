@@ -109,11 +109,20 @@ export const invoiceRouter = createTRPCRouter({
           customer: true,
           items: {
             include: {
-              inventoryItem: true, 
+              inventoryItem: true,
             },
           },
-          order: true,
-          payments: true, 
+          order: {
+            include: {
+              customer: true,
+              items: {
+                include: {
+                  inventoryItem: true
+                }
+              }
+            }
+          },
+          payments: true,
         },
       });
 
@@ -123,7 +132,95 @@ export const invoiceRouter = createTRPCRouter({
           message: 'Invoice not found',
         });
       }
-      return invoice;
+
+      // Perform targeted Decimal to string conversions
+      const transformInvoiceData = (inv: typeof invoice): any => {
+        const transformed = { ...inv } as any;
+
+        // Invoice level Decimals
+        if (transformed.totalAmount instanceof Decimal) {
+          transformed.totalAmount = transformed.totalAmount.toString();
+        }
+        if (transformed.totalVatAmount instanceof Decimal) {
+          transformed.totalVatAmount = transformed.totalVatAmount.toString();
+        }
+        if (transformed.paidAmount instanceof Decimal) {
+          transformed.paidAmount = transformed.paidAmount.toString();
+        }
+        if (transformed.creditedAmount instanceof Decimal) {
+          transformed.creditedAmount = transformed.creditedAmount.toString();
+        }
+
+        // Invoice Items
+        if (transformed.items && Array.isArray(transformed.items)) {
+          transformed.items = transformed.items.map((item: any) => {
+            const newItem = { ...item };
+            if (newItem.quantity instanceof Decimal) newItem.quantity = newItem.quantity.toString();
+            if (newItem.unitPrice instanceof Decimal) newItem.unitPrice = newItem.unitPrice.toString();
+            if (newItem.vatRatePercent instanceof Decimal) newItem.vatRatePercent = newItem.vatRatePercent.toString();
+            if (newItem.discountAmount instanceof Decimal) newItem.discountAmount = newItem.discountAmount.toString();
+            if (newItem.discountPercentage instanceof Decimal) newItem.discountPercentage = newItem.discountPercentage.toString();
+            if (newItem.calculatedUnitCost instanceof Decimal) newItem.calculatedUnitCost = newItem.calculatedUnitCost.toString();
+            if (newItem.calculatedUnitProfit instanceof Decimal) newItem.calculatedUnitProfit = newItem.calculatedUnitProfit.toString();
+            if (newItem.calculatedLineProfit instanceof Decimal) newItem.calculatedLineProfit = newItem.calculatedLineProfit.toString();
+            
+            // Decimal fields on nested inventoryItem within invoice item
+            if (newItem.inventoryItem) {
+                const invItem = { ...newItem.inventoryItem };
+                if (invItem.costPrice instanceof Decimal) invItem.costPrice = invItem.costPrice.toString();
+                if (invItem.salesPrice instanceof Decimal) invItem.salesPrice = invItem.salesPrice.toString();
+                if (invItem.quantityOnHand instanceof Decimal) invItem.quantityOnHand = invItem.quantityOnHand.toString();
+                if (invItem.minimumStockLevel instanceof Decimal) invItem.minimumStockLevel = invItem.minimumStockLevel.toString();
+                if (invItem.reorderLevel instanceof Decimal) invItem.reorderLevel = invItem.reorderLevel.toString();
+                newItem.inventoryItem = invItem;
+            }
+            return newItem;
+          });
+        }
+
+        // Order (if included and has Decimals)
+        if (transformed.order) {
+          const order = { ...transformed.order } as any;
+          if (order.totalAmount instanceof Decimal) {
+            order.totalAmount = order.totalAmount.toString();
+          }
+          // Order Items within Order
+          if (order.items && Array.isArray(order.items)) {
+            order.items = order.items.map((item: any) => {
+              const newItem = { ...item };
+              if (newItem.quantity instanceof Decimal) newItem.quantity = newItem.quantity.toString();
+              if (newItem.unitPrice instanceof Decimal) newItem.unitPrice = newItem.unitPrice.toString();
+              if (newItem.discountAmount instanceof Decimal) newItem.discountAmount = newItem.discountAmount.toString();
+              if (newItem.discountPercentage instanceof Decimal) newItem.discountPercentage = newItem.discountPercentage.toString();
+               // Decimal fields on nested inventoryItem within order item
+              if (newItem.inventoryItem) {
+                const invItem = { ...newItem.inventoryItem };
+                if (invItem.costPrice instanceof Decimal) invItem.costPrice = invItem.costPrice.toString();
+                if (invItem.salesPrice instanceof Decimal) invItem.salesPrice = invItem.salesPrice.toString();
+                if (invItem.quantityOnHand instanceof Decimal) invItem.quantityOnHand = invItem.quantityOnHand.toString();
+                if (invItem.minimumStockLevel instanceof Decimal) invItem.minimumStockLevel = invItem.minimumStockLevel.toString();
+                if (invItem.reorderLevel instanceof Decimal) invItem.reorderLevel = invItem.reorderLevel.toString();
+                newItem.inventoryItem = invItem;
+              }
+              return newItem;
+            });
+          }
+          transformed.order = order;
+        }
+        
+        // Payments (if included and has Decimals)
+        if (transformed.payments && Array.isArray(transformed.payments)) {
+            transformed.payments = transformed.payments.map((payment: any) => {
+                const newPayment = { ...payment };
+                if (newPayment.amount instanceof Decimal) newPayment.amount = newPayment.amount.toString();
+                return newPayment;
+            });
+        }
+
+        return transformed;
+      };
+      
+      return transformInvoiceData(invoice);
     }),
     
   create: protectedProcedure

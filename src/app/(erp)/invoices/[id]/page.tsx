@@ -1,98 +1,106 @@
-import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
-// import { Prisma } from '@prisma/client'; // Ensure this is removed
-import { getInvoiceById } from '@/lib/actions/invoice.actions';
+'use client';
+
+import { Suspense, useEffect } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { api } from "@/lib/trpc/react";
 import InvoiceDetail from '@/components/invoices/InvoiceDetail';
-// --- Add necessary imports for mapping ---
-import { Invoice as LocalInvoice, InvoiceItem as LocalInvoiceItem, InvoiceStatus } from '@/lib/types/invoice.types'; 
-import { Customer as LocalCustomer, Address as LocalAddress, AddressType } from '@/lib/types/customer.types';
-import { Order as LocalOrder } from '@/lib/types/order.types'; // Assuming basic Order type is needed if mapping order link
-import { UUID, Decimal as LocalDecimal, createUUID } from '@/lib/types/branded'; 
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from 'lucide-react';
+import { useBreadcrumbs, type BreadcrumbSegment } from '@/contexts/BreadcrumbContext';
+// Prisma types might still be needed if api.invoice.get.useQuery infers a very generic type
+// For now, assume InvoiceDetail's prop type is compatible with the direct API output.
+// import type { Invoice as PrismaApiInvoice, Customer as PrismaApiCustomer, InvoiceItem as PrismaApiInvoiceItem, Order as PrismaApiOrder, Address as PrismaApiAddress, InventoryItem as PrismaApiInventoryItem } from '@prisma/client';
+// import type { Decimal as PrismaApiDecimal } from '@prisma/client/runtime/library';
 
-// Define standard Props type for App Router pages
-type Props = {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-};
+// Remove local type imports if no longer used for transformation
+// import { type Invoice, type InvoiceItem, InvoiceStatus } from '@/lib/types/invoice.types';
+// import { type Customer } from '@/lib/types/customer.types';
+// import { type Order } from '@/lib/types/order.types';
+// import { createUUID, createDecimal } from "@/lib/types/branded";
 
-// --- Top-level Mapping Function ---
-// Use 'any' for input type due to persistent inference issues
-const mapPrismaInvoiceToLocal = (prismaInvoice: any): LocalInvoice => {
-  // Assume structure based on Prisma schema and includes
-  
-  const mapPrismaAddressToLocal = (addr: any): LocalAddress => ({ 
-    ...addr,
-    id: addr.id, 
-    type: addr.type as AddressType,
-  });
 
-  const mapPrismaCustomerToLocal = (cust: any): LocalCustomer => ({
-    ...cust,
-    id: createUUID(cust.id ?? ''), 
-    addresses: cust.addresses ? cust.addresses.map(mapPrismaAddressToLocal) : [], 
-  });
+export default function InvoicePage() {
+  const params = useParams();
+  const invoiceId = params.id as string;
+  const { setBreadcrumbSegments, clearBreadcrumbSegments } = useBreadcrumbs();
 
-  const mapPrismaInvoiceItemToLocal = (item: any): LocalInvoiceItem => ({
-    ...item,
-    id: createUUID(item.id),
-    invoiceId: createUUID(item.invoiceId),
-    // Assume item.quantity etc. are Prisma Decimal objects
-    quantity: item.quantity.toNumber() as LocalDecimal, 
-    unitPrice: item.unitPrice.toNumber() as LocalDecimal,
-    vatRatePercent: item.vatRatePercent.toNumber() as LocalDecimal,
-    description: item.description ?? '', 
-  });
+  const { data: invoiceDataFromApi, error, isLoading } = api.invoice.get.useQuery(
+    { id: invoiceId },
+    {
+      enabled: !!invoiceId,
+    }
+  );
 
-  return {
-      // Cast prismaInvoice to any to allow spreading unknown structure
-      ...(prismaInvoice as any),
-      // Explicitly map/override fields
-      id: createUUID(prismaInvoice.id),
-      customerId: createUUID(prismaInvoice.customerId ?? ''),
-      orderId: prismaInvoice.orderId ? createUUID(prismaInvoice.orderId) : undefined,
-      status: prismaInvoice.status as InvoiceStatus, 
-      notes: prismaInvoice.notes ?? undefined, 
-      totalAmount: prismaInvoice.totalAmount.toNumber() as LocalDecimal,
-      totalVatAmount: prismaInvoice.totalVatAmount.toNumber() as LocalDecimal,
-      customer: mapPrismaCustomerToLocal(prismaInvoice.customer),
-      items: prismaInvoice.items.map(mapPrismaInvoiceItemToLocal),
-      originalInvoiceId: prismaInvoice.originalInvoiceId ? createUUID(prismaInvoice.originalInvoiceId) : undefined,
-      creditNoteId: prismaInvoice.creditNoteId ? createUUID(prismaInvoice.creditNoteId) : undefined,
-      order: undefined, 
-  };
-};
-// --- End Mapping Function ---
+  useEffect(() => {
+    if (invoiceDataFromApi) {
+      const segments: BreadcrumbSegment[] = [
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Invoices', href: '/invoices' },
+        { label: invoiceDataFromApi.invoiceNumber || invoiceId },
+      ];
+      setBreadcrumbSegments(segments);
+    } else {
+      clearBreadcrumbSegments();
+    }
 
-// Use the correct Props type
-export default async function InvoicePage({ params }: Props) { 
-  // Await params before accessing id
-  const { id } = await params;
-  console.log(`>>> Invoice [id] page rendered. Received id: ${id}`);
+    return () => {
+      clearBreadcrumbSegments();
+    };
+  }, [invoiceDataFromApi, invoiceId, setBreadcrumbSegments, clearBreadcrumbSegments]);
 
-  if (!id) {
-    notFound();
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-4">
+        <Skeleton className="h-8 w-1/4 mb-6" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
   }
 
-  const result = await getInvoiceById(id);
-
-  if (!result.success) {
-    console.error("Error fetching invoice:", result.error);
-    notFound(); 
+  if (error || !invoiceDataFromApi) {
+    return (
+      <div className="p-6">
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error Loading Invoice</AlertTitle>
+          <AlertDescription>
+            {error?.message || 'The requested invoice could not be found or loaded.'}
+            <div className="mt-4">
+              <Button asChild variant="secondary">
+                <Link href="/invoices">Return to Invoices</Link>
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   }
-  
-  const fetchedInvoice = result.data;
 
-  if (!fetchedInvoice) {
-    notFound(); 
-  }
-
-  // Call the top-level mapping function
-  const invoice = mapPrismaInvoiceToLocal(fetchedInvoice);
+  // No transformation needed, pass data directly
+  // const mapApiCustomerToLocal = ... (removed)
+  // const transformedInvoice = ... (removed)
 
   return (
     <div className="p-6">
+      <div className="flex items-center mb-6">
+        <Button variant="outline" size="sm" asChild className="mr-4">
+          <Link href="/invoices">← Back to Invoices</Link>
+        </Button>
+      </div>
       <Suspense fallback={<div>Loading invoice details...</div>}>
-        <InvoiceDetail invoice={invoice} />
+        {/* Pass the raw data from the API call */}
+        <InvoiceDetail invoice={invoiceDataFromApi as any} /> 
+        {/* 
+          Casting to `as any` temporarily to bypass strict type checking.
+          Ideally, `invoiceDataFromApi` should perfectly match the `FullInvoiceFromApi` 
+          type expected by `InvoiceDetail` if tRPC's inference and Prisma types are aligned.
+          If not, `FullInvoiceFromApi` in InvoiceDetail.tsx might need slight adjustments
+          to exactly match the shape of `invoiceDataFromApi` (e.g. nullability of relations).
+        */}
       </Suspense>
     </div>
   );

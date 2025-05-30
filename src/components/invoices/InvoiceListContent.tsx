@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/trpc/react';
 import {
@@ -51,6 +51,23 @@ import { DataTableSkeleton } from '@/components/common/DataTableSkeleton';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Skeleton } from "@/components/ui/skeleton";
 import { type Decimal } from "@prisma/client/runtime/library";
+
+// Custom hook for debouncing
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 // Helper component for table headers
 function DataTableColumnHeader<TData, TValue>({
@@ -224,7 +241,7 @@ interface InvoiceListContentProps {
   initialPage?: number;
   initialPerPage?: number;
   initialSearchTerm?: string;
-  initialStatus?: PrismaInvoiceStatus | null;
+  initialStatus?: PrismaInvoiceStatus | undefined; // Allow undefined here
   initialSortBy?: string;
   initialSortDirection?: 'asc' | 'desc';
 }
@@ -233,7 +250,7 @@ export default function InvoiceListContent({
   initialPage = 1,
   initialPerPage = 10,
   initialSearchTerm = "",
-  initialStatus = null,
+  initialStatus = undefined, // Default to undefined
   initialSortBy = 'invoiceDate',
   initialSortDirection = 'desc',
 }: InvoiceListContentProps) {
@@ -241,53 +258,66 @@ export default function InvoiceListContent({
   const router = useRouter();
   const pathname = usePathname();
 
+  // Local state for immediate input value
+  const [currentSearchTerm, setCurrentSearchTerm] = useState(initialSearchTerm);
+  // Debounced search term for API calls and URL updates
+  const debouncedSearchTerm = useDebounce(currentSearchTerm, 500); // 500ms debounce
+
   const [page, setPage] = useState(initialPage);
   const [perPage, setPerPage] = useState(initialPerPage);
-  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
-  const [status, setStatus] = useState<PrismaInvoiceStatus | null>(initialStatus);
+  const [status, setStatus] = useState<PrismaInvoiceStatus | undefined>(initialStatus);
   const [sorting, setSorting] = useState<SortingState>([
     { id: initialSortBy, desc: initialSortDirection === 'desc' },
   ]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => {
-      const filters: ColumnFiltersState = [];
-      if(initialStatus) filters.push({ id: 'status', value: [initialStatus] });
-      return filters;
-  });
+  const [rowSelection, setRowSelection] = useState({});
 
-  const sortBy = sorting[0]?.id;
-  const sortDirection = sorting[0]?.desc ? 'desc' : 'asc';
-
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-
-  // Debounce search term
+  // Effect to update URL when filters/pagination/sorting change
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
-
-  const queryInput = useMemo(() => {
-    const currentSortById: string | undefined = sorting[0]?.id;
-    let currentSortDirectionValue: 'asc' | 'desc' | undefined = undefined;
-    if (sorting[0]) {
-      currentSortDirectionValue = sorting[0].desc ? 'desc' : 'asc';
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    params.set('perPage', perPage.toString());
+    params.set('sortBy', sorting[0]?.id ?? initialSortBy);
+    params.set('sortDirection', sorting[0]?.desc ? 'desc' : 'asc');
+    if (debouncedSearchTerm) {
+      params.set('searchTerm', debouncedSearchTerm);
+    } else {
+      params.delete('searchTerm');
     }
+    if (status) {
+      params.set('status', status);
+    } else {
+      params.delete('status');
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [page, perPage, debouncedSearchTerm, status, sorting, router, pathname, searchParams, initialSortBy]);
 
-    return {
-      page,
-      perPage: perPage,
-      searchTerm: debouncedSearchTerm,
-      status: status ?? undefined,
-      sortBy: currentSortById,
-      sortDirection: currentSortById ? currentSortDirectionValue : undefined,
-    };
-  }, [page, perPage, debouncedSearchTerm, status, sorting]);
+  // Effect to parse URL params on mount and update state
+  useEffect(() => {
+    const currentPage = parseInt(searchParams.get('page') || initialPage.toString(), 10);
+    const currentPerPage = parseInt(searchParams.get('perPage') || initialPerPage.toString(), 10);
+    const currentSortBy = searchParams.get('sortBy') || initialSortBy;
+    const currentSortDirection = searchParams.get('sortDirection') === 'desc' ? 'desc' : 'asc';
+    const currentSearch = searchParams.get('searchTerm') || initialSearchTerm;
+    const currentStatusParam = searchParams.get('status') as PrismaInvoiceStatus | undefined;
+    const currentStatus = currentStatusParam ?? initialStatus; // Use initialStatus if param is null/undefined
 
-  const { data, isLoading, error, refetch, isFetching } = api.invoice.list.useQuery(
-    queryInput
-  );
+    setPage(currentPage);
+    setPerPage(currentPerPage);
+    setSorting([{ id: currentSortBy, desc: currentSortDirection === 'desc' }]);
+    setCurrentSearchTerm(currentSearch); // Set the input value directly
+    setStatus(currentStatus);
+  }, [searchParams, initialPage, initialPerPage, initialSortBy, initialSortDirection, initialSearchTerm, initialStatus]);
+
+  const { data, isLoading, error } = api.invoice.list.useQuery({
+    page,
+    perPage,
+    sortBy: sorting[0]?.id,
+    sortDirection: sorting[0]?.desc ? 'desc' : 'asc',
+    searchTerm: debouncedSearchTerm, // Use debounced term for API query
+    status: status, // status is already PrismaInvoiceStatus | undefined
+  });
 
   // Hooks must be called before any conditional returns.
   // 6. Derive pagination state directly from component state (no parseInt needed)
@@ -340,7 +370,7 @@ export default function InvoiceListContent({
 
 
   const handleStatusFilterChange = (status: PrismaInvoiceStatus | null) => {
-    setStatus(status);
+    setStatus(status ?? undefined);
     setPage(1); // Reset to first page on filter change
   };
 
@@ -348,14 +378,9 @@ export default function InvoiceListContent({
     <div className="space-y-4">
         <div className="flex items-center justify-between">
             <Input
-                placeholder="Search invoices..."
-              value={searchTerm}
-              onChange={(event) => {
-                const currentParams = new URLSearchParams(searchParams.toString());
-                currentParams.set('search', event.target.value);
-                currentParams.set('page', '1'); // Reset to page 1 on search
-                router.push(`${pathname}?${currentParams.toString()}`);
-              }}
+                placeholder="Filter invoices (Num, Customer, Notes)..."
+                value={currentSearchTerm}
+                onChange={(event) => setCurrentSearchTerm(event.target.value)}
                 className="max-w-sm"
             />
             <div className="flex items-center space-x-2">

@@ -120,3 +120,6 @@
 - Fixed lingering TypeScript errors in `inventory.ts` router by regenerating Prisma client and rebuilding.
 - Enhanced Inventory List: Added category badges, category filter, global search, server-side sorting/pagination, and inline editable quantity on hand with confirmation.
 - Enhanced Dashboard: Replenishment alerts table now shows actual data including lead time, vendor SKU, and vendor item name.
+- Replaced recursive Decimal-to-string conversion in `invoice.get` tRPC router with an explicit, non-recursive transformation (`transformInvoiceData`) to robustly fix SuperJSON serialization errors (500 errors and "Detected property constructor" warnings).
+- Implemented UI enhancements on Invoice Detail page: separated billing/shipping addresses, improved item table padding, added notes section, restyled action buttons, and grouped some into a dropdown.
+- Updated breadcrumbs to display invoice/order numbers instead of IDs using a new BreadcrumbContext.

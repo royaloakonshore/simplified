@@ -1,5 +1,6 @@
 'use client'; // Need client component for hooks
 
+import { useEffect } from 'react'; // Added useEffect
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation'; // Use hooks
 import { api } from "@/lib/trpc/react"; // Import tRPC hooks
@@ -8,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useBreadcrumbs, type BreadcrumbSegment } from '@/contexts/BreadcrumbContext'; // Import useBreadcrumbs
 
 // Removed unused imports: notFound, getOrderById, OrderStatus, MaterialType, FormOrder, FormOrderItem, OrderWithStockStatus, FormInventoryItem, FormAddress, AddressType, UUID, Decimal, createUUID, createDecimal
 
@@ -15,6 +17,7 @@ export default function OrderPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = params.id as string;
+  const { setBreadcrumbSegments, clearBreadcrumbSegments } = useBreadcrumbs(); // Use the hook
 
   // Fetch order data using tRPC hook
   const { data: order, error, isLoading } = api.order.getById.useQuery(
@@ -25,6 +28,23 @@ export default function OrderPage() {
       // refetchOnWindowFocus: false,
     }
   );
+
+  useEffect(() => {
+    if (order) {
+      const segments: BreadcrumbSegment[] = [
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Orders', href: '/orders' },
+        { label: order.orderNumber || orderId }, // Fallback to ID if number is not available
+      ];
+      setBreadcrumbSegments(segments);
+    } else {
+      clearBreadcrumbSegments();
+    }
+
+    return () => {
+      clearBreadcrumbSegments();
+    };
+  }, [order, orderId, setBreadcrumbSegments, clearBreadcrumbSegments]);
 
   if (isLoading) {
     return (

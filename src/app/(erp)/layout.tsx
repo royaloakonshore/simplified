@@ -1,6 +1,7 @@
 import { getServerAuthSession } from "@/lib/auth";
 import { redirect } from 'next/navigation';
 import { ERPLayoutClient } from '@/components/layout/ERPLayoutClient';
+import { BreadcrumbProvider } from "@/contexts/BreadcrumbContext";
 
 export default async function ERPLayout({
   children,
@@ -13,5 +14,11 @@ export default async function ERPLayout({
   }
   const user = session.user;
 
-  return <ERPLayoutClient user={user}>{children}</ERPLayoutClient>;
+  return (
+    <BreadcrumbProvider>
+      <ERPLayoutClient user={user}>
+        {children}
+      </ERPLayoutClient>
+    </BreadcrumbProvider>
+  );
 } 
