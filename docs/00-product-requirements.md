@@ -5,7 +5,7 @@
 This document outlines the requirements for a simplified, multi-tenant ERP-style SaaS application targeting small businesses. The system integrates Invoicing, Inventory Management (including Bill of Materials), Order Processing (acting as Quotes/Work Orders), Production Workflows, and Customer Registry.
 
 **Current Context & Progress:**
-The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving numerous type errors across the codebase, and ensuring correct VAT handling. Specifically, `InventoryItem.defaultVatRatePercent` is now correctly used when creating invoice line items from an order. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. The build is currently passing after extensive debugging and `npx prisma generate`. However, `src/lib/api/routers/invoice.ts` still has two minor 'implicit any' type errors that need addressing. The immediate next steps involve fixing these, then proceeding with broader feature enhancements and UI completion.
+The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving numerous type errors across the codebase, and ensuring correct VAT handling. Specifically, `InventoryItem.defaultVatRatePercent` is now correctly used, with a fallback to a company-level default VAT rate, when creating invoice line items from an order. The settings page is more robust, handling cases where company settings might not yet exist. SKU handling in orders is now correct. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. The build is currently passing after extensive debugging. Type errors in `src/lib/api/routers/invoice.ts` have been resolved. The immediate next steps involve proceeding with broader feature enhancements and UI completion as outlined.
 
 ## 2. Goals
 
@@ -42,9 +42,9 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
 ### 1. Core Financials & Invoicing
     *   **Invoicing:**
         *   Create, send, and manage invoices. **[Implemented]**
-        *   Generate from sales orders (`orderType = WORK_ORDER`, status `shipped` or `INVOICED` after creation). **[Implemented, `INVOICED` status update on order confirmed. `invoiceRouter.createFromOrder` now correctly uses `InventoryItem.defaultVatRatePercent`.]**
+        *   Generate from sales orders (`orderType = WORK_ORDER`). **[Implemented, `INVOICED` status update on order confirmed. `invoiceRouter.createFromOrder` now correctly uses `InventoryItem.defaultVatRatePercent` with fallback to company default VAT.]**
         *   Support for discounts (percentage/amount per line). **[Implemented]**
-        *   Automatic calculation of VAT. All user-entered prices and costs are **VAT-exclusive**. `Invoice.totalAmount` is stored NET. `Invoice.totalVatAmount` stores calculated VAT. `InventoryItem.defaultVatRatePercent` is used. **[Implemented. TODO: Implement company-level default VAT rate as a fallback if `InventoryItem.defaultVatRatePercent` is not set.]**
+        *   Automatic calculation of VAT. All user-entered prices and costs are **VAT-exclusive**. `Invoice.totalAmount` is stored NET. `Invoice.totalVatAmount` stores calculated VAT. `InventoryItem.defaultVatRatePercent` is used, with a fallback to a company-level default if the item-specific rate is not set. **[Implemented]**
         *   VAT Reverse Charge mechanism (sets line item VAT to 0%, adds note). **[Implemented]**
         *   Sequential Invoice Numbering (e.g., INV-00001). **[Implemented]** Default status `draft`. **[Implemented]**
         *   Track invoice status (Draft, Sent, Paid, Overdue, Cancelled, Credited). **[Implemented]**
@@ -63,14 +63,16 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
     *   **Inventory Items:**
         *   CRUD operations for Inventory Items. **[Implemented - Basic CRUD form exists. Quantity editing at creation/edit needs review/implementation.]**
         *   Categorize items using `itemType` (`RAW_MATERIAL` or `MANUFACTURED_GOOD`). **[Implemented]**
-        *   Track SKU, Name, Description, Unit of Measure. **[Implemented]**
+        *   Track SKU, Name, Description, Unit of Measure. **[Implemented, SKU handling in orders is now correct.]**
         *   Store **VAT-exclusive `costPrice`** and **VAT-exclusive `salesPrice`**. **[Implemented]**
         *   `quantityOnHand` is a calculated field based on `InventoryTransaction` records. **[Implemented. Direct editing of quantityOnHand on item table is a NEW REQUIREMENT - See below]**
         *   Define Minimum Stock Level and Reorder Level for stock alerts. **[Schema fields exist, alert logic/UI PENDING]**
         *   Support for QR code identifiers on items for quick scanning. **[Implemented, PDF generation for tags exists]**
-        *   **NEW REQUIREMENT:** Inventory item `quantityOnHand` should be editable during item creation (initial stock) and on the item's edit page (as a stock adjustment).
+        *   **NEW REQUIREMENT:** Inventory item `quantityOnHand` should be a single, directly editable field in the item creation/edit forms and in the inventory list table. Changes will directly update the quantity, triggering necessary `InventoryTransaction` records in the backend. (Replaces previous "initial quantity/adjust by X" approach).
         *   **NEW REQUIREMENT:** The inventory list/table should display `quantityOnHand` as an editable column for quick adjustments. This requires a new tRPC mutation for direct stock adjustment from the table.
-        *   **NEW REQUIREMENT:** Inventory list/price list needs a "Product Category" column and filtering by it. `InventoryCategory` model exists, UI needs to display and allow filtering by it.
+        *   **NEW REQUIREMENT:** Add a `leadTimeDays` (simple number) field to Inventory Items. This will be used for replenishment alerts and displayed in a relevant table column.
+        *   **NEW REQUIREMENT:** Add `vendorSku` and `vendorItemName` fields to Inventory Items. These fields should be hidden if `itemType` is `MANUFACTURED_GOOD`.
+        *   **NEW REQUIREMENT:** Add `InventoryCategory` to Inventory Items. This should be displayed as a column with pill tags in the inventory and pricelist views and allow filtering. `InventoryCategory` model exists; UI needs to display and allow filtering by it.
         *   **NEW REQUIREMENT:** Inventory list needs a search bar, and robust client-side or server-side filtering, pagination, and sorting (currently basic tRPC list exists, UI table features need enhancement similar to CustomerTable).
     *   **Inventory Transactions:** Record purchases, sales, adjustments (including automated deductions for production). **[Implemented, though UI for manual adjustments may need refinement]**
     *   **Stock Alerts:**
@@ -99,6 +101,8 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
         *   Track Order Status. **[Implemented]**
         *   Link to generated Invoice(s) and Production workflow. **[Implemented]**
         *   PDF Export/Print for orders. **[PENDING]**
+        *   **NEW REQUIREMENT:** Item and Customer dropdowns in Order and Invoice creation/editing forms should be searchable select components (e.g., using a popover with search).
+        *   **NEW REQUIREMENT:** Order table (and Invoice table) should have multi-select checkboxes for rows and bulk action options (e.g., "Print PDF" - can be a placeholder initially if PDF generation is not yet implemented).
     *   **Quotation Specifics:** Display pricing. Hide raw BOM details. Exclude production actions. **[Logic partially in place via UI, needs hardening]**
     *   **Work Order Specifics:** Hide pricing. Show BOM/component details if applicable. Include actions for Production. **[Logic partially in place via UI, needs hardening]**
     *   **Production Workflow (Simplified - Driven by Order Status):**
@@ -114,6 +118,7 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
     *   Manage customer database: contact details, addresses (billing/shipping). **[Implemented, including CustomerTable with advanced features]**
     *   Store customer-specific information for Finvoice. **[Implemented in schema, UI for edit/view exists]**
     *   Y-tunnus (Finnish Business ID) search and validation. **[Implemented]**
+    *   **NEW REQUIREMENT:** The "Edit" button on customer rows in the Customers table should be changed to a dropdown menu. This dropdown should contain options with icons: "Create Invoice", "Create Quotation", "Create Work Order", and "Edit Customer". These actions should prefill the customer when navigating to the respective forms/pages.
     *   **Customer Order/Invoice History (NEW):**
         *   Customer detail pages must display a history of their associated orders and invoices. **[Backend tRPC procedures exist, UI PENDING]**
         *   Information to include: Order/Invoice Number, Date, Status, Net Total. **[Data available via tRPC]**
@@ -124,7 +129,8 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
     *   **Authentication:** User login with email/password. **[Implemented]**
     *   **User Profile:** Users can update their Name, First Name, and Password. **[Implemented]**
     *   **Company Settings:**
-        *   Configure company details for invoicing/Finvoice. **[Implemented, full integration into Finvoice service needs verification/completion for all fields]**
+        *   Configure company details for invoicing/Finvoice. **[Implemented, full integration into Finvoice service needs verification/completion for all fields. Settings page now robustly handles cases where settings may not yet exist, guiding user appropriately.]**
+        *   Includes company-level default VAT rate. **[Implemented]**
 
 ### 6. Reporting & Dashboards
     *   **Dashboard:**
@@ -136,20 +142,25 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
     *   **Profitability Reporting (NEW):** Dashboard views and reports on profit margins (overall, by product, by customer - based on invoiced item profits). **[PENDING]**
 
 **Next Steps (High-Level):**
-1.  **Fix Remaining Type Errors:** Address the 'implicit any' errors in `src/lib/api/routers/invoice.ts`.
-2.  **Company Default VAT Rate:** Implement the fallback logic for company-level default VAT rate in `invoiceRouter.createFromOrder` and potentially other relevant places.
-3.  **Inventory Enhancements (as per new requirements):**
-    *   Implement `quantityOnHand` editing in `InventoryItemForm` (creation/edit).
+1.  **Inventory Enhancements (as per new requirements):**
+    *   Implement `quantityOnHand` as a single, directly editable field in `InventoryItemForm` and the inventory list table.
     *   Add editable `quantityOnHand` column to inventory table with quick adjustment mutation.
-    *   Add "Product Category" column and filtering to inventory table.
+    *   Add `leadTimeDays` field to Inventory Items and display it.
+    *   Add `vendorSku` and `vendorItemName` fields (conditional visibility) to Inventory Items.
+    *   Add `InventoryCategory` functionality (display as pill tags, enable filtering) to inventory and pricelist.
     *   Enhance inventory table with search, advanced filtering, pagination, and sorting.
-4.  **Production Kanban/Table Enhancements:**
+2.  **Production Kanban/Table Enhancements:**
     *   Implement BOM information view within Kanban cards/table rows.
-5.  **Customer History UI:** Implement UI for displaying customer order/invoice history and total net revenue.
-6.  **BOM Management UI:** Develop the user interface for creating and managing Bills of Materials.
-7.  **Dashboard Implementation:** Populate the dashboard with actual data and metrics.
-8.  **Reporting Features:** Develop basic sales, inventory, and profitability reports.
-9.  **PDF Generation:** Implement PDF generation for Invoices, Credit Notes, Orders, and Pricelists.
-10. **Stock Alerts:** Develop UI for displaying stock alerts.
-11. **Build Error Resolution & TypeScript Health:** Proactively address any new build errors or TypeScript issues that arise. Prioritize a clean `npx tsc --noEmit` and passing `npm run build`.
-12. **Testing & Refinement:** Thoroughly test all modules and refine UI/UX based on feedback.
+3.  **Customer Module Enhancements:**
+    *   Change Customer table "Edit" button to a dropdown with actions: Create Invoice, Create Quotation, Create Work Order, Edit Customer (prefilling customer info).
+    *   Implement UI for displaying customer order/invoice history and total net revenue.
+4.  **Order & Invoice Module Enhancements:**
+    *   Implement searchable select dropdowns for Item and Customer selection in Order/Invoice forms.
+    *   Add multi-select checkboxes and bulk actions (e.g., Print PDF placeholder) to Order and Invoice tables.
+5.  **BOM Management UI:** Develop the user interface for creating and managing Bills of Materials.
+6.  **Dashboard Implementation:** Populate the dashboard with actual data and metrics.
+7.  **Reporting Features:** Develop basic sales, inventory, and profitability reports.
+8.  **PDF Generation:** Implement PDF generation for Invoices, Credit Notes, Orders, and Pricelists.
+9.  **Stock Alerts:** Develop UI for displaying stock alerts.
+10. **Build Health & TypeScript Health:** Proactively address any new build errors or TypeScript issues that arise. Prioritize a clean `npx tsc --noEmit` and passing `npm run build`. **[Ongoing, significant progress made - build is stable]**
+11. **Testing & Refinement:** Thoroughly test all modules and refine UI/UX based on feedback.

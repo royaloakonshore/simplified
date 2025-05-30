@@ -116,3 +116,4 @@
 - Ensured `economicOrderQuantity` was correctly identified as not being part of the `InventoryItem` model, so its removal from a data mapping was not a feature regression.
 - Clarified that invoicing is not strictly tied to 'shipped' order status in the backend, aligning with user request.
 - Reviewed code changes for over-complication and performance, concluding that changes were generally for simplification, correctness, and leveraging existing performance patterns (React Query caching, server-side operations).
+- Fixed runtime errors: React Hook order in `InvoiceListContent`, discount mismatch in `OrderForm`, and settings page save/clear issues.

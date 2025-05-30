@@ -116,25 +116,10 @@ export default function SettingsPage() {
         defaultVatRatePercent: currentSettings.defaultVatRatePercent ? currentSettings.defaultVatRatePercent.toNumber() : null,
       };
       settingsForm.reset(defaultValuesFromData);
-    } else if (!isLoadingSettings && status === 'authenticated') {
-      settingsForm.reset({
-        companyName: "",
-        vatId: "",
-        domicile: "",
-        streetAddress: "",
-        postalCode: "",
-        city: "",
-        countryCode: "",
-        countryName: "",
-        bankAccountIBAN: "",
-        bankAccountBIC: "",
-        website: "",
-        sellerIdentifier: "",
-        sellerIntermediatorAddress: "",
-        bankName: "",
-        defaultInvoicePaymentTermsDays: null,
-        defaultVatRatePercent: null,
-      });
+    } else if (!isLoadingSettings && status === 'authenticated' && !currentSettings) {
+      // If no settings exist (currentSettings is null), the form will retain its default empty values.
+      // No explicit reset to empty is needed here, preventing clearing of user input if they start typing early.
+      // The user can fill the form and save to create the initial settings.
     }
   }, [currentSettings, settingsForm, isLoadingSettings, status]);
 
@@ -353,8 +338,7 @@ export default function SettingsPage() {
           <AlertTitle>Company Settings Not Configured</AlertTitle>
           <AlertDescription>
             It looks like the company settings have not been configured yet. 
-            Please contact an administrator or ensure the initial setup process has been completed.
-            Saving new settings is not possible until a record exists.
+            You can fill out the form below and save to create the initial settings.
           </AlertDescription>
         </Alert>
       )}
@@ -466,7 +450,7 @@ export default function SettingsPage() {
             <Button 
               type="submit" 
               className="ml-auto" 
-              disabled={updateSettingsMutation.isPending || (!isLoadingSettings && !currentSettings && status === 'authenticated')}
+              disabled={updateSettingsMutation.isPending}
             >
               {updateSettingsMutation.isPending ? "Saving Settings..." : "Save Settings"}
             </Button>

@@ -195,7 +195,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     const processedData: CreateOrderInput = {
       ...data,
       items: (data.items || []).map(item => ({
-        ...item,
+        inventoryItemId: item.inventoryItemId,
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice),
         discountAmount: item.discountAmount ? Number(item.discountAmount) : null,
@@ -208,15 +208,19 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   const handleUpdateSubmit: SubmitHandler<UpdateFormValues> = (data) => {
     if (!data.id) return toast.error("Cannot update order without an ID.");
 
-    const processedData = { ...data };
+    const processedData: Partial<UpdateOrderInput> = {
+      id: data.id,
+      ...(data.customerId && { customerId: data.customerId }),
+      ...(data.orderDate && { orderDate: data.orderDate }),
+      ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate }),
+      ...(data.orderType && { orderType: data.orderType }),
+      ...(data.notes !== undefined && { notes: data.notes }),
+    };
 
-    if ('status' in processedData) {
-      delete (processedData as Partial<UpdateFormValues>).status;
-    }
-
-    if (processedData.items) {
-        processedData.items = processedData.items.map(item => ({
-            ...item,
+    if (data.items) {
+        processedData.items = data.items.map(item => ({
+            id: item.id,
+            inventoryItemId: item.inventoryItemId,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
             discountAmount: item.discountAmount ? Number(item.discountAmount) : null,

@@ -33,6 +33,9 @@ export const settingsRouter = createTRPCRouter({
   get: protectedProcedure
     .query(async ({ ctx }) => {
       // IMPORTANT: This needs to be adapted for multi-tenancy (ctx.companyId)
+      // For now, assuming a single settings record for the application or a placeholder for companyId.
+      // const companyId = ctx.session.user.companyId; // Example for future multi-tenancy
+      // if (!companyId) throw new TRPCError({ code: "BAD_REQUEST", message: "No company selected." });
       const settings = await prisma.settings.findFirst(); 
       
       if (!settings) {
@@ -43,28 +46,33 @@ export const settingsRouter = createTRPCRouter({
       return settings;
     }),
 
-  // Update company's settings
+  // Update company's settings - now acts as an upsert
   update: protectedProcedure
-    .input(settingsSchema)
+    .input(settingsSchema) // settingsSchema defines all possible fields
     .mutation(async ({ ctx, input }) => {
       // IMPORTANT: This needs to be adapted for multi-tenancy (ctx.companyId)
-      const existingSettings = await prisma.settings.findFirst();
+      // const companyId = ctx.session.user.companyId; // Example for future multi-tenancy
+      // if (!companyId) throw new TRPCError({ code: "BAD_REQUEST", message: "No company selected." });
+
+      // For a single-settings model (no companyId yet), we find the first record or create one.
+      // If multi-tenancy with companyId on Settings, the upsert would use companyId in `where`.
       
-      if (!existingSettings) {
-        // This should ideally not happen if settings are created during company setup.
-        // Or, if using a single global settings record, it implies a setup step was missed.
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Settings record not found. Cannot update non-existent settings. Initial setup may be required.",
+      const existingSettings = await prisma.settings.findFirst(); // In multi-tenant: where: { companyId }
+
+      if (existingSettings) {
+        const updatedSettings = await prisma.settings.update({
+          where: { id: existingSettings.id }, // In multi-tenant: where: { companyId }
+          data: input, // Zod schema ensures `input` is valid SettingsUpdateInput
         });
+        return updatedSettings as Settings;
+      } else {
+        // Create new settings if none exist
+        // For multi-tenancy, ensure companyId is part of the create data
+        // const createData = { ...input, companyId }; 
+        const newSettings = await prisma.settings.create({
+          data: input, // Zod schema ensures `input` is valid SettingsCreateInput
+        });
+        return newSettings as Settings;
       }
-      
-      // The input is already validated by settingsSchema.
-      // Prisma will only update fields present in the input.
-      const updatedSettings = await prisma.settings.update({
-        where: { id: existingSettings.id },
-        data: input, // Directly use Zod validated input
-      });
-      return updatedSettings as Settings;
     }),
 }); 

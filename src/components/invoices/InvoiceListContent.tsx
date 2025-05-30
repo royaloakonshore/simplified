@@ -237,6 +237,10 @@ export default function InvoiceListContent({
   initialSortBy = 'invoiceDate',
   initialSortDirection = 'desc',
 }: InvoiceListContentProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [page, setPage] = useState(initialPage);
   const [perPage, setPerPage] = useState(initialPerPage);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
@@ -253,10 +257,6 @@ export default function InvoiceListContent({
 
   const sortBy = sorting[0]?.id;
   const sortDirection = sorting[0]?.desc ? 'desc' : 'asc';
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
 

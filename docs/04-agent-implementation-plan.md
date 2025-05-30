@@ -5,7 +5,7 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 **Core Principle:** Build foundational elements first, then layer features module by module. Prioritize backend (types, schemas, actions, DB interactions) before frontend UI implementation within each module.
 
 **Current Context & Progress:**
-The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. Recent work focused on resolving numerous build/type errors and ensuring `InventoryItem.defaultVatRatePercent` is used in invoice creation. The project now passes `npm run build`, and `npx tsc --noEmit` reveals only two minor 'implicit any' type errors in `src/lib/api/routers/invoice.ts`.
+The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. Recent work focused on resolving numerous build/type errors. `InventoryItem.defaultVatRatePercent` is now used in invoice creation, with a fallback to company-level settings. The `settings.get` tRPC procedure correctly handles missing settings, and SKU handling in orders is fixed. The project now passes `npm run build`, and `npx tsc --noEmit` reveals no errors. All previously noted type errors in `src/lib/api/routers/invoice.ts` are resolved.
 
 --- --- ---
 
@@ -33,56 +33,63 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
 
 **Key Tasks & Features (Prioritized Next Steps):**
 
-1.  **Resolve Remaining Type Errors & Implement VAT Fallback:**
-    *   **Fix `invoice.ts`:** Address the two 'implicit any' type errors for parameters in the `createFromOrder` and `update` procedures in `src/lib/api/routers/invoice.ts`.
-    *   **Company Default VAT:** Implement logic in `invoiceRouter.createFromOrder` (and potentially other relevant tRPC procedures like `invoice.update`) to use a company-level default VAT rate if `InventoryItem.defaultVatRatePercent` is not defined. This will likely involve fetching a company setting (TODO: define where this setting is stored and how it's accessed, e.g., `Company.defaultVatRate` or a dedicated `Settings` model).
-
-2.  **Inventory Module Enhancements (NEW REQUIREMENTS):**
-    *   **Editable `quantityOnHand` in Forms:**
-        *   Modify `InventoryItemForm.tsx` to allow setting/editing `quantityOnHand`.
-        *   During creation, this sets the initial stock (creates an `InventoryTransaction`).
-        *   During edit, this triggers a stock adjustment (creates an `InventoryTransaction`).
-        *   Update `inventory.upsert` or add new tRPC mutation if needed to handle this logic cleanly.
+1.  **Inventory Module Enhancements (NEW REQUIREMENTS):**
+    *   **Single, Editable `quantityOnHand` Field:**
+        *   Modify `InventoryItemForm.tsx` to use a single, directly editable `quantityOnHand` field. This replaces the previous "initial quantity/adjust by X" approach.
+        *   Ensure this field updates `InventoryTransaction` records appropriately on create/edit.
+    *   **Additional Inventory Item Fields:**
+        *   Add `leadTimeDays` (number field) to `InventoryItemForm.tsx` and relevant table display.
+        *   Add `vendorSku` and `vendorItemName` fields to `InventoryItemForm.tsx`, hidden if `itemType` is `MANUFACTURED_GOOD`.
     *   **Editable `quantityOnHand` in Inventory Table:**
-        *   Modify the Inventory list table (`src/app/(erp)/inventory/page.tsx` and related components) to display `quantityOnHand` as an inline-editable column.
-        *   Implement a new tRPC mutation for quick, direct stock adjustment from this table cell.
+        *   Modify the Inventory list table to display `quantityOnHand` as an inline-editable column.
+        *   Implement a tRPC mutation for quick, direct stock adjustment from this table cell.
     *   **Product Category in Table & Filtering:**
-        *   Add `InventoryCategory.name` as a column in the Inventory list table.
-        *   Implement filtering by `InventoryCategory` using `DataTableFacetedFilter` or similar.
+        *   Add `InventoryCategory.name` as a column (with pill tags) in the Inventory list table.
+        *   Implement filtering by `InventoryCategory`.
     *   **Advanced Inventory Table Features:**
         *   Add a search bar to the Inventory list table.
-        *   Implement robust client-side or server-side filtering (beyond category), sorting, and pagination for the Inventory list table, similar to `CustomerTable`.
+        *   Implement robust filtering, sorting, and pagination.
 
-3.  **Production Kanban/Table - BOM Information View (NEW REQUIREMENT):**
-    *   **UI:** In the Production Kanban view (`src/app/(erp)/production/page.tsx`), for orders containing `MANUFACTURED_GOOD` items, implement a way to view BOM information directly on the Kanban card or in an associated modal/expandable section.
-    *   This view should list component `InventoryItem`s and their required quantities for each manufactured item in the order.
-    *   Fetch necessary BOM data via existing tRPC procedures if possible, or create new ones.
+2.  **Customer Module Enhancements (NEW REQUIREMENTS):**
+    *   **Customer Table Action Dropdown:**
+        *   Change the "Edit" button on customer rows in `CustomerTable` to a dropdown menu with icons.
+        *   Options: "Create Invoice", "Create Quotation", "Create Work Order", "Edit Customer".
+        *   Ensure actions prefill customer data when navigating.
+    *   **Customer Order/Invoice History & Revenue Summary - UI Implementation:**
+        *   Frontend (`app/(erp)/customers/[id]/page.tsx`): Develop UI sections for Order/Invoice History (tables) and display Total Net Revenue from Customer.
 
-4.  **Bill of Materials (BOM) - UI Implementation:** **[PENDING]**
-    *   **UI:** Develop UI for BOM creation, viewing, and editing. This includes forms to add/remove `BillOfMaterialItem`s, input for `manualLaborCost`, display of `totalCalculatedCost`, and linking to/from `InventoryItem` (type `MANUFACTURED_GOOD`). Calls existing `bomRouter`.
+3.  **Order & Invoice Module Enhancements (NEW REQUIREMENTS):**
+    *   **Searchable Select Dropdowns:**
+        *   Implement searchable select components (e.g., using popover with search) for Item and Customer selection in Order and Invoice creation/editing forms.
+    *   **Table Multi-Select & Bulk Actions:**
+        *   Add multi-select checkboxes to Order and Invoice list tables.
+        *   Implement bulk action options (e.g., "Print PDF" - can be a placeholder initially).
 
-5.  **Customer Order/Invoice History & Revenue Summary - UI Implementation:** **[PENDING]**
-    *   **Frontend (`app/(erp)/customers/[id]/page.tsx`):** Develop UI sections for Order/Invoice History (tables) and display Total Net Revenue from Customer, using existing tRPC procedures.
+4.  **Production Kanban/Table - BOM Information View (NEW REQUIREMENT):**
+    *   **UI:** In the Production Kanban view, for orders with `MANUFACTURED_GOOD` items, implement a BOM information view (e.g., modal/expandable section on card/row).
+    *   List component `InventoryItem`s and quantities.
+
+5.  **Bill of Materials (BOM) - UI Implementation:** **[PENDING]**
+    *   **UI:** Develop UI for BOM CRUD, including `manualLaborCost` input and `totalCalculatedCost` display.
 
 6.  **Dashboard & Reporting - Initial Implementation:** **[PENDING]**
-    *   **Dashboard:** Populate the existing dashboard page (`src/app/(erp)/dashboard/page.tsx`) with initial key metrics (e.g., overdue invoices, orders to ship, low stock items - tRPC procedures needed).
-    *   **Profitability:** Display basic profitability insights (e.g., total profit) using aggregated `InvoiceItem.calculatedLineProfit` data (tRPC procedures needed).
+    *   Populate dashboard with key metrics and basic profitability insights.
 
 7.  **PDF Generation:** **[PENDING]**
-    *   Implement server-side PDF generation for Invoices, Orders, Pricelists, and Credit Notes. Define tRPC endpoints to trigger generation and download.
+    *   Implement server-side PDF generation for Invoices, Orders, Pricelists, Credit Notes.
 
 8.  **Finvoice Seller Details Integration:** **[PENDING]**
-    *   Fully integrate Company Settings from DB into `finvoice.service.ts`, replacing any placeholders.
+    *   Integrate Company Settings into `finvoice.service.ts`.
 
 9.  **Credit Note Flow - UI & Full Workflow:** **[PENDING]**
-    *   Implement UI for creating credit notes from existing invoices, and managing their lifecycle.
+    *   Implement UI for Credit Note creation and management.
 
 10. **Stock Alerts Display:** **[PENDING]**
-    *   Implement UI to show stock alerts (low stock based on min/reorder levels, negative stock) on the dashboard or relevant item pages.
+    *   Implement UI for stock alerts.
 
 11. **Testing & Refinement:** Continuously test implemented features and refine UI/UX.
 
-12. **Build Health & TypeScript Hygiene:** Maintain a passing `npm run build` and a clean `npx tsc --noEmit` report throughout the development process. Address any new errors promptly.
+12. **Build Health & TypeScript Hygiene:** Maintain a passing `npm run build` and a clean `npx tsc --noEmit` report. Address any new errors promptly. **[Currently Stable]**
 
 **Multi-Tenancy Context (`companyId`):**
 *   `companyId` is present but optional on core models. Future task: Make non-nullable and enforce company-scoped data access via tRPC.
