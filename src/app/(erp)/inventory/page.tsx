@@ -1,47 +1,95 @@
 'use client';
 
-import { Suspense, useState, useMemo } from 'react';
+import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from "@/lib/trpc/react";
-import { InventoryTable, columns, type InventoryItemRowData } from '@/components/inventory/InventoryTable';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from 'react';
-import { type RowSelectionState, useReactTable, getCoreRowModel } from "@tanstack/react-table";
-import { PrinterIcon } from 'lucide-react';
+import { 
+  type RowSelectionState, 
+  useReactTable, 
+  getCoreRowModel,
+  flexRender,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type SortingState, 
+  type PaginationState,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel
+} from "@tanstack/react-table";
+import { PrinterIcon, EditIcon, PlusCircle, FileText, Loader2, Trash2, MoreHorizontal } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { type ItemType } from '@prisma/client';
-import { type TRPCClientErrorLike } from '@trpc/react-query';
-import { type AppRouter } from '@/lib/api/root';
+import { type ItemType as PrismaItemType } from '@prisma/client';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { flexRender, type ColumnDef } from "@tanstack/react-table";
-import { EditIcon } from 'lucide-react';
-import { buttonVariants } from "@/components/ui/button";
-import { type ColumnFiltersState, type SortingState, type PaginationState } from "@tanstack/react-table";
-import { PlusCircle, FileText, Loader2 } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
 import { type Prisma } from '@prisma/client';
+import { type ListInventoryItemsInput } from '@/lib/schemas/inventory.schema';
 
-// Define ColumnMeta type locally if not imported
-// type ColumnMeta = { isNumeric?: boolean }; // Removed as it's not standard and not used after refactor
-
-// Define a type for your inventory item data if not already done
-// ... existing code ...
-
-// Type for category options
-// ... existing code ...
+// Type for what the table row expects, including potentially stringified Decimals and nested objects
+export interface InventoryItemRowData {
+  id: string;
+  sku: string | null;
+  name: string;
+  itemType?: PrismaItemType;
+  quantityOnHand: string | null; // Keep as string for display, parse for editing
+  costPrice: string | null;
+  salesPrice: string | null;
+  inventoryCategory: { id: string; name: string } | null;
+  // Add other fields from Prisma.InventoryItem that you want to display or use in the row
+  description?: string | null;
+  unitOfMeasure?: string | null;
+  minimumStockLevel?: string | null;
+  reorderLevel?: string | null;
+  defaultVatRatePercent?: number | null;
+  showInPricelist?: boolean | null;
+  internalRemarks?: string | null;
+  qrIdentifier?: string | null;
+  leadTimeDays?: number | null;
+  vendorSku?: string | null;
+  vendorItemName?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 // Skeleton for the inventory page
 function InventoryPageSkeleton() {
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton className="h-10 w-48" />
-          <Skeleton className="h-10 w-32" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-32" />
+          </div>
         </div>
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-10 w-1/2 mx-auto" />
       </div>
     </div>
   );
@@ -50,86 +98,128 @@ function InventoryPageSkeleton() {
 // Component to handle fetching and displaying inventory data
 function InventoryListContent() {
   const router = useRouter();
-  const utils = api.useUtils(); // Added utils
-  const { data: initialData, isLoading: initialLoading, error: initialError } = api.inventory.list.useQuery(
-    {},
-    {
-      refetchOnWindowFocus: false, // prevent excessive refetching
-    }
-  );
-  const { data: categoriesData } = api.inventory.getAllCategories.useQuery();
+  const utils = api.useUtils();
 
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = React.useState('');
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'name', desc: false }]);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
-  const items = React.useMemo(() => initialData?.data ?? [], [initialData]);
-  const totalCount = React.useMemo(() => initialData?.meta?.totalCount ?? 0, [initialData]);
-  // const totalPages = React.useMemo(() => initialData?.totalPages ?? 0, [initialData]);
+  // For editable QOH
+  const [editingCell, setEditingCell] = useState<{rowIndex: number; columnId: string} | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [itemToUpdate, setItemToUpdate] = useState<{itemId: string; newQuantity: number; originalQuantity: number} | null>(null);
 
-  // This will hold transformed data for the table if needed (e.g. stringifying Decimals)
-  const itemsForTable = React.useMemo(() => {
-    return (items ?? []).map(item => ({
-      ...item,
-      costPrice: item.costPrice?.toString() ?? '',
-      salesPrice: item.salesPrice?.toString() ?? '',
-      quantityOnHand: item.quantityOnHand?.toString() ?? '', // This should align with InventoryItemRowData expecting string
-      minimumStockLevel: item.minimumStockLevel?.toString() ?? '', // Align with InventoryItemRowData
-      reorderLevel: item.reorderLevel?.toString() ?? null,
-      // economicOrderQuantity removed as it's not in InventoryItem or InventoryItemRowData
-      inventoryCategory: item.inventoryCategory ? { id: item.inventoryCategory.id, name: item.inventoryCategory.name } : null,
-    })) as InventoryItemRowData[];
-  }, [items]);
+  const debouncedGlobalFilter = useDebounce(globalFilter, 300);
+
+  const listInput = useMemo((): ListInventoryItemsInput => ({
+    page: pagination.pageIndex + 1,
+    perPage: pagination.pageSize,
+    sortBy: (sorting[0]?.id as ListInventoryItemsInput['sortBy']) ?? 'name',
+    sortDirection: sorting[0]?.desc ? 'desc' : 'asc',
+    search: debouncedGlobalFilter || undefined,
+    inventoryCategoryId: selectedCategory || undefined,
+  }), [pagination, sorting, debouncedGlobalFilter, selectedCategory]);
+
+  const { data: inventoryQueryResults, isLoading, error, refetch } = api.inventory.list.useQuery(
+    listInput,
+    { /* keepPreviousData: true, // Removed for now */ }
+  );
   
+  const { data: categoriesData } = api.inventory.getAllCategories.useQuery();
+
+  const itemsForTable = React.useMemo(() => {
+    return (inventoryQueryResults?.data ?? []).map(item => ({
+      ...item,
+      sku: item.sku,
+      name: item.name,
+      itemType: item.itemType,
+      quantityOnHand: item.quantityOnHand,
+      costPrice: item.costPrice,
+      salesPrice: item.salesPrice,
+      inventoryCategory: item.inventoryCategory ? { id: item.inventoryCategory.id, name: item.inventoryCategory.name } : null,
+      minimumStockLevel: item.minimumStockLevel,
+      reorderLevel: item.reorderLevel,
+      description: item.description,
+      unitOfMeasure: item.unitOfMeasure,
+      defaultVatRatePercent: item.defaultVatRatePercent,
+      showInPricelist: item.showInPricelist,
+      internalRemarks: item.internalRemarks,
+      qrIdentifier: item.qrIdentifier,
+      leadTimeDays: item.leadTimeDays,
+      vendorSku: item.vendorSku,
+      vendorItemName: item.vendorItemName,
+      createdAt: item.createdAt ? new Date(item.createdAt) : undefined,
+      updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined,
+    })) as InventoryItemRowData[];
+  }, [inventoryQueryResults?.data]);
+
+  const totalCount = React.useMemo(() => inventoryQueryResults?.meta?.totalCount ?? 0, [inventoryQueryResults]);
+  const pageCount = React.useMemo(() => inventoryQueryResults?.meta?.totalPages ?? -1, [inventoryQueryResults]);
+
   const categoryOptions = React.useMemo(() => {
     if (!categoriesData) return [];
     return categoriesData.map(cat => ({ value: cat.id, label: cat.name }));
   }, [categoriesData]);
 
-  const updateInventoryItem = api.inventory.update.useMutation({
-    onSuccess: () => {
-      utils.inventory.list.invalidate();
-      toast.success("Inventory item updated successfully.");
+  const quickUpdateQuantityMutation = api.inventory.quickAdjustStock.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Stock for "${data.name}" updated to ${data.quantityOnHand}.`);
+      utils.inventory.list.invalidate(listInput);
+      setEditingCell(null);
     },
     onError: (error) => {
-      toast.error("Failed to update item: " + error.message);
+      toast.error(`Failed to update stock: ${error.message}`);
+      setEditingCell(null);
+    },
+    onSettled: () => {
+       setShowConfirmDialog(false);
+       setItemToUpdate(null);
     }
   });
   
-  const deleteInventoryItem = api.inventory.delete.useMutation({
-    onSuccess: () => {
-      utils.inventory.list.invalidate();
-      setRowSelection({}); // Clear selection
-      toast.success("Inventory item deleted successfully.");
-    },
-    onError: (error) => {
-      toast.error("Error deleting item: " + error.message);
-    }
-  });
+  const handleStartEdit = (rowIndex: number, columnId: string, currentValue: string | null) => {
+    setEditingCell({ rowIndex, columnId });
+    setEditValue(currentValue ?? "");
+  };
 
-  const handleDataChange = (rowIndex: number, columnId: string, value: any) => {
-    // This function is a placeholder as its original implementation was tied to a 'meta' object in columns
-    // that has been removed. If inline editing is a desired feature, this needs to be re-implemented 
-    // using table.options.meta to pass and access this function.
-    console.log("Data change attempt:", { rowIndex, columnId, value });
-    toast.info("Inline editing not fully implemented in this view.");
+  const handleSaveEdit = () => {
+    if (editingCell && itemToUpdate) {
+        const currentItem = itemsForTable[editingCell.rowIndex];
+        const originalQty = parseFloat(currentItem.quantityOnHand || "0");
+
+        setItemToUpdate({
+            itemId: currentItem.id,
+            newQuantity: parseFloat(editValue),
+            originalQuantity: originalQty
+        });
+        setShowConfirmDialog(true);
+    }
   };
   
-  // Removed local ColumnMeta type as it's not standard for Tanstack Table v8 column definitions
-  // and the properties were not being used in a way that affects table behavior directly.
-  // If custom properties are needed for cells/headers, they should be added to table.options.meta.
+  const confirmUpdateQuantity = () => {
+    if(itemToUpdate){
+      quickUpdateQuantityMutation.mutate({
+        itemId: itemToUpdate.itemId,
+        newQuantityOnHand: itemToUpdate.newQuantity,
+        originalQuantityOnHand: itemToUpdate.originalQuantity,
+        note: null
+      });
+    }
+  };
 
   const columns = React.useMemo<ColumnDef<InventoryItemRowData, any>[]>(() => [
     {
       id: 'select',
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -144,104 +234,270 @@ function InventoryListContent() {
       enableSorting: false,
       enableHiding: false,
     },
+    { accessorKey: 'sku', header: 'SKU' },
+    { accessorKey: 'name', header: 'Name' },
     {
-      accessorKey: 'sku',
-      header: 'SKU',
-    },
-    {
-      accessorKey: 'name',
-      header: 'Name',
+      accessorKey: 'inventoryCategory.name',
+      header: 'Category',
+      id: 'categoryName',
+      cell: ({ row }) => {
+        const category = row.original.inventoryCategory;
+        return category ? <Badge variant="outline">{category.name}</Badge> : null;
+      },
     },
     {
       accessorKey: 'quantityOnHand',
       header: 'Qty on Hand',
-      meta: { isNumeric: true },
+      cell: ({ row, column, getValue }) => {
+        const isEditing = editingCell?.rowIndex === row.index && editingCell?.columnId === column.id;
+        const initialValue = getValue<string | null>();
+
+        if (isEditing) {
+          return (
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleSaveEdit}
+                autoFocus
+                className="h-8 w-20"
+              />
+            </div>
+          );
+        }
+        return (
+            <div onClick={() => handleStartEdit(row.index, column.id, initialValue)} className="cursor-pointer w-full h-full">
+                {initialValue}
+            </div>
+        );
+      }
     },
-    {
-      accessorKey: 'costPrice',
-      header: 'Cost Price',
-       meta: { isNumeric: true },
-    },
-    {
-      accessorKey: 'salesPrice',
-      header: 'Sales Price',
-       meta: { isNumeric: true },
-    },
-    {
-      accessorKey: 'inventoryCategory.name',
-      header: 'Category',
-      id: 'categoryName', 
-    },
+    { accessorKey: 'costPrice', header: 'Cost Price (€)' },
+    { accessorKey: 'salesPrice', header: 'Sales Price (€)' },
     {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <Link href={`/inventory/${row.original.id}/edit`} className={buttonVariants({ variant: "ghost" })}>
-          <EditIcon className="h-4 w-4" />
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => router.push(`/inventory/${row.original.id}/edit`)}>
+              <EditIcon className="mr-2 h-4 w-4" /> Edit
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
-  ], [categoryOptions]); // Added categoryOptions to dependency array
+  ], [editingCell, editValue, itemsForTable]);
 
   const table = useReactTable({
-    data: itemsForTable, 
+    data: itemsForTable,
     columns,
     state: {
+      sorting,
+      pagination,
+      columnFilters,
+      globalFilter,
       rowSelection,
     },
+    pageCount: pageCount,
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
+    meta: {
+    },
   });
-
-  const selectedOriginalItemIds = useMemo(() => {
-    // Now `table` is defined
-    return table.getSelectedRowModel().flatRows.map(row => (row.original as InventoryItemRowData).id);
+  
+  const selectedItemIds = useMemo(() => {
+    return table.getSelectedRowModel().flatRows.map(row => row.original.id);
   }, [table, rowSelection]);
 
-  if (initialLoading) return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Inventory Items</h1>
-      <div>Loading...</div>
-    </div>
-  );
-  // Commenting out DataTableSkeleton as it was causing issues.
-  // if (initialLoading) return <DataTableSkeleton columnCount={columns.length} />;
+  const handleDeleteSelected = () => {
+    if(selectedItemIds.length > 0){
+        toast.info("Bulk delete not implemented yet. Please delete items individually if needed or implement `inventory.deleteMany`.");
+    } else {
+        toast.warn("No items selected for deletion.");
+    }
+  };
 
-  if (initialError) return <p>Error loading inventory: {initialError.message}</p>;
-  if (!initialData) return <p>No inventory data found.</p>;
+  if (error) return <div className="text-red-500 p-4">Error loading inventory: {error.message}</div>;
 
   return (
-    <div className="container mx-auto py-4">
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Inventory</h1>
-        <div className="space-x-2">
-           <Button onClick={() => router.push('/inventory/add')} variant="default">
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New Item
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Inventory Items</h1>
+        <div className="flex items-center space-x-2">
+            {selectedItemIds.length > 0 && (
+                 <Button variant="outline" size="sm" onClick={handleDeleteSelected} /* disabled={deleteInventoryItemsMutation.isPending} */ >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete ({selectedItemIds.length})
+                    {/* {deleteInventoryItemsMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />} */}
+                </Button>
+            )}
+          <Button asChild size="sm">
+            <Link href="/inventory/add">
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+            </Link>
           </Button>
         </div>
       </div>
 
-      <InventoryTable
-        table={table}
-        isLoading={initialLoading}
-        onDataChange={handleDataChange}
-        categoryOptions={categoryOptions}
-      />
-
-      {/* Delete Confirmation Dialog */}
-      {/* {Object.keys(table.getState().rowSelection).length > 0 && (
-        <div className="mt-4">
-          <Button onClick={() => deleteInventoryItem.mutate({ ids: selectedOriginalItemIds })} variant="destructive">
-            Delete Selected Items
-          </Button>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 py-4 border-b">
+        <Input
+          placeholder="Search all columns..."
+          value={globalFilter ?? ''}
+          onChange={(event) => setGlobalFilter(event.target.value)}
+          className="max-w-sm h-10 text-sm"
+        />
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Category:</span>
+          <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value === "all" ? undefined : value)}>
+            <SelectTrigger className="w-[180px] h-10 text-sm">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categoryOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )} */}
+      </div>
+      
+      {isLoading && !inventoryQueryResults && (
+         <div className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-64 w-full rounded-md" />
+            <div className="flex justify-center"><Skeleton className="h-10 w-64"/></div>
+        </div>
+      )}
+
+      {!isLoading && inventoryQueryResults && itemsForTable.length === 0 && (
+        <div className="text-center py-10">
+          <FileText className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No inventory items</h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new inventory item.</p>
+          <div className="mt-6">
+            <Button asChild size="sm">
+                <Link href="/inventory/add">
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Item
+                </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && itemsForTable.length > 0 && (
+        <>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map(header => (
+                      <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}
+                        className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{
+                            asc: ' ▲',
+                            desc: ' ▼',
+                        }[header.column.getIsSorted() as string] ?? null}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map(row => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex items-center justify-center space-x-2 py-4 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </>
+      )}
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Stock Update</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to update the quantity on hand to {editValue}?
+                    This will create an adjustment transaction.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setEditingCell(null); setItemToUpdate(null); }}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmUpdateQuantity} disabled={quickUpdateQuantityMutation.isPending}>
+                    {quickUpdateQuantityMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Confirm Update
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
     </div>
   );
 }
 
-// Main page component
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function InventoryPage() {
   return (
     <Suspense fallback={<InventoryPageSkeleton />}>

@@ -1,28 +1,10 @@
 "use client";
 
 import * as React from "react";
-// import { AppSidebar } from "@/components/AppSidebar"; // AppSidebar is already part of ERPLayoutClient
-// import {
-//   Breadcrumb,
-//   BreadcrumbItem,
-//   BreadcrumbLink,
-//   BreadcrumbList,
-//   BreadcrumbPage,
-//   BreadcrumbSeparator,
-// } from "@/components/ui/breadcrumb"; // Not used here, ERPLayoutClient has main breadcrumbs
-// import { Separator } from "@/components/ui/separator"; // Not directly used here
-// import {
-//   SidebarTrigger, // This is in ERPLayoutClient header
-// } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-// import { DateRangePicker } from "@/components/ui/date-range-picker"; // Commented out
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
-import { PlaceholderAreaChart } from "@/components/dashboard/PlaceholderAreaChart";
-// import { PlaceholderRecentOrdersTable } from "@/components/dashboard/PlaceholderRecentOrdersTable";
-// import { PlaceholderReplenishmentTable } from "@/components/dashboard/PlaceholderReplenishmentTable";
-import { DashboardSiteHeader } from "@/components/dashboard/DashboardSiteHeader"; // Import the new header
+import { api } from "@/lib/trpc/react"; 
+import { Badge } from "@/components/ui/badge"; 
+import { Skeleton } from "@/components/ui/skeleton"; 
+import { AlertTriangle, Info } from "lucide-react"; 
 import {
   Table,
   TableBody,
@@ -30,8 +12,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"; // Import Table components
-import Link from "next/link"; // Import Link for navigation
+} from "@/components/ui/table";
+import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
+import { PlaceholderAreaChart } from "@/components/dashboard/PlaceholderAreaChart";
+import { DashboardSiteHeader } from "@/components/dashboard/DashboardSiteHeader";
+import { Button } from "@/components/ui/button";
 
 // StatsCard component (can be moved to its own file later if preferred)
 function StatsCard({
@@ -40,17 +28,17 @@ function StatsCard({
   description,
   trend,
   trendDirection,
-  href, // Add href for linking
+  href, 
 }: {
   title: string;
   value: string;
   description: string;
   trend: string;
   trendDirection: "up" | "down";
-  href?: string; // Make href optional
+  href?: string; 
 }) {
   const cardContent = (
-    <Card className="@container/card shadow-xs bg-card dark:bg-card"> {/* Removed gradient, ensured bg-card */}
+    <Card className="@container/card shadow-xs bg-card dark:bg-card">
       <CardHeader className="relative pb-2">
         <CardDescription>{title}</CardDescription>
         <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
@@ -81,28 +69,112 @@ function StatsCard({
   return cardContent;
 }
 
-export default function DashboardPage() {
-  // const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
-  //   from: new Date(new Date().setDate(new Date().getDate() - 30)),
-  //   to: new Date(),
-  // });
+interface ReplenishmentAlertItem {
+  id: string;
+  sku: string | null;
+  name: string;
+  quantityOnHand: string; 
+  reorderLevel: string | null; 
+  minimumStockLevel: string; 
+  leadTimeDays: number | null;
+  vendorSku: string | null;
+  vendorItemName: string | null;
+  unitOfMeasure: string | null;
+}
+
+function ReplenishmentAlertsTable() {
+  const { data: alerts, isLoading, error } = api.inventory.getReplenishmentAlerts.useQuery(undefined, {
+    refetchOnWindowFocus: false, // Prevent excessive refetching on window focus
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2 p-4">
+        {[...Array(3)].map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-sm text-red-600 flex items-center">
+        <AlertTriangle className="h-4 w-4 mr-2" /> Error loading alerts: {error.message}
+      </div>
+    );
+  }
+
+  if (!alerts || alerts.length === 0) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground flex items-center">
+        <Info className="h-4 w-4 mr-2" /> No items currently need replenishment.
+      </div>
+    );
+  }
 
   return (
-    // The main layout (SidebarProvider, AppSidebar, SidebarInset) is handled by ERPLayoutClient.tsx
-    // This component renders *inside* the SidebarInset's children area.
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="px-4">SKU</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead className="text-right">Stock</TableHead>
+          <TableHead className="text-right">Reorder Lvl</TableHead>
+          <TableHead className="text-right">Min. Stock</TableHead>
+          <TableHead className="text-right">Lead Time</TableHead>
+          <TableHead>Vendor SKU</TableHead>
+          <TableHead>Vendor Name</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {alerts.map((item: ReplenishmentAlertItem) => {
+          const qtyOnHand = parseFloat(item.quantityOnHand);
+          const reorderLvl = item.reorderLevel ? parseFloat(item.reorderLevel) : null;
+          const minStockLvl = parseFloat(item.minimumStockLevel);
+          let stockStatus: "critical" | "low" | "ok" = "ok";
+          if (qtyOnHand < minStockLvl) stockStatus = "critical";
+          else if (reorderLvl !== null && qtyOnHand < reorderLvl) stockStatus = "low";
+
+          return (
+            <TableRow key={item.id}>
+              <TableCell className="font-medium px-4 whitespace-nowrap">
+                <Link href={`/inventory/${item.id}/edit`} className="hover:underline">
+                  {item.sku || "N/A"}
+                </Link>
+              </TableCell>
+              <TableCell className="whitespace-nowrap">{item.name}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">
+                <Badge variant={stockStatus === "critical" ? "destructive" : stockStatus === "low" ? "secondary" : "outline"}>
+                  {item.quantityOnHand} {item.unitOfMeasure || ''}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right whitespace-nowrap">{item.reorderLevel || "-"}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">{item.minimumStockLevel}</TableCell>
+              <TableCell className="text-right whitespace-nowrap">{item.leadTimeDays !== null ? `${item.leadTimeDays} d` : "-"}</TableCell>
+              <TableCell className="whitespace-nowrap">{item.vendorSku || "-"}</TableCell>
+              <TableCell className="whitespace-nowrap">{item.vendorItemName || "-"}</TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+export default function DashboardPage() {
+
+  return (
     <div className="flex flex-1 flex-col">
       <DashboardSiteHeader title="Dashboard" />
       <div className="container mx-auto flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 @container/main">
-        {/* Date Range Selectors and Real-time update status - Placeholder */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-          {/* <DateRangePicker range={dateRange} onRangeChange={setDateRange} /> */}
           <Button variant="outline" size="sm" disabled>
             Date Range (TODO)
           </Button>
           <span className="text-xs text-muted-foreground">Real-time: N/A (TODO)</span>
         </div>
 
-        {/* Stats Cards Section */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 @5xl/main:grid-cols-4 md:gap-6">
           <StatsCard 
             title="Shipped Orders (Period)" 
@@ -138,7 +210,6 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Revenue Trend Area Chart */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -154,20 +225,16 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <PlaceholderAreaChart />
-            {/* <ChartAreaInteractive /> */}
           </CardContent>
         </Card>
 
-        {/* Bottom Tables Section - Stacked vertically */}
-        <div className="flex flex-col gap-4 md:gap-6"> {/* Changed from grid to flex-col */}
-          <Card className="flex flex-col h-[calc(10rem*2+2rem)]"> {/* Approx 10 rows + header, assuming 2rem per row approx */}
+        <div className="flex flex-col gap-4 md:gap-6">
+          <Card className="flex flex-col h-[calc(10rem*2+2rem)]">
             <CardHeader>
               <CardTitle>Recent Orders</CardTitle>
               <CardDescription>Last 10 quotations.</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-0">
-              {/* Placeholder for Recent Orders Table - to be simple table styled like image */}
-              {/* <div className="p-4 text-sm text-muted-foreground">Recent Orders Table Placeholder</div> */}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -178,7 +245,6 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* Example Row - Replace with actual data mapping */}
                   {[...Array(10)].map((_, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-medium px-4">{`ORD-00${123 + i}`}</TableCell>
@@ -187,41 +253,18 @@ export default function DashboardPage() {
                       <TableCell className="text-right px-4">2024-05-23</TableCell>
                     </TableRow>
                   ))}
-                  {/* Add more rows or dynamic data mapping here */}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-          <Card className="flex flex-col h-[calc(10rem*2+2rem)]"> {/* Approx 10 rows + header */}
+
+          <Card className="flex flex-col h-[calc(10rem*2+2rem)]"> 
             <CardHeader>
               <CardTitle>Replenishment Alerts</CardTitle>
               <CardDescription>Items needing reorder.</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-0">
-              {/* Placeholder for Replenishment Alerts Table - to be simple table styled like image */}
-              {/* <div className="p-4 text-sm text-muted-foreground">Replenishment Alerts Table Placeholder</div> */}
-               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="px-4">Item SKU</TableHead>
-                    <TableHead>Item Name</TableHead>
-                    <TableHead className="text-right">Stock</TableHead>
-                    <TableHead className="text-right px-4">Alert Level</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {/* Example Row - Replace with actual data mapping */}
-                  {[...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium px-4">{`SKU-00${i + 1}`}</TableCell>
-                    <TableCell>{`Product ${String.fromCharCode(65 + i)}`}</TableCell>
-                    <TableCell className="text-right">{10 - i * 2}</TableCell>
-                    <TableCell className="text-right px-4">{10}</TableCell>
-                  </TableRow>
-                  ))}
-                  {/* Add more rows or dynamic data mapping here */}
-                </TableBody>
-              </Table>
+              <ReplenishmentAlertsTable />
             </CardContent>
           </Card>
         </div>

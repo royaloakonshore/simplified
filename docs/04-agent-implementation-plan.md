@@ -5,7 +5,7 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 **Core Principle:** Build foundational elements first, then layer features module by module. Prioritize backend (types, schemas, actions, DB interactions) before frontend UI implementation within each module.
 
 **Current Context & Progress:**
-The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. Recent work focused on resolving numerous build/type errors. `InventoryItem.defaultVatRatePercent` is now used in invoice creation, with a fallback to company-level settings. The `settings.get` tRPC procedure correctly handles missing settings, and SKU handling in orders is fixed. The project now passes `npm run build`, and `npx tsc --noEmit` reveals no errors. All previously noted type errors in `src/lib/api/routers/invoice.ts` are resolved.
+The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. Recent work focused on resolving numerous build/type errors, including in the inventory tRPC router. `InventoryItem.defaultVatRatePercent` is now used in invoice creation, with a fallback to company-level settings. The `settings.get` tRPC procedure correctly handles missing settings, and SKU handling in orders is fixed. The project now passes `npm run build`, and `npx tsc --noEmit` reveals no errors. All previously noted type errors in `src/lib/api/routers/invoice.ts` are resolved.
 
 --- --- ---
 
@@ -35,14 +35,14 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
 
 1.  **Inventory Module Enhancements (NEW REQUIREMENTS):**
     *   **Single, Editable `quantityOnHand` Field:**
-        *   Modify `InventoryItemForm.tsx` to use a single, directly editable `quantityOnHand` field. This replaces the previous "initial quantity/adjust by X" approach.
-        *   Ensure this field updates `InventoryTransaction` records appropriately on create/edit.
+        *   Modify `InventoryItemForm.tsx` to use a single, directly editable `quantityOnHand` field. This replaces the previous "initial quantity/adjust by X" approach. **[DONE]**
+        *   Ensure this field updates `InventoryTransaction` records appropriately on create/edit. **[DONE - Backend logic implemented in `inventory.create` and `inventory.update`]**
     *   **Additional Inventory Item Fields:**
-        *   Add `leadTimeDays` (number field) to `InventoryItemForm.tsx` and relevant table display.
-        *   Add `vendorSku` and `vendorItemName` fields to `InventoryItemForm.tsx`, hidden if `itemType` is `MANUFACTURED_GOOD`.
+        *   Add `leadTimeDays` (number field) to `InventoryItemForm.tsx` and relevant table display. **[DONE for form. Table display PENDING]**
+        *   Add `vendorSku` and `vendorItemName` fields to `InventoryItemForm.tsx`, hidden if `itemType` is `MANUFACTURED_GOOD`. **[DONE for form. Conditional hiding and table display PENDING]**
     *   **Editable `quantityOnHand` in Inventory Table:**
-        *   Modify the Inventory list table to display `quantityOnHand` as an inline-editable column.
-        *   Implement a tRPC mutation for quick, direct stock adjustment from this table cell.
+        *   Modify the Inventory list table to display `quantityOnHand` as an inline-editable column. **[PENDING]**
+        *   Implement a tRPC mutation for quick, direct stock adjustment from this table cell. **[PENDING]**
     *   **Product Category in Table & Filtering:**
         *   Add `InventoryCategory.name` as a column (with pill tags) in the Inventory list table.
         *   Implement filtering by `InventoryCategory`.

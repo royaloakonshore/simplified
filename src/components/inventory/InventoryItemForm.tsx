@@ -127,6 +127,8 @@ export function InventoryItemForm({
         },
   });
 
+  const watchedItemType = form.watch("itemType");
+
   // Mutations for create/update are now handled by the parent page (EditInventoryItemPage, AddInventoryItemPage)
   // This form component will call onSubmitProp, which triggers those mutations.
 
@@ -270,44 +272,46 @@ export function InventoryItemForm({
                     )}
                 />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <FormField
-                control={form.control as any}
-                name="leadTimeDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lead Time (Days)</FormLabel>
-                    <FormControl><Input type="number" placeholder="e.g., 7" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
-                    <FormDescription>Estimated time to restock.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control as any}
-                name="vendorSku"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vendor SKU</FormLabel>
-                    <FormControl><Input placeholder="Vendor's SKU" {...field} /></FormControl>
-                    <FormDescription>Supplier's stock keeping unit.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control as any}
-                name="vendorItemName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vendor Item Name</FormLabel>
-                    <FormControl><Input placeholder="Vendor's Item Name" {...field} /></FormControl>
-                    <FormDescription>Supplier's name for the item.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {watchedItemType !== PrismaItemType.MANUFACTURED_GOOD && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <FormField
+                  control={form.control as any}
+                  name="leadTimeDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lead Time (Days)</FormLabel>
+                      <FormControl><Input type="number" placeholder="e.g., 7" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))} /></FormControl>
+                      <FormDescription>Estimated time to restock.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control as any}
+                  name="vendorSku"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vendor SKU</FormLabel>
+                      <FormControl><Input placeholder="Vendor's SKU" {...field} /></FormControl>
+                      <FormDescription>Supplier's stock keeping unit.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control as any}
+                  name="vendorItemName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vendor Item Name</FormLabel>
+                      <FormControl><Input placeholder="Vendor's Item Name" {...field} /></FormControl>
+                      <FormDescription>Supplier's name for the item.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
             {initialData?.qrIdentifier && (
                  <div className="pt-4">
                     <FormLabel>QR Code</FormLabel>

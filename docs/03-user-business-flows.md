@@ -3,12 +3,12 @@
 This document details key user and business process flows within the ERP system.
 
 **Current Context & Progress:**
-The application has established user flows for core operations like login, profile updates (now robustly handles password changes and profile info updates), inventory item creation (basic, SKU handling fixed for orders), sales order creation and confirmation, invoicing from orders, and Finvoice export. The system uses tRPC for backend mutations and queries, with NextAuth for authentication. Recent work focused on build stabilization, resolving numerous type errors (all known type errors in `invoice.ts` are fixed), and ensuring VAT calculations are correct (using `InventoryItem.defaultVatRatePercent` with a fallback to company-level default VAT when creating invoices from orders). The settings page now gracefully handles cases where company settings haven't been created. Several UI enhancements for tables (customers) have been made, and a basic Kanban board for production exists. The build is currently passing and no type errors are reported by `npx tsc --noEmit`.
+The application has established user flows for core operations like login, profile updates (now robustly handles password changes and profile info updates), inventory item creation (basic, SKU handling fixed for orders), sales order creation and confirmation, invoicing from orders, and Finvoice export. The system uses tRPC for backend mutations and queries, with NextAuth for authentication. Recent work focused on build stabilization, resolving numerous type errors (all known type errors in `invoice.ts` and `inventory.ts` are fixed), and ensuring VAT calculations are correct (using `InventoryItem.defaultVatRatePercent` with a fallback to company-level default VAT when creating invoices from orders). The settings page now gracefully handles cases where company settings haven't been created. **The inventory item forms and backend now support directly editable `quantityOnHand` (with transaction generation) and new fields: `leadTimeDays`, `vendorSku`, `vendorItemName`.** Several UI enhancements for tables (customers) have been made, and a basic Kanban board for production exists. The build is currently passing and no type errors are reported by `npx tsc --noEmit`.
 
 ## 1. Core Entities & Lifecycle
 
 *   **Customer:** Created -> Updated -> Used in Orders/Invoices **[Implemented]**
-*   **Inventory Item:** Created -> Stock Adjusted (Purchased/Adjusted) -> Used in Orders -> Stock Decreased (Shipped/Production) **[Basic create/use implemented. Stock adjustment flow refinement, especially for `quantityOnHand` editing and category filtering, are NEXT STEPS.]**
+*   **Inventory Item:** Created -> Stock Adjusted (Purchased/Adjusted) -> Used in Orders -> Stock Decreased (Shipped/Production) **[Basic create/use implemented. `quantityOnHand` is now directly editable in forms. New fields `leadTimeDays`, `vendorSku`, `vendorItemName` added. Stock adjustment flow refinement, especially for table-based editing and category filtering, are NEXT STEPS.]**
 *   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages via Kanban/Table) -> Shipped/Completed -> INVOICED **[Implemented. Production view needs BOM info display.]**
 *   **Invoice:** Draft (From Order/Manual) -> Sent -> Payment Recorded -> Paid / Overdue -> Exported (Finvoice) **[Implemented. Credit Note flow PENDING.]**
 
@@ -26,12 +26,12 @@ The application has established user flows for core operations like login, profi
 2.  **Navigate to Inventory:** User selects 'Inventory' from navigation. **[Implemented]**
 3.  **Create New Item / Edit Existing Item:**
     *   User clicks 'Add New Item' or selects an item and clicks 'Edit'.
-    *   Fills in/Updates `InventoryForm` (SKU, Name, Description, Unit of Measure, VAT-exclusive Cost Price, VAT-exclusive Sales Price, Item Type (`RAW_MATERIAL`/`MANUFACTURED_GOOD`), **Inventory Category**, **`quantityOnHand` (single editable field)**, **`leadTimeDays`**, **`vendorSku`**, **`vendorItemName`** (last two hidden if `MANUFACTURED_GOOD`)). **[SKU handling for order creation is fixed. Other fields PENDING/ENHANCEMENT]**
-    *   **NEW/ENHANCE:** User enters/adjusts `quantityOnHand`. For new items, this is initial stock. For existing items, this is a stock adjustment (backend creates an `InventoryTransaction`). This replaces the previous "initial quantity/adjust by X" approach.
-    *   Saves the item. **[Backend `inventory.upsert` / `inventory.adjustStock` tRPC mutations. Basic form exists, quantity editing enhancement PENDING.]**
+    *   Fills in/Updates `InventoryForm` (SKU, Name, Description, Unit of Measure, VAT-exclusive Cost Price, VAT-exclusive Sales Price, Item Type (`RAW_MATERIAL`/`MANUFACTURED_GOOD`), **Inventory Category (pending)**, **`quantityOnHand` (single editable field - implemented in form)**, **`leadTimeDays` (implemented in form)**, **`vendorSku` (implemented in form)**, **`vendorItemName` (implemented in form)** (last two hidden if `MANUFACTURED_GOOD` - conditional hiding pending)). **[SKU handling for order creation is fixed. Backend logic for new fields and QOH adjustment is implemented.]**
+    *   **NEW/ENHANCE:** User enters/adjusts `quantityOnHand`. For new items, this is initial stock. For existing items, this is a stock adjustment (backend creates an `InventoryTransaction`). This replaces the previous "initial quantity/adjust by X" approach. **[Implemented in form and backend tRPC.]**
+    *   Saves the item. **[Backend `inventory.create` / `inventory.update` tRPC mutations handle this. Form submission logic is in place.]**
 4.  **Manage Stock (Inventory Table - NEW):**
     *   User navigates to the Inventory list.
-    *   Table displays `quantityOnHand` as an editable column. Also displays `leadTimeDays` and `InventoryCategory` (as pill tags).
+    *   Table displays `quantityOnHand` as an editable column. Also displays `leadTimeDays` and `InventoryCategory` (as pill tags). **[Display of new fields & category PENDING. Editable QOH column PENDING]**
     *   User directly modifies quantity in the table for an item.
     *   System triggers a quick stock adjustment. **[Editable column and mutation PENDING]**
     *   User can filter by **Inventory Category** (pill tags), search by name/SKU, sort, and paginate. **[Advanced table features PENDING]**
@@ -86,11 +86,10 @@ The application has established user flows for core operations like login, profi
 
 **Next Steps (User Flow Focused):**
 1.  **Inventory Management Enhancements:**
-    *   Implement UI for editing `quantityOnHand` (single field) during Inventory Item creation and edit (via `InventoryItemForm`).
-    *   Add `leadTimeDays`, `vendorSku`, `vendorItemName` fields to `InventoryItemForm` (conditional visibility for vendor fields).
+    *   Implement UI for conditional hiding of `vendorSku`, `vendorItemName` in `InventoryItemForm` if `itemType` is `MANUFACTURED_GOOD`.
     *   Develop the editable `quantityOnHand` column in the Inventory list table with quick adjustment functionality.
-    *   Add Inventory Category column (with pill tags) and filtering to the Inventory list. Display `leadTimeDays`.
-    *   Implement advanced table features (search, sort, filter, pagination) for the Inventory list.
+    *   Add Inventory Category column (with pill tags) and filtering to the Inventory list. Display `leadTimeDays`, `vendorSku`, `vendorItemName` in the table.
+    *   Implement advanced table features (search, sort, filter, pagination) for the Inventory list (similar to CustomerTable).
 2.  **Order & Invoice Flow Enhancements:**
     *   Implement searchable select dropdowns for Customer and Item selection in Order/Invoice forms.
     *   Add multi-select checkboxes and bulk action capabilities (e.g., "Print PDF" placeholder) to Order and Invoice list tables.

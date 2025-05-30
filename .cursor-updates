@@ -118,3 +118,5 @@
 - Reviewed code changes for over-complication and performance, concluding that changes were generally for simplification, correctness, and leveraging existing performance patterns (React Query caching, server-side operations).
 - Fixed runtime errors: React Hook order in `InvoiceListContent`, discount mismatch in `OrderForm`, and settings page save/clear issues.
 - Fixed lingering TypeScript errors in `inventory.ts` router by regenerating Prisma client and rebuilding.
+- Enhanced Inventory List: Added category badges, category filter, global search, server-side sorting/pagination, and inline editable quantity on hand with confirmation.
+- Enhanced Dashboard: Replenishment alerts table now shows actual data including lead time, vendor SKU, and vendor item name.

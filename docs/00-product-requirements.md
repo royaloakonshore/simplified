@@ -5,7 +5,7 @@
 This document outlines the requirements for a simplified, multi-tenant ERP-style SaaS application targeting small businesses. The system integrates Invoicing, Inventory Management (including Bill of Materials), Order Processing (acting as Quotes/Work Orders), Production Workflows, and Customer Registry.
 
 **Current Context & Progress:**
-The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving numerous type errors across the codebase, and ensuring correct VAT handling. Specifically, `InventoryItem.defaultVatRatePercent` is now correctly used, with a fallback to a company-level default VAT rate, when creating invoice line items from an order. The settings page is more robust, handling cases where company settings might not yet exist. SKU handling in orders is now correct. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. The build is currently passing after extensive debugging. Type errors in `src/lib/api/routers/invoice.ts` have been resolved. The immediate next steps involve proceeding with broader feature enhancements and UI completion as outlined.
+The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving numerous type errors across the codebase, and ensuring correct VAT handling. Specifically, `InventoryItem.defaultVatRatePercent` is now correctly used, with a fallback to a company-level default VAT rate, when creating invoice line items from an order. The settings page is more robust, handling cases where company settings might not yet exist. SKU handling in orders is now correct. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. **The `InventoryItem` model and related forms/APIs have been enhanced with `leadTimeDays`, `vendorSku`, `vendorItemName`, and a directly editable `quantityOnHand` field, which correctly generates adjustment transactions.** The build is currently passing after extensive debugging. Type errors in `src/lib/api/routers/invoice.ts` and `src/lib/api/routers/inventory.ts` have been resolved. The immediate next steps involve proceeding with broader feature enhancements and UI completion as outlined.
 
 ## 2. Goals
 
@@ -61,18 +61,18 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
 
 ### 2. Inventory Management & Bill of Materials (BOM)
     *   **Inventory Items:**
-        *   CRUD operations for Inventory Items. **[Implemented - Basic CRUD form exists. Quantity editing at creation/edit needs review/implementation.]**
+        *   CRUD operations for Inventory Items. **[Implemented - Basic CRUD. `quantityOnHand` is now a directly editable field in the form, and backend logic handles creating adjustment transactions. New fields `leadTimeDays`, `vendorSku`, `vendorItemName` added to schema, form, and tRPC.]**
         *   Categorize items using `itemType` (`RAW_MATERIAL` or `MANUFACTURED_GOOD`). **[Implemented]**
         *   Track SKU, Name, Description, Unit of Measure. **[Implemented, SKU handling in orders is now correct.]**
         *   Store **VAT-exclusive `costPrice`** and **VAT-exclusive `salesPrice`**. **[Implemented]**
-        *   `quantityOnHand` is a calculated field based on `InventoryTransaction` records. **[Implemented. Direct editing of quantityOnHand on item table is a NEW REQUIREMENT - See below]**
+        *   `quantityOnHand` is a calculated field based on `InventoryTransaction` records. **[Implemented. The `InventoryItem.quantityOnHand` field now stores the target absolute quantity, and transactions reflect adjustments. The list/getById tRPC calls also calculate and return the actual QOH based on transactions for display consistency, though the direct field on the model is now the primary source for editing.]**
         *   Define Minimum Stock Level and Reorder Level for stock alerts. **[Schema fields exist, alert logic/UI PENDING]**
         *   Support for QR code identifiers on items for quick scanning. **[Implemented, PDF generation for tags exists]**
-        *   **NEW REQUIREMENT:** Inventory item `quantityOnHand` should be a single, directly editable field in the item creation/edit forms and in the inventory list table. Changes will directly update the quantity, triggering necessary `InventoryTransaction` records in the backend. (Replaces previous "initial quantity/adjust by X" approach).
-        *   **NEW REQUIREMENT:** The inventory list/table should display `quantityOnHand` as an editable column for quick adjustments. This requires a new tRPC mutation for direct stock adjustment from the table.
-        *   **NEW REQUIREMENT:** Add a `leadTimeDays` (simple number) field to Inventory Items. This will be used for replenishment alerts and displayed in a relevant table column.
-        *   **NEW REQUIREMENT:** Add `vendorSku` and `vendorItemName` fields to Inventory Items. These fields should be hidden if `itemType` is `MANUFACTURED_GOOD`.
-        *   **NEW REQUIREMENT:** Add `InventoryCategory` to Inventory Items. This should be displayed as a column with pill tags in the inventory and pricelist views and allow filtering. `InventoryCategory` model exists; UI needs to display and allow filtering by it.
+        *   **NEW REQUIREMENT:** Inventory item `quantityOnHand` should be a single, directly editable field in the item creation/edit forms and in the inventory list table. Changes will directly update the quantity, triggering necessary `InventoryTransaction` records in the backend. **[Implemented in form and backend. Table editing is PENDING.]**
+        *   **NEW REQUIREMENT:** The inventory list/table should display `quantityOnHand` as an editable column for quick adjustments. This requires a new tRPC mutation for direct stock adjustment from the table. **[PENDING]**
+        *   **NEW REQUIREMENT:** Add a `leadTimeDays` (simple number) field to Inventory Items. This will be used for replenishment alerts and displayed in a relevant table column. **[Implemented - Schema, Zod, Form, tRPC `create`/`update`/`getById`/`list` updated. Display in table PENDING.]**
+        *   **NEW REQUIREMENT:** Add `vendorSku` and `vendorItemName` fields to Inventory Items. These fields should be hidden if `itemType` is `MANUFACTURED_GOOD`. **[Implemented - Schema, Zod, Form, tRPC `create`/`update`/`getById`/`list` updated. Conditional hiding in UI and display in table PENDING.]**
+        *   **NEW REQUIREMENT:** Add `InventoryCategory` to Inventory Items. This should be displayed as a column with pill tags in the inventory and pricelist views and allow filtering. `InventoryCategory` model exists; UI needs to display and allow filtering by it. **[PENDING]**
         *   **NEW REQUIREMENT:** Inventory list needs a search bar, and robust client-side or server-side filtering, pagination, and sorting (currently basic tRPC list exists, UI table features need enhancement similar to CustomerTable).
     *   **Inventory Transactions:** Record purchases, sales, adjustments (including automated deductions for production). **[Implemented, though UI for manual adjustments may need refinement]**
     *   **Stock Alerts:**
@@ -143,12 +143,11 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
 
 **Next Steps (High-Level):**
 1.  **Inventory Enhancements (as per new requirements):**
-    *   Implement `quantityOnHand` as a single, directly editable field in `InventoryItemForm` and the inventory list table.
-    *   Add editable `quantityOnHand` column to inventory table with quick adjustment mutation.
-    *   Add `leadTimeDays` field to Inventory Items and display it.
-    *   Add `vendorSku` and `vendorItemName` fields (conditional visibility) to Inventory Items.
-    *   Add `InventoryCategory` functionality (display as pill tags, enable filtering) to inventory and pricelist.
-    *   Enhance inventory table with search, advanced filtering, pagination, and sorting.
+    *   Add editable `quantityOnHand` column to inventory table with quick adjustment mutation. **[PENDING]**
+    *   Implement conditional UI hiding for `vendorSku` and `vendorItemName` based on `itemType` in `InventoryItemForm`. **[PENDING]**
+    *   Display new fields (`leadTimeDays`, `vendorSku`, `vendorItemName`) in the inventory list table. **[PENDING]**
+    *   Add `InventoryCategory` functionality (display as pill tags, enable filtering) to inventory and pricelist views/tables. **[PENDING]**
+    *   Enhance inventory table with search, advanced filtering, pagination, and sorting (similar to CustomerTable). **[PENDING]**
 2.  **Production Kanban/Table Enhancements:**
     *   Implement BOM information view within Kanban cards/table rows.
 3.  **Customer Module Enhancements:**

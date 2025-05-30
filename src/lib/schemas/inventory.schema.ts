@@ -86,6 +86,7 @@ export const listInventoryItemsSchema = z.object({
   perPage: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional(),
   itemType: z.nativeEnum(ItemType).optional(), // NEW
+  inventoryCategoryId: z.string().cuid("Invalid category ID").optional(), // ADDED for filtering
   sortBy: z.enum(['sku', 'name', 'quantityOnHand', 'costPrice', 'createdAt']).default('name'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
 });

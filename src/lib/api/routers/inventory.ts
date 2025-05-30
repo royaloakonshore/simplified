@@ -21,7 +21,7 @@ export const inventoryRouter = createTRPCRouter({
   list: protectedProcedure
     .input(listInventoryItemsSchema)
     .query(async ({ input }) => {
-      const { search, itemType, sortBy, sortDirection, page = 1, perPage = 10 } = input;
+      const { search, itemType, inventoryCategoryId, sortBy, sortDirection, page = 1, perPage = 10 } = input;
 
       const whereClause: Prisma.InventoryItemWhereInput = {};
       if (search) {
@@ -33,6 +33,9 @@ export const inventoryRouter = createTRPCRouter({
       }
       if (itemType) {
         whereClause.itemType = itemType;
+      }
+      if (inventoryCategoryId) {
+        whereClause.inventoryCategoryId = inventoryCategoryId;
       }
 
       const orderBy: Prisma.InventoryItemOrderByWithRelationInput = { [sortBy]: sortDirection };
@@ -262,27 +265,11 @@ export const inventoryRouter = createTRPCRouter({
             ...itemData,
             quantityOnHand: new Prisma.Decimal(quantityOnHand ?? 0),
           },
-          select: {
-            id: true, sku: true, name: true, description: true, unitOfMeasure: true,
-            costPrice: true, salesPrice: true, itemType: true, minimumStockLevel: true,
-            reorderLevel: true, qrIdentifier: true, defaultVatRatePercent: true,
-            showInPricelist: true, internalRemarks: true, inventoryCategoryId: true,
-            leadTimeDays: true, vendorSku: true, vendorItemName: true, quantityOnHand: true,
-            createdAt: true, updatedAt: true, companyId: true, supplierId: true,
-          }
         });
 
         const itemWithQr = await tx.inventoryItem.update({
           where: { id: newItem.id },
           data: { qrIdentifier: `ITEM:${newItem.id}` },
-          select: {
-            id: true, sku: true, name: true, description: true, unitOfMeasure: true,
-            costPrice: true, salesPrice: true, itemType: true, minimumStockLevel: true,
-            reorderLevel: true, qrIdentifier: true, defaultVatRatePercent: true,
-            showInPricelist: true, internalRemarks: true, inventoryCategoryId: true,
-            leadTimeDays: true, vendorSku: true, vendorItemName: true, quantityOnHand: true,
-            createdAt: true, updatedAt: true, companyId: true, supplierId: true,
-          }
         });
 
         if (quantityOnHand !== null && quantityOnHand !== undefined && quantityOnHand !== 0) {
@@ -296,16 +283,24 @@ export const inventoryRouter = createTRPCRouter({
           });
         }
 
+        // Refetch the full item to ensure all fields are present for the return
+        const finalCreatedItem = await tx.inventoryItem.findUnique({
+          where: {id: itemWithQr.id},
+          include: { inventoryCategory: true } // Include category if needed for return consistency
+        });
+
+        if (!finalCreatedItem) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve created item after QR update.'});
+        }
+
         return {
-            ...itemWithQr,
-            costPrice: itemWithQr.costPrice.toString(),
-            salesPrice: itemWithQr.salesPrice.toString(),
-            minimumStockLevel: itemWithQr.minimumStockLevel.toString(),
-            reorderLevel: itemWithQr.reorderLevel?.toString() ?? null,
-            quantityOnHand: itemWithQr.quantityOnHand.toString(),
-            leadTimeDays: itemWithQr.leadTimeDays,
-            vendorSku: itemWithQr.vendorSku,
-            vendorItemName: itemWithQr.vendorItemName,
+            ...finalCreatedItem,
+            costPrice: finalCreatedItem.costPrice.toString(),
+            salesPrice: finalCreatedItem.salesPrice.toString(),
+            minimumStockLevel: finalCreatedItem.minimumStockLevel.toString(),
+            reorderLevel: finalCreatedItem.reorderLevel?.toString() ?? null,
+            quantityOnHand: finalCreatedItem.quantityOnHand.toString(),
+            // leadTimeDays, vendorSku, vendorItemName should be directly on finalCreatedItem
         };
       });
     }),
@@ -344,14 +339,6 @@ export const inventoryRouter = createTRPCRouter({
             ...dataToUpdate,
             ...(quantityOnHand !== undefined && { quantityOnHand: new Prisma.Decimal(quantityOnHand) }),
           },
-          select: {
-            id: true, sku: true, name: true, description: true, unitOfMeasure: true,
-            costPrice: true, salesPrice: true, itemType: true, minimumStockLevel: true,
-            reorderLevel: true, qrIdentifier: true, defaultVatRatePercent: true,
-            showInPricelist: true, internalRemarks: true, inventoryCategoryId: true,
-            leadTimeDays: true, vendorSku: true, vendorItemName: true, quantityOnHand: true,
-            createdAt: true, updatedAt: true, companyId: true, supplierId: true,
-          }
         });
 
         if (quantityOnHand !== undefined && quantityOnHand !== null) {
@@ -376,16 +363,22 @@ export const inventoryRouter = createTRPCRouter({
         });
         const finalActualQOH = finalTransactions._sum.quantity ?? new Prisma.Decimal(0);
 
+        // Refetch the full item
+        const finalUpdatedItem = await tx.inventoryItem.findUnique({
+            where: {id: itemBeingUpdated.id},
+            include: { inventoryCategory: true }
+        });
+        if (!finalUpdatedItem) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve updated item.'});
+        }
+
         return {
-            ...itemBeingUpdated,
-            costPrice: itemBeingUpdated.costPrice.toString(),
-            salesPrice: itemBeingUpdated.salesPrice.toString(),
-            minimumStockLevel: itemBeingUpdated.minimumStockLevel.toString(),
-            reorderLevel: itemBeingUpdated.reorderLevel?.toString() ?? null,
-            quantityOnHand: finalActualQOH.toString(),
-            leadTimeDays: itemBeingUpdated.leadTimeDays,
-            vendorSku: itemBeingUpdated.vendorSku,
-            vendorItemName: itemBeingUpdated.vendorItemName,
+            ...finalUpdatedItem,
+            costPrice: finalUpdatedItem.costPrice.toString(),
+            salesPrice: finalUpdatedItem.salesPrice.toString(),
+            minimumStockLevel: finalUpdatedItem.minimumStockLevel.toString(),
+            reorderLevel: finalUpdatedItem.reorderLevel?.toString() ?? null,
+            quantityOnHand: finalActualQOH.toString(), // Use calculated QOH
         };
       });
     }),
@@ -507,14 +500,7 @@ export const inventoryRouter = createTRPCRouter({
         
         const finalItem = await tx.inventoryItem.findUnique({ 
             where: { id: itemId },
-            select: {
-                id: true, sku: true, name: true, description: true, unitOfMeasure: true,
-                costPrice: true, salesPrice: true, itemType: true, minimumStockLevel: true,
-                reorderLevel: true, qrIdentifier: true, defaultVatRatePercent: true,
-                showInPricelist: true, internalRemarks: true, inventoryCategoryId: true,
-                leadTimeDays: true, vendorSku: true, vendorItemName: true, quantityOnHand: true,
-                createdAt: true, updatedAt: true, companyId: true, supplierId: true,
-            }
+            include: { inventoryCategory: true }
         });
         if (!finalItem) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to refetch item after scan adjustment." });
 
@@ -525,9 +511,6 @@ export const inventoryRouter = createTRPCRouter({
             minimumStockLevel: finalItem.minimumStockLevel.toString(),
             reorderLevel: finalItem.reorderLevel?.toString() ?? null,
             quantityOnHand: finalItem.quantityOnHand.toString(),
-            leadTimeDays: finalItem.leadTimeDays,
-            vendorSku: finalItem.vendorSku,
-            vendorItemName: finalItem.vendorItemName,
         };
       });
     }),
@@ -636,7 +619,7 @@ export const inventoryRouter = createTRPCRouter({
       itemId: z.string().cuid(),
       newQuantityOnHand: z.number(),
       originalQuantityOnHand: z.number(),
-      note: z.string().optional().default("Quick adjustment from table"),
+      note: z.string().nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { itemId, newQuantityOnHand, originalQuantityOnHand, note } = input;
@@ -656,17 +639,9 @@ export const inventoryRouter = createTRPCRouter({
             });
         }
 
-        const updatedItemWithQOH = await tx.inventoryItem.update({
+        await tx.inventoryItem.update({
             where: { id: itemId },
             data: { quantityOnHand: new Prisma.Decimal(newQuantityOnHand) },
-            select: {
-                id: true, sku: true, name: true, description: true, unitOfMeasure: true,
-                costPrice: true, salesPrice: true, itemType: true, minimumStockLevel: true,
-                reorderLevel: true, qrIdentifier: true, defaultVatRatePercent: true,
-                showInPricelist: true, internalRemarks: true, inventoryCategoryId: true,
-                leadTimeDays: true, vendorSku: true, vendorItemName: true, quantityOnHand: true,
-                createdAt: true, updatedAt: true, companyId: true, supplierId: true,
-            }
         });
         
         const finalTransactions = await tx.inventoryTransaction.aggregate({
@@ -675,16 +650,23 @@ export const inventoryRouter = createTRPCRouter({
         });
         const finalActualQOH = finalTransactions._sum.quantity ?? new Prisma.Decimal(0);
 
+        // Refetch the full item
+        const finalAdjustedItem = await tx.inventoryItem.findUnique({
+            where: {id: itemId},
+            include: {inventoryCategory: true}
+        });
+
+        if (!finalAdjustedItem) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve item after quick adjustment.'});
+        }
+
         return {
-            ...updatedItemWithQOH,
-            costPrice: updatedItemWithQOH.costPrice.toString(),
-            salesPrice: updatedItemWithQOH.salesPrice.toString(),
-            minimumStockLevel: updatedItemWithQOH.minimumStockLevel.toString(),
-            reorderLevel: updatedItemWithQOH.reorderLevel?.toString() ?? null,
-            quantityOnHand: finalActualQOH.toString(),
-            leadTimeDays: updatedItemWithQOH.leadTimeDays,
-            vendorSku: updatedItemWithQOH.vendorSku,
-            vendorItemName: updatedItemWithQOH.vendorItemName,
+            ...finalAdjustedItem,
+            costPrice: finalAdjustedItem.costPrice.toString(),
+            salesPrice: finalAdjustedItem.salesPrice.toString(),
+            minimumStockLevel: finalAdjustedItem.minimumStockLevel.toString(),
+            reorderLevel: finalAdjustedItem.reorderLevel?.toString() ?? null,
+            quantityOnHand: finalActualQOH.toString(), // Use calculated QOH from transactions
         };
       });
     }),
@@ -694,5 +676,35 @@ export const inventoryRouter = createTRPCRouter({
       return prisma.inventoryCategory.findMany({
         orderBy: { name: 'asc' },
       });
+    }),
+
+  getReplenishmentAlerts: protectedProcedure
+    .query(async ({ ctx }) => {
+      const items = await prisma.inventoryItem.findMany({
+        where: {
+          OR: [
+            {
+              quantityOnHand: { lt: prisma.inventoryItem.fields.reorderLevel },
+              reorderLevel: { not: null },
+            },
+            {
+              quantityOnHand: { lt: prisma.inventoryItem.fields.minimumStockLevel },
+            },
+          ],
+        },
+        orderBy: [
+          { itemType: 'asc' }, 
+          { name: 'asc' },
+        ],
+      });
+
+      // Convert Decimal fields to strings for client
+      return items.map(item => ({
+        ...item,
+        quantityOnHand: item.quantityOnHand.toString(),
+        reorderLevel: item.reorderLevel?.toString() ?? null,
+        minimumStockLevel: item.minimumStockLevel.toString(),
+        // leadTimeDays, vendorSku, vendorItemName, unitOfMeasure will be on item directly
+      }));
     }),
 }); 

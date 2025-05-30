@@ -247,7 +247,7 @@ This plan will be used to guide the next steps in development.
 
 ### 8.2. In-Table Editing for Inventory
 
-**Requirement:** Enable direct in-table editing for key fields in the Inventory list view, specifically for `quantity`, `purchasePrice`, and `salesPrice`.
+**Requirement:** Enable direct in-table editing for key fields in the Inventory list view, specifically for `quantity`, `purchasePrice`, and `salesPrice`. **[PENDING - Note: `quantityOnHand` is now directly editable in the `InventoryItemForm`. The schema, form, and tRPC backend also support new fields: `leadTimeDays`, `vendorSku`, `vendorItemName`.]**
 
 **UI Changes:**
 - Modify the inventory table (likely using a component like TanStack Table) to make specified cells editable.
