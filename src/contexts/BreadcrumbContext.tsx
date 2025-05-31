@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 
 // Re-define or import if already defined elsewhere and accessible
 export interface BreadcrumbSegment {
@@ -19,13 +19,13 @@ const BreadcrumbContext = createContext<BreadcrumbContextType | undefined>(undef
 export const BreadcrumbProvider = ({ children }: { children: ReactNode }) => {
   const [breadcrumbSegments, setBreadcrumbSegmentsState] = useState<BreadcrumbSegment[]>([]);
 
-  const setBreadcrumbSegments = (segments: BreadcrumbSegment[]) => {
+  const setBreadcrumbSegments = useCallback((segments: BreadcrumbSegment[]) => {
     setBreadcrumbSegmentsState(segments);
-  };
+  }, [setBreadcrumbSegmentsState]);
 
-  const clearBreadcrumbSegments = () => {
+  const clearBreadcrumbSegments = useCallback(() => {
     setBreadcrumbSegmentsState([]);
-  };
+  }, [setBreadcrumbSegmentsState]);
 
   return (
     <BreadcrumbContext.Provider value={{ breadcrumbSegments, setBreadcrumbSegments, clearBreadcrumbSegments }}>
