@@ -125,3 +125,4 @@
 - Updated breadcrumbs to display invoice/order numbers instead of IDs using a new BreadcrumbContext.
 - Fixed 'Maximum update depth exceeded' error by memoizing context functions in `BreadcrumbContext` with `useCallback`.
 - Implemented initial UI structure for Bill of Materials (BOM) management, including list, add, and edit pages, and a reusable form component with dynamic item handling and tRPC integration. Adjusted inventory list calls to respect schema `perPage` limits. Encountered and attempted to fix a persistent build error related to PageProps typing for `src/app/(erp)/boms/[id]/page.tsx`.
+- Made `manufacturedItemId` optional in `BillOfMaterial` Prisma schema and Zod schema. Refactored `BOMForm` to use a table for selecting multiple raw material components. Attempted to update `bomRouter` to align with optional `manufacturedItemId`. Build currently failing due to a recurring PageProps type error in `src/app/(erp)/boms/[id]/page.tsx`.

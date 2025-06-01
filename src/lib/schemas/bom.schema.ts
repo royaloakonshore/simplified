@@ -13,7 +13,7 @@ export const UpsertBillOfMaterialSchema = z.object({
   name: z.string().min(1, { message: 'BOM name is required.' }),
   description: z.string().optional().nullable(),
   manualLaborCost: z.number().nonnegative({ message: 'Manual labor cost cannot be negative.' }),
-  manufacturedItemId: z.string().cuid({ message: 'Manufactured Item ID is required.' }), // The InventoryItem this BOM is for
+  manufacturedItemId: z.string().cuid({ message: 'Manufactured Item ID is required.' }).optional().nullable(), // Made optional and nullable
   items: z.array(BillOfMaterialItemSchema).min(1, { message: 'BOM must have at least one component item.' }),
   companyId: z.string().cuid({ message: 'Company ID is required.' }), // Assuming companyId is passed for now
 });

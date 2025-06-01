@@ -393,8 +393,8 @@ model BillOfMaterial {
   manualLaborCost     Decimal @default(0)
   totalCalculatedCost Decimal @default(0) // To be updated by application logic
 
-  manufacturedItemId String               @unique
-  manufacturedItem   InventoryItem        @relation("ManufacturedItemBOM", fields: [manufacturedItemId], references: [id], onDelete: Cascade)
+  manufacturedItemId String?              @unique // Made optional
+  manufacturedItem   InventoryItem?       @relation("ManufacturedItemBOM", fields: [manufacturedItemId], references: [id], onDelete: Cascade)
   items              BillOfMaterialItem[]
 
   companyId String?

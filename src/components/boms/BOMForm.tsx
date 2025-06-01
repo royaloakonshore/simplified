@@ -1,6 +1,7 @@
 'use client';
 
-import { useForm, SubmitHandler, useFieldArray } from 'react-hook-form';
+import * as React from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpsertBillOfMaterialSchema, UpsertBillOfMaterialInput, BillOfMaterialItemInput } from '@/lib/schemas/bom.schema';
 import { Button } from "@/components/ui/button";
@@ -19,14 +20,13 @@ import { api } from "@/lib/trpc/react";
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { RawMaterialSelectionTable, RawMaterialRow } from '@/components/boms/RawMaterialSelectionTable';
 
 // Type for inventory items passed as props (simplified for select)
 interface SelectableInventoryItem {
   id: string;
   name: string;
   sku?: string | null;
-  // Add other fields if needed for display in combobox
 }
 
 export interface BOMFormProps {
@@ -36,62 +36,77 @@ export interface BOMFormProps {
   companyId: string;
 }
 
-// Default values for a new BOM item
-const defaultBomItemValue: BillOfMaterialItemInput = {
-  componentItemId: '',
-  quantity: 1,
-};
-
 export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyId }: BOMFormProps) {
   const router = useRouter();
+
+  // State to manage selected BOM items from the table
+  const [selectedBomItems, setSelectedBomItems] = React.useState<BillOfMaterialItemInput[]>(() => {
+    return initialData?.items?.map(item => ({
+      componentItemId: item.componentItemId,
+      // Ensure quantity is a number for the form
+      quantity: typeof item.quantity === 'object' && item.quantity !== null && 'toNumber' in item.quantity
+                ? (item.quantity as any).toNumber()
+                : Number(item.quantity) || 1 // Default to 1 if undefined/null/0 after Number conversion
+    })) || [];
+  });
   
-  const defaultFormValues: UpsertBillOfMaterialInput = {
+  const defaultFormValues: Omit<UpsertBillOfMaterialInput, 'items'> = {
     id: initialData?.id,
     name: initialData?.name || '',
     description: initialData?.description || '',
     manualLaborCost: initialData?.manualLaborCost || 0,
-    manufacturedItemId: initialData?.manufacturedItemId || '',
-    items: initialData?.items && initialData.items.length > 0 
-           ? initialData.items.map(item => ({ 
-               ...item, 
-               // Ensure quantity is a number for the form, Prisma Decimal might be an object
-               quantity: typeof item.quantity === 'object' && item.quantity !== null && 'toNumber' in item.quantity 
-                         ? (item.quantity as any).toNumber() 
-                         : Number(item.quantity) 
-             })) 
-           : [defaultBomItemValue],
+    manufacturedItemId: initialData?.manufacturedItemId || undefined, // Use undefined for optional combobox
     companyId: initialData?.companyId || companyId,
   };
 
   const form = useForm<UpsertBillOfMaterialInput>({
     resolver: zodResolver(UpsertBillOfMaterialSchema),
-    defaultValues: defaultFormValues,
+    defaultValues: {
+        ...defaultFormValues,
+        items: selectedBomItems, // Initialize form's items with state
+    },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "items",
-  });
+  // Watch for changes in selectedBomItems and update the form value for validation
+  React.useEffect(() => {
+    form.setValue('items', selectedBomItems, { shouldValidate: true, shouldDirty: true });
+  }, [selectedBomItems, form]);
 
   const upsertBOMMutation = api.bom.upsert.useMutation({
     onSuccess: (data) => {
       toast.success(`BOM "${data.name}" ${initialData?.id ? 'updated' : 'created'} successfully!`);
-      router.push('/boms'); // Redirect to BOM list page
-      // Optionally, redirect to the detail page: router.push(`/boms/${data.id}`);
+      router.push('/boms'); 
     },
     onError: (error) => {
       toast.error(`Error: ${error.message}`);
+      // Log detailed validation errors if available
+      if (error.data?.zodError?.fieldErrors) {
+        console.error("Zod Validation Errors:", error.data.zodError.fieldErrors);
+        // Potentially display these to the user in a more structured way
+        Object.entries(error.data.zodError.fieldErrors).forEach(([field, errors]) => {
+          if (Array.isArray(errors)) {
+            errors.forEach(msg => toast.error(`${field}: ${msg}`));
+          }
+        });
+      }
     },
   });
 
   const onSubmit: SubmitHandler<UpsertBillOfMaterialInput> = (values) => {
-    // Ensure companyId is part of the submission if not already handled by schema default/context
-    const submissionValues = { ...values, companyId }; 
-    upsertBOMMutation.mutate(submissionValues);
+    // 'values' from react-hook-form should already include the 'items' field
+    // updated by the useEffect hook when selectedBomItems changes.
+    // We directly use 'values' as it should be in the correct shape.
+    upsertBOMMutation.mutate(values);
   };
   
   const manufacturedItemOptions = manufacturedItems.map(item => ({ value: item.id, label: `${item.name} (${item.sku || 'N/A'})` }));
-  const rawMaterialOptions = rawMaterials.map(item => ({ value: item.id, label: `${item.name} (${item.sku || 'N/A'})` }));
+  
+  // Map rawMaterials for the RawMaterialSelectionTable
+  const tableRawMaterials: RawMaterialRow[] = rawMaterials.map(item => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+  }));
 
   return (
     <Form {...form}>
@@ -129,10 +144,10 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
           name="manufacturedItemId"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Manufactured Item</FormLabel>
+              <FormLabel>Manufactured Item (Optional)</FormLabel>
               <ComboboxResponsive
                 options={manufacturedItemOptions}
-                selectedValue={field.value}
+                selectedValue={field.value || ''} // Handle undefined/null from optional schema
                 onSelectedValueChange={field.onChange}
                 placeholder="Select manufactured item..."
                 searchPlaceholder="Search items..."
@@ -144,52 +159,23 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
 
         <div>
           <h3 className="text-lg font-medium mb-2">Component Items</h3>
-          {fields.map((field, index) => (
-            <div key={field.id} className="flex items-end gap-4 p-4 mb-2 border rounded-md">
-              <FormField
-                control={form.control}
-                name={`items.${index}.componentItemId`}
-                render={({ field: itemField }) => (
-                  <FormItem className="flex-grow">
-                    <FormLabel>Component Item #{index + 1}</FormLabel>
-                    <ComboboxResponsive
-                      options={rawMaterialOptions}
-                      selectedValue={itemField.value}
-                      onSelectedValueChange={itemField.onChange}
-                      placeholder="Select raw material..."
-                      searchPlaceholder="Search materials..."
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`items.${index}.quantity`}
-                render={({ field: itemField }) => (
-                  <FormItem>
-                    <FormLabel>Quantity</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="1" {...itemField} onChange={e => itemField.onChange(parseFloat(e.target.value) || 0)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="button" variant="outline" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+          <RawMaterialSelectionTable
+            allRawMaterials={tableRawMaterials}
+            selectedItems={selectedBomItems}
+            onSelectedItemsChange={setSelectedBomItems}
+          />
+          {/* Display validation error for items array if any */}
+          {form.formState.errors.items?.message && (
+            <p className="text-sm font-medium text-destructive">{form.formState.errors.items.message}</p>
+          )}
+           {/* Display validation error for individual items if type is array and has errors */}
+          {Array.isArray(form.formState.errors.items) && form.formState.errors.items.map((error, index) => (
+            error && (
+                <p key={index} className="text-sm font-medium text-destructive">
+                    Component #{index + 1}: {error.componentItemId?.message || error.quantity?.message}
+                </p>
+            )
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append(defaultBomItemValue)}
-            className="mt-2"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Component
-          </Button>
         </div>
 
         <FormField
