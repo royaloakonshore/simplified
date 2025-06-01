@@ -124,3 +124,4 @@
 - Implemented UI enhancements on Invoice Detail page: separated billing/shipping addresses, improved item table padding, added notes section, restyled action buttons, and grouped some into a dropdown.
 - Updated breadcrumbs to display invoice/order numbers instead of IDs using a new BreadcrumbContext.
 - Fixed 'Maximum update depth exceeded' error by memoizing context functions in `BreadcrumbContext` with `useCallback`.
+- Implemented initial UI structure for Bill of Materials (BOM) management, including list, add, and edit pages, and a reusable form component with dynamic item handling and tRPC integration. Adjusted inventory list calls to respect schema `perPage` limits. Encountered and attempted to fix a persistent build error related to PageProps typing for `src/app/(erp)/boms/[id]/page.tsx`.

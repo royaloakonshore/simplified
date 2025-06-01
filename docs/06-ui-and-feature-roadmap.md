@@ -217,4 +217,51 @@ This roadmap provides a structured approach to these enhancements.
 *   **Loading States:** Implement appropriate loading skeletons or indicators for each dashboard section while data is being fetched. The current placeholder components serve as a basic visual.
 *   **Error Handling:** Gracefully handle errors if data fetching fails for any section, displaying informative messages.
 *   **Responsiveness:** Ensure the entire dashboard layout and its components are responsive across different screen sizes.
-*   **Permissions:** Dashboard data should respect user roles and permissions if certain metrics are sensitive (though initially, assume all authenticated users within a company can see the full dashboard). 
+*   **Permissions:** Dashboard data should respect user roles and permissions if certain metrics are sensitive (though initially, assume all authenticated users within a company can see the full dashboard).
+
+## Phase 3: Core Feature Enhancements (Near-Term)
+
+-   **Invoice Actions Refactor:**
+    -   **Description:** Consolidate invoice actions (status changes, export PDF/XML, copy, credit note) into a unified dropdown menu on both the invoice detail page and invoice list rows. Remove redundant buttons.
+    -   **Priority:** High
+    -   **Status:** Planned
+-   **Orders Table Enhancements:**
+    -   **Description:** Add VAT Amount and Order Type (Quote/Work Order pill) columns to the Orders table. Implement multi-select checkboxes and sorting for new columns.
+    -   **Priority:** High
+    -   **Status:** Planned
+-   **Free Text Tags (Inventory & BOM):**
+    -   **Description:** Allow users to add searchable free-text tags to Inventory Items and Bills of Materials for better categorization and searching.
+    -   **Priority:** Medium
+    -   **Status:** Planned
+
+## Phase 4: Advanced Inventory & Product Management (Mid-Term)
+
+-   **Bill of Material (BOM) Variants:**
+    -   **Description:** Implement functionality for creating and managing product variants from a template BOM. This includes defining variant attributes, auto-generating variant SKUs (editable), and copying the template BOM to new variants for further modification.
+    -   **Priority:** Medium-High (Core for manufacturing)
+    -   **Status:** Planned
+    -   **Notes:** Requires careful data modeling and workflow design, drawing inspiration from ERPNext.
+-   **Inventory Data Management via Excel Import/Export:**
+    -   **Description:** Enable users to export the inventory list to Excel, make bulk changes or add new items in the Excel file, and import it back to update inventory records, with robust validation and a preview/confirmation step.
+    -   **Priority:** Medium
+    -   **Status:** Planned
+    -   **Notes:** Library `Siemienik/XToolset` identified for consideration. Focus on data integrity and user safeguards.
+
+## Phase 5: Future Considerations & Polish (Long-Term)
+
+-   **Advanced BOM Variant Attribute System:** 
+    -   **Description:** If the initial JSON-based attribute system for BOM variants proves limiting, consider a more structured approach (e.g., separate `ItemAttribute` models) for better querying, management, and definition of attribute types.
+    -   **Priority:** Low-Medium
+    -   **Status:** Idea
+-   **Batch Actions for Orders:**
+    -   **Description:** Based on the multi-select functionality in the Orders table, implement useful batch actions (e.g., batch status update, batch export).
+    -   **Priority:** Low-Medium
+    -   **Status:** Idea
+-   **Enhanced PDF Generation Options/Templates:**
+    -   **Description:** Provide more customization or templates for PDF exports (invoices, orders, etc.). Investigate a shared PDF templating engine.
+    -   **Priority:** Low
+    -   **Status:** Idea
+-   **Excel Import Safeguards - Advanced:**
+    -   **Description:** For Excel inventory import, explore advanced safeguards like data versioning or temporary staging areas for easier rollback, especially for very large datasets or critical updates.
+    -   **Priority:** Low
+    -   **Status:** Idea 

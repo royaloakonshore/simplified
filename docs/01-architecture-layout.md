@@ -148,3 +148,152 @@ The schema includes `InventoryItem.defaultVatRatePercent`. `quantityOnHand` is d
 9.  **Implement Stock Alert Display.**
 10. **Prioritize Build Health:** Maintain passing `npm run build` and clean `npx tsc --noEmit` throughout development. **[Currently Stable]**
 11. **Comprehensive Testing & UI/UX Refinement.**
+
+## 5. Data Model Enhancements (Prisma Schema)
+
+This section outlines planned additions and modifications to the Prisma schema to support new features.
+
+### 5.1. `InventoryItem` Model Enhancements
+
+```prisma
+// Existing InventoryItem fields ...
+
+// For Free Text Tags
+tags String[] @default([])
+
+// For BOM Variants
+hasVariants Boolean @default(false) // Applicable if itemType is MANUFACTURED_GOOD
+isVariant Boolean @default(false)
+templateItemId String? // Foreign key to self-referencing relation for variants
+variantAttributes Json? // Stores specific attribute combination, e.g., {"Color": "Red", "Size": "M"}
+
+// Relation for template item and its variants
+templateItem InventoryItem? @relation("ItemVariants", fields: [templateItemId], references: [id], onDelete: Nullify, onUpdate: Cascade)
+variants InventoryItem[] @relation("ItemVariants")
+
+// companyId and userId as before
+// timestamps as before
+```
+
+### 5.2. `BillOfMaterial` Model Enhancements
+
+```prisma
+// Existing BillOfMaterial fields ...
+
+// For Free Text Tags
+tags String[] @default([])
+
+// manufacturedItemId, items, companyId, userId etc. as before
+// timestamps as before
+```
+
+## 6. API Design Enhancements (tRPC Routers)
+
+### 6.1. `invoiceRouter`
+
+-   **`actions.updateStatus (input: { id: string; status: PrismaInvoiceStatus })`**
+    -   Modify to ensure that if `status` is set to `PAID`, the backend logic correctly records payment details (e.g., sets `paymentDate`, updates `paidAmount`).
+-   **`actions.exportPdf (input: { id: string })` (New)**
+    -   **Description:** Generates a PDF document for the specified invoice.
+    -   **Logic:** Fetches invoice details (customer, items, totals). Uses a service (potentially Puppeteer, similar to existing QR code PDF generation) to render an HTML template of the invoice into a PDF.
+    -   **Returns:** Base64 encoded string of the PDF or necessary data for client-side download.
+-   **`actions.copyInvoice (input: { id: string })` (New)**
+    -   **Description:** Creates a new draft invoice based on an existing one.
+    -   **Logic:** 
+        1.  Fetches the details of the source invoice (`id`).
+        2.  Creates a new invoice record with status `DRAFT`.
+        3.  Copies customer information, line items (description, quantity, unit price, VAT rate), and other relevant fields.
+        4.  Generates a new `invoiceNumber`.
+        5.  Sets new `invoiceDate` (e.g., today) and `dueDate` (e.g., today + default payment terms).
+    -   **Returns:** The newly created invoice object or its ID.
+
+### 6.2. `orderRouter`
+
+-   **`list (input: ListOrdersSchema)`**
+    -   Modify input schema (`ListOrdersSchema`) to accept sorting parameters for `vatAmount` (if calculated and returned) and `orderType`.
+    -   Ensure the procedure returns `vatAmount` and `orderType` for each order in the list.
+
+### 6.3. `inventoryRouter`
+
+-   **CRUD Operations (`create`, `update`, `getById`)**
+    -   Modify input schemas and logic to handle new `InventoryItem` fields: `tags`, `hasVariants`, `isVariant`, `templateItemId`, `variantAttributes`.
+-   **`list (input: ListInventoryItemsSchema)`**
+    -   Modify input schema to include filtering/searching by `tags`.
+    -   Update Prisma query to search within the `tags` array (e.g., using `array_contains` or similar, depending on DB and Prisma capabilities for array searching).
+-   **`createVariant (input: { templateItemId: string; attributes: Json; sku?: string })` (New)**
+    -   **Description:** Creates a new variant `InventoryItem` and its associated `BillOfMaterial` based on a template item.
+    -   **Logic:**
+        1.  Validate that `templateItemId` refers to an existing `InventoryItem` where `itemType` is `MANUFACTURED_GOOD` and `hasVariants` is (or can be set to) `true`.
+        2.  Generate/validate the SKU for the new variant (user-provided or auto-generated from template SKU + attributes).
+        3.  Create the new variant `InventoryItem` record, setting `isVariant = true`, linking `templateItemId`, and storing `variantAttributes` and the new SKU.
+        4.  Fetch the `BillOfMaterial` associated with the `templateItemId`.
+        5.  Create a new `BillOfMaterial` record, copying items and details from the template BOM, and associating it with the newly created variant `InventoryItem`.
+    -   **Returns:** The new variant `InventoryItem` object, possibly including its new `BillOfMaterial`.
+-   **`exportInventoryExcel ()` (New)**
+    -   **Description:** Exports all inventory items to an Excel-compatible format.
+    -   **Logic:** Fetches all inventory items with all relevant fields. Formats this data into a structure (e.g., array of arrays, or array of objects) suitable for an Excel generation library.
+    -   **Returns:** Data for Excel generation (e.g., base64 string of the file, or a structure the client can use with a library like `xlsx-renderer`).
+-   **`previewImportInventoryExcel (input: { fileContentBase64: string })` (New)**
+    -   **Description:** Parses an uploaded Excel file, validates its content against inventory data, and returns a preview of changes.
+    -   **Logic (using `xlsx-import` from `Siemienik/XToolset`):
+        1.  Decode `fileContentBase64` to a buffer.
+        2.  Use `xlsx-import` to parse the buffer into a JavaScript array of objects, based on a predefined mapping configuration (column headers to `InventoryItem` fields).
+        3.  For each parsed row:
+            a.  Perform data type validation and business rule validation (e.g., required fields, valid `ItemType`, non-negative prices).
+            b.  If SKU exists, compare row data with the existing `InventoryItem` in the database to identify changes.
+            c.  If SKU does not exist, mark as a new item.
+    -   **Returns:** A structured object: `{ itemsToCreate: [], itemsToUpdate: [{ itemId: string, changes: { field: { oldValue, newValue } } }], errors: [{ rowIndex, field, message }] }`.
+-   **`applyImportInventoryExcel (input: { itemsToCreate: InventoryItemCreateInput[]; itemsToUpdate: InventoryItemUpdateInput[] })` (New)**
+    -   **Description:** Applies the validated and confirmed changes from an Excel import to the database.
+    -   **Logic:**
+        1.  Perform all database operations within a single Prisma transaction (`prisma.$transaction([...])`).
+        2.  For each item in `itemsToCreate`, create a new `InventoryItem`.
+        3.  For each item in `itemsToUpdate`, update the existing `InventoryItem`.
+    -   **Returns:** Success status and summary (e.g., `{ success: true, createdCount: number, updatedCount: number }`) or error details.
+
+### 6.4. `bomRouter`
+
+-   **CRUD Operations (`create`, `update`, `getById`)**
+    -   Modify input schemas and logic to handle the new `tags` field.
+-   **`list (input: ListBomSchema)`**
+    -   Modify input schema to include filtering/searching by `tags`.
+    -   Update Prisma query to search within the `tags` array.
+
+## 7. Frontend Architecture Considerations
+
+### 7.1. Key Component Modifications
+
+-   **`InvoiceDetail.tsx` & `InvoiceListContent.tsx` (or equivalent for invoice list rows):**
+    -   Refactor action buttons into a single, comprehensive dropdown menu component for all invoice actions (status changes, PDF export, copy, credit note, Finvoice export).
+-   **`OrderListContent.tsx` (or equivalent for order list):**
+    -   Add new columns for "VAT Amount" and "Order Type" (with pill/tag styling).
+    -   Implement multi-select checkbox functionality for rows.
+    -   Update data fetching and table configuration to support sorting by the new columns.
+-   **`InventoryItemForm.tsx`:**
+    -   Add a new input component for managing an array of `tags` (e.g., a multi-select combobox or a chip input field).
+    -   Add a "Has Variants" checkbox, visible if `itemType` is `MANUFACTURED_GOOD`.
+    -   Conditionally render a "Variants" tab/section if "Has Variants" is checked. This section will contain:
+        *   UI for defining/editing attributes applicable to variants of this template item.
+        *   A list of existing variant items linked to this template.
+        *   A button/flow to trigger the creation of a new variant (`inventoryRouter.createVariant`).
+-   **`BomForm.tsx`:**
+    -   Add a new input component for managing an array of `tags`.
+-   **Inventory List Page (`inventory/page.tsx` and its content component):**
+    -   Add "Export to Excel" button (triggers `inventoryRouter.exportInventoryExcel()` and handles download).
+    -   Add "Import from Excel" button (handles file upload).
+-   **`ExcelImportPreviewModal.tsx` (New Component):**
+    -   A modal dialog to display the preview data from `inventoryRouter.previewImportInventoryExcel()`.
+    -   Clearly shows items to be created, items to be updated (with diffs), and errors.
+    -   Provides "Confirm Import" and "Cancel" actions.
+
+### 7.2. State Management
+
+-   For BOM Variants attribute definition and Excel import preview, local component state or simple context might be sufficient. Complex global state is likely not needed for these specific features initially.
+
+## 8. External Libraries & Services
+
+-   **`Siemienik/XToolset` (`xlsx-import`, `xlsx-renderer`):**
+    -   **Purpose:** To be used for parsing uploaded Excel files (`xlsx-import`) during the inventory import process and for generating Excel files (`xlsx-renderer`) for the inventory export feature.
+    -   **Reference:** [https://github.com/Siemienik/XToolset](https://github.com/Siemienik/XToolset), [https://siemienik.com/docs/xlsx-import/](https://siemienik.com/docs/xlsx-import/)
+-   **Puppeteer (existing for QR codes):**
+    -   **Purpose:** Can be leveraged for server-side PDF generation for invoices ("Export Invoice PDF" feature) by rendering an HTML template of the invoice and converting it to PDF.

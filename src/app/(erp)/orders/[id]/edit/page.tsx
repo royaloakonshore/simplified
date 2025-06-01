@@ -7,19 +7,17 @@ import EditOrderFormLoader, { OrderFormSkeleton } from '@/components/orders/Edit
 
 // Define the expected props type for a dynamic route page
 type Props = {
-  params: Promise<{ id: string }>; // params is now a Promise
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>; // searchParams is also a Promise
+  params: { id: string }; // params should be an object
+  searchParams: { [key: string]: string | string[] | undefined }; // searchParams should be an object
 };
 
-// Use the defined Props type - make component async
-export default async function EditOrderPage({ params, searchParams }: Props) {
-  // Await params before accessing its properties
-  const resolvedParams = await params;
-  const orderId = resolvedParams.id;
-  // You would also await searchParams if you were using it:
-  // const resolvedSearchParams = await searchParams;
+// Component function signature might also need adjustment if it was awaiting these props
+// export default async function EditOrderPage({ params: paramsPromise, searchParams: searchParamsPromise }: Props) {
+// const params = await paramsPromise;
+// const searchParams = await searchParamsPromise;
 
-  if (!orderId) {
+export default async function EditOrderPage({ params, searchParams }: Props) {
+  if (!params.id) {
       notFound(); // Keep basic validation
   }
 
@@ -27,7 +25,7 @@ export default async function EditOrderPage({ params, searchParams }: Props) {
     <div className="container mx-auto py-8">
        <Suspense fallback={<OrderFormSkeleton />}>
           {/* Render the loader component */}
-          <EditOrderFormLoader orderId={orderId} /> 
+          <EditOrderFormLoader orderId={params.id} /> 
        </Suspense>
     </div>
     );

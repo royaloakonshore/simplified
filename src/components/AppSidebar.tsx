@@ -12,6 +12,10 @@ import {
     Settings as SettingsIcon, // Renamed to avoid conflict
     Building2, // For placeholder team switcher
     QrCode as QrCodeIcon, // Added QrCodeIcon
+    // Use a placeholder icon for now, will confirm a better one later.
+    // ListChecks, // Potential icon
+    // GanttChartSquare, // Potential icon
+    // ClipboardList, // Potential icon
     type LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -99,6 +103,8 @@ const mainNavItemsData: NavItemDefinition[] = [
     },
     { title: 'Production', url: '/production', icon: Truck, isCollapsible: false },
     { title: 'Scan', url: '/scan', icon: QrCodeIcon, isCollapsible: false }, // Added Scan page
+    // Add new BOM navigation item here
+    { title: 'Bill of Materials', url: '/boms', icon: FileText, isCollapsible: false }, // Placeholder icon
     { title: 'Settings', url: '/settings', icon: SettingsIcon, isCollapsible: false },
 ];
 

@@ -105,3 +105,101 @@ The application has established user flows for core operations like login, profi
 8.  **Dashboard & Reporting Flows:** Define and implement user flows for accessing and interacting with dashboard metrics and reports.
 9.  **Build Health & Stability:** Maintain a clean build (`npm run build`) and TypeScript checks (`npx tsc --noEmit`) throughout development. **[Currently Stable]**
 10. **PDF Generation Access:** Ensure users can easily trigger and download PDF versions of Invoices, Orders, Pricelists, etc.
+
+## 3. Invoice Management Flows
+
+### 3.1. Updating Invoice Status (Detail Page)
+
+1.  **Navigate:** User navigates to a specific invoice detail page (e.g., `/invoices/[id]`).
+2.  **Open Actions:** User clicks the consolidated "Actions" dropdown menu (likely represented by a "More" icon).
+3.  **Select Status Change:** User selects a new status from the available transition options (e.g., "Mark as Paid", "Mark as Sent").
+4.  **System Processes:** 
+    - If "Mark as Paid" is selected, the system internally records the payment details (e.g., sets payment date, updates `paidAmount`) and then updates the invoice status to `PAID`.
+    - For other status changes, the system updates the invoice status directly.
+5.  **Feedback:** A toast notification confirms the successful status update (e.g., "Invoice status updated to PAID").
+6.  **UI Update:** The page re-renders or refreshes to reflect the new invoice status and any related information (like payment details).
+
+### 3.2. Performing Other Invoice Actions (Detail Page - e.g., Export PDF, Copy)
+
+1.  **Navigate & Open Actions:** User is on an invoice detail page and opens the "Actions" dropdown menu.
+2.  **Select Action:**
+    *   **Export PDF:** User selects "Export as PDF". The system generates a PDF representation of the invoice and initiates a browser download for the user.
+    *   **Copy Invoice:** User selects "Copy Invoice". The system creates a new invoice in `DRAFT` status, pre-filled with data from the current invoice (e.g., customer, line items, amounts - excluding dates like invoice date/due date which should be new). The user is then navigated to the edit page for this newly created draft invoice.
+    *   **Export Finvoice/Create Credit Note:** User selects these options, and existing flows are triggered.
+3.  **Feedback:** Toast notifications for success or error of the action.
+
+### 3.3. Performing Invoice Actions (List View)
+
+1.  **Navigate:** User navigates to the Invoices list page (`/invoices`).
+2.  **Locate & Open Actions:** User finds the desired invoice row in the table and clicks the "Actions" dropdown menu specific to that row.
+3.  **Select Action & Flow:** The user selects an action (e.g., "Mark as Paid", "Export PDF", "Copy Invoice"). The subsequent flow and system processing are identical to performing the action from the detail page (as described in 3.1 and 3.2).
+
+## 4. Order Management Flows
+
+### 4.1. Viewing Enhanced Order List
+
+1.  **Navigate:** User navigates to the Orders list page (`/orders`).
+2.  **View Table:** The orders table is displayed with the following key columns visible: Order Number, Customer Name, Order Date, Status, Order Type (rendered as a distinct visual pill, e.g., "Quote" or "Work Order"), Total Amount, and VAT Amount.
+3.  **Sort Data:** User can click on the column headers for "Order Type" and "VAT Amount" (and other existing sortable columns) to sort the table data accordingly.
+4.  **Multi-Select:** User sees a checkbox at the beginning of each order row. Clicking these checkboxes allows the user to select/deselect multiple orders, visually indicating selection. (Batch actions based on this selection are a future enhancement).
+
+## 5. Inventory & BOM Management Flows
+
+### 5.1. Managing Tags (Inventory Items & BOMs)
+
+1.  **Access Form:** User navigates to the form for creating a new or editing an existing Inventory Item or Bill of Material.
+2.  **Edit Tags:** User interacts with a "Tags" input field. This field should support adding multiple distinct text tags (e.g., via a tag-input component showing tags as pills, or by typing comma-separated values that are then parsed into tags).
+3.  **Save:** User saves the form. The entered tags are persisted with the inventory item or BOM.
+4.  **View Tags:** 
+    *   On the Inventory Item list, a "Tags" column displays the tags associated with each item, or tags are shown within a detail expansion area for the row.
+    *   On BOM list/detail views, associated tags are similarly displayed.
+5.  **Search by Tag:** User types a tag (or part of a tag) into the main search bar on the Inventory List page or BOM List page. The list filters to display only items/BOMs that have matching tags.
+
+### 5.2. Creating and Managing BOM Variants
+
+1.  **Enable Variants for Template Item:** 
+    *   User edits an existing `MANUFACTURED_GOOD` Inventory Item (this will become the "template item").
+    *   User checks the "Has Variants" checkbox on the form and saves the item.
+2.  **Access Variants Tab:** A "Variants" tab or section now appears on the template item's form/detail view. User navigates to this tab.
+3.  **Define Attributes (First-time for a template):** If no attributes are defined yet, the user is prompted to define attributes that will differentiate the variants (e.g., Attribute Name: "Color", possible Values: "Red, Blue, Green"; Attribute Name: "Size", possible Values: "S, M, L"). These attribute definitions are saved against the template item.
+4.  **Create New Variant:** 
+    *   User clicks an "Add Variant" or "Generate Variant" button within the "Variants" tab.
+    *   User is presented with options to select/input values for the defined attributes (e.g., Color: Red, Size: M).
+    *   The system suggests a SKU for the new variant item (e.g., `TEMPLATE_SKU-RED-M`). The user can review and edit this SKU.
+    *   User confirms the creation.
+5.  **System Creates Variant:**
+    *   A new `InventoryItem` (the variant) is created in the database. It is marked as a variant, linked to the template item, and its specific attribute combination (e.g., `{"Color": "Red", "Size": "M"}`) is stored.
+    *   A new `BillOfMaterial` is created for this variant item. The content of this new BOM is a direct copy of the BOM associated with the template item.
+6.  **Edit Variant BOM (Optional Immediate Step):** The user might be automatically navigated to the BOM form for the newly created variant's BOM, allowing them to make immediate modifications specific to this variant.
+7.  **View Variants:** The "Variants" tab on the template item's page updates to list all created variant items, showing their SKUs and distinguishing attributes. Users can click on a variant to view/edit its details or its specific BOM.
+
+### 5.3. Using Inventory Excel Import/Export
+
+1.  **Export Inventory:**
+    *   User navigates to the Inventory List page.
+    *   User clicks an "Export to Excel" button.
+    *   The browser initiates a download of an `.xlsx` file containing all current inventory items and their data, formatted with clear column headers.
+2.  **Modify Data in Excel:**
+    *   User opens the downloaded Excel file.
+    *   User makes changes: e.g., updates stock quantities, changes prices, corrects descriptions, or adds new rows at the end of the sheet for new inventory items, ensuring to follow the existing column structure.
+    *   User saves the modified Excel file.
+3.  **Import Inventory:**
+    *   User returns to the Inventory List page in the application.
+    *   User clicks an "Import from Excel" button.
+    *   A file selection dialog appears. User selects their modified `.xlsx` file.
+4.  **Preview Changes:**
+    *   The system uploads and parses the file.
+    *   A modal or dedicated preview page appears, displaying:
+        *   A summary: "X new items to be created", "Y existing items to be updated", "Z rows with errors".
+        *   A detailed list or table for items to be updated, highlighting the specific fields that have changed and showing old vs. new values.
+        *   A list of rows that will be created as new items.
+        *   A clear list of any rows from the Excel file that have validation errors (e.g., "Row 15: Invalid value for 'Item Type'.", "Row 22: 'Cost Price' cannot be negative."), explaining why they cannot be imported.
+    *   User reviews the preview carefully.
+5.  **Confirm and Apply:**
+    *   If satisfied with the preview (and understanding that rows with errors will be skipped), the user clicks an "Apply Changes" or "Confirm Import" button.
+    *   An option to "Cancel Import" is also present.
+6.  **System Processing:**
+    *   The system attempts to perform the database operations (creates and updates) within a single transaction.
+    *   If the transaction is successful, a toast notification confirms: "Inventory import successful. X items created, Y items updated."
+    *   If the transaction fails (due to an unexpected database error during the process), a toast notification indicates failure: "Inventory import failed. No changes were applied. Error: [error message]".
+    *   The Inventory List page should refresh to show the updated data.

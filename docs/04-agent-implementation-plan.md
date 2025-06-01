@@ -103,3 +103,96 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
 *   Advanced, customizable reporting.
 *   Comprehensive UI/UX polish.
 *   Admin User Management UI.
+
+## Feature: Invoice Actions Refactor
+
+**Goal:** Consolidate invoice actions into a single dropdown menu on detail and list views, add PDF export and Copy Invoice functionality.
+
+**Tasks:**
+1.  **Backend - PDF Export:** Define tRPC `invoiceRouter.actions.exportPdf` to generate PDF using Puppeteer.
+2.  **Backend - Copy Invoice:** Define tRPC `invoiceRouter.actions.copyInvoice` to duplicate an invoice as a new draft.
+3.  **Backend - Update Status Logic:** Ensure `invoiceRouter.actions.updateStatus` (or equivalent) correctly handles payment recording when status is set to `PAID`.
+4.  **Frontend - Detail Page (`InvoiceDetail.tsx`):** Remove existing "Update Status" and "Record Payment" buttons. Implement a single "Actions" dropdown menu containing all status transitions, "Create Credit Note", "Export Finvoice", "Export PDF", and "Copy Invoice".
+5.  **Frontend - List Page (`InvoiceListContent.tsx`):** Implement the identical "Actions" dropdown menu for each row in the invoice table.
+6.  **Testing:** Thoroughly test all actions from both the detail page and list view, including PDF generation, invoice copying, and status-dependent logic.
+
+## Feature: Orders Table Enhancements
+
+**Goal:** Improve the Orders table by adding VAT Amount and Order Type columns, multi-select checkboxes, and sorting for new columns.
+
+**Tasks:**
+1.  **Backend (`orderRouter.list`):** 
+    -   Modify the tRPC procedure to return `vatAmount` and `orderType` for each order.
+    -   Update the input schema to accept sorting parameters for these new fields.
+2.  **Frontend (`OrderListContent.tsx` or equivalent):
+    -   Add a new column to display "VAT Amount".
+    -   Add a new column to display "Order Type" as a visual pill/tag.
+    -   Implement row checkboxes for multi-select functionality.
+    -   Update table configuration and state management to enable sorting by "VAT Amount" and "Order Type".
+3.  **Testing:** Verify correct data display, distinct pill styling for order types, checkbox functionality, and accurate sorting for the new columns.
+
+## Feature: Free Text Tags (Inventory & BOM)
+
+**Goal:** Allow users to add searchable free-text tags to Inventory Items and Bills of Materials.
+
+**Tasks:**
+1.  **Database Schema:** Add `tags: String[] @default([])` to `InventoryItem` and `BillOfMaterial` models in `prisma/schema.prisma`. Run `npx prisma migrate dev`.
+2.  **Backend - Inventory (`inventoryRouter`):** Update `create`, `update`, `getById` procedures to handle the `tags` field. Modify the `list` procedure's search logic to include matching against tags.
+3.  **Backend - BOM (`bomRouter`):** Update `create`, `update`, `getById` procedures to handle the `tags` field. Modify the `list` procedure's search logic to include matching against tags.
+4.  **Frontend - Inventory Form (`InventoryItemForm.tsx`):** Add a suitable input component for managing tags (e.g., chip input, multi-select combobox).
+5.  **Frontend - BOM Form (`BomForm.tsx`):** Add a similar tags input component.
+6.  **Frontend - Display:** Display tags in the Inventory Item list (new column or within row details) and on relevant BOM list/detail views.
+7.  **Testing:** Verify tag creation, editing, deletion, display, and search functionality for both Inventory Items and BOMs.
+
+## Feature: Bill of Material (BOM) Variants
+
+**Goal:** Enable creation and management of BOM variants from a template BOM for manufactured goods.
+
+**Tasks:**
+1.  **Database Schema:** 
+    -   In `InventoryItem` model: Add `hasVariants: Boolean`, `isVariant: Boolean`, `templateItemId: String?` (self-relation), `variantAttributes: Json?`.
+    -   Define the `ItemVariants` relation.
+    -   Run `npx prisma migrate dev`.
+2.  **Backend - Variant Creation (`inventoryRouter.createVariant`):** Implement the new tRPC procedure:
+    -   Validate template item.
+    -   Handle SKU generation/input for the variant.
+    -   Create the new variant `InventoryItem` record.
+    -   Copy the `BillOfMaterial` from the template item to the new variant item.
+3.  **Backend - CRUD Updates:** Update existing `inventoryRouter` CRUD operations (`create`, `update`, `getById`) to correctly handle the new variant-related fields if necessary (e.g., when editing a template or a variant).
+4.  **Frontend - Template Item Form (`InventoryItemForm.tsx` for `MANUFACTURED_GOOD`):
+    -   Add "Has Variants" checkbox.
+    -   Conditionally render a "Variants" tab/section.
+    -   **Variants Tab UI:**
+        *   Implement UI for defining/managing variant attributes (e.g., key-value pairs for Color, Size) on the template item.
+        *   Implement UI to list existing variants linked to this template.
+        *   Implement UI (button/form) to trigger the `createVariant` tRPC call, allowing selection/input of attribute values for the new variant and SKU confirmation.
+5.  **Frontend - Navigation/Editing:** Ensure users can easily navigate to view/edit the variant `InventoryItem` and its specific (copied) `BillOfMaterial`.
+6.  **Research & Inspiration:** Review ERPNext's Item Variant and BOM functionality on GitHub ([https://github.com/frappe/erpnext](https://github.com/frappe/erpnext)) for detailed logic and UI/UX patterns.
+7.  **Testing:** Thoroughly test the entire workflow: designating an item as a template, defining attributes, creating multiple variants with different attributes, ensuring SKUs are handled correctly, verifying BOMs are copied, and confirming variants can be edited independently.
+
+## Feature: Inventory Excel Import/Export
+
+**Goal:** Allow bulk management of inventory data via Excel file import and export.
+
+**Tasks:**
+1.  **Library Integration & Research:** Confirm usage of `Siemienik/XToolset` (`xlsx-import` for parsing, `xlsx-renderer` for generation). Familiarize with its API and capabilities.
+2.  **Backend - Export (`inventoryRouter.exportInventoryExcel`):** Implement the tRPC procedure to fetch all inventory data and format it into a structure suitable for `xlsx-renderer`.
+3.  **Frontend - Export:** Add an "Export to Excel" button on the Inventory List page. On click, call the `exportInventoryExcel` endpoint and handle the file download (e.g., by constructing a blob from base64 data).
+4.  **Backend - Import Preview (`inventoryRouter.previewImportInventoryExcel`):** Implement the tRPC procedure:
+    -   Accept base64 encoded file content.
+    -   Use `xlsx-import` to parse the Excel data based on expected column headers/order.
+    -   Perform row-by-row data type and business rule validation.
+    -   Compare with existing inventory (by SKU) to identify new items vs. items to be updated (and detect specific field changes).
+    -   Return a structured preview object detailing creations, updates (with diffs), and errors (with row numbers and messages).
+5.  **Frontend - Import UI & Preview Modal:**
+    -   Add an "Import from Excel" button on the Inventory List page, with a file input.
+    -   Create a new modal component (`ExcelImportPreviewModal.tsx`) to display the structured preview from `previewImportInventoryExcel`.
+    -   The modal must clearly present items to be created, updated (highlighting changes), and errors.
+    -   Include "Confirm Import" and "Cancel" buttons in the modal.
+6.  **Backend - Apply Import (`inventoryRouter.applyImportInventoryExcel`):** Implement the tRPC procedure:
+    -   Accept the validated lists of items to create and items to update (from the user-confirmed preview).
+    -   Perform all database operations (creations and updates) within a single Prisma transaction.
+    -   Return a success/failure status with a summary.
+7.  **Frontend - Confirmation & Feedback:** When the user confirms in the preview modal, call `applyImportInventoryExcel`. Display appropriate success or error toast notifications based on the result. Refresh the inventory list on success.
+8.  **Safeguards & Validation:** Ensure robust data validation at all stages. Emphasize clear error reporting in the preview. Ensure the backend apply step is fully transactional.
+9.  **Testing:** Critical path testing. Export inventory, make diverse changes (valid updates, new items, items with deliberate errors in various fields, empty rows, incorrect data types). Import and meticulously verify the preview. Confirm and check database integrity. Test with edge cases (e.g., very large files if feasible, though initial scope might be smaller files).

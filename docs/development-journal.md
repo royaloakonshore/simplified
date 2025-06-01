@@ -241,3 +241,46 @@ However, several significant features and enhancements are pending implementatio
 **Next Steps:**
 - Continue with planned feature development, starting with QR Code generation and the mobile scanning page.
 - Thoroughly document these new features as they are implemented. 
+
+## YYYY-MM-DD: Planning Session - Major Feature Enhancements
+
+**Attendees:** AI Agent, User
+
+**Features Planned & Documented:**
+
+1.  **Invoice Actions Refactor:**
+    *   **Summary:** Consolidate existing buttons (Update Status, Record Payment) into a single actions dropdown on `InvoiceDetail.tsx` and invoice list rows. Add new actions: "Export as PDF" and "Copy Invoice". "Mark as Paid" will handle payment recording.
+    *   **Documentation Impacted:** `00-product-requirements.md`, `03-user-business-flows.md`, `01-architecture-layout.md`, `04-agent-implementation-plan.md`, `06-ui-and-feature-roadmap.md`.
+    *   **Key Considerations:** Logic for `Mark as Paid` to correctly update payment status/date. Consistent UI for dropdown in detail and list views. Puppeteer for PDF generation.
+
+2.  **Orders Table Enhancements:**
+    *   **Summary:** Add "VAT Amount" and "Order Type" (as a pill/tag) columns to the Orders table. Implement multi-select checkboxes and enable sorting for new columns.
+    *   **Documentation Impacted:** `00-product-requirements.md`, `03-user-business-flows.md`, `01-architecture-layout.md`, `04-agent-implementation-plan.md`, `06-ui-and-feature-roadmap.md`.
+    *   **Key Considerations:** Backend API updates to return necessary data and handle sorting. Frontend table component modifications.
+
+3.  **Free Text Tags (Inventory & BOM):**
+    *   **Summary:** Add a `tags: String[]` field to `InventoryItem` and `BillOfMaterial` models. Update forms to manage tags and list views/search to use them.
+    *   **Documentation Impacted:** `00-product-requirements.md`, `03-user-business-flows.md`, `01-architecture-layout.md`, `04-agent-implementation-plan.md`, `06-ui-and-feature-roadmap.md`.
+    *   **Key Considerations:** Prisma schema migration. Backend API and search logic updates. Frontend UI for tag input (e.g., chip input).
+
+4.  **Bill of Material (BOM) Variants:**
+    *   **Summary:** Allow `MANUFACTURED_GOOD` Inventory Items to be marked as "Has Variants". Enable defining attributes for variants. Variant creation involves copying the template item's BOM, creating a new variant `InventoryItem` with a distinct SKU (auto-suggested, user-editable) and linked attributes.
+    *   **Documentation Impacted:** `00-product-requirements.md`, `03-user-business-flows.md`, `01-architecture-layout.md`, `04-agent-implementation-plan.md`, `06-ui-and-feature-roadmap.md`.
+    *   **Key Considerations:** Significant data model changes (self-referencing `InventoryItem` relation, JSON for attributes). New tRPC procedures for variant creation. Complex UI for managing template attributes and variants. Inspired by ERPNext.
+
+5.  **Inventory Data Management via Excel Import/Export:**
+    *   **Summary:** Implement export of inventory to Excel. Implement import from Excel with SKU-based matching, comprehensive preview (creations, updates with diffs, errors), and transactional database updates upon user confirmation.
+    *   **Documentation Impacted:** `00-product-requirements.md`, `03-user-business-flows.md`, `01-architecture-layout.md`, `04-agent-implementation-plan.md`, `06-ui-and-feature-roadmap.md`.
+    *   **Key Considerations:** Use of `Siemienik/XToolset` (xlsx-import, xlsx-renderer). Robust validation and error handling. Crucial preview step for user confirmation to prevent data corruption. Transactional updates.
+
+**Immediate Technical Debt / Points to Note from this Planning:**
+
+*   **Prisma Schema Changes:** Multiple features require schema updates. These should be batched if possible or handled sequentially with careful migration naming.
+*   **API Design:** New tRPC endpoints and modifications to existing ones are significant. Ensure Zod schemas are updated accordingly.
+*   **ERPNext Research (BOM Variants):** Dedicated time will be needed to study the [ERPNext GitHub repository](https://github.com/frappe/erpnext) for best practices and detailed logic regarding item variants and BOM attribute handling before starting implementation.
+*   **Excel Import/Export Library:** Confirm the suitability and licensing of `Siemienik/XToolset`. Perform a small proof-of-concept if necessary before full integration.
+*   **Shared Components:** For tag input and action dropdowns, consider creating reusable components if not already available via Shadcn/ui or internal component library.
+*   **User Experience (Excel Import):** The preview and confirmation step for Excel import is critical. Design must be very clear and user-friendly to prevent accidental data issues.
+
+**Next Steps (Development Order to be prioritized with User):**
+*   Begin implementation based on user priority after this documentation phase. 
