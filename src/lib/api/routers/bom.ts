@@ -67,17 +67,15 @@ export const bomRouter = createTRPCRouter({
           // For manufacturedItemId, input can be string, null, or undefined.
           // If string or null, we check for conflict. If undefined, no change to manufacturedItemId, so no conflict check needed for it.
           if (input.manufacturedItemId !== undefined) { 
-            let mfgIdFilter: Prisma.StringNullableFilter | string | null = input.manufacturedItemId === null 
-                ? { equals: null } 
-                : input.manufacturedItemId; // string or undefined if input.manufacturedItemId was undefined already
-            // Only apply if mfgIdFilter is not undefined (i.e. input.manufacturedItemId was string or null)
-            if (mfgIdFilter !== undefined) { 
-                const existingByMfgItem = await prisma.billOfMaterial.findFirst({ 
-                    where: { manufacturedItemId: mfgIdFilter as (string | null | Prisma.StringNullableFilter), companyId, id: { not: id } } 
-                });
-                if (existingByMfgItem && input.manufacturedItemId !== null) { 
-                    throw new TRPCError({ code: 'CONFLICT', message: `Manufactured item already has another BOM.` });
+            const existingByMfgItem = await prisma.billOfMaterial.findFirst({ 
+                where: {
+                  companyId,
+                  id: { not: id },
+                  manufacturedItemId: input.manufacturedItemId === null ? { equals: null } : input.manufacturedItemId
                 }
+            });
+            if (existingByMfgItem && input.manufacturedItemId !== null) { 
+                throw new TRPCError({ code: 'CONFLICT', message: `Manufactured item already has another BOM.` });
             }
           }
 
@@ -181,14 +179,14 @@ export const bomRouter = createTRPCRouter({
       const whereClause: Prisma.BillOfMaterialWhereInput = {
         companyId: input.companyId,
       };
-      // Only add manufacturedItemId to filter if it's a non-empty string
-      if (typeof input.manufacturedItemId === 'string' && input.manufacturedItemId.length > 0) {
-        whereClause.manufacturedItemId = input.manufacturedItemId;
-      } else if (input.manufacturedItemId === null) {
-        // If the intent is to find BOMs where manufacturedItemId IS null
-        whereClause.manufacturedItemId = { equals: null }; 
-      }
 
+      if (input.manufacturedItemId !== undefined) {
+        if (input.manufacturedItemId === null) {
+          whereClause.manufacturedItemId = { equals: null };
+        } else { // It's a string
+          whereClause.manufacturedItemId = input.manufacturedItemId;
+        }
+      }
 
       const [boms, totalCount] = await prisma.$transaction([
         prisma.billOfMaterial.findMany({

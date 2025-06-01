@@ -27,7 +27,7 @@ export const GetBillOfMaterialSchema = z.object({
 
 // Schema for listing BOMs (basic, can be expanded with filters/pagination)
 export const ListBillOfMaterialsSchema = z.object({
-  manufacturedItemId: z.string().cuid().optional(),
+  manufacturedItemId: z.string().cuid().optional().nullable(), // Allow null to explicitly search for BOMs not linked to a manufactured item
   companyId: z.string().cuid({ message: 'Company ID is required.'}),
   // Add pagination/sorting later if needed
 }); 
