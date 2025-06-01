@@ -6,34 +6,24 @@ import { BOMTable } from "@/components/boms/BOMTable";
 import { api } from "@/lib/trpc/react";
 import { PlusCircle } from "lucide-react";
 
+const DUMMY_COMPANY_ID = "clxjv0l1s0000108kjrdy1z4h"; // Replace with actual company ID from session or context
+
 export default function BillOfMaterialsPage() {
-  // TODO: Replace placeholder companyId with actual companyId from session/context
-  const companyIdPlaceholder = "clxjv0l1s0000108kjrdy1z4h"; // Example CUID, replace!
+  const { data: bomsResponse, isLoading, error } = api.bom.list.useQuery(
+    { companyId: DUMMY_COMPANY_ID } // Using defined DUMMY_COMPANY_ID, removed keepPreviousData
+  );
 
-  const { data: boms, isLoading, error } = api.bom.list.useQuery({
-    companyId: companyIdPlaceholder, 
-    // manufacturedItemId: undefined // Optional: filter by a specific manufactured item
-  });
-
-  if (error) {
-    return (
-      <div className="container mx-auto py-10 text-red-600">
-        <p>Error loading Bill of Materials: {error.message}</p>
-      </div>
-    );
-  }
+  if (error) return <p>Error loading BOMs: {error.message}</p>;
 
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Bill of Materials</h1>
         <Button asChild>
-          <Link href="/boms/add">
-            <PlusCircle className="mr-2 h-4 w-4" /> Create New BOM
-          </Link>
+          <Link href="/boms/add">Add New BOM</Link>
         </Button>
       </div>
-      <BOMTable data={boms || []} isLoading={isLoading} />
+      <BOMTable data={bomsResponse?.data || []} isLoading={isLoading} />
     </div>
   );
 } 

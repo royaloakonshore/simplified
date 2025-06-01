@@ -35,7 +35,7 @@ import {
 
 // Use inferRouterOutputs for more robust type inference
 type RouterOutput = inferRouterOutputs<AppRouter>;
-export type BOMTableRow = RouterOutput["bom"]["list"][number];
+export type BOMTableRow = RouterOutput["bom"]["list"]["data"][number];
 
 export const columns: ColumnDef<BOMTableRow>[] = [
   {

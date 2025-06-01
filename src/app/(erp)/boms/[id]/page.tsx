@@ -1,11 +1,18 @@
-// Define the expected props type locally
-type BOMPageProps = {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined }; // Optional searchParams
+type PageParams = {
+  id: string;
 };
 
-// @ts-ignore TODO: Resolve PageProps constraint issue
-export default async function ViewBillOfMaterialPage({ params, searchParams }: BOMPageProps) {
+type SearchParams = { [key: string]: string | string[] | undefined };
+
+type BOMPageProps = {
+  params: Promise<PageParams>;
+  searchParams?: Promise<SearchParams>; // searchParams is now also a Promise
+};
+
+// @ts-ignore TODO: Resolve PageProps constraint issue - Keeping temporarily if the Promise fix isn't complete
+export default async function ViewBillOfMaterialPage({ params: paramsPromise, searchParams: searchParamsPromise }: BOMPageProps) {
+  const params = await paramsPromise;
+  const searchParams = searchParamsPromise ? await searchParamsPromise : undefined; // Await searchParams if it exists
   const bomId = params.id;
 
   // TODO: Fetch BOM data using bom.get({ id: bomId, companyId: '...' })
