@@ -131,3 +131,4 @@
 - Addressed multiple build-blocking TypeScript errors across BOMs, Inventory, and Invoice components by correcting prop types, mutation handling, and applying type casting workarounds for Decimal/string inference issues.
 - Fixed BOM creation by correctly scoping queries with `companyId`, updated BOM add/edit pages with session handling, and resolved various UI and type errors across BOM and Inventory components.
 - Fixed inventory item creation error by running db migration for `variant` column and adding `variant` field to InventoryItemForm.
+- Completed work on inventory item form enhancements: ensured `InventoryItemForm` correctly handles `inventoryCategories` prop, and verified presence of fields for `showInPricelist`, `defaultVatRatePercent`, `internalRemarks`, and `variant`. Confirmed `add/page.tsx` fetches and provides categories.

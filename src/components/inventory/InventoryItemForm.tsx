@@ -61,6 +61,7 @@ interface InventoryItemFormProps {
   onSubmitProp: (values: InventoryItemFormValues, mode: 'full' | 'scan-edit', initialStockOrAdjustment?: number) => void;
   isLoading?: boolean;
   formMode?: 'full' | 'scan-edit';
+  inventoryCategories: Array<{ value: string; label: string }>; // Added prop for categories
 }
 
 export function InventoryItemForm({
@@ -68,6 +69,7 @@ export function InventoryItemForm({
   onSubmitProp,
   isLoading,
   formMode = 'full',
+  inventoryCategories, // Destructure new prop
 }: InventoryItemFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
@@ -288,7 +290,66 @@ export function InventoryItemForm({
                     </FormItem>
                     )}
                 />
+                <FormField
+                    control={form.control as any}
+                    name="inventoryCategoryId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Inventory Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? undefined} defaultValue={field.value ?? undefined}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {inventoryCategories.map(category => (
+                                <SelectItem key={category.value} value={category.value}>{category.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control as any}
+                    name="defaultVatRatePercent"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Default VAT Rate (%)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" placeholder="e.g., 24" {...field} value={field.value ?? undefined} /></FormControl>
+                        <FormDescription>Default VAT rate for this item.</FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
             </div>
+            <FormField
+                control={form.control as any}
+                name="showInPricelist"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <FormLabel className="text-base">Show in Pricelist</FormLabel>
+                            <FormDescription>
+                                Should this item be visible in generated pricelists or catalogues?
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <input type="checkbox" checked={field.value} onChange={field.onChange} className="form-checkbox h-5 w-5 text-blue-600"/>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control as any}
+                name="internalRemarks"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Internal Remarks</FormLabel>
+                    <FormControl><Textarea placeholder="Internal notes about this item..." {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
             {watchedItemType !== PrismaItemType.MANUFACTURED_GOOD && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField

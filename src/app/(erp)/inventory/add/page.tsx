@@ -6,6 +6,9 @@ import { api } from "@/lib/trpc/react";
 import { toast } from "sonner";
 import { type InventoryItemFormValues, type CreateInventoryItemInput } from "@/lib/schemas/inventory.schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
 // import type { TRPCClientErrorLike } from "@trpc/react-query"; // Not directly used
 // import type { AppRouter } from "@/lib/api/root"; // Not directly used
 
@@ -13,11 +16,15 @@ export default function AddInventoryItemPage() {
   const router = useRouter();
   const utils = api.useUtils();
 
+  // Fetch inventory categories
+  const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = api.inventoryCategory.list.useQuery();
+
   // Use the new 'create' mutation from the inventory router
   const createItemMutation = api.inventory.create.useMutation({
     onSuccess: (data) => {
       toast.success(`Inventory item "${data.name}" created successfully!`);
-      utils.inventory.list.invalidate(); // Invalidate list to show the new item
+      utils.inventory.list.invalidate();
+      utils.inventoryCategory.list.invalidate(); // Invalidate categories if new item might affect them (e.g. usage counts)
       router.push("/inventory");
       router.refresh(); 
     },
@@ -49,6 +56,36 @@ export default function AddInventoryItemPage() {
     createItemMutation.mutate(createPayload);
   };
 
+  if (isLoadingCategories) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardHeader><CardTitle>Add New Inventory Item</CardTitle></CardHeader>
+          <CardContent className="pt-6">
+            <Skeleton className="h-10 w-full mb-4" />
+            <Skeleton className="h-10 w-full mb-4" />
+            <Skeleton className="h-20 w-full mb-4" />
+            <Skeleton className="h-10 w-1/3 mt-6" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (categoriesError) {
+    return (
+      <div className="container mx-auto p-4">
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Error Loading Categories</AlertTitle>
+          <AlertDescription>{categoriesError.message || "Could not load inventory categories. Please try again."}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const categoryOptions = categoriesData?.map(cat => ({ value: cat.id, label: cat.name })) || [];
+
   return (
     <div className="container mx-auto p-4">
       <Card>
@@ -57,9 +94,10 @@ export default function AddInventoryItemPage() {
         </CardHeader>
         <CardContent className="pt-6">
           <InventoryItemForm 
-            onSubmitProp={handleSubmit} // Pass the new handleSubmit
-            isLoading={createItemMutation.isPending} // Use the new mutation pending state
+            onSubmitProp={handleSubmit} 
+            isLoading={createItemMutation.isPending} 
             formMode="full"
+            inventoryCategories={categoryOptions}
             // No initialData for add form
           />
         </CardContent>

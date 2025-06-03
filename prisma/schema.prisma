@@ -474,14 +474,15 @@ model InventoryCategory {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  name String
+  name        String
+  description String? // Added description field
 
   inventoryItems InventoryItem[]
 
-  companyId String?
+  companyId String? // Optional because a category might be global or specific
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  @@unique([companyId, name])
+  @@unique([companyId, name]) // A category name must be unique within a company (or globally if companyId is null)
   @@index([companyId])
   @@schema("public")
 }

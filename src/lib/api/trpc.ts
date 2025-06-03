@@ -34,7 +34,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 };
 
 // Context type used by tRPC initialization
-type CreateContextReturn = inferAsyncReturnType<typeof createTRPCContext>;
+export type CreateContextReturn = inferAsyncReturnType<typeof createTRPCContext>;
 
 /**
  * 2. INITIALIZATION
