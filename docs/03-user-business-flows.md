@@ -80,8 +80,9 @@ The application has established user flows for core operations like login, profi
     *   View lists of Orders and Invoices. **[UI PENDING, Backend tRPC ready]**
     *   View Total Net Revenue. **[Calculation and UI PENDING]**
 *   **BOM Creation & Management:**
-    *   Navigate to `MANUFACTURED_GOOD` Inventory Item detail page.
-    *   **NEXT:** UI form to create/edit BOMs (add `RAW_MATERIAL` components, quantities, set `manualLaborCost`). Backend `bomRouter.upsert` exists.
+    *   Navigate to `MANUFACTURED_GOOD` Inventory Item detail page or dedicated BOM section.
+    *   **NEXT/IN PROGRESS:** UI form to create/edit BOMs (add `RAW_MATERIAL` components, quantities, set `manualLaborCost`). Backend `bomRouter.upsert` exists. Initial UI scaffolding (`BOMForm`, `BOMTable`, page structure under `/boms`) is in progress. Manufactured item link is now optional.
+    *   **ENHANCED FLOW (Pending Implementation):** When adding raw materials to a BOM, user will be presented with a table of available raw materials (showing Name, SKU, QOH). They can select desired items via checkboxes and add them in bulk to the BOM's component list.
 *   **Inventory Category Management (Implicit):** Categories are created/managed via Prisma Studio or migrations for now. Future: UI for category CRUD if needed.
 
 **Next Steps (User Flow Focused):**
@@ -99,7 +100,8 @@ The application has established user flows for core operations like login, profi
 4.  **Production Kanban/Table Enhancements:**
     *   Design and implement the BOM information view within Kanban cards/table rows for manufactured items in an order.
 5.  **BOM Management UI:**
-    *   Create the frontend forms and views for managing Bill of Materials linked to `MANUFACTURED_GOOD` items.
+    *   Create the frontend forms and views for managing Bill of Materials linked to `MANUFACTURED_GOOD` items. This includes finalizing the add/edit forms (`BOMForm.tsx`), the list view (`BOMTable.tsx` on `/boms`), and implementing the detail view page (`/boms/[id]`). Address the current build blocker for the detail page.
+    *   Implement the enhanced table-based multi-select UI for adding raw materials to a BOM.
 6.  **Refine Payment Recording:** Review and potentially enhance the UI for recording invoice payments.
 7.  **Credit Note Flow:** Implement the full user flow for creating and managing credit notes from existing invoices.
 8.  **Dashboard & Reporting Flows:** Define and implement user flows for accessing and interacting with dashboard metrics and reports.

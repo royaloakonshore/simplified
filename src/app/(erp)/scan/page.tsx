@@ -6,6 +6,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats, type Html5QrcodeResult } from
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import OrderStatusUpdateModal from '@/components/orders/OrderStatusUpdateModal'; // Import the new modal
+import { toast as sonnerToast } from "sonner"; // Import sonner toast
 
 const SCAN_MODE_NONE = 'none';
 const SCAN_MODE_ORDER = 'order';

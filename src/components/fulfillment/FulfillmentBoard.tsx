@@ -7,7 +7,7 @@ import { type Order, OrderStatus, type Customer, type OrderItem, Prisma } from "
 import { api } from "@/lib/trpc/react"; // Import tRPC hook
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
-import { toast } from 'react-toastify';
+import { toast } from "sonner"; // Import sonner toast
 import { Button } from "@/components/ui/button"; // Use Shadcn button
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
 import { Terminal, CheckCircle2, MoveRight } from 'lucide-react'; // Icons
@@ -33,21 +33,20 @@ export default function FulfillmentBoard({
 
   // --- tRPC Mutation for Status Update ---
   // Note: Assumes an `updateStatus` procedure exists in the order router
-  const updateStatusMutation = api.order.updateStatus.useMutation({ // TODO: Implement updateStatus in tRPC router
+  const updateStatusMutation = api.order.updateStatus.useMutation({
     onSuccess: (data: Order) => {
-      toast.success(`Order ${data.orderNumber} status updated to ${data.status}`);
+      toast.success(`Order ${data.orderNumber} status updated to ${data.status}`); // Sonner toast
       setError(null);
       // Invalidate relevant queries to refresh data
       utils.order.list.invalidate(); // Or more specific query if available
       // Potentially invalidate queries used to fetch data for this board
       router.refresh(); // Simple way to refetch server component data
     },
-    onError: (err: TRPCClientErrorLike<AppRouter>) => {
-      // Handle specific errors (like insufficient stock) if the API returns them
-      const message = err.message ?? 'Failed to update order status.';
+    onError: (error) => {
+      const message = error.data?.zodError?.formErrors.join(", ") || error.message;
+      toast.error(message); // Sonner toast
       setError(message);
-      toast.error(message);
-      console.error("Error updating order status:", err);
+      console.error("Error updating order status:", error);
     },
   });
 

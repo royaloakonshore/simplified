@@ -15,7 +15,7 @@ import {
   CreateOrderInput,
   UpdateOrderInput,
 } from "@/lib/schemas/order.schema";
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -87,11 +87,13 @@ type OrderFormProps = {
   }[];
   order?: ProcessedOrder; // Use the new ProcessedOrder type
   isEditMode?: boolean;
+  initialData?: ProcessedOrder;
+  companyId?: string;
 };
 
 // Removed OrderFormContent abstraction
 
-export default function OrderForm({ customers: initialCustomers, inventoryItems, order, isEditMode = false }: OrderFormProps) {
+export default function OrderForm({ customers: initialCustomers, inventoryItems, order, isEditMode = false, initialData, companyId }: OrderFormProps) {
   const router = useRouter();
   const utils = api.useUtils(); // For cache invalidation
   const [customers, setCustomers] = useState(initialCustomers);
@@ -157,25 +159,23 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   }, [order, isEditMode, updateForm, createForm]);
 
   const createOrderMutation = api.order.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Order created successfully!");
       router.push('/orders');
       router.refresh();
     },
-    onError: (error: TRPCClientErrorLike<AppRouter>) => {
-      console.error("Create Order Error:", error);
+    onError: (error) => {
       toast.error(`Failed to create order: ${error.message}`);
     },
   });
 
   const updateOrderMutation = api.order.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Order updated successfully!");
       router.push('/orders');
       router.refresh(); 
     },
-    onError: (error: TRPCClientErrorLike<AppRouter>) => {
-      console.error("Update Order Error:", error);
+    onError: (error) => {
       toast.error(`Failed to update order: ${error.message}`);
     },
   });
@@ -185,8 +185,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
       toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
       utils.order.getById.invalidate({ id: order?.id }); 
     },
-    onError: (error: TRPCClientErrorLike<AppRouter>) => {
-      console.error("Create Invoice Error:", error);
+    onError: (error) => {
       toast.error(`Failed to create invoice: ${error.message}`);
     },
   });

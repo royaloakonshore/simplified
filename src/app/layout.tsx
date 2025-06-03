@@ -1,10 +1,11 @@
 import React from "react";
 import "@/app/globals.css";
-import "react-toastify/dist/ReactToastify.css";
+// import "react-toastify/dist/ReactToastify.css"; // Remove react-toastify CSS
 import { TRPCReactProvider } from "@/lib/trpc/react";
 import { Metadata } from "next";
 import ClientProvider from "@/components/ClientProvider";
-import { ThemeAwareToast } from "@/components/theme/ThemeAwareToast";
+// import { ThemeAwareToast } from "@/components/theme/ThemeAwareToast"; // Remove old Toaster
+import { Toaster } from "@/components/ui/sonner"; // Import Sonner Toaster
 import { cookies } from 'next/headers';
 
 export const metadata: Metadata = {
@@ -31,8 +32,9 @@ export default async function RootLayout({
       <body>
         <TRPCReactProvider cookies={cookieString}>
           <ClientProvider>
-            <ThemeAwareToast />
+            {/* <ThemeAwareToast /> */}
             {children}
+            <Toaster richColors closeButton /> {/* Add Sonner Toaster here */}
           </ClientProvider>
         </TRPCReactProvider>
       </body>

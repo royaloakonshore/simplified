@@ -7,7 +7,7 @@ import { type Order, OrderStatus, OrderType, type Customer, type OrderItem, type
 import { api } from "@/lib/trpc/react"; // Import tRPC hook
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
-import { toast } from 'react-toastify';
+import { toast } from "sonner"; // Import sonner toast
 import { QRCodeSVG } from 'qrcode.react'; // Import QRCodeSVG
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -84,17 +84,16 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   const [isStatusUpdateModalOpen, setIsStatusUpdateModalOpen] = useState(false);
 
   // --- tRPC Mutation for Creating Invoice from Order ---
-  const createInvoiceFromOrderMutation = api.invoice.createFromOrder.useMutation({
+  const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
     onSuccess: (newInvoice) => {
-      toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully for order ${order.orderNumber}.`);
+      toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully for order ${order.orderNumber}.`); // Sonner toast
       utils.order.getById.invalidate({ id: order.id }); 
-      utils.invoice.list.invalidate();
-      // router.push(`/invoices/${newInvoice.id}`); // Old: direct navigation
+      utils.invoice.list.invalidate(); // Invalidate invoice list to show the new one
       setCreatedInvoiceId(newInvoice.id); // Store ID
       setShowGoToInvoiceModal(true); // Show modal instead of navigating directly
     },
-    onError: (err: TRPCClientErrorLike<AppRouter>) => {
-      toast.error(`Failed to create invoice: ${err.message}`);
+    onError: (err) => {
+      toast.error(`Failed to create invoice: ${err.message}`); // Sonner toast
     },
   });
 
@@ -105,7 +104,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
     const defaultDueDate = new Date();
     defaultDueDate.setDate(defaultDueDate.getDate() + 14); // Default to 14 days from now
 
-    createInvoiceFromOrderMutation.mutate({ 
+    createInvoiceMutation.mutate({ 
       orderId: order.id,
       dueDate: defaultDueDate 
       // invoiceDate, notes, vatReverseCharge can use backend defaults or be added here if needed
@@ -160,10 +159,10 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             order.status !== OrderStatus.INVOICED && (
               <Button 
                 onClick={handleCreateInvoice}
-                disabled={createInvoiceFromOrderMutation.isPending}
+                disabled={createInvoiceMutation.isPending}
                 className="mt-4 md:mt-0"
               >
-                {createInvoiceFromOrderMutation.isPending ? (
+                {createInvoiceMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating Invoice...

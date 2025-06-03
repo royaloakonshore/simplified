@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 import { LoginForm } from "@/components/login-form"; // Import the new LoginForm
 import { Skeleton } from "@/components/ui/skeleton"; // Keep Skeleton for fallback
 
@@ -31,11 +31,12 @@ function SignInPageClientContent() {
 
   const handleEmailSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    setIsEmailLoading(true);
     if (!email) {
       toast.info("Please enter your email address.");
+      setIsEmailLoading(false);
       return;
     }
-    setIsEmailLoading(true);
     try {
       const res = await signIn("email", {
         email: email,
@@ -62,11 +63,12 @@ function SignInPageClientContent() {
 
   const handleCredentialsSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsCredentialsLoading(true);
     if (!email || !password) {
       toast.info("Please enter both email and password.");
+      setIsCredentialsLoading(false);
       return;
     }
-    setIsCredentialsLoading(true);
      try {
         const res = await signIn("credentials", {
             email: email,

@@ -9,22 +9,19 @@ import {
     ShoppingCart,
     FileText,
     Truck,
-    Settings as SettingsIcon, // Renamed to avoid conflict
+    Settings as SettingsIcon,
     Building2, // For placeholder team switcher
-    QrCode as QrCodeIcon, // Added QrCodeIcon
-    // Use a placeholder icon for now, will confirm a better one later.
-    // ListChecks, // Potential icon
-    // GanttChartSquare, // Potential icon
-    // ClipboardList, // Potential icon
+    QrCode as QrCodeIcon,
+    ListChecks, // Icon for Bill of Materials
     type LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Session } from 'next-auth';
 
 // Import the new navigation components
-import { NavMain } from './nav-main'; // Assuming nav-main.tsx is in the same directory
-import { NavUser } from './nav-user';   // Assuming nav-user.tsx is in the same directory
-import { TeamSwitcher } from './team-switcher'; // Assuming team-switcher.tsx is in the same directory
+import { NavMain } from './nav-main';
+import { NavUser } from './nav-user';
+// import { TeamSwitcher } from './team-switcher'; // TeamSwitcher not used in current layout
 // Import Sidebar component and useSidebar hook
 import {
     Sidebar,
@@ -33,80 +30,49 @@ import {
     SidebarHeader,
     useSidebar
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'; // Added for NavUser default
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 // Define types for navigation items
-interface SubNavItem {
-  title: string;
-  url: string;
-  // icon is typically not used for sub-items in this design, but can be added
-}
-
 interface NavItemDefinition {
   title: string;
   url: string;
   icon?: LucideIcon;
-  items?: SubNavItem[];
-  isCollapsible?: boolean; // To indicate if it should have a chevron
+  // Sub-items are not used in the new simplified structure per section
+  // items?: NavItemDefinition[]; 
+  // isCollapsible?: boolean;
+  isActive?: boolean; // Added for processing
 }
 
 // Placeholder data for TeamSwitcher, adapt as needed
-const placeholderTeams = [
-  { name: 'My Company', logo: Building2, plan: 'Free Plan' },
-  // Add more teams if multi-tenancy is implemented
+// const placeholderTeams = [
+//   { name: 'My Company', logo: Building2, plan: 'Free Plan' },
+// ];
+
+// New navigation structure
+const dashboardNavItem: NavItemDefinition[] = [
+    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
 ];
 
-// Adapt existing navItems to the format expected by NavMain
-const mainNavItemsData: NavItemDefinition[] = [
-    { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, isCollapsible: false },
-    {
-        title: 'Customers',
-        url: '/customers', // Main link to view all customers
-        icon: Users,
-        isCollapsible: true, // Make it collapsible to house sub-items
-        items: [
-            { title: 'View All Customers', url: '/customers' },
-            { title: 'New Customer', url: '/customers/add' },
-        ],
-    },
-    {
-        title: 'Inventory',
-        url: '/inventory',
-        icon: Package,
-        isCollapsible: true,
-        items: [
-            { title: 'View All', url: '/inventory' }, // Explicit "View All" or main link
-            { title: 'New Item', url: '/inventory/add' },
-            { title: 'Replenishment', url: '/inventory/replenishment' }, // Placeholder URL
-            { title: 'Price List', url: '/inventory/price-list' },       // Placeholder URL
-        ],
-    },
-    {
-        title: 'Orders',
-        url: '/orders',
-        icon: ShoppingCart,
-        isCollapsible: true,
-        items: [
-            { title: 'View All', url: '/orders' },
-            { title: 'New Order', url: '/orders/add' },
-        ],
-    },
-    {
-        title: 'Invoices',
-        url: '/invoices',
-        icon: FileText,
-        isCollapsible: true,
-        items: [
-            { title: 'View All', url: '/invoices' },
-            { title: 'New Invoice', url: '/invoices/add' },
-        ],
-    },
-    { title: 'Production', url: '/production', icon: Truck, isCollapsible: false },
-    { title: 'Scan', url: '/scan', icon: QrCodeIcon, isCollapsible: false }, // Added Scan page
-    // Add new BOM navigation item here
-    { title: 'Bill of Materials', url: '/boms', icon: FileText, isCollapsible: false }, // Placeholder icon
-    { title: 'Settings', url: '/settings', icon: SettingsIcon, isCollapsible: false },
+const customerNavItems: NavItemDefinition[] = [
+    { title: 'Customers', url: '/customers', icon: Users },
+    { title: 'Orders', url: '/orders', icon: ShoppingCart },
+    { title: 'Invoices', url: '/invoices', icon: FileText },
 ];
+
+const productionNavItems: NavItemDefinition[] = [
+    { title: 'Inventory', url: '/inventory', icon: Package },
+    { title: 'Bill of Materials', url: '/boms', icon: ListChecks },
+    { title: 'Production', url: '/production', icon: Truck },
+];
+
+const scanNavItem: NavItemDefinition[] = [ // Scan page remains separate for now
+    { title: 'Scan', url: '/scan', icon: QrCodeIcon },
+];
+
+const settingsNavItem: NavItemDefinition[] = [
+    { title: 'Settings', url: '/settings', icon: SettingsIcon },
+];
+
 
 interface AppSidebarProps {
   user: Session['user'] | null | undefined;
@@ -114,17 +80,20 @@ interface AppSidebarProps {
 
 export function AppSidebar({ user }: AppSidebarProps) {
     const pathname = usePathname();
-    const { open: isSidebarOpen, isMobile, state: sidebarState } = useSidebar();
+    const { isMobile, state: sidebarState } = useSidebar();
 
-    const processedMainNavItems = mainNavItemsData.map(item => ({
-        ...item,
-        isActive: pathname === item.url || (item.url !== '/dashboard' && pathname.startsWith(item.url)),
-        // Sub-items also need to be processed if we want to mark active parent based on active sub-item
-        items: item.items?.map(subItem => ({
-            ...subItem,
-            isActive: pathname === subItem.url || pathname.startsWith(subItem.url)
-        }))
-    }));
+    const processNavItems = (items: NavItemDefinition[]): NavItemDefinition[] => {
+        return items.map(item => ({
+            ...item,
+            isActive: pathname === item.url || (item.url !== '/dashboard' && pathname.startsWith(item.url)),
+        }));
+    };
+    
+    const processedDashboardItem = processNavItems(dashboardNavItem);
+    const processedCustomerItems = processNavItems(customerNavItems);
+    const processedProductionItems = processNavItems(productionNavItems);
+    const processedScanItem = processNavItems(scanNavItem);
+    const processedSettingsItem = processNavItems(settingsNavItem);
     
     const sessionUser = {
         name: user?.name ?? "Guest User",
@@ -132,12 +101,11 @@ export function AppSidebar({ user }: AppSidebarProps) {
         avatar: user?.image ?? "",
     };
 
-    // Determine if the sidebar is in icon-only mode for NavMain tooltip conditional logic
     const isIconMode = !isMobile && sidebarState === 'collapsed';
 
     return (
         <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
-            <SidebarHeader className="p-2 justify-center border-b">
+            <SidebarHeader className="p-2 justify-center"> {/* Removed border-b */}
                 <Link href="/dashboard" className="flex items-center gap-2 ">
                     <Avatar className="h-8 w-8 rounded-lg">
                         <AvatarImage src="/logo.png" alt="App Logo" />
@@ -145,18 +113,35 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     </Avatar>
                     <span 
                         className={cn(
-                            "font-semibold text-lg whitespace-nowrap transition-opacity duration-300 ease-in-out", // Transition opacity
+                            "font-semibold text-lg whitespace-nowrap transition-opacity duration-300 ease-in-out",
                             isIconMode 
-                                ? "opacity-0 w-0 pointer-events-none" // Collapsed: hidden, no width, no pointer events
-                                : "opacity-100 w-auto ml-2" // Open: visible with margin
+                                ? "opacity-0 w-0 pointer-events-none"
+                                : "opacity-100 w-auto ml-2"
                         )}
                     >
                         SimplifiedERP
                     </span>
                 </Link>
             </SidebarHeader>
-            <SidebarContent className="p-0">
-                <NavMain items={processedMainNavItems} isIconMode={isIconMode} />
+            <SidebarContent className="p-0 flex flex-col justify-between">
+                <div>
+                    <NavMain items={processedDashboardItem} isIconMode={isIconMode} />
+                    
+                    {/* Customers Section */}
+                    {!isIconMode && <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customers</div>}
+                    <NavMain items={processedCustomerItems} isIconMode={isIconMode} />
+
+                    {/* Production Section */}
+                    {!isIconMode && <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Production</div>}
+                    <NavMain items={processedProductionItems} isIconMode={isIconMode} />
+                    
+                    <NavMain items={processedScanItem} isIconMode={isIconMode} />
+                </div>
+                
+                {/* Settings link at the bottom */}
+                <div>
+                    <NavMain items={processedSettingsItem} isIconMode={isIconMode} />
+                </div>
             </SidebarContent>
             <SidebarFooter className="p-2 border-t">
                 <NavUser user={sessionUser} />

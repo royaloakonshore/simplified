@@ -31,6 +31,10 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
 
 **Core Objectives:** Enhance Inventory module with requested features, implement UI for BOMs and Customer History, develop Dashboard and Reporting, and complete PDF generation and Finvoice integration.
 
+**Blockers/Urgent Fixes (NEW - Prioritize Before Other Phase 2 Tasks):**
+1.  **Fix Persistent Linter Errors in `src/components/invoices/InvoiceDetail.tsx`:** This file has ongoing type errors and issues with automated fixes, likely requiring manual intervention. **[URGENT - BLOCKER FOR CLEAN BUILD]**
+2.  **Resolve Build Error in `src/app/(erp)/boms/[id]/page.tsx`:** Address the `PageProps` incompatibility issue to enable the BOM detail view. **[URGENT - BLOCKER FOR BOM VIEW]**
+
 **Key Tasks & Features (Prioritized Next Steps):**
 
 1.  **Inventory Module Enhancements (NEW REQUIREMENTS):**
@@ -69,8 +73,14 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
     *   **UI:** In the Production Kanban view, for orders with `MANUFACTURED_GOOD` items, implement a BOM information view (e.g., modal/expandable section on card/row).
     *   List component `InventoryItem`s and quantities.
 
-5.  **Bill of Materials (BOM) - UI Implementation:** **[PENDING]**
+5.  **Bill of Materials (BOM) - UI Implementation:** **[Partially Implemented - Scaffolding In Progress]**
     *   **UI:** Develop UI for BOM CRUD, including `manualLaborCost` input and `totalCalculatedCost` display.
+        *   Finalize `BOMForm.tsx` for add and edit modes, ensuring robust data handling. **[Partially DONE, requires Decimal conversion consistency review and component item UI finalization]**
+        *   Implement `BOMTable.tsx` for listing BOMs on `/boms`. **[DONE]**
+        *   Basic page structure for `/boms` (list, add, edit, view) created. **[DONE]**
+        *   Implement view page for individual BOMs (`/boms/[id]/page.tsx`). **[Blocked by build error noted above]**
+        *   Implement the enhanced raw material selection for `BOMForm.tsx`: Table-based multi-select UI for adding component items. **[PENDING - New Requirement]**
+        *   Ensure delete functionality for BOMs and BOM items is implemented and works correctly.
 
 6.  **Dashboard & Reporting - Initial Implementation:** **[PENDING]**
     *   Populate dashboard with key metrics and basic profitability insights.
@@ -133,66 +143,83 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
 
 ## Feature: Free Text Tags (Inventory & BOM)
 
-**Goal:** Allow users to add searchable free-text tags to Inventory Items and Bills of Materials.
-
-**Tasks:**
-1.  **Database Schema:** Add `tags: String[] @default([])` to `InventoryItem` and `BillOfMaterial` models in `prisma/schema.prisma`. Run `npx prisma migrate dev`.
-2.  **Backend - Inventory (`inventoryRouter`):** Update `create`, `update`, `getById` procedures to handle the `tags` field. Modify the `list` procedure's search logic to include matching against tags.
-3.  **Backend - BOM (`bomRouter`):** Update `create`, `update`, `getById` procedures to handle the `tags` field. Modify the `list` procedure's search logic to include matching against tags.
-4.  **Frontend - Inventory Form (`InventoryItemForm.tsx`):** Add a suitable input component for managing tags (e.g., chip input, multi-select combobox).
-5.  **Frontend - BOM Form (`BomForm.tsx`):** Add a similar tags input component.
-6.  **Frontend - Display:** Display tags in the Inventory Item list (new column or within row details) and on relevant BOM list/detail views.
-7.  **Testing:** Verify tag creation, editing, deletion, display, and search functionality for both Inventory Items and BOMs.
+-   **Description:** Allow users to add searchable free-text tags to Inventory Items and Bills of Materials for better categorization and searching.
+-   **Priority:** Medium
+-   **Status:** Planned
+-   **Tasks:**
+    1.  **Database Schema:** Add `tags: String[] @default([])` to `InventoryItem` and `BillOfMaterial` models in `prisma/schema.prisma`. Run `npx prisma migrate dev`.
+    2.  **Backend - Inventory (`inventoryRouter`):** Update `create`, `update`, `getById` procedures to handle the `tags` field. Modify the `list` procedure's search logic to include matching against tags.
+    3.  **Backend - BOM (`bomRouter`):** Update `create`, `update`, `getById` procedures to handle the `tags` field. Modify the `list` procedure's search logic to include matching against tags.
+    4.  **Frontend - Inventory Form (`InventoryItemForm.tsx`):** Add a tag input component (e.g., using a combination of Shadcn `Input` and `Badge`, or a dedicated library) to allow users to add/remove tags.
+    5.  **Frontend - BOM Form (`BOMForm.tsx`):** Add a similar tag input component.
+    6.  **Frontend - Inventory List (`InventoryListContent.tsx` or equivalent):** Display tags (e.g., as pills/badges) in a new column or within an expandable row detail. Ensure search functionality incorporates tags.
+    7.  **Frontend - BOM List (`BOMTable.tsx` or equivalent):** Display tags. Ensure search functionality incorporates tags.
+    8.  **Testing:** Verify CRUD for tags, search functionality, and UI display.
 
 ## Feature: Bill of Material (BOM) Variants
 
-**Goal:** Enable creation and management of BOM variants from a template BOM for manufactured goods.
+-   **Description:** Implement functionality for creating and managing product variants from a template BOM. This includes defining variant attributes, auto-generating variant SKUs (editable), and copying the template BOM to new variants for further modification.
+-   **Priority:** Medium-High (Core for manufacturing)
+-   **Status:** Planned
+-   **Notes:** Requires careful data modeling and workflow design, drawing inspiration from ERPNext.
+-   **Tasks:**
+    1.  **Database Schema (`InventoryItem`):**
+        *   Add `hasVariants: Boolean @default(false)` (for template item).
+        *   Add `isVariant: Boolean @default(false)`.
+        *   Add `templateItemId: String?` (self-relation to parent template item).
+        *   Add `variantAttributes: Json?` (e.g., `{"Color": "Red", "Size": "M"}`).
+        *   Define the self-relation: `templateItem InventoryItem? @relation("ItemVariants", fields: [templateItemId], references: [id])` and `variants InventoryItem[] @relation("ItemVariants")`.
+        *   Run `npx prisma migrate dev`.
+    2.  **Backend - Inventory (`inventoryRouter`):**
+        *   Update `create`/`update` for `InventoryItem` to handle new variant fields.
+        *   New procedure `inventory.createVariant` (or similar):
+            *   Takes `templateItemId`, attribute values, and potentially a new SKU.
+            *   Creates a new `InventoryItem` record (as a variant).
+            *   Copies the `BillOfMaterial` from the template item to the new variant item (requires a new `bom.copyBOM` procedure).
+    3.  **Backend - BOM (`bomRouter`):**
+        *   New procedure `bom.copyBOM (input: { sourceBomId: string, targetManufacturedItemId: string, newBomName?: string })`: Duplicates a BOM and links it to the new `targetManufacturedItemId`.
+    4.  **Frontend - Inventory Form (`InventoryItemForm.tsx`):**
+        *   If `itemType` is `MANUFACTURED_GOOD`, show a "Has Variants" checkbox.
+        *   If "Has Variants" is checked, provide UI to manage attributes (e.g., define attribute names like "Color", "Size").
+        *   Add a "Variants" tab/section to the template item's view/edit page.
+    5.  **Frontend - Variants Management UI (within template item's page):**
+        *   Display a list of existing variants.
+        *   UI to "Add New Variant": Select attribute values, auto-generate/edit SKU, confirm.
+        *   Link to edit each variant's own `InventoryItem` details and its specific `BillOfMaterial`.
+    6.  **Workflow:** Ensure BOM of a new variant is a copy of the template's BOM, ready for specific adjustments.
+    7.  **Testing:** Thoroughly test variant creation, SKU generation, BOM copying, and attribute management.
 
-**Tasks:**
-1.  **Database Schema:** 
-    -   In `InventoryItem` model: Add `hasVariants: Boolean`, `isVariant: Boolean`, `templateItemId: String?` (self-relation), `variantAttributes: Json?`.
-    -   Define the `ItemVariants` relation.
-    -   Run `npx prisma migrate dev`.
-2.  **Backend - Variant Creation (`inventoryRouter.createVariant`):** Implement the new tRPC procedure:
-    -   Validate template item.
-    -   Handle SKU generation/input for the variant.
-    -   Create the new variant `InventoryItem` record.
-    -   Copy the `BillOfMaterial` from the template item to the new variant item.
-3.  **Backend - CRUD Updates:** Update existing `inventoryRouter` CRUD operations (`create`, `update`, `getById`) to correctly handle the new variant-related fields if necessary (e.g., when editing a template or a variant).
-4.  **Frontend - Template Item Form (`InventoryItemForm.tsx` for `MANUFACTURED_GOOD`):
-    -   Add "Has Variants" checkbox.
-    -   Conditionally render a "Variants" tab/section.
-    -   **Variants Tab UI:**
-        *   Implement UI for defining/managing variant attributes (e.g., key-value pairs for Color, Size) on the template item.
-        *   Implement UI to list existing variants linked to this template.
-        *   Implement UI (button/form) to trigger the `createVariant` tRPC call, allowing selection/input of attribute values for the new variant and SKU confirmation.
-5.  **Frontend - Navigation/Editing:** Ensure users can easily navigate to view/edit the variant `InventoryItem` and its specific (copied) `BillOfMaterial`.
-6.  **Research & Inspiration:** Review ERPNext's Item Variant and BOM functionality on GitHub ([https://github.com/frappe/erpnext](https://github.com/frappe/erpnext)) for detailed logic and UI/UX patterns.
-7.  **Testing:** Thoroughly test the entire workflow: designating an item as a template, defining attributes, creating multiple variants with different attributes, ensuring SKUs are handled correctly, verifying BOMs are copied, and confirming variants can be edited independently.
+## Feature: Inventory Data Management via Excel Import/Export
 
-## Feature: Inventory Excel Import/Export
-
-**Goal:** Allow bulk management of inventory data via Excel file import and export.
-
-**Tasks:**
-1.  **Library Integration & Research:** Confirm usage of `Siemienik/XToolset` (`xlsx-import` for parsing, `xlsx-renderer` for generation). Familiarize with its API and capabilities.
-2.  **Backend - Export (`inventoryRouter.exportInventoryExcel`):** Implement the tRPC procedure to fetch all inventory data and format it into a structure suitable for `xlsx-renderer`.
-3.  **Frontend - Export:** Add an "Export to Excel" button on the Inventory List page. On click, call the `exportInventoryExcel` endpoint and handle the file download (e.g., by constructing a blob from base64 data).
-4.  **Backend - Import Preview (`inventoryRouter.previewImportInventoryExcel`):** Implement the tRPC procedure:
-    -   Accept base64 encoded file content.
-    -   Use `xlsx-import` to parse the Excel data based on expected column headers/order.
-    -   Perform row-by-row data type and business rule validation.
-    -   Compare with existing inventory (by SKU) to identify new items vs. items to be updated (and detect specific field changes).
-    -   Return a structured preview object detailing creations, updates (with diffs), and errors (with row numbers and messages).
-5.  **Frontend - Import UI & Preview Modal:**
-    -   Add an "Import from Excel" button on the Inventory List page, with a file input.
-    -   Create a new modal component (`ExcelImportPreviewModal.tsx`) to display the structured preview from `previewImportInventoryExcel`.
-    -   The modal must clearly present items to be created, updated (highlighting changes), and errors.
-    -   Include "Confirm Import" and "Cancel" buttons in the modal.
-6.  **Backend - Apply Import (`inventoryRouter.applyImportInventoryExcel`):** Implement the tRPC procedure:
-    -   Accept the validated lists of items to create and items to update (from the user-confirmed preview).
-    -   Perform all database operations (creations and updates) within a single Prisma transaction.
-    -   Return a success/failure status with a summary.
-7.  **Frontend - Confirmation & Feedback:** When the user confirms in the preview modal, call `applyImportInventoryExcel`. Display appropriate success or error toast notifications based on the result. Refresh the inventory list on success.
-8.  **Safeguards & Validation:** Ensure robust data validation at all stages. Emphasize clear error reporting in the preview. Ensure the backend apply step is fully transactional.
-9.  **Testing:** Critical path testing. Export inventory, make diverse changes (valid updates, new items, items with deliberate errors in various fields, empty rows, incorrect data types). Import and meticulously verify the preview. Confirm and check database integrity. Test with edge cases (e.g., very large files if feasible, though initial scope might be smaller files).
+-   **Description:** Enable users to export the inventory list to Excel, make bulk changes or add new items in the Excel file, and import it back to update inventory records, with robust validation and a preview/confirmation step.
+-   **Priority:** Medium
+-   **Status:** Planned
+-   **Notes:** Library `Siemienik/XToolset` or similar (e.g., `xlsx`) for Excel processing. Focus on data integrity and user safeguards.
+-   **Tasks:**
+    1.  **Backend - Export (`inventoryRouter.exportToExcel`):**
+        *   Fetches all relevant inventory item data (including custom fields, `quantityOnHand`).
+        *   Uses an Excel library to generate an `.xlsx` file buffer/stream.
+        *   Returns data for client-side download.
+    2.  **Backend - Import (`inventoryRouter.importFromExcel`):**
+        *   Accepts a file upload (or base64 string).
+        *   Parses the Excel file.
+        *   For each row:
+            *   Validate data against `InventoryItem` schema (Zod).
+            *   Identify if it's a new item (e.g., based on missing ID or unique SKU) or an update to an existing item.
+        *   Returns a structured preview: `{ itemsToCreate: [], itemsToUpdate: [{ old: {}, new: {} }], errors: [{ row: number, message: string }] }`.
+    3.  **Backend - Apply Import (`inventoryRouter.applyExcelImport`):**
+        *   Takes the validated and categorized data from the preview step.
+        *   Performs batch create and batch update operations in a transaction.
+        *   Handles `quantityOnHand` changes by creating appropriate `InventoryTransaction` records.
+    4.  **Frontend - Inventory List Page:**
+        *   Add "Export to Excel" button. Triggers download.
+        *   Add "Import from Excel" button. Opens file dialog.
+    5.  **Frontend - Import Workflow UI:**
+        *   After file selection, call `inventory.importFromExcel` tRPC procedure.
+        *   Display the preview (items to create/update, errors) in a modal or dedicated page.
+        *   Allow user to "Confirm Import" or "Cancel".
+        *   On confirm, call `inventory.applyExcelImport`.
+        *   Show success/error feedback.
+    6.  **Validation & Error Handling:** Robust validation for data types, required fields, and business rules during parsing and before applying. Clear error messages for user.
+    7.  **Data Mapping:** Clearly define Excel column headers and map them to `InventoryItem` fields. Provide a template Excel file for users if possible.
+    8.  **Testing:** Test export format, import parsing, validation, preview, and application of changes for both new and existing items. Test handling of errors.

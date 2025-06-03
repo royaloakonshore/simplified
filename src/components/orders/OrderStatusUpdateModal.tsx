@@ -5,7 +5,7 @@ import { type Order, OrderStatus, Prisma } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from 'lucide-react';
@@ -66,7 +66,8 @@ export default function OrderStatusUpdateModal({
       onOpenChange(false); // Close modal on success
     },
     onError: (error) => {
-      toast.error(`Error updating status: ${error.message}`);
+      const trpcError = error as TRPCClientErrorLike<AppRouter>;
+      toast.error(`Error updating status: ${trpcError.message}`);
     }
   });
 

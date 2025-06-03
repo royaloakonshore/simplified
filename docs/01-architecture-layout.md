@@ -110,7 +110,7 @@ erp-system/
     - **NEXT:** Add "Product Category" (`InventoryCategory`) column to the inventory table and enable filtering by it (displaying categories as pill tags). **[PENDING]**
     - **NEXT:** Enhance inventory table with a search bar, and robust filtering, pagination, and sorting (similar to `CustomerTable`).
     - **NEXT:** PDF export for pricelist.
-- **BOMs:** Backend implemented. **NEXT: UI for BOM management.**
+- **BOMs:** Backend implemented. **NEXT: UI for BOM management (Scaffolding in progress: `BOMForm.tsx`, `BOMTable.tsx`, `ComboboxResponsive.tsx` created; new routes under `src/app/(erp)/boms/` exist. `BillOfMaterial.manufacturedItemId` is now optional).**
 - **Inventory Deduction for Production:** Implemented (when order status changes to `in_production`).
 - **Production Kanban/Table:**
     - Basic Kanban view exists, cards link to orders.
@@ -146,7 +146,7 @@ The schema includes `InventoryItem.defaultVatRatePercent`. `quantityOnHand` is d
 7.  **PDF Generation for key documents.**
 8.  **Finalize Finvoice Integration & Credit Note Flow.**
 9.  **Implement Stock Alert Display.**
-10. **Prioritize Build Health:** Maintain passing `npm run build` and clean `npx tsc --noEmit` throughout development. **[Currently Stable]**
+10. **Prioritize Build Health:** Maintain passing `npm run build` and clean `npx tsc --noEmit` throughout development. **[Currently Stable, but with known blockers: linter errors in `InvoiceDetail.tsx` and build error in `boms/[id]/page.tsx`.]**
 11. **Comprehensive Testing & UI/UX Refinement.**
 
 ## 5. Data Model Enhancements (Prisma Schema)

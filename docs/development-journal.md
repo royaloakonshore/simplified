@@ -284,3 +284,49 @@ However, several significant features and enhancements are pending implementatio
 
 **Next Steps (Development Order to be prioritized with User):**
 *   Begin implementation based on user priority after this documentation phase. 
+
+## YYYY-MM-DD: BOM UI Scaffolding, Schema Update, and Blockers
+
+**Goal:** Initiate Bill of Materials (BOM) UI development and address structural schema requirements.
+
+**Summary of Progress:**
+
+1.  **BOM UI - Initial Scaffolding:**
+    *   Verified existing backend tRPC procedures (`src/lib/api/routers/bom.ts`) and Zod schemas (`src/lib/schemas/bom.schema.ts`) for BOM CRUD operations. Noted TODOs for `companyId` and `ItemType` import in the router.
+    *   Added a "Bill of Materials" navigation link to `src/components/AppSidebar.tsx` (using `FileText` as a placeholder icon).
+    *   Created the basic page structure for the BOM module:
+        *   `src/app/(erp)/boms/page.tsx` (List View)
+        *   `src/app/(erp)/boms/add/page.tsx` (Add New BOM)
+        *   `src/app/(erp)/boms/[id]/edit/page.tsx` (Edit BOM)
+        *   `src/app/(erp)/boms/[id]/page.tsx` (View Single BOM)
+    *   Implemented `src/components/boms/BOMTable.tsx` using TanStack Table for displaying a list of BOMs. Resolved initial linter errors related to type inference for table rows.
+    *   Implemented a basic `src/components/boms/BOMForm.tsx`:
+        *   Utilizes `react-hook-form` and Zod schemas for validation.
+        *   Includes `useFieldArray` for managing BOM component items.
+        *   Integrated a new `src/components/ui/combobox-responsive.tsx` for selecting manufactured items and component items.
+        *   Connects to `api.bom.upsert.useMutation` for saving data, with basic success/error handling.
+        *   Handles `initialData` for edit mode, including conversion of Prisma `Decimal` types to `number` for `quantity` and `manualLaborCost`.
+        *   Resolved linter errors, including an issue with `manualLaborCost` default value by adjusting its Zod schema to `z.number().nonnegative()`.
+    *   Updated `src/app/(erp)/boms/page.tsx` (list page) to fetch and display BOMs using `BOMTable`.
+    *   Updated `src/app/(erp)/boms/add/page.tsx` and `src/app/(erp)/boms/[id]/edit/page.tsx` to fetch `inventoryItems` (for manufactured goods and raw materials selection) using `api.inventory.list.useQuery`, correcting `perPage` limits.
+
+2.  **BOM Schema Update (Manufactured Item Optionality):**
+    *   Based on user request, the `manufacturedItemId` field in the `BillOfMaterial` model was made optional to allow BOM creation without an immediate link to a specific manufactured product.
+    *   Modified `prisma/schema.prisma`: `BillOfMaterial.manufacturedItemId` changed from `String @unique` to `String? @unique`. The `manufacturedItem` relation was also updated to be optional.
+    *   Updated `src/lib/schemas/bom.schema.ts`: The `manufacturedItemId` in `UpsertBillOfMaterialSchema` was changed to `.optional().nullable()`.
+    *   Successfully executed `npx prisma migrate dev --name make_bom_manufactured_item_optional`.
+
+**Current Blockers & Issues:**
+
+*   **Persistent Linter Errors in `src/components/invoices/InvoiceDetail.tsx`:** Multiple attempts to automatically fix linter errors (duplicate imports, type mismatches, property access) in this file have been unsuccessful. The file likely requires manual review and correction to achieve a clean type check.
+*   **Build Error in `src/app/(erp)/boms/[id]/page.tsx`:** A critical build error prevents the BOM detail view page from functioning. The error message is: `Type 'ViewBillOfMaterialPageProps' does not satisfy the constraint 'PageProps'. Types of property 'params' are incompatible...` Previous attempts to resolve this by adjusting props or checking for client-side directives were not successful.
+
+**New User Requirements (Pending Implementation for BOM):**
+
+*   **Enhanced Raw Material Selection:** For the `BOMForm`, implement a more user-friendly way to add multiple raw materials. This should involve displaying the raw material inventory in a table format (showing minimal columns like Name, SKU, Quantity on Hand), allowing users to select multiple items via checkboxes, and then adding them to the BOM's component list with a single action. This is to improve efficiency when dealing with BOMs that have many components.
+
+**Next Steps (Development Order to be prioritized with User):**
+1.  Manual correction of linter errors in `src/components/invoices/InvoiceDetail.tsx`.
+2.  Resolve the build error in `src/app/(erp)/boms/[id]/page.tsx`.
+3.  Implement the enhanced raw material selection UI for `BOMForm.tsx`.
+4.  Continue fleshing out BOM UI features (view page, delete functionality, etc.). 

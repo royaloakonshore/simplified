@@ -20,8 +20,8 @@ import {
   getSortedRowModel
 } from "@tanstack/react-table";
 import { PrinterIcon, EditIcon, PlusCircle, FileText, Loader2, Trash2, MoreHorizontal } from 'lucide-react';
-import { toast } from 'react-toastify';
-import { type ItemType as PrismaItemType } from '@prisma/client';
+import { toast } from "sonner";
+import { type ItemType as PrismaItemType, type InventoryItem as PrismaInventoryItem } from '@prisma/client';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -48,31 +48,48 @@ import {
 import { useRouter } from 'next/navigation';
 import { type Prisma } from '@prisma/client';
 import { type ListInventoryItemsInput } from '@/lib/schemas/inventory.schema';
+import type { TRPCClientErrorLike } from "@trpc/client";
+import type { AppRouter } from "@/lib/api/root";
+import { Decimal } from '@prisma/client/runtime/library';
 
-// Type for what the table row expects, including potentially stringified Decimals and nested objects
+// Type reflecting InventoryItem after tRPC serialization (Decimals to strings)
+// Based on Prisma Schema: InventoryItem
+type InventoryItemTRPCData = Omit<PrismaInventoryItem, 'minimumStockLevel' | 'reorderLevel' | 'costPrice' | 'salesPrice' | 'quantityOnHand' | 'defaultVatRatePercent' | 'inventoryCategory'> & {
+  minimumStockLevel: string;
+  reorderLevel: string | null;
+  costPrice: string;
+  salesPrice: string;
+  quantityOnHand: string;
+  defaultVatRatePercent: string | null;
+  inventoryCategory: { id: string; name: string } | null; // Add explicitly as it's included in list query
+};
+
+// Type for what the table row expects for display and interaction
 export interface InventoryItemRowData {
   id: string;
   sku: string | null;
   name: string;
   itemType?: PrismaItemType;
-  quantityOnHand: string | null; // Keep as string for display, parse for editing
-  costPrice: string | null;
-  salesPrice: string | null;
+  quantityOnHand: string; // Prisma: Decimal -> TRPC: string
+  costPrice: string;      // Prisma: Decimal -> TRPC: string
+  salesPrice: string;     // Prisma: Decimal -> TRPC: string
   inventoryCategory: { id: string; name: string } | null;
-  // Add other fields from Prisma.InventoryItem that you want to display or use in the row
   description?: string | null;
   unitOfMeasure?: string | null;
-  minimumStockLevel?: string | null;
-  reorderLevel?: string | null;
-  defaultVatRatePercent?: number | null;
+  minimumStockLevel: string; // Prisma: Decimal -> TRPC: string
+  reorderLevel: string | null;   // Prisma: Decimal? -> TRPC: string | null
+  defaultVatRatePercent?: string | null; // Prisma: Decimal? -> TRPC: string | null. Made optional for RowData.
   showInPricelist?: boolean | null;
   internalRemarks?: string | null;
   qrIdentifier?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
   leadTimeDays?: number | null;
   vendorSku?: string | null;
   vendorItemName?: string | null;
-  createdAt?: Date;
-  updatedAt?: Date;
+  supplierId?: string | null;
+  inventoryCategoryId?: string | null;
+  companyId?: string | null;
 }
 
 // Skeleton for the inventory page
@@ -135,20 +152,25 @@ function InventoryListContent() {
   const { data: categoriesData } = api.inventory.getAllCategories.useQuery();
 
   const itemsForTable = React.useMemo(() => {
-    return (inventoryQueryResults?.data ?? []).map(item => ({
-      ...item,
+    // Force cast to InventoryItemTRPCData[] due to persistent TS inference issues with Decimal types from tRPC client.
+    // The router-level logic stringifies Decimals, so this cast reflects the expected runtime shape.
+    const sourceData: InventoryItemTRPCData[] = (inventoryQueryResults?.data as any as InventoryItemTRPCData[]) ?? [];
+    
+    return sourceData.map((item: InventoryItemTRPCData): InventoryItemRowData => ({
+      // Mapping from InventoryItemTRPCData to InventoryItemRowData
+      id: item.id,
       sku: item.sku,
       name: item.name,
       itemType: item.itemType,
       quantityOnHand: item.quantityOnHand,
       costPrice: item.costPrice,
       salesPrice: item.salesPrice,
-      inventoryCategory: item.inventoryCategory ? { id: item.inventoryCategory.id, name: item.inventoryCategory.name } : null,
       minimumStockLevel: item.minimumStockLevel,
       reorderLevel: item.reorderLevel,
+      defaultVatRatePercent: item.defaultVatRatePercent,
+      inventoryCategory: item.inventoryCategory,
       description: item.description,
       unitOfMeasure: item.unitOfMeasure,
-      defaultVatRatePercent: item.defaultVatRatePercent,
       showInPricelist: item.showInPricelist,
       internalRemarks: item.internalRemarks,
       qrIdentifier: item.qrIdentifier,
@@ -157,7 +179,10 @@ function InventoryListContent() {
       vendorItemName: item.vendorItemName,
       createdAt: item.createdAt ? new Date(item.createdAt) : undefined,
       updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined,
-    })) as InventoryItemRowData[];
+      supplierId: item.supplierId,
+      inventoryCategoryId: item.inventoryCategoryId,
+      companyId: item.companyId,
+    }));
   }, [inventoryQueryResults?.data]);
 
   const totalCount = React.useMemo(() => inventoryQueryResults?.meta?.totalCount ?? 0, [inventoryQueryResults]);
@@ -169,12 +194,13 @@ function InventoryListContent() {
   }, [categoriesData]);
 
   const quickUpdateQuantityMutation = api.inventory.quickAdjustStock.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Stock for "${data.name}" updated to ${data.quantityOnHand}.`);
+    onSuccess: (data) => { 
+      const typedData = data as any as InventoryItemTRPCData;
+      toast.success(`Stock for "${typedData.name}" updated to ${typedData.quantityOnHand}.`);
       utils.inventory.list.invalidate(listInput);
       setEditingCell(null);
     },
-    onError: (error) => {
+    onError: (error: TRPCClientErrorLike<AppRouter>) => {
       toast.error(`Failed to update stock: ${error.message}`);
       setEditingCell(null);
     },
@@ -194,6 +220,15 @@ function InventoryListContent() {
         const currentItem = itemsForTable[editingCell.rowIndex];
         const originalQty = parseFloat(currentItem.quantityOnHand || "0");
 
+        setItemToUpdate({
+            itemId: currentItem.id,
+            newQuantity: parseFloat(editValue),
+            originalQuantity: originalQty
+        });
+        setShowConfirmDialog(true);
+    } else if (editingCell) {
+        const currentItem = itemsForTable[editingCell.rowIndex];
+        const originalQty = parseFloat(currentItem.quantityOnHand || "0");
         setItemToUpdate({
             itemId: currentItem.id,
             newQuantity: parseFloat(editValue),
@@ -329,11 +364,39 @@ function InventoryListContent() {
     return table.getSelectedRowModel().flatRows.map(row => row.original.id);
   }, [table, rowSelection]);
 
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<InventoryItemRowData | null>(null);
+
+  const deleteInventoryItemMutation = api.inventory.delete.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Item deleted successfully.`);
+      utils.inventory.list.invalidate();
+      setRowSelection({});
+      setShowDeleteConfirmation(false);
+      setItemToDelete(null);
+    },
+    onError: (error: TRPCClientErrorLike<AppRouter>) => {
+      toast.error(`Failed to delete item: ${error.message}`);
+      setShowDeleteConfirmation(false);
+      setItemToDelete(null);
+    },
+  });
+
+  const handleDeleteConfirmation = (item: InventoryItemRowData) => {
+    setItemToDelete(item);
+    setShowDeleteConfirmation(true);
+  };
+
   const handleDeleteSelected = () => {
-    if(selectedItemIds.length > 0){
-        toast.info("Bulk delete not implemented yet. Please delete items individually if needed or implement `inventory.deleteMany`.");
-    } else {
-        toast.warn("No items selected for deletion.");
+    const selectedRows = table.getSelectedRowModel().rows.map(row => row.original);
+    if (selectedRows.length === 0) {
+      toast.info("No items selected for deletion.");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected item(s)?`)) {
+      selectedRows.forEach(item => {
+        deleteInventoryItemMutation.mutate({ id: item.id });
+      });
     }
   };
 

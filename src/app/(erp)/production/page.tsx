@@ -27,7 +27,7 @@ import {
     type VisibilityState,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PackageSearch } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from "@/components/ui/input";
+import type { TRPCClientErrorLike } from "@trpc/client";
+import type { AppRouter } from "@/lib/api/root";
 
 // Define the structure of an order for the Kanban board more specifically
 interface KanbanOrder {
@@ -137,20 +139,21 @@ function ProductionPageContent() {
   useEffect(() => {
     if (productionOrdersQuery.data) {
       setOrders(productionOrdersQuery.data as KanbanOrder[]);
-    }
-    if (productionOrdersQuery.error) {
-      toast.error("Failed to fetch production orders: " + productionOrdersQuery.error.message);
+    } else if (productionOrdersQuery.error) {
+      const error = productionOrdersQuery.error as TRPCClientErrorLike<AppRouter>;
+      toast.error("Failed to fetch production orders: " + error.message);
       setOrders([]);
     }
   }, [productionOrdersQuery.data, productionOrdersQuery.error]);
 
   const updateOrderStatusMutation = api.order.updateStatus.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Order status updated!");
-      productionOrdersQuery.refetch(); 
+      productionOrdersQuery.refetch();
     },
     onError: (error) => {
-      toast.error("Failed to update order status: " + error.message);
+      const trpcError = error as TRPCClientErrorLike<AppRouter>;
+      toast.error("Failed to update order status: " + trpcError.message);
     },
   });
 

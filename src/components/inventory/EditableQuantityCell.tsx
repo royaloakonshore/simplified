@@ -5,20 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CheckIcon, XIcon, Loader2 } from 'lucide-react';
 import { api } from '@/lib/trpc/react';
-import { toast } from 'react-toastify';
-import type { InventoryItem, ItemType } from '@prisma/client';
+import type { InventoryItem, ItemType, InventoryTransaction } from '@prisma/client';
+import { toast as sonnerToast } from "sonner";
 
-interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'quantityOnHand' | 'minimumStockLevel' | 'reorderLevel'> {
+export interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'quantityOnHand' | 'minimumStockLevel' | 'reorderLevel' | 'defaultVatRatePercent'> {
   costPrice: string;
   salesPrice: string;
   quantityOnHand: string;
   minimumStockLevel: string;
   reorderLevel: string | null;
+  defaultVatRatePercent: string | null;
 }
 
 interface EditableQuantityCellProps {
   item: CellItemData;
-  onUpdate: (newValue: number) => void;
+  onUpdate: (itemId: string, newQuantity: number) => void;
 }
 
 export default function EditableQuantityCell({ item, onUpdate }: EditableQuantityCellProps) {
@@ -28,18 +29,19 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
   const [originalQuantity, setOriginalQuantity] = useState<number>(initialQuantityNum);
 
   const utils = api.useUtils();
-  const quickAdjustStockMutation = api.inventory.quickAdjustStock.useMutation({
-    onSuccess: (updatedItem) => {
-      toast.success(`Stock for ${updatedItem.name} updated to ${updatedItem.quantityOnHand}`);
+  const updateStockMutation = api.inventory.adjustStock.useMutation({
+    onSuccess: (data: InventoryTransaction) => {
+      sonnerToast.success(`Stock for "${item.name}" updated. Change: ${data.quantity.toString()}.`);
       utils.inventory.list.invalidate();
+      utils.inventory.getById.invalidate({ id: item.id });
       setIsEditing(false);
-      const newQty = typeof updatedItem.quantityOnHand === 'string' ? parseFloat(updatedItem.quantityOnHand) : updatedItem.quantityOnHand;
-      onUpdate(newQty ?? originalQuantity);
+      onUpdate(item.id, currentQuantity);
     },
     onError: (error) => {
-      toast.error(`Failed to update stock: ${error.message}`);
+      sonnerToast.error(`Failed to update stock: ${error.message}`);
       setCurrentQuantity(originalQuantity);
       setIsEditing(false);
+      console.error("Stock update error:", error);
     },
   });
 
@@ -53,18 +55,20 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
 
   const handleSave = () => {
     if (isNaN(currentQuantity)) {
-      toast.error('Invalid quantity entered.');
-      return;
-    }
-    if (currentQuantity === originalQuantity) {
+      sonnerToast.error('Invalid quantity entered.');
+      setCurrentQuantity(originalQuantity);
       setIsEditing(false);
-      onUpdate(currentQuantity);
       return;
     }
-    quickAdjustStockMutation.mutate({
+    const quantityChange = currentQuantity - originalQuantity;
+    if (quantityChange === 0) {
+      setIsEditing(false);
+      return;
+    }
+    updateStockMutation.mutate({
       itemId: item.id,
-      newQuantityOnHand: currentQuantity,
-      originalQuantityOnHand: originalQuantity,
+      quantityChange: quantityChange,
+      note: `Manual adjustment from table for ${item.name}`
     });
   };
 
@@ -73,7 +77,7 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
     setIsEditing(false);
   };
 
-  if (quickAdjustStockMutation.isPending) {
+  if (updateStockMutation.isPending) {
     return (
       <div className="flex items-center justify-end space-x-1">
         <Loader2 className="h-4 w-4 animate-spin" />

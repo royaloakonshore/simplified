@@ -81,11 +81,12 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
         *   Display alerts prominently (e.g., on dashboard, item pages). **[PENDING]**
     *   **Bill of Materials (BOM):**
         *   Define BOMs for `MANUFACTURED_GOOD` Inventory Items. **[Backend Implemented]**
-        *   Link a BOM to one manufactured item. **[Backend Implemented]**
+        *   Link a BOM to one manufactured item. **[Backend Implemented, Optional as per recent update]**
         *   List required component `InventoryItem`s (`RAW_MATERIAL` type) and their quantities. **[Backend Implemented]**
         *   Enter optional **VAT-exclusive `manualLaborCost`** per BOM. **[Backend Implemented]**
         *   System calculates and stores `BillOfMaterial.totalCalculatedCost`. **[Backend Implemented]**
-        *   UI for BOM management is **[PENDING]**.
+        *   UI for BOM management is **[Partially Implemented - Scaffolding In Progress]**.
+        *   **NEW REQUIREMENT (UI Enhancement):** Implement a smoother raw material selection process for BOMs. This should involve displaying the raw material inventory in a table (with minimal columns like Name, SKU, Quantity on Hand), allowing users to select multiple items via checkboxes, and then include them in the BOM with a single action.
     *   **Pricelist Functionality:**
         *   Ability to flag items ("Show in Pricelist" - default true). **[Implemented in schema]**
         *   Filterable Inventory view for pricelist. **[Partially, needs category filter and better table features - see NEW REQUIREMENTS above]**

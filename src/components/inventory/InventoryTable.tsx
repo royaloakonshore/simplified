@@ -32,21 +32,19 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import EditableQuantityCell from "./EditableQuantityCell";
+import EditableQuantityCell, { type CellItemData } from "./EditableQuantityCell";
 import { api } from "@/lib/trpc/react";
 import { Input } from "@/components/ui/input";
 import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 
-// Define a more specific type for items in the table
-// Omit original Decimal fields from InventoryItem, then add them as strings
-export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel'> & { 
+// Define a more specific type for items in the table, matching what `itemsForTable` in inventory/page.tsx produces
+export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel' | 'quantityOnHand' | 'defaultVatRatePercent'> & { 
   quantityOnHand: string; 
   costPrice: string; 
   salesPrice: string; 
   minimumStockLevel: string; 
   reorderLevel: string | null; 
-  // inventoryCategory is already included from base InventoryItem if the `include` in Prisma query is correct
-  // If inventoryCategory is NOT on base InventoryItem or needs specific typing for the row:
+  defaultVatRatePercent: string | null;
   inventoryCategory: { id: string; name: string } | null; 
 };
 
@@ -125,18 +123,50 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     accessorKey: "quantityOnHand",
     header: () => <div className="text-right">Qty on Hand</div>,
     cell: ({ row, table }) => {
-      const itemWithStrQty = row.original as InventoryItemRowData;
+      // row.original should conform to InventoryItemRowData defined above
+      const currentItem = row.original as InventoryItemRowData;
       const meta = table.options.meta as { 
         onDataChange?: (rowIndex: number, columnId: string, value: any) => void 
       };
       
-      const handleCellUpdate = (newValue: number) => { 
+      // Ensure itemForCell conforms to CellItemData for EditableQuantityCell
+      // Given InventoryItemRowData and CellItemData are structurally very similar 
+      // (both stringified versions of InventoryItem fields), direct assignment of compatible fields is best.
+      const itemForCell: CellItemData = {
+        // Fields from InventoryItem not overridden in CellItemData (via Omit)
+        id: currentItem.id,
+        createdAt: currentItem.createdAt,
+        updatedAt: currentItem.updatedAt,
+        sku: currentItem.sku,
+        name: currentItem.name,
+        description: currentItem.description,
+        qrIdentifier: currentItem.qrIdentifier,
+        unitOfMeasure: currentItem.unitOfMeasure,
+        defaultVatRatePercent: currentItem.defaultVatRatePercent,
+        showInPricelist: currentItem.showInPricelist,
+        internalRemarks: currentItem.internalRemarks,
+        supplierId: currentItem.supplierId,
+        inventoryCategoryId: currentItem.inventoryCategoryId,
+        itemType: currentItem.itemType,
+        companyId: currentItem.companyId,
+        leadTimeDays: currentItem.leadTimeDays,
+        vendorSku: currentItem.vendorSku,
+        vendorItemName: currentItem.vendorItemName,
+        // Overridden fields in CellItemData (must be string or string | null)
+        costPrice: currentItem.costPrice,
+        salesPrice: currentItem.salesPrice,
+        quantityOnHand: currentItem.quantityOnHand,
+        minimumStockLevel: currentItem.minimumStockLevel,
+        reorderLevel: currentItem.reorderLevel,
+      };
+      
+      const handleCellUpdate = (itemId: string, newQuantity: number) => { 
         if (meta?.onDataChange) {
-          meta.onDataChange(row.index, 'quantityOnHand', newValue);
+          meta.onDataChange(row.index, 'quantityOnHand', newQuantity);
         }
       };
 
-      return <EditableQuantityCell item={itemWithStrQty} onUpdate={handleCellUpdate} />;
+      return <EditableQuantityCell item={itemForCell} onUpdate={handleCellUpdate} />;
     },
   },
   {

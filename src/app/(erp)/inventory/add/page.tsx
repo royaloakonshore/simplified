@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { InventoryItemForm } from "@/components/inventory/InventoryItemForm";
 import { api } from "@/lib/trpc/react";
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { type InventoryItemFormValues, type CreateInventoryItemInput } from "@/lib/schemas/inventory.schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // import type { TRPCClientErrorLike } from "@trpc/react-query"; // Not directly used

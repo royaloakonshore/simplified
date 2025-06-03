@@ -9,7 +9,7 @@ import {
   recordPayment,
   createCreditNote
 } from '@/lib/actions/invoice.actions';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { 
   type Invoice as PrismaInvoiceOriginal,
   type Customer as PrismaCustomer, 
@@ -32,6 +32,12 @@ import {
     DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Edit, FileText, CreditCard, Copy, Trash2, Send, XCircle } from 'lucide-react';
+import { toast as sonnerToast } from "sonner";
+import { type Invoice, type InvoiceItem as BrandedInvoiceItem, InvoiceStatus as BrandedInvoiceStatus } from '@/lib/types/invoice.types';
+import { type Customer as BrandedCustomer, type Address as BrandedAddress } from '@/lib/types/customer.types';
+import { type Order as BrandedOrder, type OrderItem as BrandedOrderItem } from '@/lib/types/order.types';
+import { type UUID as BrandedUUID, type Decimal as BrandedDecimal } from '@/lib/types/branded';
+import { type ToastT as SonnerToastProps } from 'sonner'
 
 // --- Type overrides for stringified Decimals ---
 type InvoiceWithStringDecimals = Omit<PrismaInvoiceOriginal, 'totalAmount' | 'totalVatAmount' | 'paidAmount' | 'creditedAmount'> & {
@@ -82,13 +88,17 @@ type FullInvoiceFromApi = InvoiceWithStringDecimals & {
 };
 
 // Import the local, branded Invoice type for the mapping function
-import { type Invoice as BrandedInvoice, type InvoiceItem as BrandedInvoiceItem, InvoiceStatus as BrandedInvoiceStatus } from '@/lib/types/invoice.types';
-import { type Customer as BrandedCustomer, type Address as BrandedAddress } from '@/lib/types/customer.types';
-import { type Order as BrandedOrder, type OrderItem as BrandedOrderItem } from '@/lib/types/order.types';
-import { type UUID as BrandedUUID, type Decimal as BrandedDecimal } from '@/lib/types/branded';
+// The following lines are removed to fix duplicate import errors
+// import { type Invoice, type InvoiceItem as BrandedInvoiceItem, InvoiceStatus as BrandedInvoiceStatus } from '@/lib/types/invoice.types';
+// import { type Customer as BrandedCustomer, type Address as BrandedAddress } from '@/lib/types/customer.types';
+// import { type Order as BrandedOrder, type OrderItem as BrandedOrderItem } from '@/lib/types/order.types';
+// import { type UUID as BrandedUUID, type Decimal as BrandedDecimal } from '@/lib/types/branded';
+
+// Define ActionResult for promise typing
+type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
 // Helper to map a BrandedInvoice (from createCreditNote action) to FullInvoiceFromApi
-const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: BrandedInvoice): FullInvoiceFromApi => {
+const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: Invoice): FullInvoiceFromApi => {
   // Drastically simplified mapping to avoid persistent linter issues with deep optional chaining and type mismatches.
   // Focus on top-level fields and Decimal to string conversion.
   // Nested objects are cast to any; this sacrifices some type safety for build stability.
@@ -115,7 +125,7 @@ const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: BrandedInvoice): Full
     customer: {
       ...(brandedInvoice.customer as any), 
       id: brandedInvoice.customer.id?.toString() ?? 'placeholder-customer-id',
-      addresses: brandedInvoice.customer.addresses?.map(addr => ({ 
+      addresses: brandedInvoice.customer.addresses?.map((addr: BrandedAddress) => ({ 
           ...(addr as any),
           id: addr.id?.toString() ?? 'placeholder-address-id'
         })) ?? [],
@@ -129,7 +139,7 @@ const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: BrandedInvoice): Full
       unitPrice: item.unitPrice.toString(),
       vatRatePercent: item.vatRatePercent.toString(),
       discountAmount: item.discountAmount ? item.discountAmount.toString() : null,
-      discountPercent: item.discountPercent ? item.discountPercent.toString() : null,
+      discountPercentage: item.discountPercent ? item.discountPercent.toString() : null,
       calculatedUnitCost: null, 
       calculatedUnitProfit: null,
       calculatedLineProfit: null,
@@ -141,7 +151,7 @@ const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: BrandedInvoice): Full
       id: brandedInvoice.order.id.toString(),
       customerId: brandedInvoice.order.customerId.toString(),
       totalAmount: brandedInvoice.order.totalAmount.toString(),
-      items: brandedInvoice.order.items?.map(oi => ({
+      items: brandedInvoice.order.items?.map((oi: BrandedOrderItem) => ({
           ...(oi as any),
           id: oi.id.toString(),
           orderId: oi.orderId.toString(),
@@ -149,13 +159,13 @@ const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: BrandedInvoice): Full
           quantity: oi.quantity.toString(),
           unitPrice: oi.unitPrice.toString(),
           discountAmount: oi.discountAmount ? oi.discountAmount.toString() : null,
-          discountPercent: oi.discountPercent ? oi.discountPercent.toString() : null,
+          discountPercentage: oi.discountPercent ? oi.discountPercent.toString() : null,
           inventoryItem: (oi.item as any) as PrismaInventoryItem | undefined,
       })) ?? [],
       customer: brandedInvoice.order.customer ? {
           ...(brandedInvoice.order.customer as any),
           id: brandedInvoice.order.customer.id?.toString() ?? 'placeholder-customer-id-in-order',
-          addresses: brandedInvoice.order.customer.addresses?.map(addr => ({ 
+          addresses: brandedInvoice.order.customer.addresses?.map((addr: BrandedAddress) => ({ 
               ...(addr as any),
               id: addr.id?.toString() ?? 'placeholder-address-id-in-order'
             })) ?? [],
@@ -237,15 +247,17 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     setError(null);
     try {
       const result = await updateInvoiceStatus(invoice.id, selectedStatus);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update status');
+      if (result.success) {
+        toast.success(`Invoice status updated to ${result.data.status}`);
+        setShowStatusModal(false);
+        router.refresh(); // Re-fetch data
+      } else {
+        toast.error(result.error);
+        setError(result.error);
       }
-      toast.success(`Invoice status updated to ${selectedStatus}`);
-      setShowStatusModal(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update status');
-      toast.error(err instanceof Error ? err.message : 'Could not update status');
+    } catch (e: any) {
+      toast.error("An unexpected error occurred.");
+      setError(e.message || 'Failed to update status.');
     } finally {
       setIsSubmitting(false);
     }
@@ -255,16 +267,19 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     setIsSubmitting(true);
     setError(null);
     try {
-      const result = await recordPayment(invoice.id, paymentDate);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to record payment');
+      // Assuming recordPayment expects invoice ID and payment date string
+      const result = await recordPayment(invoice.id, paymentDate); 
+      if (result.success) {
+        toast.success(`Payment recorded for invoice ${result.data.invoiceNumber}`);
+        setShowPaymentModal(false);
+        router.refresh(); // Re-fetch data
+      } else {
+        toast.error(result.error);
+        setError(result.error);
       }
-      toast.success('Payment recorded successfully');
-      setShowPaymentModal(false);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not record payment');
-      toast.error(err instanceof Error ? err.message : 'Could not record payment');
+    } catch (e: any) {
+      toast.error("An unexpected error occurred.");
+      setError(e.message || 'Failed to record payment.');
     } finally {
       setIsSubmitting(false);
     }
@@ -275,20 +290,35 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     setError(null);
     try {
       const result = await generateAndDownloadFinvoice(invoice.id);
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to generate Finvoice XML');
+      if (result.success) {
+        // Explicitly check properties of result.data
+        if (result.data && typeof result.data.xml === 'string' && typeof result.data.filename === 'string') {
+          const { xml, filename } = result.data; // Now this should be safe
+          const blob = new Blob([xml], { type: 'application/xml' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          toast.success("Finvoice XML downloaded.");
+        } else {
+          toast.error("Finvoice data is incomplete or missing after successful generation.");
+          setError("Finvoice data is incomplete or missing.");
+        }
+      } else {
+        if (typeof result.error === 'string') {
+            toast.error(`Failed to generate Finvoice XML: ${result.error}`);
+        } else {
+            toast.error("Failed to generate Finvoice XML. An unknown error occurred.");
+        }
+        setError(result.error || "Failed to generate Finvoice XML.");
       }
-      const blob = new Blob([result.data.xml], { type: 'application/xml' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = result.data.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not export Finvoice');
+    } catch (e: any) {
+      toast.error("An unexpected error occurred during export.");
+      setError(e.message || 'Failed to export Finvoice XML.');
     } finally {
       setIsExporting(false);
     }
@@ -297,22 +327,21 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const handleCreateCreditNote = async () => {
     setIsCrediting(true);
     setCreditError(null);
-
     try {
-      const result = await createCreditNote(invoice.id);
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create credit note');
+      const creditResult = await createCreditNote(invoice.id);
+      if (creditResult.success) {
+        toast.success(`Credit note ${creditResult.data.invoiceNumber} created successfully!`);
+        // Potentially use mapBrandedInvoiceToFullInvoiceApi if navigation needs complex state
+        // For now, just navigate to the new credit note's page
+        router.push(`/invoices/${creditResult.data.id}`);
+        router.refresh(); // also refresh current page to show original invoice as credited
+      } else {
+        toast.error(creditResult.error);
+        setCreditError(creditResult.error);
       }
-      if (!result.data) {
-        throw new Error('Credit note creation succeeded but no data was returned.');
-      }
-
-      const newCreditNoteForDisplay = mapBrandedInvoiceToFullInvoiceApi(result.data as BrandedInvoice); 
-      toast.success(`Credit note ${newCreditNoteForDisplay.invoiceNumber} created successfully!`);
-      router.push(`/invoices/${newCreditNoteForDisplay.id}`); 
-    } catch (err) {
-      setCreditError(err instanceof Error ? err.message : 'Could not create credit note');
-      toast.error(err instanceof Error ? err.message : 'Could not create credit note');
+    } catch (e: any) {
+      toast.error("An unexpected error occurred while creating credit note.");
+      setCreditError(e.message || 'Failed to create credit note.');
     } finally {
       setIsCrediting(false);
     }

@@ -6,13 +6,12 @@ type SearchParams = { [key: string]: string | string[] | undefined };
 
 type BOMPageProps = {
   params: Promise<PageParams>;
-  searchParams?: Promise<SearchParams>; // searchParams is now also a Promise
+  searchParams?: Promise<SearchParams>;
 };
 
-// @ts-ignore TODO: Resolve PageProps constraint issue - Keeping temporarily if the Promise fix isn't complete
 export default async function ViewBillOfMaterialPage({ params: paramsPromise, searchParams: searchParamsPromise }: BOMPageProps) {
   const params = await paramsPromise;
-  const searchParams = searchParamsPromise ? await searchParamsPromise : undefined; // Await searchParams if it exists
+  const searchParams = searchParamsPromise ? await searchParamsPromise : undefined;
   const bomId = params.id;
 
   // TODO: Fetch BOM data using bom.get({ id: bomId, companyId: '...' })

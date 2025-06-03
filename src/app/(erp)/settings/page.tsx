@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
+import { toast as sonnerToast } from "sonner";
 
 // Import the Zod schema for settings
 import { settingsSchema, type SettingsInput } from "@/lib/schemas/settings.schema";
@@ -39,9 +40,9 @@ const passwordChangeSchema = z.object({
 });
 type PasswordChangeValues = z.infer<typeof passwordChangeSchema>;
 
-
-export default function SettingsPage() {
+function SettingsPageContent() {
   const { data: session, status, update: updateSession } = useSession();
+  const utils = api.useUtils();
 
   // Settings Form for Company/Finvoice details
   const settingsForm = useForm<SettingsInput>({
@@ -86,7 +87,6 @@ export default function SettingsPage() {
   const { 
     data: currentSettings, 
     isLoading: isLoadingSettings, 
-    refetch: refetchSettings, 
     error: settingsError
   } = api.settings.get.useQuery(
     undefined, 
@@ -116,16 +116,15 @@ export default function SettingsPage() {
         defaultVatRatePercent: currentSettings.defaultVatRatePercent ? currentSettings.defaultVatRatePercent.toNumber() : null,
       };
       settingsForm.reset(defaultValuesFromData);
-    } else if (!isLoadingSettings && status === 'authenticated' && !currentSettings) {
-      // If no settings exist (currentSettings is null), the form will retain its default empty values.
-      // No explicit reset to empty is needed here, preventing clearing of user input if they start typing early.
-      // The user can fill the form and save to create the initial settings.
+    } else if (!isLoadingSettings && status === 'authenticated' && !currentSettings && !settingsError) {
+      // If no settings exist (currentSettings is null) and no error, the form will retain its default empty values.
+      // console.log("No company settings found, form will use defaults.");
     }
-  }, [currentSettings, settingsForm, isLoadingSettings, status]);
+  }, [currentSettings, settingsForm, isLoadingSettings, status, settingsError]);
 
   useEffect(() => {
     if (settingsError) {
-      toast.error(`Failed to load company settings: ${settingsError.message}`);
+      sonnerToast.error(`Failed to load company settings: ${settingsError.message}`);
     }
   }, [settingsError]);
 
@@ -135,45 +134,38 @@ export default function SettingsPage() {
        name: session.user.name ?? ' ',
        firstName: session.user.firstName ?? ' ',
      });
-  }
+    }
   }, [status, session, profileForm]);
 
   const updateSettingsMutation = api.settings.update.useMutation({
-    onSuccess: async (data) => {
-      toast.success('Company settings updated successfully!');
-      // Convert Decimal to number before resetting form
-      const formData = {
-        ...data,
-        defaultVatRatePercent: data.defaultVatRatePercent ? data.defaultVatRatePercent.toNumber() : null,
-        defaultInvoicePaymentTermsDays: data.defaultInvoicePaymentTermsDays ?? null, // Ensure it's null if undefined for consistency
-      };
-      settingsForm.reset(formData); 
-      await refetchSettings(); 
+    onSuccess: () => {
+      sonnerToast.success('Company settings updated successfully!');
+      utils.settings.get.invalidate();
     },
     onError: (error) => {
-      toast.error(`Company settings update failed: ${error.message}`);
+      sonnerToast.error(`Company settings update failed: ${error.message}`);
     },
   });
 
   const updateProfileMutation = api.user.updateProfile.useMutation({
-    onSuccess: async (data) => {
-      toast.success('Profile updated successfully!');
-      await updateSession({ name: data.name, firstName: data.firstName }); 
-      profileForm.reset({ name: data.name ?? '', firstName: data.firstName ?? '' }); 
+    onSuccess: async (updatedUser) => {
+      sonnerToast.success('Profile updated successfully!');
+      await updateSession({ name: updatedUser.name, firstName: updatedUser.firstName }); 
+      profileForm.reset({ name: updatedUser.name ?? '', firstName: updatedUser.firstName ?? '' }); 
     },
     onError: (error) => {
-      toast.error(`Profile update failed: ${error.message}`);
+      sonnerToast.error(`Profile update failed: ${error.message}`);
     },
   });
 
   const changePasswordMutation = api.user.changePassword.useMutation({
-     onSuccess: () => {
-       toast.success('Password changed successfully!');
-       passwordForm.reset();
-     },
-     onError: (error) => {
-        toast.error(`Password change failed: ${error.message}`);
-     },
+    onSuccess: () => {
+      sonnerToast.success('Password changed successfully!');
+      passwordForm.reset();
+    },
+    onError: (error) => {
+      sonnerToast.error(`Password change failed: ${error.message}`);
+    },
   });
 
   const onSettingsSubmit: SubmitHandler<SettingsInput> = (data) => {
@@ -459,5 +451,13 @@ export default function SettingsPage() {
       </Card>
 
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div>Loading settings...</div>}>
+        <SettingsPageContent />
+    </Suspense>
   );
 } 

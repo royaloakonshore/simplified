@@ -3,6 +3,7 @@ import React, {
   useRef,
   forwardRef,
   useImperativeHandle,
+  useEffect,
 } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -12,7 +13,7 @@ import {
   faUpload,
 } from "@fortawesome/free-solid-svg-icons";
 import { motion } from "framer-motion";
-import { toast } from "react-toastify";
+import { toast } from "sonner";
 
 const CHAT_INPUT_HEIGHT = "40px";
 
@@ -61,6 +62,8 @@ export const SpeechToTextArea = forwardRef<
     const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [language, setLanguage] = useState("en-US");
 
     const startRecording = async () => {
       let stream = mediaStream;
@@ -72,6 +75,7 @@ export const SpeechToTextArea = forwardRef<
         } catch (error) {
           console.error("Microphone access denied:", error);
           toast.error("Microphone access is required to use voice recording.");
+          setError("NotAllowedError");
           return;
         }
       }
@@ -96,6 +100,7 @@ export const SpeechToTextArea = forwardRef<
       if (!mimeType) {
         console.error("No supported MIME type found for MediaRecorder.");
         toast.error("Recording is not supported in this browser.");
+        setError("NoSupportedMimeTypeError");
         setIsRecording(false);
         setWaveformActive(false);
         return;
@@ -255,6 +260,27 @@ export const SpeechToTextArea = forwardRef<
         }
       },
     }));
+
+    useEffect(() => {
+      if (isRecording) {
+        // ... logic ...
+      } else {
+        // ... logic ...
+        if (error) {
+          if (error === "NotAllowedError" || error === "PermissionDeniedError") {
+            toast.error("Microphone access is required to use voice recording.");
+          } else {
+            toast.error("An error occurred with the microphone.");
+          }
+        }
+      }
+    }, [isRecording, error]);
+
+    useEffect(() => {
+      if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+        toast.error("Recording is not supported in this browser.");
+      }
+    }, [language]);
 
     return (
       <div

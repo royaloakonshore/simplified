@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { api } from "@/lib/trpc/react";
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-toastify';
+import { toast } from "sonner";
 import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 import { RawMaterialSelectionTable, RawMaterialRow } from '@/components/boms/RawMaterialSelectionTable';
 
@@ -34,9 +34,10 @@ export interface BOMFormProps {
   manufacturedItems: SelectableInventoryItem[];
   rawMaterials: SelectableInventoryItem[];
   companyId: string;
+  onSuccess?: (id: string) => void;
 }
 
-export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyId }: BOMFormProps) {
+export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyId, onSuccess }: BOMFormProps) {
   const router = useRouter();
 
   // State to manage selected BOM items from the table
@@ -75,20 +76,11 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
   const upsertBOMMutation = api.bom.upsert.useMutation({
     onSuccess: (data) => {
       toast.success(`BOM "${data.name}" ${initialData?.id ? 'updated' : 'created'} successfully!`);
+      if (onSuccess) onSuccess(data.id);
       router.push('/boms'); 
     },
     onError: (error) => {
       toast.error(`Error: ${error.message}`);
-      // Log detailed validation errors if available
-      if (error.data?.zodError?.fieldErrors) {
-        console.error("Zod Validation Errors:", error.data.zodError.fieldErrors);
-        // Potentially display these to the user in a more structured way
-        Object.entries(error.data.zodError.fieldErrors).forEach(([field, errors]) => {
-          if (Array.isArray(errors)) {
-            errors.forEach(msg => toast.error(`${field}: ${msg}`));
-          }
-        });
-      }
     },
   });
 

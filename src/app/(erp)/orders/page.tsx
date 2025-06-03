@@ -40,7 +40,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChevronDown, Trash2, Send } from 'lucide-react'; // Icons for actions
-import { toast } from 'react-toastify';
+import { toast } from "sonner"; // Import sonner toast
+import { useQueryClient } from '@tanstack/react-query'; // Correct import for react-query
+import React from 'react';
 
 // Moved type definition from OrderTable
 type OrderInTable = Order & {
@@ -93,7 +95,7 @@ function OrderListContent() {
   const status = searchParams.get('status') as OrderStatus | undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
 
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const { data, error, isLoading, isFetching, refetch } = api.order.list.useQuery({
     limit,
@@ -130,7 +132,7 @@ function OrderListContent() {
   const deleteOrdersMutation = api.order.deleteMany.useMutation({
     onSuccess: () => {
       toast.success("Selected orders deleted.");
-      refetch();
+      queryClient.invalidateQueries({ queryKey: [["order", "list"]] });
       setSelectedOrderIds([]);
     },
     onError: (err) => {
@@ -138,14 +140,14 @@ function OrderListContent() {
     },
     onSettled: () => {
       setShowConfirmationDialog(false);
+      setActionInProgress(false);
     }
   });
 
   const sendToProductionMutation = api.order.sendManyToProduction.useMutation({
     onSuccess: (result) => {
-      // result could contain info about successes/failures
       toast.success(`Processing complete. ${result.successCount} orders sent to production, ${result.failCount} failed/skipped.`);
-      refetch();
+      queryClient.invalidateQueries({ queryKey: [["order", "list"]] });
       setSelectedOrderIds([]);
     },
     onError: (err) => {
@@ -153,12 +155,13 @@ function OrderListContent() {
     },
     onSettled: () => {
       setShowConfirmationDialog(false);
+      setActionInProgress(false);
     }
   });
 
   const openConfirmationModal = (action: 'delete' | 'sendToProduction') => {
     if (selectedOrderIds.length === 0) {
-      toast.warn("Please select orders first.");
+      toast("Please select orders first.");
       return;
     }
     // TODO: For 'sendToProduction', could pre-filter here based on order status if data is available client-side
@@ -168,6 +171,7 @@ function OrderListContent() {
   };
 
   const handleConfirmAction = async () => {
+    setActionInProgress(true);
     if (confirmationAction === 'delete') {
       deleteOrdersMutation.mutate({ ids: selectedOrderIds });
     } else if (confirmationAction === 'sendToProduction') {

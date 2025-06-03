@@ -264,4 +264,25 @@ This roadmap provides a structured approach to these enhancements.
 -   **Excel Import Safeguards - Advanced:**
     -   **Description:** For Excel inventory import, explore advanced safeguards like data versioning or temporary staging areas for easier rollback, especially for very large datasets or critical updates.
     -   **Priority:** Low
-    -   **Status:** Idea 
+    -   **Status:** Idea
+
+## X. Bill of Materials (BOM) UI Development
+
+- **Objective:** Create a user-friendly interface for managing Bills of Materials.
+- **Status:** Initial scaffolding in progress.
+- **Key Components Created:**
+    - `src/components/boms/BOMForm.tsx` (for creating and editing BOMs)
+    - `src/components/boms/BOMTable.tsx` (for listing BOMs)
+    - `src/components/ui/combobox-responsive.tsx` (reusable component for item selection)
+- **Page Structure:**
+    - `src/app/(erp)/boms/page.tsx` (List View)
+    - `src/app/(erp)/boms/add/page.tsx` (Add New BOM)
+    - `src/app/(erp)/boms/[id]/edit/page.tsx` (Edit BOM)
+    - `src/app/(erp)/boms/[id]/page.tsx` (View Single BOM - Currently blocked by build error)
+- **Recent Updates:**
+    - The link between a BOM and a manufactured item (`manufacturedItemId`) is now optional, allowing more flexibility in BOM creation.
+- **Next Steps for UI:**
+    - Resolve the build error for the BOM view page.
+    - Finalize `BOMForm.tsx`, including implementing an enhanced table-based multi-select UI for adding numerous raw material components efficiently.
+    - Implement delete functionality for BOMs and their components.
+    - Thoroughly test all CRUD operations and UI interactions. 
