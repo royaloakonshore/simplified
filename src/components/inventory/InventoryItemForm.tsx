@@ -53,6 +53,7 @@ export interface ProcessedInventoryItemApiData {
   internalRemarks?: string | null;
   createdAt?: Date; // For display if needed
   updatedAt?: Date; // For display if needed
+  variant?: string | null;
 }
 
 interface InventoryItemFormProps {
@@ -94,6 +95,7 @@ export function InventoryItemForm({
             costPrice: getNumericValue(initialData.costPrice, 0), 
             salesPrice: getNumericValue(initialData.salesPrice, 0),
             itemType: initialData.itemType ?? PrismaItemType.RAW_MATERIAL,
+            variant: initialData.variant ?? undefined,
             minimumStockLevel: getNumericValue(initialData.minimumStockLevel, 0),
             reorderLevel: getNumericValue(initialData.reorderLevel, 0),
             quantityOnHand: getNumericValue(initialData.quantityOnHand, 0),
@@ -114,6 +116,7 @@ export function InventoryItemForm({
           costPrice: 0,
           salesPrice: 0,
           itemType: PrismaItemType.RAW_MATERIAL,
+          variant: undefined,
           minimumStockLevel: 0,
           reorderLevel: 0,
           quantityOnHand: 0,
@@ -249,6 +252,18 @@ export function InventoryItemForm({
                     />
                 <FormField
                     control={form.control as any}
+                    name="variant"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Variant (Optional)</FormLabel>
+                        <FormControl><Input placeholder="e.g., Blue, XL, Heavy Duty" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormDescription>Specify a variant for this item if applicable.</FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control as any}
                     name="minimumStockLevel"
                     render={({ field }) => (
                     <FormItem>
@@ -259,6 +274,8 @@ export function InventoryItemForm({
                     </FormItem>
                     )}
                 />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField
                     control={form.control as any}
                     name="reorderLevel"

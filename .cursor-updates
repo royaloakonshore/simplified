@@ -130,3 +130,4 @@
 - Resolved critical build errors by applying Next.js 15 fix: `params` and `searchParams` in page components must be treated as Promises and awaited. This fixed errors in `boms/[id]/page.tsx` and `orders/[id]/edit/page.tsx`. Also corrected tRPC data access in `boms/page.tsx` and type inference in `BOMTable.tsx`. Build is now successful. Linter errors in `bom.ts` (Prisma null filters) still need to be addressed.
 - Addressed multiple build-blocking TypeScript errors across BOMs, Inventory, and Invoice components by correcting prop types, mutation handling, and applying type casting workarounds for Decimal/string inference issues.
 - Fixed BOM creation by correctly scoping queries with `companyId`, updated BOM add/edit pages with session handling, and resolved various UI and type errors across BOM and Inventory components.
+- Fixed inventory item creation error by running db migration for `variant` column and adding `variant` field to InventoryItemForm.
