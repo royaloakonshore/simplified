@@ -1,41 +1,98 @@
 'use client';
 
-import { BOMForm } from "@/components/boms/BOMForm";
+import { BOMForm, type SelectableInventoryItem } from "@/components/boms/BOMForm";
+import { type RawMaterialRow } from "@/components/boms/RawMaterialSelectionTable";
 import { api } from "@/lib/trpc/react";
-import { ItemType } from "@prisma/client"; // For ItemType enum
-import { Skeleton } from "@/components/ui/skeleton"; // For loading state
+import { ItemType } from "@prisma/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "next-auth/react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
+
+// Define a type for the data returned by api.inventory.list.useQuery
+// This should match the actual structure including relational data like inventoryCategory
+// and ensure all fields needed by BOMForm (SelectableInventoryItem) and RawMaterialSelectionTable (RawMaterialRow) are present.
+interface FetchedInventoryItem {
+  id: string;
+  name: string;
+  sku?: string | null;
+  itemType: ItemType;
+  unitOfMeasure?: string | null;
+  variant?: string | null;
+  inventoryCategory?: { id: string; name: string } | null;
+  // Add other fields if necessary, but these cover the current needs
+}
 
 export default function AddBillOfMaterialPage() {
-  // TODO: Replace placeholder companyId with actual companyId from session/context
-  // This page currently doesn't filter inventory by companyId for selections, 
-  // as listInventoryItemsSchema doesn't support it yet.
-  const companyIdPlaceholder = "clxjv0l1s0000108kjrdy1z4h"; // Used for BOMForm prop, not for inventory list query
+  const { data: session, status: sessionStatus } = useSession();
+  const companyId = session?.user?.companyId;
 
-  const { data: manufacturedGoodsData, isLoading: isLoadingManGoods, error: errorManGoods } = api.inventory.list.useQuery({
-    // No companyId here as listInventoryItemsSchema does not take it
-    itemType: ItemType.MANUFACTURED_GOOD,
-    perPage: 100, // Fetch a large number, adjusted to schema max
+  // Initial query enabled state is false, will be enabled once companyId is available
+  const queryOptions = { 
+    perPage: 100,
     page: 1,
-    sortBy: 'name',
-    sortDirection: 'asc',
-  });
+    sortBy: 'name' as const, // Ensure sortBy is a literal type
+    sortDirection: 'asc' as const,
+  };
 
-  const { data: rawMaterialsData, isLoading: isLoadingRawMat, error: errorRawMat } = api.inventory.list.useQuery({
-    // No companyId here as listInventoryItemsSchema does not take it
-    itemType: ItemType.RAW_MATERIAL,
-    perPage: 100, // Fetch a large number, adjusted to schema max
-    page: 1,
-    sortBy: 'name',
-    sortDirection: 'asc',
-  });
+  const { data: manufacturedGoodsData, isLoading: isLoadingManGoods, error: errorManGoods } = api.inventory.list.useQuery(
+    { ...queryOptions, itemType: ItemType.MANUFACTURED_GOOD, companyId: companyId! },
+    { enabled: !!companyId && sessionStatus === "authenticated" } // Enable only when companyId is available
+  );
 
-  const isLoading = isLoadingManGoods || isLoadingRawMat;
-  const BOMErrors = [errorManGoods, errorRawMat].filter(Boolean);
+  const { data: rawMaterialsInventoryData, isLoading: isLoadingRawMat, error: errorRawMat } = api.inventory.list.useQuery(
+    { ...queryOptions, itemType: ItemType.RAW_MATERIAL, companyId: companyId! },
+    { enabled: !!companyId && sessionStatus === "authenticated" } // Enable only when companyId is available
+  );
 
-  if (isLoading) {
+  if (sessionStatus === "loading") {
     return (
       <div className="container mx-auto py-10">
         <h1 className="text-3xl font-bold mb-8">Create New Bill of Material</h1>
+        <p>Loading session information...</p>
+        <Skeleton className="h-12 w-1/2 mb-4" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+  
+  if (sessionStatus === "unauthenticated") {
+    return (
+      <div className="container mx-auto py-10">
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Access Denied</AlertTitle>
+          <AlertDescription>
+            You must be logged in to create a Bill of Material.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // If authenticated but no companyId, it means user is not linked to a company
+  if (sessionStatus === "authenticated" && !companyId) {
+    return (
+      <div className="container mx-auto py-10">
+         <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Company Not Found</AlertTitle>
+          <AlertDescription>
+            Your user account is not associated with a company. Please contact support.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const isLoadingData = isLoadingManGoods || isLoadingRawMat;
+  const BOMErrors = [errorManGoods, errorRawMat].filter(Boolean);
+
+  if (isLoadingData && companyId) { // Only show loading for data if companyId is present
+    return (
+      <div className="container mx-auto py-10">
+        <h1 className="text-3xl font-bold mb-8">Create New Bill of Material</h1>
+        <p>Loading inventory items...</p>
         <Skeleton className="h-12 w-1/2 mb-4" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -51,16 +108,47 @@ export default function AddBillOfMaterialPage() {
     );
   }
 
-  const manufacturedItems = manufacturedGoodsData?.data || [];
-  const rawMaterials = rawMaterialsData?.data || [];
+  // Map fetched data to the types expected by child components
+  const fetchedMfgItems: FetchedInventoryItem[] = manufacturedGoodsData?.data as FetchedInventoryItem[] || [];
+  const selectableManufacturedItems: SelectableInventoryItem[] = fetchedMfgItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+  }));
+
+  const fetchedRawMaterials: FetchedInventoryItem[] = rawMaterialsInventoryData?.data as FetchedInventoryItem[] || [];
+  const rawMaterialsForTable: RawMaterialRow[] = fetchedRawMaterials.map(item => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+    categoryName: item.inventoryCategory?.name || null,
+    unitOfMeasure: item.unitOfMeasure,
+    variant: item.variant,
+  }));
+
+  // This check is important: only render form if companyId is confirmed
+  if (!companyId) {
+     // This case should ideally be caught by earlier checks, but as a fallback:
+    return (
+        <div className="container mx-auto py-10">
+            <Alert variant="destructive">
+                <Terminal className="h-4 w-4" />
+                <AlertTitle>Configuration Error</AlertTitle>
+                <AlertDescription>
+                Cannot determine company context. Please try again or contact support.
+                </AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-8">Create New Bill of Material</h1>
       <BOMForm 
-        manufacturedItems={manufacturedItems}
-        rawMaterials={rawMaterials}
-        companyId={companyIdPlaceholder} // Pass companyId to the form
+        manufacturedItems={selectableManufacturedItems}
+        rawMaterials={rawMaterialsForTable}
+        companyId={companyId}
       />
     </div>
   );

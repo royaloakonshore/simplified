@@ -20,10 +20,24 @@ import QRCode from 'qrcode';
 export const inventoryRouter = createTRPCRouter({
   list: protectedProcedure
     .input(listInventoryItemsSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      const sessionCompanyId = ctx.session.user.companyId;
+      const inputCompanyId = input.companyId;
+
+      const filterCompanyId = inputCompanyId || sessionCompanyId;
+
+      if (!filterCompanyId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Company ID is required to list inventory items. User may not be associated with a company.',
+        });
+      }
+
       const { search, itemType, inventoryCategoryId, sortBy, sortDirection, page = 1, perPage = 10 } = input;
 
-      const whereClause: Prisma.InventoryItemWhereInput = {};
+      const whereClause: Prisma.InventoryItemWhereInput = {
+        companyId: filterCompanyId,
+      };
       if (search) {
         whereClause.OR = [
           { name: { contains: search, mode: 'insensitive' } },

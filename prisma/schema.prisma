@@ -152,6 +152,7 @@ model InventoryItem {
   leadTimeDays        Int?    // Lead time in days
   vendorSku           String? // Vendor-specific SKU
   vendorItemName      String? // Vendor-specific item name
+  variant             String? // New field for item variant
 
   // New fields for BOM and ItemType
   itemType        ItemType             @default(RAW_MATERIAL)

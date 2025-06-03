@@ -20,13 +20,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-interface SubNavItemProcessed {
+export interface SubNavItemProcessed {
   title: string
   url: string
   isActive?: boolean
 }
 
-interface NavItemProcessed {
+export interface NavItemProcessed {
   title: string
   url: string
   icon?: LucideIcon

@@ -100,23 +100,31 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
   },
   {
-    accessorKey: "unitOfMeasure",
-    header: "UoM",
-  },
-  {
-    accessorKey: "costPrice",
-    header: () => <div className="text-right">Cost Price</div>,
+    accessorKey: "itemType",
+    header: "Type",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("costPrice") || "0"); // Now receives string
-      return <div className="text-right">{formatCurrency(amount)}</div>;
+      const type: ItemType = row.getValue("itemType");
+      return (
+        <Badge variant={type === ItemType.MANUFACTURED_GOOD ? "default" : "secondary"}>
+          {formatItemType(type)}
+        </Badge>
+      );
     },
   },
   {
-    accessorKey: "salesPrice",
-    header: () => <div className="text-right">Sales Price</div>,
+    accessorKey: "inventoryCategory",
+    header: "Category",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("salesPrice") || "0"); // Now receives string
-      return <div className="text-right">{formatCurrency(amount)}</div>;
+      const item = row.original as InventoryItemRowData;
+      return item.inventoryCategory ? item.inventoryCategory.name : "N/A";
+    },
+  },
+  {
+    accessorKey: "variant",
+    header: "Variant",
+    cell: ({ row }) => {
+      const variant = row.getValue("variant") as string | null;
+      return variant ? <Badge variant="outline">{variant}</Badge> : null;
     },
   },
   {
@@ -139,6 +147,7 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
         updatedAt: currentItem.updatedAt,
         sku: currentItem.sku,
         name: currentItem.name,
+        variant: currentItem.variant,
         description: currentItem.description,
         qrIdentifier: currentItem.qrIdentifier,
         unitOfMeasure: currentItem.unitOfMeasure,
@@ -170,24 +179,35 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     },
   },
   {
-    accessorKey: "itemType",
-    header: "Type",
+    accessorKey: "unitOfMeasure",
+    header: "UoM",
+    cell: ({ row }) => row.getValue("unitOfMeasure"),
+  },
+  {
+    accessorKey: "costPrice",
+    header: () => <div className="text-right">Cost Price</div>,
     cell: ({ row }) => {
-      const type: ItemType = row.getValue("itemType");
-      return (
-        <Badge variant={type === ItemType.MANUFACTURED_GOOD ? "default" : "secondary"}>
-          {formatItemType(type)}
-        </Badge>
-      );
+      const amount = parseFloat(row.getValue("costPrice") || "0"); // Now receives string
+      return <div className="text-right">{formatCurrency(amount)}</div>;
     },
   },
   {
-    accessorKey: "inventoryCategory",
-    header: "Category",
+    accessorKey: "salesPrice",
+    header: () => <div className="text-right">Sales Price</div>,
     cell: ({ row }) => {
-      const item = row.original as InventoryItemRowData; // Use the specific type
-      return item.inventoryCategory ? item.inventoryCategory.name : "N/A";
+      const amount = parseFloat(row.getValue("salesPrice") || "0"); // Now receives string
+      return <div className="text-right">{formatCurrency(amount)}</div>;
     },
+  },
+  {
+    accessorKey: "vendorItemName",
+    header: "Vendor Name",
+    cell: ({ row }) => row.getValue("vendorItemName"),
+  },
+  {
+    accessorKey: "vendorSku",
+    header: "Vendor SKU",
+    cell: ({ row }) => row.getValue("vendorSku"),
   },
   {
     id: "actions",

@@ -153,23 +153,52 @@ export const bomRouter = createTRPCRouter({
   get: protectedProcedure
     .input(GetBillOfMaterialSchema)
     .query(async ({ ctx, input }) => {
-      // TODO: companyId check should use ctx.session.user.companyId if available and enforce it
+      const sessionCompanyId = ctx.session.user.companyId;
+      const inputCompanyId = input.companyId; // companyId from input is optional
+
+      // Determine the companyId to use for filtering.
+      // If inputCompanyId is provided (e.g. admin override), it takes precedence.
+      // Otherwise, use the sessionCompanyId.
+      const filterCompanyId = inputCompanyId || sessionCompanyId;
+
+      if (!filterCompanyId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Company ID is required to fetch a Bill of Material. User may not be associated with a company.',
+        });
+      }
+
       const bom = await prisma.billOfMaterial.findUnique({
-        where: { id: input.id /* TODO: , companyId: ctx.session.user.companyId */ },
+        where: { id: input.id, companyId: filterCompanyId }, // Enforce companyId in the where clause
         include: {
           items: {
             include: {
-              componentItem: { select: { id: true, name: true, sku: true } },
+              componentItem: { select: { id: true, name: true, sku: true, unitOfMeasure: true, variant: true, inventoryCategory: { select: { name: true }} } }, // Include necessary fields for RawMaterialRow
             },
           },
           manufacturedItem: { select: { id: true, name: true, sku: true } },
           company: { select: { id: true, name: true } },
         },
       });
-      if (!bom /* || bom.companyId !== ctx.session.user.companyId */) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'BOM not found.' });
+
+      if (!bom) {
+        // Note: The findUnique with id AND companyId already scopes it. 
+        // If not found, it's either wrong ID or wrong company.
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Bill of Material with ID ${input.id} not found or not accessible for this company.` });
       }
-      return bom;
+      
+      // Ensure Decimal fields are converted to numbers or strings for the client if necessary for BOMForm
+      // Prisma returns Decimal objects for Decimal fields.
+      // The BOMFormProps expects manualLaborCost as number and item quantities as numbers.
+      return {
+        ...bom,
+        manualLaborCost: bom.manualLaborCost.toNumber(),
+        items: bom.items.map(item => ({
+          ...item,
+          quantity: item.quantity.toNumber(),
+          // componentItem already has string/null fields from select query
+        })),
+      };
     }),
 
   list: protectedProcedure

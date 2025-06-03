@@ -26,6 +26,7 @@ declare module "next-auth/adapters" {
     role?: UserRole;
     dashboardEnabled?: boolean;
     isTeamAdmin?: boolean;
+    companyId?: string | null;
   }
 }
 
@@ -43,6 +44,7 @@ declare module "next-auth" {
       isAdmin?: boolean;
       expires?: string;
       isTeamAdmin?: boolean;
+      companyId?: string | null;
     };
     accessToken?: string;
   }
@@ -58,6 +60,7 @@ declare module "next-auth" {
     expires?: string;
     isTeamAdmin?: boolean;
     isAdmin?: boolean;
+    companyId?: string | null;
   }
 }
 
@@ -190,22 +193,43 @@ export const authOptions: NextAuthOptions = {
         isNewUserIN: isNewUser
       });
 
-      // Handle initial sign-in: if 'account' and 'user' are present, it's a sign-in event.
-      if (account && user) {
-        debugLog("jwt:initial_signin_event_processing", { userId: user.id, userRole: user.role, userEmail: user.email });
-        return {
-          ...token, // Preserve existing token properties (like sub, iat, exp)
-          id: user.id,
-          role: user.role,
-          email: user.email,
-          // name: user.name, // Default token might already have name
-          // picture: user.image, // Default token might already have picture (image)
-        };
+      // Handle initial sign-in or when user object is passed (e.g. after update)
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.email = user.email;
+        // Fetch companyId if user object is present (e.g., on sign-in or update)
+        // The 'user' object here might be from the provider or from a database refresh.
+        // It's safer to re-fetch from DB to ensure we have the latest companyId.
+        if (user.id) {
+            const dbUser = await prisma.user.findUnique({
+                where: { id: user.id },
+                select: { companyId: true }
+            });
+            token.companyId = dbUser?.companyId;
+        } else {
+            // If user.id is not available, we cannot fetch companyId.
+            // This case should be rare if user object is present.
+            token.companyId = (user as any).companyId || null; 
+        }
+      }
+      
+      // If trigger is "update" and session data is passed
+      if (trigger === "update" && profile) { // Assuming 'profile' might carry update data. Adjust if session data is passed differently.
+        // Re-fetch user from DB to get potentially updated companyId
+        if (token.id) {
+            const dbUser = await prisma.user.findUnique({
+                where: { id: token.id as string },
+                select: { companyId: true, role: true, email: true } // Fetch other fields if they can be updated
+            });
+            if (dbUser) {
+                token.companyId = dbUser.companyId;
+                token.role = dbUser.role; // Example: also update role if it can change
+                token.email = dbUser.email;
+            }
+        }
       }
 
-      // For subsequent requests, 'token' is passed. 'user' and 'account' are undefined.
-      // If token needs refreshing (e.g., access token expiry), do it here.
-      // For now, just return the token.
       debugLog("jwt:exit_returning_token", { tokenOUT: JSON.parse(JSON.stringify(token)) });
       return token;
     },
@@ -215,14 +239,12 @@ export const authOptions: NextAuthOptions = {
         tokenIN: JSON.parse(JSON.stringify(token))
       });
 
-      if (session?.user && token?.id) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
-        if (token.email) {
-          session.user.email = token.email as string;
-        }
-        // session.user.name = token.name as string; // if you add name to token
-        // session.user.image = token.picture as string; // if you add picture to token
+      if (session?.user) {
+        if (token?.id) session.user.id = token.id as string;
+        if (token?.role) session.user.role = token.role as UserRole;
+        if (token?.email) session.user.email = token.email as string;
+        // Add companyId to session user
+        session.user.companyId = token.companyId as string | null;
       } else {
         debugLog("session:warning_cannot_enrich_session_user", { 
           tokenExists: !!token, 

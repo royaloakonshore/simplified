@@ -45,6 +45,7 @@ export const inventoryItemBaseSchema = z.object({
     .nullable(),
   vendorSku: z.string().optional().nullable(),
   vendorItemName: z.string().optional().nullable(),
+  variant: z.string().optional().nullable(),
 });
 
 // Schema for creating an inventory item
@@ -85,8 +86,9 @@ export const listInventoryItemsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional(),
-  itemType: z.nativeEnum(ItemType).optional(), // NEW
-  inventoryCategoryId: z.string().cuid("Invalid category ID").optional(), // ADDED for filtering
+  itemType: z.nativeEnum(ItemType).optional(),
+  inventoryCategoryId: z.string().cuid("Invalid category ID").optional(),
+  companyId: z.string().cuid("Invalid company ID").optional(),
   sortBy: z.enum(['sku', 'name', 'quantityOnHand', 'costPrice', 'createdAt']).default('name'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
 });

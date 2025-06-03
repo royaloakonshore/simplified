@@ -23,7 +23,7 @@ import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 import { RawMaterialSelectionTable, RawMaterialRow } from '@/components/boms/RawMaterialSelectionTable';
 
 // Type for inventory items passed as props (simplified for select)
-interface SelectableInventoryItem {
+export interface SelectableInventoryItem {
   id: string;
   name: string;
   sku?: string | null;
@@ -32,7 +32,7 @@ interface SelectableInventoryItem {
 export interface BOMFormProps {
   initialData?: Partial<UpsertBillOfMaterialInput> & { id?: string; items?: BillOfMaterialItemInput[] }; // For edit mode
   manufacturedItems: SelectableInventoryItem[];
-  rawMaterials: SelectableInventoryItem[];
+  rawMaterials: RawMaterialRow[];
   companyId: string;
   onSuccess?: (id: string) => void;
 }
@@ -93,12 +93,13 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
   
   const manufacturedItemOptions = manufacturedItems.map(item => ({ value: item.id, label: `${item.name} (${item.sku || 'N/A'})` }));
   
-  // Map rawMaterials for the RawMaterialSelectionTable
-  const tableRawMaterials: RawMaterialRow[] = rawMaterials.map(item => ({
-    id: item.id,
-    name: item.name,
-    sku: item.sku,
-  }));
+  // Mapping for rawMaterials is now done in the parent page (add/edit BOM page)
+  // const tableRawMaterials: RawMaterialRow[] = rawMaterials.map(item => ({
+  //   id: item.id,
+  //   name: item.name,
+  //   sku: item.sku,
+  //   // categoryName, unitOfMeasure, variant will be on rawMaterials directly if mapped correctly by parent
+  // }));
 
   return (
     <Form {...form}>
@@ -152,7 +153,7 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
         <div>
           <h3 className="text-lg font-medium mb-2">Component Items</h3>
           <RawMaterialSelectionTable
-            allRawMaterials={tableRawMaterials}
+            allRawMaterials={rawMaterials}
             selectedItems={selectedBomItems}
             onSelectedItemsChange={setSelectedBomItems}
           />

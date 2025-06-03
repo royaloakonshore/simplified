@@ -23,6 +23,7 @@ export type UpsertBillOfMaterialInput = z.infer<typeof UpsertBillOfMaterialSchem
 // Schema for fetching a single BOM
 export const GetBillOfMaterialSchema = z.object({
   id: z.string().cuid(),
+  companyId: z.string().cuid().optional(), // Added optional companyId for scoping
 });
 
 // Schema for listing BOMs (basic, can be expanded with filters/pagination)
