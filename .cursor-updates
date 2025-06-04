@@ -132,3 +132,6 @@
 - Fixed BOM creation by correctly scoping queries with `companyId`, updated BOM add/edit pages with session handling, and resolved various UI and type errors across BOM and Inventory components.
 - Fixed inventory item creation error by running db migration for `variant` column and adding `variant` field to InventoryItemForm.
 - Completed work on inventory item form enhancements: ensured `InventoryItemForm` correctly handles `inventoryCategories` prop, and verified presence of fields for `showInPricelist`, `defaultVatRatePercent`, `internalRemarks`, and `variant`. Confirmed `add/page.tsx` fetches and provides categories.
+- Fixed tRPC error `No procedure found on path "inventoryCategory.list"` by registering `inventoryCategoryRouter` in the main `appRouter`.
+- Resolved TypeScript errors in `inventoryCategory.ts` router related to context typing and `description` field recognition after Prisma client regeneration.
+- Fixed "implicit any" type error in `add/page.tsx` for inventory categories.

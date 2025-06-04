@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import type { InventoryCategory } from "@prisma/client"; // Import the type
 // import type { TRPCClientErrorLike } from "@trpc/react-query"; // Not directly used
 // import type { AppRouter } from "@/lib/api/root"; // Not directly used
 
@@ -84,7 +85,7 @@ export default function AddInventoryItemPage() {
     );
   }
 
-  const categoryOptions = categoriesData?.map(cat => ({ value: cat.id, label: cat.name })) || [];
+  const categoryOptions = categoriesData?.map((cat: InventoryCategory) => ({ value: cat.id, label: cat.name })) || [];
 
   return (
     <div className="container mx-auto p-4">
