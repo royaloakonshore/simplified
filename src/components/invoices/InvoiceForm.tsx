@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
-import { type Customer, type InventoryItem, InvoiceStatus } from "@prisma/client";
+import { type Customer, type InventoryItem } from "@prisma/client";
 import Decimal from 'decimal.js';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
@@ -42,7 +42,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
-import { CalendarIcon, PlusCircle, Trash2, UserPlus } from "lucide-react";
+import { CalendarIcon, PlusCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -64,7 +64,6 @@ type InventoryItemFormData = Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 
 export default function InvoiceForm({ customers: initialCustomers, inventoryItems, isEditMode = false }: InvoiceFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
-  const [customers, setCustomers] = React.useState(initialCustomers);
   const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = React.useState(false);
 
   const form = useForm<InvoiceFormValues>({
@@ -88,7 +87,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
     },
   });
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "items",
   });
@@ -257,7 +256,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {customers.map(c => (
+                            {initialCustomers.map(c => (
                               <SelectItem value={c.id} key={c.id}>
                                 {c.name}
                               </SelectItem>
@@ -380,25 +379,6 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                   <TableBody>
                     {fields.map((field, index) => {
                       const itemValue = watchItems[index];
-                      const quantity = new Decimal(itemValue?.quantity || 0);
-                      const unitPrice = new Decimal(itemValue?.unitPrice || 0);
-                      let lineTotal = quantity.times(unitPrice);
-
-                      if (itemValue?.discountPercent != null && itemValue.discountPercent > 0) {
-                        const discountMultiplier = new Decimal(1).minus(new Decimal(itemValue.discountPercent).div(100));
-                        lineTotal = lineTotal.times(discountMultiplier);
-                      } else if (itemValue?.discountAmount != null && itemValue.discountAmount > 0) {
-                        const discount = new Decimal(itemValue.discountAmount);
-                        lineTotal = lineTotal.minus(discount).greaterThan(0) ? lineTotal.minus(discount) : new Decimal(0);
-                      }
-
-                      let displayTotal = lineTotal;
-                      if (!watchVatReverseCharge) {
-                          const vatRate = new Decimal(itemValue?.vatRatePercent || 0);
-                          const lineVat = lineTotal.times(vatRate.div(100));
-                          displayTotal = lineTotal.plus(lineVat);
-                      }
-
                       return (
                         <TableRow key={field.id}>
                           <TableCell>

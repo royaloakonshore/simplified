@@ -1,5 +1,5 @@
 import NextAuth from 'next-auth';
-import CredentialsProvider from "next-auth/providers/credentials";
+// import CredentialsProvider from "next-auth/providers/credentials"; // Removed unused import
 // import EmailProvider from "next-auth/providers/email"; // Temporarily commented out
 import { authOptions } from "@/lib/auth"; // Import the centralized authOptions
 

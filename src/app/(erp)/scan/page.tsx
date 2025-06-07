@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Html5Qrcode, Html5QrcodeSupportedFormats, type Html5QrcodeResult } from 'html5-qrcode';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import OrderStatusUpdateModal from '@/components/orders/OrderStatusUpdateModal'; // Import the new modal
-import { toast as sonnerToast } from "sonner"; // Import sonner toast
+import OrderStatusUpdateModal from '@/components/orders/OrderStatusUpdateModal';
 
 const SCAN_MODE_NONE = 'none';
 const SCAN_MODE_ORDER = 'order';
@@ -47,8 +46,8 @@ export default function ScanPage() {
         handleScanResult(decodedText, scanMode);
       };
 
-      const qrCodeErrorCallback = (errorMessage: string) => {
-        // console.warn(`QR error: ${errorMessage}`);
+      const qrCodeErrorCallback = (/* _errorMessage: string */) => {
+        // console.warn(`QR error: ${_errorMessage}`);
         // Don't toast every error, can be spammy if camera is struggling
       };
 
@@ -61,11 +60,10 @@ export default function ScanPage() {
       .then(() => {
         setIsScanning(true);
       })
-      .catch((err: any) => {
+      .catch((err: Error) => {
         console.error("Error starting QR Scanner:", err);
-        const errorMessage = err.message || 'Unknown error starting scanner.';
-        toast.error(errorMessage);
-        setCameraError(errorMessage);
+        toast.error(err.message || 'Unknown error starting scanner.');
+        setCameraError(err.message || 'Unknown error starting scanner.');
         setScanMode(SCAN_MODE_NONE);
         // Do not nullify html5QrCodeRef.current here, let stopScanner handle it
       });

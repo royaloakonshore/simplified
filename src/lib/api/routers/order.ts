@@ -11,7 +11,6 @@ import {
   updateOrderStatusSchema,
   listOrdersSchema,
   OrderItemInput,
-  UpdateOrderInput,
   listProductionViewInputSchema,
   deleteManyOrdersSchema,
   sendManyOrdersToProductionSchema
@@ -20,7 +19,11 @@ import { OrderStatus, OrderType, Prisma, TransactionType, InventoryTransaction, 
 
 // Helper to define the include structure for OrderDetail consistently
 const orderDetailIncludeArgs = {
-  customer: true,
+  customer: {
+    include: {
+      addresses: true,
+    },
+  },
   items: {
     include: {
       inventoryItem: true,
@@ -40,6 +43,7 @@ const processOrderDecimals = (order: OrderWithDetailsForRouter) => {
     totalAmount: order.totalAmount?.toString() ?? null,
     items: order.items.map(item => ({
       ...item,
+      quantity: item.quantity.toNumber(),
       unitPrice: item.unitPrice.toString(),
       discountAmount: item.discountAmount?.toString() ?? null,
       inventoryItem: {
@@ -304,238 +308,228 @@ export const orderRouter = createTRPCRouter({
         where: { id: input.id },
         include: orderDetailIncludeArgs,
       });
+
       if (!order) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
       }
-      return processOrderDecimals(order as OrderWithDetailsForRouter); // Use helper
+      return processOrderDecimals(order);
     }),
 
   listProductionView: protectedProcedure
-    .input(listProductionViewInputSchema) 
-    .query(async ({ ctx }) => {
+    .input(listProductionViewInputSchema)
+    .query(async ({ input }) => {
       const orders = await prisma.order.findMany({
         where: {
-          orderType: OrderType.work_order,
           status: {
-            in: [
-              OrderStatus.confirmed,
-              OrderStatus.in_production,
-              OrderStatus.shipped,
-            ],
+            in: [OrderStatus.in_production, OrderStatus.confirmed],
           },
-          // companyId: ctx.companyId, // Enable for multi-tenancy
+          orderType: OrderType.work_order,
         },
-        ...productionOrderPayload // Apply the defined select/include structure
+        ...productionOrderPayload,
       });
 
-      if (!orders) {
-        return [];
-      }
-
-      // Map the result, ensuring totalQuantity is added
-      return orders.map((order: ProductionOrderFromFindMany) => ({
-        ...order,
-        // Ensure all fields required by KanbanOrder are present, especially deliveryDate
-        // deliveryDate: order.deliveryDate, // Temporarily commented out
-        totalQuantity: order.items.reduce((sum, item) => 
-          sum.add(new Prisma.Decimal(item.quantity)), new Prisma.Decimal(0)),
-      }));
+      return orders;
     }),
 
   create: protectedProcedure
     .input(createOrderSchema)
     .mutation(async ({ ctx, input }) => {
-      const { items, customerId, ...orderData } = input;
-      const orderTotal = calculateOrderTotal(items);
-
       return prisma.$transaction(async (tx) => {
+        const { items, ...orderData } = input;
+        const orderTotal = calculateOrderTotal(items);
         const orderNumber = await generateOrderNumber(tx);
         const createdOrder = await tx.order.create({
           data: {
             ...orderData,
             orderNumber,
-            customerId,
             userId: ctx.session.user.id,
             totalAmount: orderTotal,
             items: {
               create: items.map((item) => ({
                 inventoryItemId: item.inventoryItemId,
                 quantity: item.quantity,
-                unitPrice: new Prisma.Decimal(item.unitPrice ?? 0),
+                unitPrice: new Prisma.Decimal(item.unitPrice),
                 discountPercentage: item.discountPercent,
-                discountAmount: item.discountAmount ? new Prisma.Decimal(item.discountAmount) : null,
+                discountAmount: new Prisma.Decimal(item.discountAmount ?? 0),
               })),
             },
           },
-          include: orderDetailIncludeArgs, // Ensure full details are fetched
         });
-        return processOrderDecimals(createdOrder as OrderWithDetailsForRouter);
+        return createdOrder;
       });
     }),
 
   update: protectedProcedure
     .input(updateOrderSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { id, items, customerId, ...orderData } = input;
-      let orderTotal: Prisma.Decimal | undefined = undefined;
-      if (items) {
-        orderTotal = calculateOrderTotal(items);
-      }
+    .mutation(async ({ input }) => {
+      const { id, items, ...orderData } = input;
+
+      // Ensure that 'id' is a string if it's not undefined.
+      const orderId = typeof id === 'string' ? id : '';
 
       return prisma.$transaction(async (tx) => {
-        // If items are being updated, Prisma requires deleting old items and creating new ones or more complex logic.
-        // Simple update for now, assuming items are not re-linked this way typically.
-        // For a robust item update, one might delete existing OrderItems and recreate them.
         if (items) {
-            await tx.orderItem.deleteMany({ where: { orderId: id } });
+          const orderTotal = calculateOrderTotal(items);
+          await tx.order.update({
+            where: { id: orderId },
+            data: {
+              ...orderData,
+              totalAmount: orderTotal,
+            },
+          });
+
+          await tx.orderItem.deleteMany({ where: { orderId: orderId } });
+          await tx.orderItem.createMany({
+            data: items.map((item) => ({
+              orderId: orderId,
+              inventoryItemId: item.inventoryItemId,
+              quantity: item.quantity,
+              unitPrice: new Prisma.Decimal(item.unitPrice),
+              discountPercentage: item.discountPercent,
+              discountAmount: new Prisma.Decimal(item.discountAmount ?? 0),
+            })),
+          });
+        } else {
+          await tx.order.update({
+            where: { id: orderId },
+            data: { ...orderData },
+          });
         }
 
-        const updatedOrder = await tx.order.update({
-          where: { id },
-          data: {
-            ...orderData,
-            customerId,
-            totalAmount: orderTotal, // This will be undefined if items is not passed, orderTotal is not updated
-            ...(items && { // Only include items for update if they are provided
-              items: {
-                create: items.map((item) => ({
-                  inventoryItemId: item.inventoryItemId,
-                  quantity: item.quantity,
-                  unitPrice: new Prisma.Decimal(item.unitPrice ?? 0),
-                  discountPercentage: item.discountPercent,
-                  discountAmount: item.discountAmount ? new Prisma.Decimal(item.discountAmount) : null,
-                })),
-              },
-            }),
-          },
-          include: orderDetailIncludeArgs, // Ensure full details are fetched
+        const updatedOrder = await tx.order.findUnique({
+          where: { id: orderId },
+          include: orderDetailIncludeArgs,
         });
-        return processOrderDecimals(updatedOrder as OrderWithDetailsForRouter);
+
+        if (!updatedOrder) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not find order after update.",
+          });
+        }
+        return updatedOrder;
       });
     }),
 
   updateStatus: protectedProcedure
     .input(updateOrderStatusSchema)
     .mutation(async ({ input }) => {
-      const { id, status: newStatus } = input;
+      const { id, status } = input;
 
-      return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const order = await tx.order.findUnique({
-          where: { id },
-        });
+      const order = await prisma.order.findUnique({ where: { id } });
 
-        if (!order) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found.' });
-        }
+      if (!order) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found.' });
+      }
 
-        const currentStatus = order.status;
+      const currentStatus = order.status;
 
-        const validTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
-            [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled, OrderStatus.quote_sent],
-            [OrderStatus.quote_sent]: [OrderStatus.quote_accepted, OrderStatus.quote_rejected, OrderStatus.cancelled],
-            [OrderStatus.quote_accepted]: [OrderStatus.confirmed, OrderStatus.cancelled],
-            [OrderStatus.confirmed]: [OrderStatus.in_production, OrderStatus.cancelled, OrderStatus.shipped ],
-            [OrderStatus.in_production]: [OrderStatus.shipped, OrderStatus.cancelled], 
-            [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.cancelled], 
-        };
+      const validTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
+          [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled, OrderStatus.quote_sent],
+          [OrderStatus.quote_sent]: [OrderStatus.quote_accepted, OrderStatus.quote_rejected, OrderStatus.cancelled],
+          [OrderStatus.quote_accepted]: [OrderStatus.confirmed, OrderStatus.cancelled],
+          [OrderStatus.confirmed]: [OrderStatus.in_production, OrderStatus.cancelled, OrderStatus.shipped ],
+          [OrderStatus.in_production]: [OrderStatus.shipped, OrderStatus.cancelled], 
+          [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.cancelled], 
+      };
 
-        if (!validTransitions[currentStatus]?.includes(newStatus)) {
-             throw new TRPCError({
-                 code: 'BAD_REQUEST',
-                 message: `Cannot transition order from ${currentStatus} to ${newStatus}. Valid transitions: ${validTransitions[currentStatus]?.join(', ') || 'None'}`
-             });
-        }
+      if (!validTransitions[currentStatus]?.includes(status)) {
+           throw new TRPCError({
+               code: 'BAD_REQUEST',
+               message: `Cannot transition order from ${currentStatus} to ${status}. Valid transitions: ${validTransitions[currentStatus]?.join(', ') || 'None'}`
+           });
+      }
 
-        // Original stock allocation for 'confirmed' status (for non-production items or finished goods)
-        if (currentStatus !== OrderStatus.confirmed && newStatus === OrderStatus.confirmed) {
-           // We might want to refine checkAndAllocateStock to NOT deduct items that will have BOMs deducted later
-           // For now, it allocates the main items. If an item is manufactured, this might allocate the finished product.
-           await checkAndAllocateStock(id, tx);
-        }
-        
-        // New: Deduct stock for production when status changes to 'in_production'
-        if (newStatus === OrderStatus.in_production && currentStatus !== OrderStatus.in_production) {
-          if (order.orderType === OrderType.work_order) { // Only for work orders
-            await handleProductionStockDeduction(id, tx);
-          }
-        }
-        // TODO: Handle stock de-allocation if order is cancelled after confirmation or after going into production.
-
-        const updatedOrder = await tx.order.update({
-          where: { id },
-          data: { status: newStatus },
-        });
-
-        return updatedOrder;
-      });
-    }),
-
-  // New mutation to delete multiple orders
-  deleteMany: protectedProcedure
-    .input(deleteManyOrdersSchema)
-    .mutation(async ({ input, ctx }) => {
-      const { ids } = input;
-      // Optional: Add checks to ensure orders can be deleted (e.g., not shipped, not invoiced)
-      // For simplicity, direct deletion for now.
-      const result = await prisma.order.deleteMany({
-        where: {
-          id: { in: ids },
-          // Add companyId: ctx.companyId if multi-tenancy is active
-        },
-      });
-      return { count: result.count };
-    }),
-
-  // New mutation to send multiple orders to production
-  sendManyToProduction: protectedProcedure
-    .input(sendManyOrdersToProductionSchema)
-    .mutation(async ({ input, ctx }) => {
-      const { ids } = input;
-      let successCount = 0;
-      let failCount = 0;
-
-      // It's better to process each order individually within a transaction 
-      // if complex logic or multiple updates per order are needed.
-      // However, for a simple status update, batching might be fine, but error handling is tricky.
-      // Let's update them one by one to allow for individual checks and error reporting.
-
-      for (const orderId of ids) {
-        try {
-          await prisma.$transaction(async (tx) => {
-            const order = await tx.order.findUnique({
-              where: { id: orderId },
-              select: { status: true, orderType: true },
-            });
-
-            if (!order) {
-              throw new TRPCError({ code: "NOT_FOUND", message: `Order ${orderId} not found.` });
-            }
-
-            // Only send Work Orders to production if they are in a suitable state (e.g., confirmed)
-            if (
-              order.orderType === OrderType.work_order &&
-              (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft) // Or other valid pre-production statuses
-            ) {
-              await tx.order.update({
-                where: { id: orderId },
-                data: { status: OrderStatus.in_production }, 
-              });
-              // Call stock deduction logic AFTER status update is committed
-              // Note: handleProductionStockDeduction allows negative stock
-              await handleProductionStockDeduction(orderId, tx);
-              successCount++;
-            } else {
-              // Skip if not a work order or not in a valid state to send to production
-              console.log(`Skipping order ${orderId}: type ${order.orderType}, status ${order.status}`);
-              failCount++;
-            }
-          });
-        } catch (error) {
-          console.error(`Failed to send order ${orderId} to production:`, error);
-          failCount++;
-          // Optionally collect individual error messages
+      // Original stock allocation for 'confirmed' status (for non-production items or finished goods)
+      if (currentStatus !== OrderStatus.confirmed && status === OrderStatus.confirmed) {
+         // We might want to refine checkAndAllocateStock to NOT deduct items that will have BOMs deducted later
+         // For now, it allocates the main items. If an item is manufactured, this might allocate the finished product.
+         await checkAndAllocateStock(id, prisma);
+      }
+      
+      // New: Deduct stock for production when status changes to 'in_production'
+      if (status === OrderStatus.in_production && currentStatus !== OrderStatus.in_production) {
+        if (order.orderType === OrderType.work_order) { // Only for work orders
+          await handleProductionStockDeduction(id, prisma);
         }
       }
-      return { successCount, failCount };
+      // TODO: Handle stock de-allocation if order is cancelled after confirmation or after going into production.
+
+      const updatedOrder = await prisma.order.update({
+        where: { id },
+        data: { status },
+      });
+
+      return updatedOrder;
     }),
+
+  updateProductionStep: protectedProcedure
+    .input(
+      z.object({
+        orderId: z.string(),
+        newStep: z.string(), // e.g., 'cutting', 'assembly', 'painting'
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { orderId, newStep } = input;
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      }
+
+      return await prisma.order.update({
+        where: { id: orderId },
+        data: { productionStep: newStep },
+      });
+    }),
+
+  deleteMany: protectedProcedure
+    .input(deleteManyOrdersSchema)
+    .mutation(async ({ input }) => {
+        const { ids } = input;
+        
+        const deletableOrders = await prisma.order.findMany({
+            where: {
+                id: { in: ids },
+                status: OrderStatus.draft, // Only allow deleting drafts
+            },
+            select: { id: true }
+        });
+
+        const deletableIds = deletableOrders.map(o => o.id);
+        
+        const result = await prisma.order.deleteMany({
+            where: {
+                id: { in: deletableIds }
+            }
+        });
+        
+        return { count: result.count, deletedIds: deletableIds };
+    }),
+
+    sendManyToProduction: protectedProcedure
+        .input(sendManyOrdersToProductionSchema)
+        .mutation(async ({ input }) => {
+            const { ids } = input;
+
+            const ordersToUpdate = await prisma.order.findMany({
+                where: {
+                    id: { in: ids },
+                    status: OrderStatus.confirmed, // Can only send confirmed orders
+                },
+                select: { id: true }
+            });
+            
+            const validOrderIds = ordersToUpdate.map(o => o.id);
+
+            const result = await prisma.order.updateMany({
+                where: { id: { in: validOrderIds } },
+                data: { status: OrderStatus.in_production }
+            });
+            
+            return { count: result.count, updatedIds: validOrderIds };
+        })
 }); 

@@ -123,6 +123,54 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   });
 });
 
+/**
+ * Company Protected (authenticated and company-scoped) procedure
+ *
+ * If you want a query or mutation to ONLY be accessible to logged in users
+ * with an active company selected, use this. It verifies:
+ * 1. The session is valid and `ctx.session.user` is not null.
+ * 2. `ctx.session.user.id` (userId) is present.
+ * 3. `ctx.session.user.companyId` is present and non-empty.
+ *
+ * It guarantees `ctx.session.user`, `ctx.userId`, and `ctx.companyId` are available.
+ *
+ * @see https://trpc.io/docs/procedures
+ */
+export const companyProtectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.session || !ctx.session.user) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "User session is missing or invalid.",
+    });
+  }
+
+  const userId = ctx.session.user.id;
+  if (!userId) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "User ID is missing from session.",
+    });
+  }
+
+  const companyId = ctx.session.user.activeCompanyId;
+  if (!companyId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "No active company selected. Please select a company.",
+    });
+  }
+
+  return next({
+    ctx: {
+      session: { ...ctx.session, user: ctx.session.user },
+      headers: ctx.headers,
+      userId,
+      user: ctx.session.user,
+      companyId,
+    },
+  });
+});
+
 // /**
 //  * Protected (authenticated) procedure
 //  *

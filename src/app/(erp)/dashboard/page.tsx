@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { PlaceholderAreaChart } from "@/components/dashboard/PlaceholderAreaChart";

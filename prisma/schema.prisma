@@ -1,6 +1,7 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
+  output          = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -26,8 +27,17 @@ model User {
   sessions       Session[]
   orders         Order[]
   invoices       Invoice[]
-  Company        Company?  @relation(fields: [companyId], references: [id])
-  companyId      String?
+
+  // Old single company association - replaced by activeCompanyId and CompanyMemberships
+  // Company        Company?  @relation(fields: [companyId], references: [id])
+  // companyId      String?
+
+  // New: For multi-company membership
+  memberOfCompanies Company[] @relation("CompanyMemberships")
+
+  // New: To store the currently active company for the session
+  activeCompanyId   String?
+  activeCompany     Company?  @relation("ActiveCompanyForUser", fields: [activeCompanyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@schema("public")
 }
@@ -439,7 +449,15 @@ model Company {
   updatedAt DateTime @updatedAt
   name      String   @unique
 
-  users               User[]
+  // Old back-relation for User.companyId - replaced by CompanyMemberships
+  // users               User[]
+
+  // New: For multi-company membership
+  companyMembers User[] @relation("CompanyMemberships")
+
+  // New: Back-relation for users having this company as active
+  usersWithThisAsActiveCompany User[] @relation("ActiveCompanyForUser")
+
   customers           Customer[]
   orders              Order[]
   invoices            Invoice[]

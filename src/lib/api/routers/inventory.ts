@@ -8,20 +8,19 @@ import {
   createInventoryItemSchema,
   updateInventoryItemSchema,
   adjustStockSchema,
-  inventoryItemBaseSchema,
-  type InventoryItemFormValues,
   listInventoryItemsSchema,
 } from "@/lib/schemas/inventory.schema";
-import { TransactionType, Prisma, ItemType } from '@prisma/client'; // Import enum and Prisma for Decimal
+import { TransactionType, Prisma } from '@prisma/client'; // Import enum and Prisma for Decimal
 import { TRPCError } from '@trpc/server';
 import puppeteer from 'puppeteer';
 import QRCode from 'qrcode';
+import { Buffer } from 'buffer'; // Import Buffer
 
 export const inventoryRouter = createTRPCRouter({
   list: protectedProcedure
     .input(listInventoryItemsSchema)
     .query(async ({ ctx, input }) => {
-      const sessionCompanyId = ctx.session.user.companyId;
+      const sessionCompanyId = ctx.session.user.activeCompanyId;
       const inputCompanyId = input.companyId;
 
       const filterCompanyId = inputCompanyId || sessionCompanyId;
@@ -135,9 +134,8 @@ export const inventoryRouter = createTRPCRouter({
       itemData: createInventoryItemSchema,
       initialStockQuantity: z.number().optional().default(0),
     }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { itemData, initialStockQuantity } = input;
-      const userId = ctx.session.user.id;
 
       const existingSku = await prisma.inventoryItem.findUnique({
         where: { sku: itemData.sku },
@@ -194,10 +192,9 @@ export const inventoryRouter = createTRPCRouter({
       stockAdjustment: z.number().optional().default(0),
       adjustmentNote: z.string().optional().default("Manual adjustment"),
     }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { itemData, stockAdjustment, adjustmentNote } = input;
       const { id, ...dataToUpdate } = itemData;
-      const userId = ctx.session.user.id;
 
       if (dataToUpdate.sku) {
         const existingSku = await prisma.inventoryItem.findFirst({
@@ -227,7 +224,6 @@ export const inventoryRouter = createTRPCRouter({
               quantity: new Prisma.Decimal(stockAdjustment),
               type: TransactionType.adjustment,
               note: adjustmentNote,
-              // userId: userId, // If tracking user for transaction
             },
           });
         }
@@ -400,71 +396,45 @@ export const inventoryRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
-      try {
-        const relatedOrderItems = await prisma.orderItem.count({ where: { inventoryItemId: input.id }});
-        const relatedInvoiceItems = await prisma.invoiceItem.count({ where: { inventoryItemId: input.id }});
-        const relatedBomComponentItems = await prisma.billOfMaterialItem.count({ 
-          where: { componentItemId: input.id } 
-        });
-        const isManufacturedItemForBOM = await prisma.billOfMaterial.count({ 
-          where: { manufacturedItemId: input.id } 
-        });
+      const { id } = input;
+      // Check for related records before deleting
+      const relatedOrders = await prisma.orderItem.count({ where: { inventoryItemId: id } });
+      const relatedBoms = await prisma.billOfMaterialItem.count({ where: { componentItemId: id } });
 
-        if (relatedOrderItems > 0 || relatedInvoiceItems > 0 || relatedBomComponentItems > 0 || isManufacturedItemForBOM > 0) {
-            let message = 'Cannot delete item. It is referenced in:';
-            if (relatedOrderItems > 0) message += ' existing orders,';
-            if (relatedInvoiceItems > 0) message += ' existing invoices,';
-            if (relatedBomComponentItems > 0 || isManufacturedItemForBOM > 0) message += ' existing Bill of Materials,';
-            message = message.slice(0, -1) + '.';
-            throw new TRPCError({
-                code: 'CONFLICT',
-                message,
-            });
-        }
-
-        await prisma.inventoryTransaction.deleteMany({ where: { itemId: input.id }});
-        return await prisma.inventoryItem.delete({ where: { id: input.id } });
-      } catch (error) {
-         if (error instanceof TRPCError) throw error;
-         throw new TRPCError({
-           code: 'INTERNAL_SERVER_ERROR',
-           message: 'Failed to delete inventory item.',
-         });
+      if (relatedOrders > 0 || relatedBoms > 0) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Cannot delete item. It is used in orders or bills of material.',
+        });
       }
+
+      return await prisma.inventoryItem.delete({
+        where: { id },
+      });
     }),
 
-   adjustStock: protectedProcedure
+  adjustStock: protectedProcedure
     .input(adjustStockSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { itemId, quantityChange, note } = input;
-      const item = await prisma.inventoryItem.findUnique({ 
-        where: { id: itemId },
-      });
-      if (!item) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Item to adjust not found.' });
+
+      if (quantityChange === 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Quantity change cannot be zero.',
+        });
       }
+      
+      const transactionType = quantityChange > 0 ? TransactionType.purchase : TransactionType.adjustment;
 
-      return prisma.$transaction(async (tx) => {
-        const transaction = await tx.inventoryTransaction.create({
-          data: {
-            itemId: itemId,
-            quantity: new Prisma.Decimal(quantityChange),
-            type: TransactionType.adjustment, 
-            note: note,
-          },
-        });
-
-        const allTransactions = await tx.inventoryTransaction.aggregate({
-          _sum: { quantity: true },
-          where: { itemId: itemId },
-        });
-        const newActualQOH = allTransactions._sum.quantity ?? new Prisma.Decimal(0);
-        await tx.inventoryItem.update({
-          where: { id: itemId },
-          data: { quantityOnHand: newActualQOH }
-        });
-
-        return transaction;
+      return await prisma.inventoryTransaction.create({
+        data: {
+          itemId: itemId,
+          quantity: new Prisma.Decimal(quantityChange),
+          type: transactionType,
+          reference: 'Manual Adjustment',
+          note: note ?? (quantityChange > 0 ? 'Stock-in' : 'Stock-out'),
+        },
       });
     }),
 
@@ -623,7 +593,7 @@ export const inventoryRouter = createTRPCRouter({
 
       return {
         success: true,
-        pdfBase64: (pdfBuffer as any).toString('base64'),
+        pdfBase64: (pdfBuffer as Buffer).toString('base64'), // Assert to Node.js Buffer
         message: 'QR Code PDF generated successfully.',
       };
     }),
@@ -720,5 +690,209 @@ export const inventoryRouter = createTRPCRouter({
         minimumStockLevel: item.minimumStockLevel.toString(),
         // leadTimeDays, vendorSku, vendorItemName, unitOfMeasure will be on item directly
       }));
+    }),
+
+  getLowStockItems: protectedProcedure
+    .query(async () => {
+      const items = await prisma.inventoryItem.findMany({
+        include: {
+          inventoryTransactions: {
+            select: {
+              quantity: true,
+            },
+          },
+        },
+      });
+
+      const lowStockItems = items
+        .map(item => {
+          const quantityOnHand = item.inventoryTransactions.reduce(
+            (sum, t) => sum.add(t.quantity),
+            new Prisma.Decimal(0)
+          );
+
+          return {
+            ...item,
+            quantityOnHand,
+          };
+        })
+        .filter(item => {
+          if (item.minimumStockLevel === null) {
+            return false;
+          }
+          return item.quantityOnHand.lessThanOrEqualTo(item.minimumStockLevel);
+        })
+        .map(item => ({
+          ...item,
+            costPrice: item.costPrice.toString(),
+            salesPrice: item.salesPrice.toString(),
+            minimumStockLevel: item.minimumStockLevel.toString(),
+            reorderLevel: item.reorderLevel?.toString() ?? null,
+            quantityOnHand: item.quantityOnHand.toString()
+        }));
+
+      return lowStockItems;
+    }),
+  
+  generateAndPrintQRCodes: protectedProcedure
+    .input(z.object({ itemIds: z.array(z.string()) }))
+    .mutation(async ({ input }) => {
+      const { itemIds } = input;
+      const items = await prisma.inventoryItem.findMany({
+        where: { id: { in: itemIds } },
+      });
+
+      let htmlContent = `
+        <html>
+          <head>
+            <style>
+              @page { size: A4; margin: 1cm; }
+              body { font-family: sans-serif; }
+              .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-gap: 10px; }
+              .qr-code-item { border: 1px solid #ccc; padding: 10px; text-align: center; }
+              .qr-code-item img { max-width: 100%; height: auto; }
+              .item-name { font-weight: bold; margin-top: 5px; }
+              .item-sku { font-size: 0.8em; color: #555; }
+            </style>
+          </head>
+          <body>
+            <div class="grid-container">
+      `;
+
+      for (const item of items) {
+        const qrIdentifier = `ITEM:${item.id}`;
+        const qrCodeDataUrl = await QRCode.toDataURL(qrIdentifier, { errorCorrectionLevel: 'H' });
+        
+        htmlContent += `
+          <div class="qr-code-item">
+            <img src="${qrCodeDataUrl}" alt="QR Code for ${item.name}" />
+            <div class="item-name">${item.name}</div>
+            <div class="item-sku">SKU: ${item.sku}</div>
+          </div>
+        `;
+      }
+
+      htmlContent += `
+            </div>
+          </body>
+        </html>
+      `;
+
+      const browser = await puppeteer.launch({ headless: true });
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+      await browser.close();
+
+      return {
+        pdfBase64: pdfBuffer.toString('base64'),
+      };
+    }),
+
+  // New endpoint to find an item by its QR identifier
+  findByQrIdentifier: protectedProcedure
+    .input(z.object({ qrIdentifier: z.string() }))
+    .query(async ({ input }) => {
+        const { qrIdentifier } = input;
+
+        if (!qrIdentifier.startsWith('ITEM:')) {
+            throw new TRPCError({
+                code: 'BAD_REQUEST',
+                message: 'Invalid QR identifier format.',
+            });
+        }
+        
+        const itemId = qrIdentifier.split(':')[1];
+
+        if (!itemId) {
+             throw new TRPCError({
+                code: 'BAD_REQUEST',
+                message: 'Item ID missing from QR identifier.',
+            });
+        }
+
+        const item = await prisma.inventoryItem.findUnique({
+            where: { id: itemId },
+        });
+
+        if (!item) {
+            throw new TRPCError({
+                code: 'NOT_FOUND',
+                message: `Item with ID ${itemId} not found.`,
+            });
+        }
+        
+        // Convert Decimal fields to string for client-side consumption
+        return {
+            ...item,
+            costPrice: item.costPrice.toString(),
+            salesPrice: item.salesPrice.toString(),
+            minimumStockLevel: item.minimumStockLevel.toString(),
+            reorderLevel: item.reorderLevel?.toString() ?? null,
+        };
+    }),
+
+    getTransactions: protectedProcedure
+        .input(z.object({ itemId: z.string() }))
+        .query(async ({ input }) => {
+            const { itemId } = input;
+            const transactions = await prisma.inventoryTransaction.findMany({
+                where: { itemId },
+                orderBy: { createdAt: 'desc' },
+                // include: { user: true } // If you want to show who made the transaction
+            });
+            return transactions.map(t => ({...t, quantity: t.quantity.toString()}));
+        }),
+
+    getPresignedUrlForUpload: protectedProcedure
+        .input(z.object({
+            itemId: z.string(),
+            fileName: z.string(),
+            fileType: z.string(),
+        }))
+        .mutation(async ({ input }) => {
+            // This is a placeholder. In a real app, you would use a service like AWS S3.
+            // You would generate a presigned URL here that the client can use to upload the file directly.
+            // For example, using the AWS SDK v3:
+            //
+            // import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+            // import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+            //
+            // const s3Client = new S3Client({ region: "your-region" });
+            // const command = new PutObjectCommand({
+            //   Bucket: "your-bucket-name",
+            //   Key: `inventory/${input.itemId}/${input.fileName}`,
+            //   ContentType: input.fileType,
+            // });
+            // const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            //
+            // await prisma.inventoryItem.update({
+            //   where: { id: input.itemId },
+            //   data: { imageUrl: `s3-url-path...` } // Store a reference, not the full signed URL
+            // });
+            //
+            // return { signedUrl };
+            
+            console.log("Generating presigned URL for", input);
+            // Simulating a successful response for a local/dev environment
+            return {
+                signedUrl: `/api/upload?fileName=${encodeURIComponent(input.fileName)}&itemId=${input.itemId}`,
+                isSimulated: true, // Flag to indicate this is not a real cloud URL
+            };
+        }),
+  
+  getItemTypes: protectedProcedure
+    .query(async () => {
+      // This is a simple query to return the enum values
+      const { ItemType } = await import('@prisma/client');
+      return Object.values(ItemType);
+    }),
+
+    // New procedure to fetch categories
+  getCategories: protectedProcedure
+    .query(async () => {
+        return await prisma.inventoryCategory.findMany({
+            orderBy: { name: 'asc' }
+        });
     }),
 }); 

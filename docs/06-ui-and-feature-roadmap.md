@@ -97,6 +97,78 @@ Ensure `components.json` is configured correctly for aliases (`@/components`, `@
     *   Ensure navigation links, active states, and any dynamic content (like user info/company switcher) are correctly ported.
     *   The "user button with image" from `sidebar-07` should be added to the bottom of the sidebar, linking to a user profile/settings page.
 
+**2.C.1. Company Switcher Implementation**
+
+*   **Status:** Implemented
+*   **Objective:** Allow users who are members of multiple companies to switch their active company context within the application, impacting data visibility and operations throughout the ERP.
+*   **Key Components & Logic:**
+    *   **Database Schema (`prisma/schema.prisma`):**
+        *   Modified `User` and `Company` models to establish a many-to-many relationship (`CompanyMemberships`), allowing a user to be associated with multiple companies.
+        *   Added `activeCompanyId` field (and `activeCompany` relation) to the `User` model to store the ID of the currently selected active company.
+        *   A database migration (`add_company_memberships_and_active_company`) was created and successfully applied to reflect these schema changes.
+    *   **Authentication (`src/lib/auth/index.ts`):
+        *   The NextAuth `jwt` callback was updated to fetch `activeCompanyId` from the user's database record and use it to populate the `companyId` field in the session token. This ensures the session always reflects the user's chosen active company.
+    *   **tRPC Backend (`src/lib/api/routers/user.ts`):**
+        *   `getMemberCompanies` (Query): A new `protectedProcedure` was added to fetch the list of all companies a user is a member of (leveraging the `CompanyMemberships` relation). It returns essential company details (e.g., `id`, `name`) for the switcher UI.
+        *   `setActiveCompany` (Mutation): A new `protectedProcedure` was added that allows a user to set their `activeCompanyId`. This mutation first verifies that the user is indeed a member of the target company before updating the `User.activeCompanyId` in the database.
+    *   **UI Component (`src/components/team-switcher.tsx`):**
+        *   The existing `TeamSwitcher` component was significantly refactored.
+        *   It now uses the `getMemberCompanies` tRPC query to populate the list of companies available for switching.
+        *   On selection, it calls the `setActiveCompany` tRPC mutation.
+        *   Upon successful mutation, it triggers `useSession().update()` from `next-auth/react` to ensure the NextAuth session (and thereby `session.user.companyId`) is immediately updated to reflect the new active company.
+        *   The component includes handling for loading, error, and empty states (e.g., if a user is not part of any companies).
+        *   It uses a default icon for companies, as company-specific logos are not yet part of the `Company` model.
+    *   **Sidebar Integration (`src/components/AppSidebar.tsx`):**
+        *   The refactored and fully functional `TeamSwitcher` component has been integrated into the `AppSidebar`. It is positioned prominently, typically below the main application logo/header, making it easily accessible for users to switch their company context.
+*   **Impact & Next Steps:**
+    *   This feature provides the core mechanism for users to navigate between different company contexts if they have multiple memberships.
+    *   It is a foundational element for enforcing multi-tenancy, as data-access procedures using `companyProtectedProcedure` (which relies on `session.user.companyId`) will now operate correctly based on the selected company.
+    *   Further enhancements could include company-specific logos or additional details in the switcher, and refining the UX for users with no or only one company.
+
+**2.C.2. Create New User Functionality**
+
+*   **Status:** Implemented (for Global Admins)
+*   **Objective:** Allow Global Administrators to create new users within the system and associate them with the admin's currently active company.
+*   **Key Components & Logic:**
+    *   **tRPC Backend (`src/lib/api/routers/user.ts`):**
+        *   `createUserInActiveCompany` (Mutation): A new `companyProtectedProcedure` was added. This procedure is restricted to users with the `UserRole.admin` (global admin) role.
+        *   It takes user details (name, email, password, initial role) as input.
+        *   It creates a new `User` record in the database.
+        *   The new user is automatically added as a member of the creating admin's `activeCompanyId`.
+        *   The new user's `activeCompanyId` is set to the creating admin's `activeCompanyId`.
+    *   **UI Integration (`src/app/(erp)/settings/page.tsx`):**
+        *   A new "Create User" form, encapsulated within a `Card` component, has been added to the `/settings` page.
+        *   This form is conditionally rendered and is only visible to users with `UserRole.admin`.
+        *   The form collects the new user's name, email, password, and role (defaulting to `USER`).
+        *   On submission, it calls the `createUserInActiveCompany` tRPC mutation.
+        *   Appropriate loading states and toast notifications (success/error) are handled.
+*   **Impact & Next Steps:**
+    *   Global administrators can now onboard new users and assign them to their current company context.
+    *   Future enhancements could include inviting users via email, allowing users to set their own password upon first login, or more granular role assignment during creation.
+
+**2.C.3. Create New Company (Tenant) Functionality**
+
+*   **Status:** Implemented (for Global Admins)
+*   **Objective:** Allow Global Administrators to create new companies (tenants) in the system. The creating admin is automatically made a member of the new company, and it becomes their active company.
+*   **Key Components & Logic:**
+    *   **tRPC Backend (`src/lib/api/routers/company.ts`):**
+        *   A new router, `companyRouter`, was created and added to the main `appRouter` in `src/lib/api/root.ts`.
+        *   `create` (Mutation): A new `protectedProcedure` (available to any authenticated user, but UI might restrict to admins) was added to this router.
+        *   It takes the new company's name as input.
+        *   It creates a new `Company` record.
+        *   It adds the currently authenticated user (the creator) as a member of this new company through the `CompanyMemberships` relation.
+        *   It updates the creator's `activeCompanyId` to the ID of the newly created company.
+    *   **UI Integration (`src/components/team-switcher.tsx`):**
+        *   The "Add Company" / "Create Company" functionality within the `TeamSwitcher` component has been enhanced.
+        *   A dialog (`CreateCompanyDialog`) is presented when a user (typically an admin, based on UI conditional rendering) clicks "Create Company".
+        *   This dialog contains a form to input the new company's name.
+        *   On submission, it calls the `company.create` tRPC mutation.
+        *   Upon successful creation, the session is updated (`useSession().update()`) to reflect the new `activeCompanyId`, and the list of companies in the switcher is refreshed (via `utils.user.getMemberCompanies.invalidate()`).
+*   **Impact & Next Steps:**
+    *   Global administrators can now provision new tenants/companies.
+    *   The creating admin is seamlessly transitioned into the context of the new company.
+    *   Future enhancements could include more detailed company setup options during creation (e.g., address, default currency, etc.) and specific UI for managing tenants by super-admins.
+
 **D. User and Customer Edit Page/Dialog Design:**
 *   **Goal:** Standardize the UI for editing entities, possibly using dialogs for a smoother UX.
 *   **Reference:** [https://21st.dev/originui/dialog/edit-profile-dialog](https://21st.dev/originui/dialog/edit-profile-dialog)

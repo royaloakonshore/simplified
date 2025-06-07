@@ -5,20 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   generateAndDownloadFinvoice, 
-  updateInvoiceStatus,
-  recordPayment,
   createCreditNote
 } from '@/lib/actions/invoice.actions';
 import { toast } from "sonner";
+import { type inferRouterOutputs } from '@trpc/server';
+import { type AppRouter } from "@/lib/api/root";
 import { 
-  type Invoice as PrismaInvoiceOriginal,
-  type Customer as PrismaCustomer, 
-  type InvoiceItem as PrismaInvoiceItemOriginal,
-  type InventoryItem as PrismaInventoryItem,
-  type Address as PrismaAddress,
-  type Order as PrismaOrderOriginal,
-  type Payment as PrismaPaymentOriginal,
-  type OrderItem as PrismaOrderItemOriginal,
   InvoiceStatus as PrismaInvoiceStatus
 } from '@prisma/client';
 import { 
@@ -28,181 +20,32 @@ import {
     DropdownMenu, 
     DropdownMenuContent, 
     DropdownMenuItem, 
-    DropdownMenuSeparator, 
     DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Edit, FileText, CreditCard, Copy, Trash2, Send, XCircle } from 'lucide-react';
-import { toast as sonnerToast } from "sonner";
-import { type Invoice, type InvoiceItem as BrandedInvoiceItem, InvoiceStatus as BrandedInvoiceStatus } from '@/lib/types/invoice.types';
-import { type Customer as BrandedCustomer, type Address as BrandedAddress } from '@/lib/types/customer.types';
-import { type Order as BrandedOrder, type OrderItem as BrandedOrderItem } from '@/lib/types/order.types';
-import { type UUID as BrandedUUID, type Decimal as BrandedDecimal } from '@/lib/types/branded';
-import { type ToastT as SonnerToastProps } from 'sonner'
+import { MoreHorizontal, FileText, CreditCard } from 'lucide-react';
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableRow,
+  TableFooter
+} from "@/components/ui/table";
 
-// --- Type overrides for stringified Decimals ---
-type InvoiceWithStringDecimals = Omit<PrismaInvoiceOriginal, 'totalAmount' | 'totalVatAmount' | 'paidAmount' | 'creditedAmount'> & {
-  totalAmount: string;
-  totalVatAmount: string;
-  paidAmount: string | null;
-  creditedAmount: string | null;
-};
-
-type InvoiceItemWithStringDecimals = Omit<PrismaInvoiceItemOriginal, 'quantity' | 'unitPrice' | 'vatRatePercent' | 'discountAmount' | 'discountPercentage' | 'calculatedUnitCost' | 'calculatedUnitProfit' | 'calculatedLineProfit'> & {
-  quantity: string;
-  unitPrice: string;
-  vatRatePercent: string;
-  discountAmount: string | null;
-  discountPercentage: string | null;
-  calculatedUnitCost: string | null;
-  calculatedUnitProfit: string | null;
-  calculatedLineProfit: string | null;
-  inventoryItem: PrismaInventoryItem | null;
-};
-
-type OrderItemWithStringDecimals = Omit<PrismaOrderItemOriginal, 'quantity' | 'unitPrice' | 'discountAmount' | 'discountPercentage'> & {
-    quantity: string;
-    unitPrice: string;
-    discountAmount: string | null;
-    discountPercentage: string | null;
-    inventoryItem?: PrismaInventoryItem;
-};
-
-type OrderWithStringDecimals = Omit<PrismaOrderOriginal, 'totalAmount' | 'items'> & {
-  totalAmount: string | null; 
-  items?: OrderItemWithStringDecimals[];
-  customer?: PrismaCustomer; 
-};
-
-type PaymentWithStringDecimals = Omit<PrismaPaymentOriginal, 'amount'> & {
-  amount: string;
-};
-// --- End Type overrides ---
-
-type FullInvoiceFromApi = InvoiceWithStringDecimals & {
-  customer: PrismaCustomer & {
-    addresses?: PrismaAddress[] | null;
-  };
-  items: InvoiceItemWithStringDecimals[];
-  order: OrderWithStringDecimals | null;
-  payments: PaymentWithStringDecimals[];
-};
-
-// Import the local, branded Invoice type for the mapping function
-// The following lines are removed to fix duplicate import errors
-// import { type Invoice, type InvoiceItem as BrandedInvoiceItem, InvoiceStatus as BrandedInvoiceStatus } from '@/lib/types/invoice.types';
-// import { type Customer as BrandedCustomer, type Address as BrandedAddress } from '@/lib/types/customer.types';
-// import { type Order as BrandedOrder, type OrderItem as BrandedOrderItem } from '@/lib/types/order.types';
-// import { type UUID as BrandedUUID, type Decimal as BrandedDecimal } from '@/lib/types/branded';
-
-// Define ActionResult for promise typing
-type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
-
-// Helper to map a BrandedInvoice (from createCreditNote action) to FullInvoiceFromApi
-const mapBrandedInvoiceToFullInvoiceApi = (brandedInvoice: Invoice): FullInvoiceFromApi => {
-  // Drastically simplified mapping to avoid persistent linter issues with deep optional chaining and type mismatches.
-  // Focus on top-level fields and Decimal to string conversion.
-  // Nested objects are cast to any; this sacrifices some type safety for build stability.
-  return {
-    // Top-level Invoice fields from BrandedInvoice
-    id: brandedInvoice.id.toString(),
-    invoiceNumber: brandedInvoice.invoiceNumber,
-    invoiceDate: new Date(brandedInvoice.invoiceDate), // Ensure Date type
-    dueDate: new Date(brandedInvoice.dueDate), // Ensure Date type
-    status: brandedInvoice.status as unknown as PrismaInvoiceStatus, // Cast status
-    totalAmount: brandedInvoice.totalAmount.toString(),
-    totalVatAmount: brandedInvoice.totalVatAmount.toString(),
-    vatReverseCharge: brandedInvoice.vatReverseCharge,
-    notes: brandedInvoice.notes ?? null,
-    paymentDate: brandedInvoice.paymentDate ? new Date(brandedInvoice.paymentDate) : null,
-    createdAt: new Date(brandedInvoice.createdAt),
-    updatedAt: new Date(brandedInvoice.updatedAt),
-    customerId: brandedInvoice.customerId.toString(),
-    orderId: brandedInvoice.orderId ? brandedInvoice.orderId.toString() : null,
-    originalInvoiceId: brandedInvoice.originalInvoiceId ? brandedInvoice.originalInvoiceId.toString() : null,
-    creditNoteId: brandedInvoice.creditNoteId ? brandedInvoice.creditNoteId.toString() : null,
-
-    // Related objects - simplified with `as any` for nested parts
-    customer: {
-      ...(brandedInvoice.customer as any), 
-      id: brandedInvoice.customer.id?.toString() ?? 'placeholder-customer-id',
-      addresses: brandedInvoice.customer.addresses?.map((addr: BrandedAddress) => ({ 
-          ...(addr as any),
-          id: addr.id?.toString() ?? 'placeholder-address-id'
-        })) ?? [],
-    } as PrismaCustomer & { addresses?: PrismaAddress[] | null }, 
-
-    items: brandedInvoice.items.map((item: BrandedInvoiceItem) => ({
-      ...(item as any), 
-      id: item.id.toString(),
-      invoiceId: item.invoiceId.toString(),
-      quantity: item.quantity.toString(),
-      unitPrice: item.unitPrice.toString(),
-      vatRatePercent: item.vatRatePercent.toString(),
-      discountAmount: item.discountAmount ? item.discountAmount.toString() : null,
-      discountPercentage: item.discountPercent ? item.discountPercent.toString() : null,
-      calculatedUnitCost: null, 
-      calculatedUnitProfit: null,
-      calculatedLineProfit: null,
-      inventoryItem: null, 
-    })) as InvoiceItemWithStringDecimals[], 
-
-    order: brandedInvoice.order ? {
-      ...(brandedInvoice.order as any), 
-      id: brandedInvoice.order.id.toString(),
-      customerId: brandedInvoice.order.customerId.toString(),
-      totalAmount: brandedInvoice.order.totalAmount.toString(),
-      items: brandedInvoice.order.items?.map((oi: BrandedOrderItem) => ({
-          ...(oi as any),
-          id: oi.id.toString(),
-          orderId: oi.orderId.toString(),
-          inventoryItemId: oi.itemId.toString(), 
-          quantity: oi.quantity.toString(),
-          unitPrice: oi.unitPrice.toString(),
-          discountAmount: oi.discountAmount ? oi.discountAmount.toString() : null,
-          discountPercentage: oi.discountPercent ? oi.discountPercent.toString() : null,
-          inventoryItem: (oi.item as any) as PrismaInventoryItem | undefined,
-      })) ?? [],
-      customer: brandedInvoice.order.customer ? {
-          ...(brandedInvoice.order.customer as any),
-          id: brandedInvoice.order.customer.id?.toString() ?? 'placeholder-customer-id-in-order',
-          addresses: brandedInvoice.order.customer.addresses?.map((addr: BrandedAddress) => ({ 
-              ...(addr as any),
-              id: addr.id?.toString() ?? 'placeholder-address-id-in-order'
-            })) ?? [],
-      } : undefined,
-    } as OrderWithStringDecimals : null, 
-
-    payments: (brandedInvoice as any).payments?.map((p: any) => ({ 
-        ...p,
-        id: p.id.toString(),
-        invoiceId: p.invoiceId.toString(),
-        amount: p.amount.toString(),
-        paymentDate: new Date(p.paymentDate)
-    })) ?? [],
-
-    companyId: (brandedInvoice as any).companyId ?? null,
-    userId: (brandedInvoice as any).userId ?? null,
-    isCreditNote: (brandedInvoice as any).isCreditNote ?? false,
-    pdfUrl: (brandedInvoice as any).pdfUrl ?? null,
-    sentAt: (brandedInvoice as any).sentAt ? new Date((brandedInvoice as any).sentAt) : null,
-    paidAmount: (brandedInvoice as any).paidAmount ? (brandedInvoice as any).paidAmount.toString() : ((brandedInvoice.status === BrandedInvoiceStatus.PAID) ? brandedInvoice.totalAmount.toString() : '0'),
-    creditedAmount: (brandedInvoice as any).creditedAmount ? (brandedInvoice as any).creditedAmount.toString() : ((brandedInvoice.status === BrandedInvoiceStatus.CREDITED) ? brandedInvoice.totalAmount.toString() : '0'),
-  } as FullInvoiceFromApi;
-};
+// --- Start: New types inferred from tRPC router ---
+type RouterOutput = inferRouterOutputs<AppRouter>;
+type InvoiceDetailData = RouterOutput['invoice']['get'];
+// --- End: New types inferred from tRPC router ---
 
 interface InvoiceDetailProps {
-  invoice: FullInvoiceFromApi;
+  invoice: InvoiceDetailData;
 }
 
 export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<PrismaInvoiceStatus | ''>('');
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [isCrediting, setIsCrediting] = useState(false);
   const [creditError, setCreditError] = useState<string | null>(null);
 
@@ -229,60 +72,6 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       [PrismaInvoiceStatus.credited]: 'bg-gray-400 text-gray-800 dark:bg-gray-600 dark:text-gray-100',
     };
     return statusColors[status] || 'bg-neutral-100 text-neutral-800 dark:bg-neutral-500 dark:text-neutral-50';
-  };
-
-  const getAvailableStatusTransitions = (): PrismaInvoiceStatus[] => {
-    if (invoice.status === PrismaInvoiceStatus.draft) return [PrismaInvoiceStatus.sent, PrismaInvoiceStatus.cancelled];
-    if (invoice.status === PrismaInvoiceStatus.sent) return [PrismaInvoiceStatus.paid, PrismaInvoiceStatus.cancelled];
-    if (invoice.status === PrismaInvoiceStatus.overdue) return [PrismaInvoiceStatus.paid, PrismaInvoiceStatus.cancelled];
-    return [];
-  };
-
-  const handleStatusUpdate = async () => {
-    if (!selectedStatus) {
-      toast.error("Please select a status.");
-      return;
-    }
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const result = await updateInvoiceStatus(invoice.id, selectedStatus);
-      if (result.success) {
-        toast.success(`Invoice status updated to ${result.data.status}`);
-        setShowStatusModal(false);
-        router.refresh(); // Re-fetch data
-      } else {
-        toast.error(result.error);
-        setError(result.error);
-      }
-    } catch (e: any) {
-      toast.error("An unexpected error occurred.");
-      setError(e.message || 'Failed to update status.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const handleRecordPayment = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      // Assuming recordPayment expects invoice ID and payment date string
-      const result = await recordPayment(invoice.id, paymentDate); 
-      if (result.success) {
-        toast.success(`Payment recorded for invoice ${result.data.invoiceNumber}`);
-        setShowPaymentModal(false);
-        router.refresh(); // Re-fetch data
-      } else {
-        toast.error(result.error);
-        setError(result.error);
-      }
-    } catch (e: any) {
-      toast.error("An unexpected error occurred.");
-      setError(e.message || 'Failed to record payment.');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const handleFinvoiceExport = async () => {
@@ -316,44 +105,49 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         }
         setError(result.error || "Failed to generate Finvoice XML.");
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error("An unexpected error occurred during export.");
-      setError(e.message || 'Failed to export Finvoice XML.');
+      if (e instanceof Error) {
+        setError(e.message || 'Failed to export Finvoice XML.');
+      } else {
+        setError('Failed to export Finvoice XML.');
+      }
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleCreateCreditNote = async () => {
-    setIsCrediting(true);
     setCreditError(null);
+    setIsCrediting(true);
     try {
-      const creditResult = await createCreditNote(invoice.id);
-      if (creditResult.success) {
-        toast.success(`Credit note ${creditResult.data.invoiceNumber} created successfully!`);
-        // Potentially use mapBrandedInvoiceToFullInvoiceApi if navigation needs complex state
-        // For now, just navigate to the new credit note's page
-        router.push(`/invoices/${creditResult.data.id}`);
-        router.refresh(); // also refresh current page to show original invoice as credited
-      } else {
-        toast.error(creditResult.error);
-        setCreditError(creditResult.error);
+      if (!invoice.id) {
+          throw new Error("Invoice ID is missing.");
       }
-    } catch (e: any) {
-      toast.error("An unexpected error occurred while creating credit note.");
-      setCreditError(e.message || 'Failed to create credit note.');
+      const result = await createCreditNote(invoice.id);
+      if (result.success && result.data) {
+        toast.success(`Credit note created successfully: ${result.data.invoiceNumber}`);
+        router.push(`/invoices/${result.data.id}`);
+        router.refresh(); 
+      } else {
+        const errorMessage = !result.success ? result.error : "An unknown error occurred.";
+        setCreditError(errorMessage);
+        toast.error(`Failed to create credit note: ${errorMessage}`);
+      }
+    } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        setCreditError(errorMessage);
+        toast.error(`An exception occurred: ${errorMessage}`);
     } finally {
       setIsCrediting(false);
     }
   };
 
-  const availableStatusTransitions = getAvailableStatusTransitions();
   const canExportFinvoice = invoice.status === PrismaInvoiceStatus.sent || invoice.status === PrismaInvoiceStatus.paid || invoice.status === PrismaInvoiceStatus.overdue;
-  const canRecordPayment = invoice.status === PrismaInvoiceStatus.sent || invoice.status === PrismaInvoiceStatus.overdue;
-  const canBeCredited = [PrismaInvoiceStatus.sent, PrismaInvoiceStatus.paid, PrismaInvoiceStatus.overdue].includes(invoice.status as any);
+  const canBeCredited = ([PrismaInvoiceStatus.sent, PrismaInvoiceStatus.paid, PrismaInvoiceStatus.overdue] as PrismaInvoiceStatus[]).includes(invoice.status);
 
   // Helper to render an address block
-  const AddressBlock = ({ address, title }: { address?: PrismaAddress | null, title: string }) => {
+  const AddressBlock = ({ address, title }: { address?: InvoiceDetailData['customer']['addresses'][number] | null, title: string }) => {
     if (!address) return null;
     return (
       <div>
@@ -367,8 +161,8 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     );
   };
 
-  const billingAddress = invoice.customer.addresses?.find(addr => addr.type === 'billing');
-  const shippingAddress = invoice.customer.addresses?.find(addr => addr.type === 'shipping');
+  const billingAddress = invoice.customer.addresses?.find((addr: InvoiceDetailData['customer']['addresses'][number]) => addr.type === 'billing');
+  const shippingAddress = invoice.customer.addresses?.find((addr: InvoiceDetailData['customer']['addresses'][number]) => addr.type === 'shipping');
 
   return (
     <div className="bg-card text-card-foreground rounded-md shadow overflow-hidden">
@@ -385,13 +179,12 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             </div>
            </div>
            <div className="flex items-center space-x-2">
+             {/* The following block related to availableStatusTransitions and the Update Status button is removed
              {availableStatusTransitions.length > 0 && (
                <Button variant="outline" onClick={() => setShowStatusModal(true)}>Update Status</Button>
              )}
-             {canRecordPayment && (
-                <Button variant="outline" onClick={() => setShowPaymentModal(true)}>Record Payment</Button>
-             )}
-             {(canExportFinvoice || canBeCredited) && (
+             */}
+             {canExportFinvoice && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-8 w-8 p-0">
@@ -479,43 +272,45 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       <div className="px-6 py-4 border-t border-border">
         <h3 className="text-lg font-medium mb-4">Invoice Items</h3>
         <div className="overflow-x-auto">
-          <div className="border border-border rounded-md">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-6 py-4 text-left font-medium text-muted-foreground">Description</th>
-                  <th className="px-6 py-4 text-left font-medium text-muted-foreground">Quantity</th>
-                  <th className="px-6 py-4 text-left font-medium text-muted-foreground">Unit Price</th>
-                  <th className="px-6 py-4 text-left font-medium text-muted-foreground">VAT Rate</th>
-                  <th className="px-6 py-4 text-right font-medium text-muted-foreground">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 align-top">{item.description || item.inventoryItem?.name}</td>
-                    <td className="px-6 py-4 align-top">{item.quantity}</td>
-                    <td className="px-6 py-4 align-top">{formatCurrency(item.unitPrice)}</td>
-                    <td className="px-6 py-4 align-top">{item.vatRatePercent}%</td>
-                    <td className="px-6 py-4 align-top text-right">{formatCurrency(Number(item.quantity) * Number(item.unitPrice))}</td>
-                  </tr>
+          <div className="bg-background p-4 rounded-lg">
+            <h4 className="font-semibold mb-2">Invoice Items</h4>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoice.items.map((item: InvoiceDetailData['items'][number]) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div className="font-medium">{item.inventoryItem?.name ?? 'N/A'}</div>
+                      <div className="text-sm text-muted-foreground">{item.description}</div>
+                    </TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Number(item.quantity) * Number(item.unitPrice))}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-              <tfoot className="border-t border-border bg-muted/50">
-                <tr>
-                  <td colSpan={4} className="px-6 py-4 text-right font-medium text-muted-foreground">Subtotal</td>
-                  <td className="px-6 py-4 text-right font-medium text-muted-foreground">{formatCurrency(invoice.totalAmount)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="px-6 py-4 text-right font-medium text-muted-foreground">VAT</td>
-                  <td className="px-6 py-4 text-right font-medium text-muted-foreground">{formatCurrency(invoice.totalVatAmount)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={4} className="px-6 py-4 text-right font-bold text-muted-foreground">TOTAL</td>
-                  <td className="px-6 py-4 text-right font-bold text-muted-foreground">{formatCurrency(Number(invoice.totalAmount) + Number(invoice.totalVatAmount))}</td>
-                </tr>
-              </tfoot>
-            </table>
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-bold">Subtotal</TableCell>
+                  <TableCell className="text-right font-bold">{formatCurrency(invoice.totalAmount)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-bold">VAT</TableCell>
+                  <TableCell className="text-right font-bold">{formatCurrency(invoice.totalVatAmount)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell colSpan={3} className="text-right font-bold">TOTAL</TableCell>
+                  <TableCell className="text-right font-bold">{formatCurrency(Number(invoice.totalAmount) + Number(invoice.totalVatAmount))}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </div>
         </div>
       </div>

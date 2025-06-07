@@ -6,12 +6,12 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, u
 import { KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider } from '@/components/ui/kanban';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderStatus, OrderType, ItemType } from '@prisma/client';
-import type { Customer, InventoryItem, BillOfMaterial, BillOfMaterialItem, User, Prisma as PrismaTypes } from '@prisma/client';
+import type { Customer, InventoryItem, BillOfMaterial, BillOfMaterialItem, User } from '@prisma/client';
+import { Prisma as PrismaTypes } from '@prisma/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { DataTableToolbar } from "@/components/ui/data-table/data-table-toolbar";
 import {
     ColumnDef,
     flexRender,
@@ -138,7 +138,11 @@ function ProductionPageContent() {
 
   useEffect(() => {
     if (productionOrdersQuery.data) {
-      setOrders(productionOrdersQuery.data as KanbanOrder[]);
+      const transformedOrders = productionOrdersQuery.data.map(order => ({
+        ...order,
+        totalQuantity: order.items.reduce((acc, item) => acc.plus(item.quantity), new PrismaTypes.Decimal(0)),
+      }));
+      setOrders(transformedOrders as KanbanOrder[]);
     } else if (productionOrdersQuery.error) {
       const error = productionOrdersQuery.error as TRPCClientErrorLike<AppRouter>;
       toast.error("Failed to fetch production orders: " + error.message);
@@ -147,7 +151,7 @@ function ProductionPageContent() {
   }, [productionOrdersQuery.data, productionOrdersQuery.error]);
 
   const updateOrderStatusMutation = api.order.updateStatus.useMutation({
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success("Order status updated!");
       productionOrdersQuery.refetch();
     },

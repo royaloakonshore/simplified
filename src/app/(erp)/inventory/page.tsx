@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from "@/lib/trpc/react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import React from 'react';
 import { 
@@ -19,7 +19,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel
 } from "@tanstack/react-table";
-import { PrinterIcon, EditIcon, PlusCircle, FileText, Loader2, Trash2, MoreHorizontal } from 'lucide-react';
+import { EditIcon, PlusCircle, FileText, Loader2, Trash2, MoreHorizontal } from 'lucide-react';
 import { toast } from "sonner";
 import { type ItemType as PrismaItemType, type InventoryItem as PrismaInventoryItem } from '@prisma/client';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,7 +32,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -46,11 +45,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
-import { type Prisma } from '@prisma/client';
 import { type ListInventoryItemsInput } from '@/lib/schemas/inventory.schema';
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { AppRouter } from "@/lib/api/root";
-import { Decimal } from '@prisma/client/runtime/library';
 
 // Type reflecting InventoryItem after tRPC serialization (Decimals to strings)
 // Based on Prisma Schema: InventoryItem
@@ -63,6 +60,9 @@ type InventoryItemTRPCData = Omit<PrismaInventoryItem, 'minimumStockLevel' | 're
   defaultVatRatePercent: string | null;
   inventoryCategory: { id: string; name: string } | null; // Add explicitly as it's included in list query
 };
+
+// Define a type for categories fetched from the API, if not already globally available
+type CategoryData = { id: string; name: string; /* other properties if any */ };
 
 // Type for what the table row expects for display and interaction
 export interface InventoryItemRowData {
@@ -144,7 +144,7 @@ function InventoryListContent() {
     inventoryCategoryId: selectedCategory || undefined,
   }), [pagination, sorting, debouncedGlobalFilter, selectedCategory]);
 
-  const { data: inventoryQueryResults, isLoading, error, refetch } = api.inventory.list.useQuery(
+  const { data: inventoryQueryResults, isLoading, error } = api.inventory.list.useQuery(
     listInput,
     { /* keepPreviousData: true, // Removed for now */ }
   );
@@ -154,7 +154,7 @@ function InventoryListContent() {
   const itemsForTable = React.useMemo(() => {
     // Force cast to InventoryItemTRPCData[] due to persistent TS inference issues with Decimal types from tRPC client.
     // The router-level logic stringifies Decimals, so this cast reflects the expected runtime shape.
-    const sourceData: InventoryItemTRPCData[] = (inventoryQueryResults?.data as any as InventoryItemTRPCData[]) ?? [];
+    const sourceData: InventoryItemTRPCData[] = (inventoryQueryResults?.data as InventoryItemTRPCData[] | undefined) ?? [];
     
     return sourceData.map((item: InventoryItemTRPCData): InventoryItemRowData => ({
       // Mapping from InventoryItemTRPCData to InventoryItemRowData
@@ -185,17 +185,16 @@ function InventoryListContent() {
     }));
   }, [inventoryQueryResults?.data]);
 
-  const totalCount = React.useMemo(() => inventoryQueryResults?.meta?.totalCount ?? 0, [inventoryQueryResults]);
   const pageCount = React.useMemo(() => inventoryQueryResults?.meta?.totalPages ?? -1, [inventoryQueryResults]);
 
   const categoryOptions = React.useMemo(() => {
     if (!categoriesData) return [];
-    return categoriesData.map(cat => ({ value: cat.id, label: cat.name }));
+    return (categoriesData as CategoryData[]).map((cat: CategoryData) => ({ value: cat.id, label: cat.name }));
   }, [categoriesData]);
 
   const quickUpdateQuantityMutation = api.inventory.quickAdjustStock.useMutation({
     onSuccess: (data) => { 
-      const typedData = data as any as InventoryItemTRPCData;
+      const typedData = data as InventoryItemTRPCData; 
       toast.success(`Stock for "${typedData.name}" updated to ${typedData.quantityOnHand}.`);
       utils.inventory.list.invalidate(listInput);
       setEditingCell(null);
@@ -210,12 +209,12 @@ function InventoryListContent() {
     }
   });
   
-  const handleStartEdit = (rowIndex: number, columnId: string, currentValue: string | null) => {
+  const handleStartEdit = React.useCallback((rowIndex: number, columnId: string, currentValue: string | null) => {
     setEditingCell({ rowIndex, columnId });
     setEditValue(currentValue ?? "");
-  };
+  }, [setEditingCell, setEditValue]);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = React.useCallback(() => {
     if (editingCell && itemToUpdate) {
         const currentItem = itemsForTable[editingCell.rowIndex];
         const originalQty = parseFloat(currentItem.quantityOnHand || "0");
@@ -236,7 +235,7 @@ function InventoryListContent() {
         });
         setShowConfirmDialog(true);
     }
-  };
+  }, [editingCell, itemsForTable, editValue, setItemToUpdate, setShowConfirmDialog, itemToUpdate]);
   
   const confirmUpdateQuantity = () => {
     if(itemToUpdate){
@@ -249,7 +248,7 @@ function InventoryListContent() {
     }
   };
 
-  const columns = React.useMemo<ColumnDef<InventoryItemRowData, any>[]>(() => [
+  const columns = React.useMemo<ColumnDef<InventoryItemRowData, unknown>[]>(() => [
     {
       id: 'select',
       header: ({ table }) => (
@@ -326,11 +325,14 @@ function InventoryListContent() {
             <DropdownMenuItem onClick={() => router.push(`/inventory/${row.original.id}/edit`)}>
               <EditIcon className="mr-2 h-4 w-4" /> Edit
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleDeleteConfirmation(row.original)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
     },
-  ], [editingCell, editValue, itemsForTable]);
+  ], [editingCell, editValue, router, handleStartEdit, handleSaveEdit]);
 
   const table = useReactTable({
     data: itemsForTable,
@@ -362,29 +364,35 @@ function InventoryListContent() {
   
   const selectedItemIds = useMemo(() => {
     return table.getSelectedRowModel().flatRows.map(row => row.original.id);
-  }, [table, rowSelection]);
+  }, [table]);
 
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<InventoryItemRowData | null>(null);
+  const [showDeleteConfirmationDialog, setShowDeleteConfirmationDialog] = useState(false);
+  const [itemForDeletion, setItemForDeletion] = useState<InventoryItemRowData | null>(null);
 
   const deleteInventoryItemMutation = api.inventory.delete.useMutation({
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success(`Item deleted successfully.`);
       utils.inventory.list.invalidate();
       setRowSelection({});
-      setShowDeleteConfirmation(false);
-      setItemToDelete(null);
+      setShowDeleteConfirmationDialog(false);
+      setItemForDeletion(null);
     },
     onError: (error: TRPCClientErrorLike<AppRouter>) => {
       toast.error(`Failed to delete item: ${error.message}`);
-      setShowDeleteConfirmation(false);
-      setItemToDelete(null);
+      setShowDeleteConfirmationDialog(false);
+      setItemForDeletion(null);
     },
   });
 
   const handleDeleteConfirmation = (item: InventoryItemRowData) => {
-    setItemToDelete(item);
-    setShowDeleteConfirmation(true);
+    setItemForDeletion(item);
+    setShowDeleteConfirmationDialog(true);
+  };
+
+  const confirmSingleItemDeletion = () => {
+    if (itemForDeletion) {
+      deleteInventoryItemMutation.mutate({ id: itemForDeletion.id });
+    }
   };
 
   const handleDeleteSelected = () => {
@@ -542,6 +550,27 @@ function InventoryListContent() {
                 </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showDeleteConfirmationDialog} onOpenChange={setShowDeleteConfirmationDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the item &quot;<strong>{itemForDeletion?.name}</strong>&quot; (SKU: {itemForDeletion?.sku || 'N/A'}).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setItemForDeletion(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmSingleItemDeletion}
+                disabled={deleteInventoryItemMutation.isPending}
+              >
+                {deleteInventoryItemMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
         </AlertDialog>
 
     </div>

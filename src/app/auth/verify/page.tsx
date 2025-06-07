@@ -32,13 +32,13 @@ export default function VerifyRequest() {
         <div className="rounded-2xl bg-white dark:bg-neutral-800/50 p-8 shadow-xl">
           <div className="space-y-4 text-sm text-neutral-600 dark:text-neutral-400">
             <p>
-              <strong>Didn't receive the email?</strong>
+              <strong>Didn&apos;t receive the email?</strong>
             </p>
             <ul className="list-disc pl-4 space-y-2">
               <li>Check your spam folder</li>
               <li>Make sure you entered the correct email address</li>
               <li>
-                If you still haven't received it after a few minutes,{" "}
+                If you still haven&apos;t received it after a few minutes,{" "}
                 <Link
                   href="/auth/signin"
                   className="text-brandBlue-600 dark:text-brandBlue-400 hover:text-brandBlue-500"

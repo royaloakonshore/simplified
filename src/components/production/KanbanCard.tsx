@@ -38,17 +38,6 @@ export function KanbanCard({ order, isOverlay }: KanbanCardProps) {
     transform: CSS.Translate.toString(transform),
   };
 
-  const variants = {
-    dragging: {
-      opacity: 0.5,
-      scale: 1.05,
-      boxShadow: '0px 4px 6px rgba(0, 0, 0, 0.1)',
-    },
-    overlay: {
-       boxShadow: '0px 8px 10px rgba(0, 0, 0, 0.2)',
-    },
-  };
-
   return (
     <Card
       ref={setNodeRef}

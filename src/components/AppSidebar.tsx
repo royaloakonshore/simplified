@@ -10,7 +10,6 @@ import {
     FileText,
     Truck,
     Settings as SettingsIcon,
-    Building2, // For placeholder team switcher
     QrCode as QrCodeIcon,
     ListChecks, // Icon for Bill of Materials
     type LucideIcon
@@ -22,7 +21,7 @@ import type { Session } from 'next-auth';
 import { NavMain } from './nav-main';
 import type { NavItemProcessed } from './nav-main'; // Import NavItemProcessed type
 import { NavUser } from './nav-user';
-// import { TeamSwitcher } from './team-switcher'; // TeamSwitcher not used in current layout
+import { TeamSwitcher } from './team-switcher'; // Uncommented TeamSwitcher
 // Import Sidebar component and useSidebar hook
 import {
     Sidebar,
@@ -179,24 +178,26 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     </span>
                 </Link>
             </SidebarHeader>
+            <TeamSwitcher /> 
+
             <SidebarContent className="p-0 flex flex-col justify-between">
                 <div>
-                    <NavMain items={processedDashboardItem} isIconMode={isIconMode} />
+                    <NavMain items={processedDashboardItem} />
                     
                     {/* Customers Section */}
                     {!isIconMode && <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Customers</div>}
-                    <NavMain items={processedCustomerItems} isIconMode={isIconMode} />
+                    <NavMain items={processedCustomerItems} />
 
                     {/* Production Section */}
                     {!isIconMode && <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Production</div>}
-                    <NavMain items={processedProductionItems} isIconMode={isIconMode} />
+                    <NavMain items={processedProductionItems} />
                     
-                    <NavMain items={processedScanItem} isIconMode={isIconMode} />
+                    <NavMain items={processedScanItem} />
                 </div>
                 
                 {/* Settings link at the bottom */}
                 <div>
-                    <NavMain items={processedSettingsItem} isIconMode={isIconMode} />
+                    <NavMain items={processedSettingsItem} />
                 </div>
             </SidebarContent>
             <SidebarFooter className="p-2 border-t">

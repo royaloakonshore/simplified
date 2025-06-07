@@ -9,6 +9,8 @@ import { useSession } from "next-auth/react"; // Import useSession
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import type { TRPCClientErrorLike } from "@trpc/client";
+import type { AppRouter } from "@/lib/api/root";
 
 // Define a type for the data returned by api.inventory.list.useQuery
 interface FetchedInventoryItem {
@@ -49,7 +51,7 @@ export default function EditBillOfMaterialPage() {
   const params = useParams();
   const bomId = typeof params.id === 'string' ? params.id : '';
   const { data: session, status: sessionStatus } = useSession();
-  const userCompanyId = session?.user?.companyId; // User's current company context
+  const userCompanyId = session?.user?.activeCompanyId; // User's current company context
 
   // Common query options for inventory lists
   const inventoryQueryOptions = { 
@@ -63,7 +65,7 @@ export default function EditBillOfMaterialPage() {
   const { data: bomData, isLoading: isLoadingBOM, error: errorBOM } = api.bom.get.useQuery(
     { id: bomId, companyId: userCompanyId! }, // Pass userCompanyId for scoping
     { enabled: !!bomId && !!userCompanyId && sessionStatus === "authenticated" }
-  ) as { data?: FetchedBOMData; isLoading: boolean; error: any }; // Add type assertion for bomData
+  );
 
   // Fetch manufactured goods - enable only if userCompanyId is available
   const { data: manufacturedGoodsData, isLoading: isLoadingManGoods, error: errorManGoods } = api.inventory.list.useQuery(

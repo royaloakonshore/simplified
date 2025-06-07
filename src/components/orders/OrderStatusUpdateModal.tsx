@@ -1,19 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { type Order, OrderStatus, Prisma } from "@prisma/client";
+import { OrderStatus } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import type { AppRouter } from "@/lib/api/root";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertDialog, AlertDialogHeader, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { OrderType } from "@prisma/client";
 
@@ -50,10 +48,9 @@ export default function OrderStatusUpdateModal({
   onStatusUpdated
 }: OrderStatusUpdateModalProps) {
   const utils = api.useUtils();
-  const [mutationError, setMutationError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | ''>('');
 
-  const { data: order, isLoading: isLoadingOrder, error: orderError, refetch } = api.order.getById.useQuery({ id: orderId as string }, { enabled: !!orderId });
+  const { data: order, isLoading: isLoadingOrder, error: orderError } = api.order.getById.useQuery({ id: orderId as string }, { enabled: !!orderId });
   const updateStatusMutation = api.order.updateStatus.useMutation({
     onSuccess: async (updatedOrder) => {
       toast.success(`Order ${updatedOrder.orderNumber} status updated to ${updatedOrder.status}`);
@@ -77,32 +74,13 @@ export default function OrderStatusUpdateModal({
     }
   }, [order, selectedStatus]);
 
-  const getAvailableStatusTransitions = (currentStatus?: OrderStatus): OrderStatus[] => {
-    if (!currentStatus) return [];
-    const validTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
-      [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled, OrderStatus.quote_sent],
-      [OrderStatus.quote_sent]: [OrderStatus.quote_accepted, OrderStatus.quote_rejected, OrderStatus.cancelled],
-      [OrderStatus.quote_accepted]: [OrderStatus.confirmed, OrderStatus.cancelled],
-      [OrderStatus.confirmed]: [OrderStatus.in_production, OrderStatus.cancelled, OrderStatus.shipped ],
-      [OrderStatus.in_production]: [OrderStatus.shipped, OrderStatus.cancelled],
-      [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.INVOICED, OrderStatus.cancelled], 
-      [OrderStatus.delivered]: [OrderStatus.INVOICED, OrderStatus.cancelled],
-      // INVOICED is a terminal state for this flow, no transitions from it via this modal
-    };
-    return validTransitions[currentStatus] ?? [];
-  };
-
   const handleStatusChangeSubmit = () => {
     if (!orderId || !selectedStatus) {
-      setMutationError('Order ID is missing or no status selected.');
       toast.error('Order ID is missing or no status selected.');
       return;
     }
-    setMutationError(null);
     updateStatusMutation.mutate({ id: orderId, status: selectedStatus });
   };
-
-  const availableTransitions = order ? getAvailableStatusTransitions(order.status) : [];
 
   if (!isOpen) return null;
 

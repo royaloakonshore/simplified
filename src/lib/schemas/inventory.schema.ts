@@ -6,18 +6,17 @@ export const inventoryItemBaseSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
   name: z.string().min(1, 'Item name is required'),
   description: z.string().optional(),
-  unitOfMeasure: z.string().min(1, 'Unit of Measure is required').optional().default('kpl'),
+  unitOfMeasure: z.string().min(1, 'Unit of Measure is required').default('kpl'),
   costPrice: z.coerce
     .number({ invalid_type_error: 'Cost price must be a number' })
     .nonnegative('Cost price must be non-negative'),
   salesPrice: z.coerce
     .number({ invalid_type_error: 'Sales price must be a number' })
     .nonnegative('Sales price must be non-negative'),
-  itemType: z.nativeEnum(ItemType).optional().default(ItemType.RAW_MATERIAL),
+  itemType: z.nativeEnum(ItemType).default(ItemType.RAW_MATERIAL),
   minimumStockLevel: z.coerce
     .number({ invalid_type_error: 'Min stock level must be a number' })
     .nonnegative('Min stock level must be non-negative')
-    .optional()
     .default(0),
   reorderLevel: z.coerce
     .number({ invalid_type_error: 'Reorder level must be a number' })
@@ -25,10 +24,9 @@ export const inventoryItemBaseSchema = z.object({
     .optional()
     .nullable(),
   quantityOnHand: z.coerce
-    .number({ invalid_type_error: 'Quantity on hand must be a number' })
-    .optional(),
+    .number({ invalid_type_error: 'Quantity on hand must be a number' }),
   inventoryCategoryId: z.string().cuid("Invalid category ID").optional(),
-  showInPricelist: z.boolean().optional().default(true),
+  showInPricelist: z.boolean().default(true),
   internalRemarks: z.string().optional(),
   defaultVatRatePercent: z.coerce
     .number()

@@ -46,7 +46,7 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
       componentItemId: item.componentItemId,
       // Ensure quantity is a number for the form
       quantity: typeof item.quantity === 'object' && item.quantity !== null && 'toNumber' in item.quantity
-                ? (item.quantity as any).toNumber()
+                ? (item.quantity as { toNumber: () => number }).toNumber()
                 : Number(item.quantity) || 1 // Default to 1 if undefined/null/0 after Number conversion
     })) || [];
   });

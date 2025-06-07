@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'; // Added useEffect
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation'; // Use hooks
+import { useParams } from 'next/navigation'; // Use hooks
 import { api } from "@/lib/trpc/react"; // Import tRPC hooks
 import OrderDetail from '@/components/orders/OrderDetail';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +15,6 @@ import { useBreadcrumbs, type BreadcrumbSegment } from '@/contexts/BreadcrumbCon
 
 export default function OrderPage() {
   const params = useParams();
-  const router = useRouter();
   const orderId = params.id as string;
   const { setBreadcrumbSegments, clearBreadcrumbSegments } = useBreadcrumbs(); // Use the hook
 
@@ -85,8 +84,8 @@ export default function OrderPage() {
          {/* <h1 className="text-2xl font-bold">Order {order.orderNumber}</h1> */}
       </div>
 
-      {/* Explicitly assert the type for OrderDetail, assuming tRPC should provide the relations */}
-      <OrderDetail order={order as NonNullable<typeof order>} />
+      {/* The cast is no longer needed as the types are aligned */}
+      <OrderDetail order={order} />
     </div>
   );
 } 

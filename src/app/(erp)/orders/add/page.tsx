@@ -1,17 +1,17 @@
-import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Use hooks
-import { api } from "@/lib/trpc/react"; // Import tRPC hooks
+// import Link from 'next/link'; // Removed unused import
+// import { useRouter } from 'next/navigation'; // Removed unused import
+// import { api } from "@/lib/trpc/react"; // Removed unused import
 import OrderForm from '@/components/orders/OrderForm';
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Removed unused imports
+// import { Terminal } from 'lucide-react'; // Removed unused import
+// import { Button } from "@/components/ui/button"; // Removed unused import
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerAuthSession } from "@/lib/auth"; // Use correct export
 import { prisma } from '@/lib/db';
 
-// Removed unused imports: prisma, MaterialType
+// Removed comment about prisma, MaterialType as they are not present
 
 // Fetch data required for the form (customers, inventory)
 async function getFormData() {

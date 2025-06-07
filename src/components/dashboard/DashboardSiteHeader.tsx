@@ -1,10 +1,5 @@
 "use client";
 
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { PanelLeftOpen, PanelLeftClose } from "lucide-react"; // Assuming these are for a potential sidebar toggle *within* this header if needed
-import { useSidebar } from "@/components/ui/sidebar"; // To potentially get sidebar state for title adjustments
-
 interface DashboardSiteHeaderProps {
   title: string;
   // children?: React.ReactNode; // For additional controls like date pickers

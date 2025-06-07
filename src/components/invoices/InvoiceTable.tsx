@@ -4,24 +4,29 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { InvoiceStatus } from '@/lib/types/invoice.types'; // Using local type
 import { Prisma } from '@prisma/client'; // For Decimal
+// import { useReactTable } from '@tanstack/react-table'; // Commented out as table instance is not used
+// import { api } from '@/lib/trpc/react'; // Corrected import path for api - now removing as unused
 
-// Remove explicit payload type - rely on inference from parent page
-// type InvoiceFromList = Prisma.InvoiceGetPayload<{ ... }>
+// Define a type for the data expected by each row in the table
+interface InvoiceTableRowData {
+  id: string;
+  invoiceNumber: string;
+  status: InvoiceStatus; // Use local InvoiceStatus enum for consistency with statusColors
+  totalAmount: Prisma.Decimal | number; // Allow Prisma.Decimal or number for flexibility
+  invoiceDate: Date;
+  dueDate: Date;
+  customer: { name: string } | null; // Customer is included with a name
+  // Add other fields from Prisma.Invoice if used directly by the table in the future
+}
 
 interface InvoiceTableProps {
-  invoices: any[]; // Use 'any' for now - parent page needs to pass correctly typed data
-  totalCount: number;
-  page: number;
-  perPage: number;
-  totalPages: number;
+  invoices: InvoiceTableRowData[]; // Use the specific type here
+  // Removed unused props: totalCount, page, perPage, totalPages
 }
 
 const InvoiceTable: React.FC<InvoiceTableProps> = ({
   invoices,
-  totalCount,
-  page,
-  perPage,
-  totalPages,
+  // Removed unused props from destructuring: totalCount, page, perPage, totalPages
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,6 +65,28 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
     params.set('sortDirection', direction);
     router.push(`?${params.toString()}`);
   };
+
+  // Commenting out api.invoice.list.useQuery and related destructuring as this component
+  // primarily uses the `invoices` prop for display and is not set up for full table interaction like InvoiceListContent.
+  /*
+  const { data, isLoading, error, refetch } = api.invoice.list.useQuery({
+    // ... query parameters
+  });
+
+  // Destructure meta for pagination, but only keep what's used
+  const {
+    // totalCount, // To be removed
+    // page, // To be removed
+    // perPage, // To be removed
+    // totalPages, // To be removed
+  } = data?.meta || {};
+  */
+
+  /*
+  const table = useReactTable({
+    // ... existing code ...
+  });
+  */
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-md overflow-hidden shadow">

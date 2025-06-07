@@ -36,11 +36,10 @@ export interface NavItemProcessed {
 }
 
 interface NavMainProps {
-  items: NavItemProcessed[]
-  isIconMode?: boolean
+  items: NavItemProcessed[];
 }
 
-export function NavMain({ items, isIconMode }: NavMainProps) {
+export function NavMain({ items }: NavMainProps) {
   const { open: isSidebarOpen, isMobile } = useSidebar()
   const tooltipsActive = !isMobile && !isSidebarOpen
 

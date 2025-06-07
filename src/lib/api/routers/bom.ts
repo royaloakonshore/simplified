@@ -16,7 +16,7 @@ const ItemTypeEnum = {
 export const bomRouter = createTRPCRouter({
   upsert: protectedProcedure
     .input(UpsertBillOfMaterialSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { id, name, description, manualLaborCost, manufacturedItemId, items, companyId } = input;
 
       // TODO: When multi-tenancy is fully active, companyId should primarily come from ctx.session.user.companyId
@@ -153,7 +153,7 @@ export const bomRouter = createTRPCRouter({
   get: protectedProcedure
     .input(GetBillOfMaterialSchema)
     .query(async ({ ctx, input }) => {
-      const sessionCompanyId = ctx.session.user.companyId;
+      const sessionCompanyId = ctx.session.user.activeCompanyId;
       const inputCompanyId = input.companyId; // companyId from input is optional
 
       // Determine the companyId to use for filtering.
@@ -203,7 +203,7 @@ export const bomRouter = createTRPCRouter({
 
   list: protectedProcedure
     .input(ListBillOfMaterialsSchema)
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       // TODO: companyId should come from ctx.session.user.companyId and be enforced
       const whereClause: Prisma.BillOfMaterialWhereInput = {
         companyId: input.companyId,
@@ -240,7 +240,7 @@ export const bomRouter = createTRPCRouter({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string().cuid()/*, companyId: z.string().cuid() // TODO */ }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       // TODO: Enforce companyId from ctx.session.user.companyId
       // First, ensure the BOM exists and belongs to the company (if companyId is available)
       const bomToDelete = await prisma.billOfMaterial.findUnique({

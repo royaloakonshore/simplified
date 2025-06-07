@@ -5,18 +5,7 @@ import { type InventoryItem, ItemType } from "@prisma/client";
 import {
   ColumnDef,
   flexRender,
-  getCoreRowModel,
-  useReactTable,
-  RowSelectionState,
-  ColumnFiltersState,
-  VisibilityState,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   type Table as ReactTableType,
-  type Column,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -33,7 +22,6 @@ import { formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import EditableQuantityCell, { type CellItemData } from "./EditableQuantityCell";
-import { api } from "@/lib/trpc/react";
 import { Input } from "@/components/ui/input";
 import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 
@@ -46,12 +34,13 @@ export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice
   reorderLevel: string | null; 
   defaultVatRatePercent: string | null;
   inventoryCategory: { id: string; name: string } | null; 
+  variant: string | null;
 };
 
 interface InventoryTableProps {
   table: ReactTableType<InventoryItemRowData>;
   isLoading: boolean;
-  onDataChange: (rowIndex: number, columnId: string, value: any) => void;
+  onDataChange: (rowIndex: number, columnId: string, value: unknown) => void;
   categoryOptions: { label: string; value: string; icon?: React.ComponentType<{ className?: string }> }[];
 }
 
@@ -134,7 +123,7 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
       // row.original should conform to InventoryItemRowData defined above
       const currentItem = row.original as InventoryItemRowData;
       const meta = table.options.meta as { 
-        onDataChange?: (rowIndex: number, columnId: string, value: any) => void 
+        onDataChange?: (rowIndex: number, columnId: string, value: number) => void
       };
       
       // Ensure itemForCell conforms to CellItemData for EditableQuantityCell
@@ -230,7 +219,7 @@ interface InventoryTableToolbarProps<TData> {
 }
 
 function InventoryTableToolbar<TData>({ table, categoryOptions }: InventoryTableToolbarProps<TData>) {
-  const isFiltered = table.getState().columnFilters.length > 0;
+  // const isFiltered = table.getState().columnFilters.length > 0; // Commented out unused variable
 
   return (
     <div className="flex items-center justify-between py-4">
@@ -255,7 +244,7 @@ function InventoryTableToolbar<TData>({ table, categoryOptions }: InventoryTable
   );
 }
 
-export function InventoryTable({ table, isLoading, onDataChange, categoryOptions }: InventoryTableProps) {
+export function InventoryTable({ table, isLoading, /* onDataChange, */ categoryOptions }: InventoryTableProps) {
   if (isLoading && !table.getRowModel().rows.length) {
     return (
       <Table>

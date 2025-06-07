@@ -50,7 +50,7 @@ export function RawMaterialSelectionTable({
   });
   const [globalFilter, setGlobalFilter] = React.useState('');
 
-  const columns = React.useMemo<ColumnDef<RawMaterialRow, any>[]>(
+  const columns = React.useMemo<ColumnDef<RawMaterialRow, unknown>[]>(
     () => [
       {
         id: 'select',

@@ -1,3 +1,5 @@
+"use client";
+
 import React, {
   useState,
   useRef,
@@ -10,10 +12,12 @@ import {
   faMicrophone,
   faStop,
   faSpinner,
-  faUpload,
 } from "@fortawesome/free-solid-svg-icons";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+// import { Button } from "@/components/ui/button"; // Unused
+// import { Textarea } from "@/components/ui/textarea"; // Unused
+// import { Mic, Languages, Settings2, Trash2, RotateCcw, Copy, Check, Loader2, UploadCloud } from 'lucide-react'; // All unused
 
 const CHAT_INPUT_HEIGHT = "40px";
 
@@ -61,9 +65,7 @@ export const SpeechToTextArea = forwardRef<
 
     const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
     const [isTranscribing, setIsTranscribing] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [language, setLanguage] = useState("en-US");
 
     const startRecording = async () => {
       let stream = mediaStream;
@@ -280,7 +282,7 @@ export const SpeechToTextArea = forwardRef<
       if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
         toast.error("Recording is not supported in this browser.");
       }
-    }, [language]);
+    }, []);
 
     return (
       <div
@@ -337,7 +339,7 @@ export const SpeechToTextArea = forwardRef<
               } transform text-xl dark:text-gray-300 dark:hover:text-gray-500`}
               onClick={isRecording ? stopRecording : startRecording}
               aria-label={isRecording ? "Stop recording" : "Start recording"}
-              disabled={isTranscribing || isUploading}
+              disabled={isTranscribing}
             >
               {isTranscribing ? (
                 <FontAwesomeIcon icon={faSpinner} spin />
@@ -355,7 +357,7 @@ export const SpeechToTextArea = forwardRef<
                   waveformActive ? "hidden" : ""
                 } flex h-8 w-8 items-center justify-center rounded-full bg-aurora-500 text-white transition-colors hover:bg-aurora-600 focus-visible:outline-none disabled:bg-gray-300 dark:bg-sky-600 dark:hover:bg-sky-700 dark:disabled:bg-gray-600`}
                 disabled={
-                  !value.trim() || isLoading || waveformActive || isUploading
+                  !value.trim() || isLoading || waveformActive
                 }
                 onClick={(e) => {
                   e.preventDefault();

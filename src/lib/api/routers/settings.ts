@@ -20,7 +20,7 @@ function transformToPrismaUpdateData(input: SettingsInput): Prisma.SettingsUpdat
       // Only include defined values. Prisma handles undefined as "no change".
       // Null values are valid for nullable fields.
       if (value !== undefined) {
-        // @ts-ignore - Prisma types can be overly complex here; direct assignment is fine.
+        // @ts-expect-error - Prisma types can be overly complex here; direct assignment is fine.
         data[typedKey] = value;
       }
     }
@@ -31,25 +31,23 @@ function transformToPrismaUpdateData(input: SettingsInput): Prisma.SettingsUpdat
 export const settingsRouter = createTRPCRouter({
   // Get current company's settings
   get: protectedProcedure
-    .query(async ({ ctx }) => {
-      // IMPORTANT: This needs to be adapted for multi-tenancy (ctx.companyId)
-      // For now, assuming a single settings record for the application or a placeholder for companyId.
-      // const companyId = ctx.session.user.companyId; // Example for future multi-tenancy
-      // if (!companyId) throw new TRPCError({ code: "BAD_REQUEST", message: "No company selected." });
-      const settings = await prisma.settings.findFirst(); 
+    .query(async () => {
+      // Fetch the first available settings record.
+      // TODO: Adapt for multi-tenancy when companyId is added to the Settings model.
+      // When multi-tenancy is implemented for settings, this should be:
+      // const companySettings = await prisma.settings.findUnique({
+      //   where: { companyId: ctx.companyId },
+      // });
+      const globalSettings = await prisma.settings.findFirst();
       
-      if (!settings) {
-        // Return null if no settings are found.
-        // The frontend can use this to determine if initial setup is needed.
-        return null;
-      }
-      return settings;
+      // @ts-expect-error Decimal types from Prisma need conversion for CompanySettings type.
+      return globalSettings as CompanySettings | null;
     }),
 
   // Update company's settings - now acts as an upsert
   update: protectedProcedure
     .input(settingsSchema) // settingsSchema defines all possible fields
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       // IMPORTANT: This needs to be adapted for multi-tenancy (ctx.companyId)
       // const companyId = ctx.session.user.companyId; // Example for future multi-tenancy
       // if (!companyId) throw new TRPCError({ code: "BAD_REQUEST", message: "No company selected." });

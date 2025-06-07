@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type Customer, type Address, AddressType } from "@prisma/client";
 import { z } from "zod";
@@ -23,8 +23,7 @@ import { api } from "@/lib/trpc/react";
 import { customerBaseSchema, yTunnusSchema } from "@/lib/schemas/customer.schema";
 import { Trash2, Plus, Search, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator"; // For visual separation
 
 // Define the form schema type based on the base schema
@@ -69,7 +68,6 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
   });
 
   const { 
-    data: prhData,
     refetch: fetchPrhData,
     isLoading: isPrhLoading,
   } = api.customer.getYTunnusInfo.useQuery(

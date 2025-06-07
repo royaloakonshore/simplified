@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,17 +10,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { toast } from 'react-toastify';
 import { Skeleton } from '@/components/ui/skeleton';
 import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 import { toast as sonnerToast } from "sonner";
 
 // Import the Zod schema for settings
 import { settingsSchema, type SettingsInput } from "@/lib/schemas/settings.schema";
+
+// Import UserRole for admin check and role assignment
+import { UserRole } from "@/lib/auth"; 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Schema for profile update (excluding password initially)
 const profileUpdateSchema = z.object({
@@ -39,6 +41,15 @@ const passwordChangeSchema = z.object({
   path: ["confirmPassword"], 
 });
 type PasswordChangeValues = z.infer<typeof passwordChangeSchema>;
+
+// New Zod schema for the Create User form
+const createUserFormSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  name: z.string().optional(),
+  firstName: z.string().optional(),
+  role: z.nativeEnum(UserRole),
+});
+type CreateUserFormValues = z.infer<typeof createUserFormSchema>;
 
 function SettingsPageContent() {
   const { data: session, status, update: updateSession } = useSession();
@@ -81,6 +92,17 @@ function SettingsPageContent() {
       currentPassword: ' ',
       newPassword: ' ',
       confirmPassword: ' ',
+    },
+  });
+
+  // New form for Create User
+  const createUserForm = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserFormSchema),
+    defaultValues: {
+      email: "",
+      name: "",
+      firstName: "",
+      role: UserRole.user,
     },
   });
 
@@ -168,6 +190,17 @@ function SettingsPageContent() {
     },
   });
 
+  const createUserMutation = api.user.createUserInActiveCompany.useMutation({
+    onSuccess: (data) => {
+      sonnerToast.success(`User ${data.email} created successfully!`);
+      createUserForm.reset();
+      // Potentially invalidate a user list query if one exists elsewhere
+    },
+    onError: (error) => {
+      sonnerToast.error(`Failed to create user: ${error.message}`);
+    },
+  });
+
   const onSettingsSubmit: SubmitHandler<SettingsInput> = (data) => {
     updateSettingsMutation.mutate(data);
   };
@@ -184,6 +217,10 @@ function SettingsPageContent() {
        return;
     }
     changePasswordMutation.mutate(data);
+  };
+
+  const onCreateUserSubmit: SubmitHandler<CreateUserFormValues> = (data) => {
+    createUserMutation.mutate(data);
   };
 
   if (status === 'loading' || isLoadingSettings) {
@@ -450,6 +487,87 @@ function SettingsPageContent() {
         </form>
       </Card>
 
+      {/* Create New User Form (Visible to Admins Only) */}
+      {session?.user?.role === UserRole.admin && (
+        <Card>
+          <form onSubmit={createUserForm.handleSubmit(onCreateUserSubmit)}>
+            <CardHeader>
+              <CardTitle>Create New User</CardTitle>
+              <CardDescription>
+                Create a new user account. They will be associated with your currently active company.
+                An initial password will not be set; the user will need to use the &quot;Forgot Password&quot; flow.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={createUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="user@example.com" {...field} disabled={createUserMutation.isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={createUserForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} disabled={createUserMutation.isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={createUserForm.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John" {...field} disabled={createUserMutation.isPending} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={createUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Global Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={createUserMutation.isPending}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={UserRole.user}>User</SelectItem>
+                        <SelectItem value={UserRole.admin}>Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" className="ml-auto" disabled={createUserMutation.isPending}>
+                {createUserMutation.isPending ? "Creating..." : "Create User"}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      )}
     </div>
   );
 }

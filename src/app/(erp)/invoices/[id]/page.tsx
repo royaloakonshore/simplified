@@ -93,7 +93,7 @@ export default function InvoicePage() {
       </div>
       <Suspense fallback={<div>Loading invoice details...</div>}>
         {/* Pass the raw data from the API call */}
-        <InvoiceDetail invoice={invoiceDataFromApi as any} /> 
+        <InvoiceDetail invoice={invoiceDataFromApi} /> 
         {/* 
           Casting to `as any` temporarily to bypass strict type checking.
           Ideally, `invoiceDataFromApi` should perfectly match the `FullInvoiceFromApi` 

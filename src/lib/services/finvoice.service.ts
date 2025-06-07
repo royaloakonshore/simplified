@@ -1,8 +1,6 @@
 import { create } from 'xmlbuilder2';
-import { XMLBuilder } from 'xmlbuilder2/lib/interfaces';
-import { Invoice, InvoiceItem } from '@/lib/types/invoice.types';
-import { Customer, Address } from '@/lib/types/customer.types';
-import { Prisma } from '@prisma/client'; // For Decimal type usage
+import { Invoice } from '@/lib/types/invoice.types';
+import Decimal from 'decimal.js';
 
 // TODO: Replace with actual settings retrieval (from DB or config)
 export interface SellerSettings {
@@ -29,10 +27,9 @@ const formatDate = (date: Date): string => {
 };
 
 // Helper function to format numbers to required decimal places (e.g., 2 for currency)
-const formatDecimal = (value: number | Prisma.Decimal | null | undefined, places: number = 2): string => {
-  if (value === null || value === undefined) return '0.00';
-  const num = typeof value === 'number' ? value : Number(value);
-  return num.toFixed(places);
+const formatDecimal = (value: Decimal.Value | null | undefined, places: number = 2): string => {
+  if (value === null || value === undefined) return new Decimal(0).toFixed(places);
+  return new Decimal(value).toFixed(places);
 };
 
 /**
@@ -149,38 +146,34 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
     const rowNumber = index + 1;
 
     // Calculate net unit price and line total considering discounts
-    let unitPrice = new Prisma.Decimal(item.unitPrice || 0);
-    let quantity = new Prisma.Decimal(item.quantity || 0);
-    let lineSubTotalBeforeDiscount = unitPrice.times(quantity);
+    const unitPrice = new Decimal(item.unitPrice || 0);
+    const quantity = new Decimal(item.quantity || 0);
+    const lineSubTotalBeforeDiscount = unitPrice.times(quantity);
     let lineNetSubTotal = lineSubTotalBeforeDiscount; // This is RowVatExcludedAmount
 
-    let discountApplied = false;
-    if (item.discountPercent && new Prisma.Decimal(item.discountPercent).gt(0)) {
-      const discountMultiplier = new Prisma.Decimal(1).minus(new Prisma.Decimal(item.discountPercent).div(100));
+    if (item.discountPercent && new Decimal(item.discountPercent).gt(0)) {
+      const discountMultiplier = new Decimal(1).minus(new Decimal(item.discountPercent).div(100));
       lineNetSubTotal = lineSubTotalBeforeDiscount.times(discountMultiplier);
-      discountApplied = true;
-    } else if (item.discountAmount && new Prisma.Decimal(item.discountAmount).gt(0)) {
-      lineNetSubTotal = lineSubTotalBeforeDiscount.minus(new Prisma.Decimal(item.discountAmount));
-      if (lineNetSubTotal.lt(0)) lineNetSubTotal = new Prisma.Decimal(0); // Ensure not negative
-      discountApplied = true;
+    } else if (item.discountAmount && new Decimal(item.discountAmount).gt(0)) {
+      lineNetSubTotal = lineSubTotalBeforeDiscount.minus(new Decimal(item.discountAmount));
+      if (lineNetSubTotal.lt(0)) lineNetSubTotal = new Decimal(0); // Ensure not negative
     }
 
-    let rowVatAmountValue = new Prisma.Decimal(0);
-    let currentVatRate = new Prisma.Decimal(item.vatRatePercent || 0);
+    const currentVatRate = new Decimal(item.vatRatePercent || 0);
 
     row.ele('RowPositionIdentifier').txt(rowNumber.toString()).up();
     // ArticleIdentifier can be added if available (e.g., item.sku)
     row.ele('ArticleName').txt(item.description || 'N/A').up();
     // TODO: Get UnitCode from item if available, default to 'PCE' (piece) or 'kpl' if appropriate
-    row.ele('DeliveredQuantity', { QuantityUnitCode: 'PCE' }).txt(formatDecimal(quantity, 3)).up(); 
+    row.ele('DeliveredQuantity', { QuantityUnitCode: 'PCE' }).txt(formatDecimal(quantity, 3)).up();
     row.ele('UnitPriceAmount').txt(formatDecimal(unitPrice)).up(); // Original unit price
 
     // Add discount information if present
-    if (item.discountPercent && new Prisma.Decimal(item.discountPercent).gt(0)) {
+    if (item.discountPercent && new Decimal(item.discountPercent).gt(0)) {
       row.ele('RowDiscountPercent').txt(formatDecimal(item.discountPercent)).up();
       // Optionally: Add RowDiscountBaseAmount (lineSubTotalBeforeDiscount) and RowDiscountAmountCalculated if needed by recipient system
     }
-    if (item.discountAmount && new Prisma.Decimal(item.discountAmount).gt(0) && !(item.discountPercent && new Prisma.Decimal(item.discountPercent).gt(0))) {
+    if (item.discountAmount && new Decimal(item.discountAmount).gt(0) && !(item.discountPercent && new Decimal(item.discountPercent).gt(0))) {
       // Only add fixed discount amount if percentage discount was not applied (to avoid double listing if both exist but % took precedence)
       row.ele('RowDiscountAmount').txt(formatDecimal(item.discountAmount)).up();
     }
@@ -197,18 +190,17 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
       // rowVatAmountValue remains 0
     } else {
       row.ele('RowVatRatePercent').txt(formatDecimal(currentVatRate, 0)).up();
-      rowVatAmountValue = lineNetSubTotal.times(currentVatRate.div(100));
+      const rowVatAmount = lineNetSubTotal.times(currentVatRate.div(100));
       // Determine RowVatCategoryCode based on actual VAT rate
       if (currentVatRate.equals(0)) {
         row.ele('RowVatCategoryCode').txt('Z').up(); // Zero-rated goods
       } else {
         row.ele('RowVatCategoryCode').txt('S').up(); // Standard VAT rate applied
       }
+      row.ele('RowVatAmount').txt(formatDecimal(rowVatAmount)).up();
+      row.ele('RowAmount').txt(formatDecimal(lineNetSubTotal.plus(rowVatAmount))).up(); // Total for the row including VAT
     }
     
-    row.ele('RowVatAmount').txt(formatDecimal(rowVatAmountValue)).up();
-    row.ele('RowAmount').txt(formatDecimal(lineNetSubTotal.plus(rowVatAmountValue))).up(); // Total for the row including VAT
-
   });
 
   // Epi Details (Electronic Payment Information - Finnish specific)
@@ -247,17 +239,12 @@ function generateFinnishReference(invoiceNumber: string): string {
   // Calculate checksum for the base number (Modulo 97)
   // Add RF00 (R=27, F=15) prefix shifted number representation
   const checkInput = `${base}271500`; 
-  let checksum = 98 - bigIntModulo(checkInput, 97);
-  const checksumStr = checksum.toString().padStart(2, '0');
+  // Using BigInt for potentially long numbers, as standard number type might lose precision.
+  const num = BigInt(checkInput);
+  const checksumDigit = 98 - Number(num % 97n); // Modulo 97 for checksum calculation
 
-  return `RF${checksumStr}${base}`;
-}
+  // If checksum is 1 or 0, it should be 01 or 00.
+  const checksumString = checksumDigit < 10 ? `0${checksumDigit}` : checksumDigit.toString();
 
-// Helper for BigInt modulo operation as standard % doesn't work directly for large strings
-function bigIntModulo(dividendStr: string, divisor: number): number {
-    let remainder = 0;
-    for (let i = 0; i < dividendStr.length; i++) {
-        remainder = (remainder * 10 + parseInt(dividendStr[i], 10)) % divisor;
-    }
-    return remainder;
+  return `RF${checksumString}${base}`;
 } 

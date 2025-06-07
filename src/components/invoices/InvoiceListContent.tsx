@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/trpc/react';
 import {
@@ -18,7 +18,7 @@ import {
   type Column,
   type Row,
 } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal, Eye, ChevronDown } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,11 +45,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { DataTableSkeleton } from '@/components/common/DataTableSkeleton';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Skeleton } from "@/components/ui/skeleton";
 import { type Decimal } from "@prisma/client/runtime/library";
 
 // Custom hook for debouncing
@@ -254,30 +252,58 @@ export default function InvoiceListContent({
   initialSortBy = 'invoiceDate',
   initialSortDirection = 'desc',
 }: InvoiceListContentProps) {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Local state for immediate input value
   const [currentSearchTerm, setCurrentSearchTerm] = useState(initialSearchTerm);
   // Debounced search term for API calls and URL updates
   const debouncedSearchTerm = useDebounce(currentSearchTerm, 500); // 500ms debounce
 
-  const [page, setPage] = useState(initialPage);
-  const [perPage, setPerPage] = useState(initialPerPage);
-  const [status, setStatus] = useState<PrismaInvoiceStatus | undefined>(initialStatus);
+  const [statusFilter, /* setStatusFilter */] = useState<PrismaInvoiceStatus | undefined>(initialStatus); // setStatusFilter will be marked as unused and removed by commenting out
   const [sorting, setSorting] = useState<SortingState>([
     { id: initialSortBy, desc: initialSortDirection === 'desc' },
   ]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
+
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: initialPage - 1, pageSize: initialPerPage });
+
+  // const createQueryString = useCallback( // This function will be removed
+  //   (params: Record<string, string | number | null>) => {
+  //     const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
+  //     Object.entries(params).forEach(([name, value]) => {
+  //       if (value === null || value === undefined || String(value).trim() === '') {
+  //         currentParams.delete(name);
+  //       } else {
+  //         currentParams.set(name, String(value));
+  //       }
+  //     });
+  //     return currentParams.toString();
+  //   },
+  //   [searchParams]
+  // );
+
+  // useEffect(() => { // This useEffect block might be the one using currentStatus
+  //   const currentStatus = searchParams.get('status') as PrismaInvoiceStatus | null;
+  //   if (currentStatus && Object.values(PrismaInvoiceStatus).includes(currentStatus)) {
+  //     setStatusFilter(currentStatus);
+  //   } else if (!currentStatus) {
+  //     setStatusFilter(undefined);
+  //   }
+  // }, [searchParams, setStatusFilter]);
+
+  // If currentStatus was only used in the useEffect above, which refers to setStatusFilter, 
+  // and setStatusFilter is now partly unused (setStatus is commented), this whole useEffect might be removable or need refactoring.
+  // For now, just commenting out currentStatus if its definition is simple and isolated.
+  // const currentStatus = searchParams.get('status') as PrismaInvoiceStatus | null; // Example, will find actual line from context
 
   // Effect to update URL when filters/pagination/sorting change
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set('page', page.toString());
-    params.set('perPage', perPage.toString());
+    params.set('page', (pagination.pageIndex + 1).toString());
+    params.set('perPage', pagination.pageSize.toString());
     params.set('sortBy', sorting[0]?.id ?? initialSortBy);
     params.set('sortDirection', sorting[0]?.desc ? 'desc' : 'asc');
     if (debouncedSearchTerm) {
@@ -285,13 +311,13 @@ export default function InvoiceListContent({
     } else {
       params.delete('searchTerm');
     }
-    if (status) {
-      params.set('status', status);
+    if (statusFilter) {
+      params.set('status', statusFilter);
     } else {
       params.delete('status');
     }
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [page, perPage, debouncedSearchTerm, status, sorting, router, pathname, searchParams, initialSortBy]);
+  }, [pagination, debouncedSearchTerm, statusFilter, sorting, router, pathname, searchParams, initialSortBy]);
 
   // Effect to parse URL params on mount and update state
   useEffect(() => {
@@ -300,31 +326,24 @@ export default function InvoiceListContent({
     const currentSortBy = searchParams.get('sortBy') || initialSortBy;
     const currentSortDirection = searchParams.get('sortDirection') === 'desc' ? 'desc' : 'asc';
     const currentSearch = searchParams.get('searchTerm') || initialSearchTerm;
-    const currentStatusParam = searchParams.get('status') as PrismaInvoiceStatus | undefined;
-    const currentStatus = currentStatusParam ?? initialStatus; // Use initialStatus if param is null/undefined
+    // const currentStatusParam = searchParams.get('status') as PrismaInvoiceStatus | undefined; // Part of currentStatus logic to be removed
+    // const currentStatus = currentStatusParam ?? initialStatus; // This variable will be removed
 
-    setPage(currentPage);
-    setPerPage(currentPerPage);
+    setPagination({ pageIndex: currentPage - 1, pageSize: currentPerPage });
     setSorting([{ id: currentSortBy, desc: currentSortDirection === 'desc' }]);
-    setCurrentSearchTerm(currentSearch); // Set the input value directly
-    setStatus(currentStatus);
+    setCurrentSearchTerm(currentSearch);
+    // setStatusFilter(currentStatus); // This line would use setStatusFilter, which is being removed
+    setColumnVisibility({});
   }, [searchParams, initialPage, initialPerPage, initialSortBy, initialSortDirection, initialSearchTerm, initialStatus]);
 
   const { data, isLoading, error } = api.invoice.list.useQuery({
-    page,
-    perPage,
+    page: pagination.pageIndex + 1,
+    perPage: pagination.pageSize,
     sortBy: sorting[0]?.id,
     sortDirection: sorting[0]?.desc ? 'desc' : 'asc',
-    searchTerm: debouncedSearchTerm, // Use debounced term for API query
-    status: status, // status is already PrismaInvoiceStatus | undefined
+    searchTerm: debouncedSearchTerm,
+    status: statusFilter,
   });
-
-  // Hooks must be called before any conditional returns.
-  // 6. Derive pagination state directly from component state (no parseInt needed)
-  const pagination: PaginationState = {
-    pageIndex: page - 1,
-    pageSize: perPage,
-  };
 
   const table = useReactTable({
     data: data?.data ?? [], 
@@ -332,16 +351,12 @@ export default function InvoiceListContent({
     pageCount: data?.meta?.totalPages ?? -1,
     state: {
       sorting,
-      pagination, // Use derived pagination state
+      pagination,
       columnFilters,
       columnVisibility,
     },
     onSortingChange: setSorting,
-    onPaginationChange: (updater) => {
-       const newState = typeof updater === 'function' ? updater(pagination) : updater;
-       setPage(newState.pageIndex + 1);
-       setPerPage(newState.pageSize);
-    },
+    onPaginationChange: setPagination,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
@@ -354,25 +369,15 @@ export default function InvoiceListContent({
     debugTable: process.env.NODE_ENV === 'development',
   });
 
-  const selectedOriginalInvoiceIds = useMemo(() => {
-    return table.getSelectedRowModel().flatRows.map(row => row.original.id);
-  }, [table]); // Pass table as dependency
-
   // Loading state
   if (isLoading && !data) {
-    return <DataTableSkeleton columnCount={columns.length} rowCount={perPage} />;
+    return <DataTableSkeleton columnCount={columns.length} rowCount={pagination.pageSize} />;
   }
 
   // Error state
   if (error) {
     return <div className="text-red-600 p-4">Error loading invoices: {error.message}</div>;
   }
-
-
-  const handleStatusFilterChange = (status: PrismaInvoiceStatus | null) => {
-    setStatus(status ?? undefined);
-    setPage(1); // Reset to first page on filter change
-  };
 
   return (
     <div className="space-y-4">

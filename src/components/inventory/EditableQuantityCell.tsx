@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CheckIcon, XIcon, Loader2 } from 'lucide-react';
+import { Check, X, Loader2 } from 'lucide-react';
 import { api } from '@/lib/trpc/react';
-import type { InventoryItem, ItemType, InventoryTransaction } from '@prisma/client';
-import { toast as sonnerToast } from "sonner";
+import type { InventoryItem, InventoryTransaction } from '@prisma/client';
+import { toast } from "sonner";
 
 export interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'quantityOnHand' | 'minimumStockLevel' | 'reorderLevel' | 'defaultVatRatePercent'> {
   costPrice: string;
@@ -15,6 +15,7 @@ export interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPr
   minimumStockLevel: string;
   reorderLevel: string | null;
   defaultVatRatePercent: string | null;
+  variant: string | null;
 }
 
 interface EditableQuantityCellProps {
@@ -31,14 +32,14 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
   const utils = api.useUtils();
   const updateStockMutation = api.inventory.adjustStock.useMutation({
     onSuccess: (data: InventoryTransaction) => {
-      sonnerToast.success(`Stock for "${item.name}" updated. Change: ${data.quantity.toString()}.`);
+      toast.success(`Stock for "${item.name}" updated. Change: ${data.quantity.toString()}.`);
       utils.inventory.list.invalidate();
       utils.inventory.getById.invalidate({ id: item.id });
       setIsEditing(false);
       onUpdate(item.id, currentQuantity);
     },
     onError: (error) => {
-      sonnerToast.error(`Failed to update stock: ${error.message}`);
+      toast.error(`Failed to update stock: ${error.message}`);
       setCurrentQuantity(originalQuantity);
       setIsEditing(false);
       console.error("Stock update error:", error);
@@ -55,7 +56,7 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
 
   const handleSave = () => {
     if (isNaN(currentQuantity)) {
-      sonnerToast.error('Invalid quantity entered.');
+      toast.error('Invalid quantity entered.');
       setCurrentQuantity(originalQuantity);
       setIsEditing(false);
       return;
@@ -104,10 +105,10 @@ export default function EditableQuantityCell({ item, onUpdate }: EditableQuantit
           autoFocus
         />
         <Button variant="ghost" size="icon" onClick={handleSave} className="h-8 w-8">
-          <CheckIcon className="h-4 w-4" />
+          <Check className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="icon" onClick={handleCancel} className="h-8 w-8">
-          <XIcon className="h-4 w-4" />
+          <X className="h-4 w-4" />
         </Button>
       </div>
     );

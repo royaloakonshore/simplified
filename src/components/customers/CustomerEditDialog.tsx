@@ -9,9 +9,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose // Added for explicit close button
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { CustomerForm } from "./CustomerForm";
 import { api } from "@/lib/trpc/react";
@@ -71,7 +69,7 @@ export function CustomerEditDialog({ customerId, trigger, onSuccess }: CustomerE
         <DialogHeader>
           <DialogTitle>Edit Customer</DialogTitle>
           <DialogDescription>
-            Update the customer's details below. Click save when you're done.
+            Update the customer&apos;s details below. Click save when you&apos;re done.
           </DialogDescription>
         </DialogHeader>
         {

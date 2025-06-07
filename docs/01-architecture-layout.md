@@ -5,7 +5,11 @@
 This ERP system utilizes a modern web architecture based on Next.js (App Router), React, TypeScript, and Prisma. It emphasizes server-side rendering (SSR) and React Server Components (RSC) for performance and reduced client-side load, with minimal, targeted use of Client Components for interactivity.
 
 **Current Context & Progress:**
-The system has a stable build with core modules for Invoicing, Orders (Quotes/Work Orders), Inventory, Customers, and basic Settings/User Management implemented. Key functionalities like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are in place. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. tRPC is used for API communication, and Prisma for database interactions. Recent work has focused on resolving numerous build errors and type errors across the codebase, including in the inventory router. `InventoryItem.defaultVatRatePercent` is now correctly used in invoice creation, with a fallback to company-level defaults. The `settings.get` tRPC procedure now returns `null` if no settings exist, which the client handles gracefully. The `TRPCReactProvider` is correctly set up with cookies in the root layout. The project currently passes `npm run build` and `npx tsc --noEmit` shows no errors.
+The system has a stable build with core modules for Invoicing, Orders (Quotes/Work Orders), Inventory, Customers, and basic Settings/User Management implemented. Key functionalities like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are in place. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. tRPC is used for API communication, and Prisma for database interactions. 
+
+**Multi-tenancy foundations have been implemented. This includes a many-to-many relationship between Users and Companies (via an implicit `CompanyMemberships` table), an `activeCompanyId` field on the `User` model to manage the current company context, and a `companyProtectedProcedure` in tRPC to ensure data is scoped correctly. Users can switch their active company via a UI component, and Global Admins can create new users (associating them with the admin's active company) and create new companies (becoming a member and setting it as their active company). New tRPC routers (`userRouter`, `companyRouter`) and specific procedures (`user.getMemberCompanies`, `user.setActiveCompany`, `user.createUserInActiveCompany`, `company.create`) support this functionality. The NextAuth session has been updated to include `companyId` reflecting the user's active company.**
+
+Recent work has focused on resolving numerous build errors and type errors across the codebase, including in the inventory router. `InventoryItem.defaultVatRatePercent` is now correctly used in invoice creation, with a fallback to company-level defaults. The `settings.get` tRPC procedure now returns `null` if no settings exist, which the client handles gracefully. The `TRPCReactProvider` is correctly set up with cookies in the root layout. The project currently passes `npm run build` and `npx tsc --noEmit` shows no errors.
 
 ## 2. Technology Stack
 
@@ -21,6 +25,7 @@ The system has a stable build with core modules for Invoicing, Orders (Quotes/Wo
 - **Database ORM:** Prisma
 - **Database Hosting:** PostgreSQL (e.g., via Supabase, Neon, local)
 - **Authentication:** NextAuth.js (with Prisma Adapter)
+    - **Session:** The NextAuth session object (`session.user`) now includes `companyId`, which stores the ID of the user's currently active company. This is populated from the `User.activeCompanyId` during the JWT/session callback.
 
 ## 4. Component Strategy
 
@@ -55,6 +60,22 @@ The system has a stable build with core modules for Invoicing, Orders (Quotes/Wo
 - Prisma Migrate (`npx prisma migrate dev`) is used for schema changes.
 - **Stock Alerts:** Negative stock levels are permitted. Alert generation/display is pending.
 
+### 7.1. Multi-Tenancy Data Model (NEW SECTION)
+
+To support users belonging to multiple companies and operating within the context of an active company, the following data model changes have been implemented in `prisma/schema.prisma`:
+
+*   **`User` and `Company` Relationship:** A many-to-many relationship is established between the `User` and `Company` models.
+    *   This is facilitated by an implicit join table named `_CompanyMemberships` (Prisma default naming) or an explicit one if defined (e.g., `CompanyMember`).
+    *   On the `User` model: `memberOfCompanies Company[] @relation("CompanyMembers")`
+    *   On the `Company` model: `companyMembers User[] @relation("CompanyMembers")`
+*   **Active Company for User:**
+    *   The `User` model has an `activeCompanyId` field: `activeCompanyId String?`
+    *   This field stores the `id` of the `Company` that the user has currently selected as their active context.
+    *   A corresponding relation is defined: `activeCompany Company? @relation("UserActiveCompany", fields: [activeCompanyId], references: [id])`
+    *   The `Company` model has a back-relation: `usersWithThisAsActiveCompany User[] @relation("UserActiveCompany")`
+
+These changes allow a single user account to be associated with multiple company tenants and switch between them, with all data operations subsequently scoped to their `activeCompanyId`.
+
 ## 8. Architecture Layout & Project Structure
 
 Utilizes a standard Next.js App Router structure with feature-based organization.
@@ -81,6 +102,12 @@ erp-system/
 │   │   ├── components/  # Reusable UI components (feature-specific, core, ui)
 │   │   ├── lib/         # Core logic, utilities, types, services
 │   │   │   ├── api/     # tRPC (root router, trpc setup, feature routers)
+│   │   │   │   ├── root.ts
+│   │   │   │   ├── trpc.ts # Defines publicProcedure, protectedProcedure, companyProtectedProcedure
+│   │   │   │   └── routers/
+│   │   │   │       ├── userRouter.ts    # Handles user-specific operations including company memberships & active company
+│   │   │   │       ├── companyRouter.ts # Handles company creation and management
+│   │   │   │       └── ... (other feature routers: customer, order, invoice, etc.)
 │   │   │   ├── schemas/ # Zod validation schemas
 │   │   │   ├── services/ # Business logic services (e.g., Finvoice)
 │   │   │   ├── trpc/    # tRPC client setup
@@ -95,7 +122,12 @@ erp-system/
 *   Layouts (`src/app/layout.tsx`, `src/app/(main)/layout.tsx`) manage structure and providers. `TRPCReactProvider` correctly initialized with cookies.
 *   Feature Routes (e.g., `src/app/(main)/inventory/page.tsx`) use Server Components and tRPC.
 *   UI Components (`src/components/`) are built with Shadcn and custom elements.
-*   tRPC Procedures (`src/lib/api/routers/`) handle API logic.
+*   tRPC Procedures (`src/lib/api/routers/` and `src/lib/api/trpc.ts`):
+    *   **`protectedProcedure`**: For actions requiring authentication but not necessarily company-specific context (e.g., fetching user profile details applicable across all companies they belong to, creating a new company before an active one is set for it).
+    *   **`companyProtectedProcedure` (New)**: Defined in `src/lib/api/trpc.ts`. This custom procedure extends `protectedProcedure`. It ensures that the user has an active `companyId` in their session (`ctx.session.user.companyId`). This `companyId` (along with `userId`) is then injected into the tRPC context (`ctx.companyId`, `ctx.userId`) for use in the resolver. All tRPC procedures that interact with company-specific data (e.g., listing customers, creating invoices for a company) **MUST** use this procedure to ensure data isolation and security between tenants.
+    *   Feature routers (e.g., `customerRouter`, `invoiceRouter`) utilize `companyProtectedProcedure` for their CRUD operations.
+    *   `userRouter.ts`: Contains procedures like `getMemberCompanies` (protected) to list companies a user is part of, `setActiveCompany` (protected) to update `User.activeCompanyId`, and `createUserInActiveCompany` (companyProtected, admin-only) to create new users within the admin's active company.
+    *   `companyRouter.ts`: Contains `create` (protected) to allow authenticated users (typically admins via UI restriction) to create new `Company` records.
 *   Middleware (`src/middleware.ts`) handles session management.
 
 ## 9. Key Feature Implementation Notes & Next Steps
@@ -253,47 +285,4 @@ tags String[] @default([])
 
 ### 6.4. `bomRouter`
 
--   **CRUD Operations (`create`, `update`, `getById`)**
-    -   Modify input schemas and logic to handle the new `tags` field.
--   **`list (input: ListBomSchema)`**
-    -   Modify input schema to include filtering/searching by `tags`.
-    -   Update Prisma query to search within the `tags` array.
-
-## 7. Frontend Architecture Considerations
-
-### 7.1. Key Component Modifications
-
--   **`InvoiceDetail.tsx` & `InvoiceListContent.tsx` (or equivalent for invoice list rows):**
-    -   Refactor action buttons into a single, comprehensive dropdown menu component for all invoice actions (status changes, PDF export, copy, credit note, Finvoice export).
--   **`OrderListContent.tsx` (or equivalent for order list):**
-    -   Add new columns for "VAT Amount" and "Order Type" (with pill/tag styling).
-    -   Implement multi-select checkbox functionality for rows.
-    -   Update data fetching and table configuration to support sorting by the new columns.
--   **`InventoryItemForm.tsx`:**
-    -   Add a new input component for managing an array of `tags` (e.g., a multi-select combobox or a chip input field).
-    -   Add a "Has Variants" checkbox, visible if `itemType` is `MANUFACTURED_GOOD`.
-    -   Conditionally render a "Variants" tab/section if "Has Variants" is checked. This section will contain:
-        *   UI for defining/editing attributes applicable to variants of this template item.
-        *   A list of existing variant items linked to this template.
-        *   A button/flow to trigger the creation of a new variant (`inventoryRouter.createVariant`).
--   **`BomForm.tsx`:**
-    -   Add a new input component for managing an array of `tags`.
--   **Inventory List Page (`inventory/page.tsx` and its content component):**
-    -   Add "Export to Excel" button (triggers `inventoryRouter.exportInventoryExcel()` and handles download).
-    -   Add "Import from Excel" button (handles file upload).
--   **`ExcelImportPreviewModal.tsx` (New Component):**
-    -   A modal dialog to display the preview data from `inventoryRouter.previewImportInventoryExcel()`.
-    -   Clearly shows items to be created, items to be updated (with diffs), and errors.
-    -   Provides "Confirm Import" and "Cancel" actions.
-
-### 7.2. State Management
-
--   For BOM Variants attribute definition and Excel import preview, local component state or simple context might be sufficient. Complex global state is likely not needed for these specific features initially.
-
-## 8. External Libraries & Services
-
--   **`Siemienik/XToolset` (`xlsx-import`, `xlsx-renderer`):**
-    -   **Purpose:** To be used for parsing uploaded Excel files (`xlsx-import`) during the inventory import process and for generating Excel files (`xlsx-renderer`) for the inventory export feature.
-    -   **Reference:** [https://github.com/Siemienik/XToolset](https://github.com/Siemienik/XToolset), [https://siemienik.com/docs/xlsx-import/](https://siemienik.com/docs/xlsx-import/)
--   **Puppeteer (existing for QR codes):**
-    -   **Purpose:** Can be leveraged for server-side PDF generation for invoices ("Export Invoice PDF" feature) by rendering an HTML template of the invoice and converting it to PDF.
+-   **CRUD Operations (`

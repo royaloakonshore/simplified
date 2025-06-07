@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type Order, OrderStatus, type Customer, type OrderItem, Prisma } from "@prisma/client"; // Import Prisma types
 import { api } from "@/lib/trpc/react"; // Import tRPC hook
-import type { AppRouter } from "@/lib/api/root";
-import type { TRPCClientErrorLike } from "@trpc/client";
 import { toast } from "sonner"; // Import sonner toast
 import { Button } from "@/components/ui/button"; // Use Shadcn button
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
-import { Terminal, CheckCircle2, MoveRight } from 'lucide-react'; // Icons
+import { Terminal } from 'lucide-react'; // Icons - Removed CheckCircle2, MoveRight
 
 // Simplified Order type for props, assuming necessary includes are done by the caller
 type BoardOrder = Order & {

@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "vercel-build": "prisma generate && next build",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && echo \"export * from '../.prisma/client'\" > node_modules/@prisma/client/index.d.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "migrate:deploy": "prisma migrate deploy"
@@ -54,6 +54,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/react-datepicker": "^6.2.0",
+    "@types/recharts": "^1.8.29",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -68,6 +69,7 @@
     "next": "^15.2.2",
     "next-auth": "^4.24.11",
     "next-themes": "^0.4.6",
+    "nodemailer": "^6.10.1",
     "nuqs": "^2.4.3",
     "openai": "^4.80.1",
     "prisma": "^6.0.1",
@@ -81,6 +83,7 @@
     "react-hook-form": "^7.56.1",
     "react-icons": "^5.4.0",
     "react-toastify": "^11.0.3",
+    "recharts": "^2.15.3",
     "resend": "^4.0.1",
     "sonner": "^2.0.4",
     "superjson": "^2.2.2",
@@ -91,6 +94,7 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^3.2.4",
+    "@next/eslint-plugin-next": "^15.3.3",
     "@storybook/addon-essentials": "^8.5.3",
     "@storybook/addon-interactions": "^8.5.3",
     "@storybook/addon-links": "^8.5.3",
@@ -108,10 +112,12 @@
     "@types/react-dom": "^19",
     "eslint": "9.28.0",
     "eslint-config-next": "15.3.3",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "postcss": "^8",
     "prisma": "6.8.2",
     "storybook": "^8.5.3",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.33.1"
   }
 }

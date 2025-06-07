@@ -25,7 +25,7 @@ interface FetchedInventoryItem {
 
 export default function AddBillOfMaterialPage() {
   const { data: session, status: sessionStatus } = useSession();
-  const companyId = session?.user?.companyId;
+  const companyId = session?.user?.activeCompanyId;
 
   // Initial query enabled state is false, will be enabled once companyId is available
   const queryOptions = { 

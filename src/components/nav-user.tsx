@@ -2,11 +2,13 @@
 
 import {
   BadgeCheck,
-  Bell,
+  // Bell,
   ChevronsUpDown,
-  CreditCard,
+  // ChevronDown,
+  // CreditCard,
   LogOut,
-  Sparkles,
+  // Sparkles,
+  // User as UserIcon,
 } from "lucide-react"
 
 import {
@@ -29,7 +31,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { cn } from "@/lib/utils"
+// import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 export function NavUser({

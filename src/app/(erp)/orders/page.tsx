@@ -11,7 +11,7 @@ import { OrderStatus, Customer, Order } from "@prisma/client"; // Import directl
 import { Button } from "@/components/ui/button"; // Use Shadcn button
 import { Skeleton } from "@/components/ui/skeleton"; // Use Shadcn skeleton
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
-import { Terminal, ArrowRight, ArrowLeft } from 'lucide-react'; // Icon for alert + Pagination
+import { Terminal, ArrowRight } from 'lucide-react'; // Icon for alert + Pagination. Removed ArrowLeft
 import { 
     Table, 
     TableBody, 
@@ -25,8 +25,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -39,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronDown, Trash2, Send } from 'lucide-react'; // Icons for actions
+import { ChevronDown } from 'lucide-react'; // Icons for actions. Removed Trash2, Send
 import { toast } from "sonner"; // Import sonner toast
 import { useQueryClient } from '@tanstack/react-query'; // Correct import for react-query
 import React from 'react';
@@ -88,7 +86,6 @@ function OrderListContent() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [confirmationAction, setConfirmationAction] = useState<'delete' | 'sendToProduction' | null>(null);
-  const [actionInProgress, setActionInProgress] = useState(false);
 
   // Extract pagination/filter parameters from URL
   const limit = Number(searchParams.get('limit') ?? 10);
@@ -97,7 +94,7 @@ function OrderListContent() {
 
   const queryClient = useQueryClient();
 
-  const { data, error, isLoading, isFetching, refetch } = api.order.list.useQuery({
+  const { data, error, isLoading, isFetching } = api.order.list.useQuery({
     limit,
     cursor,
     status,
@@ -112,22 +109,6 @@ function OrderListContent() {
     setSelectedOrderIds([]);
   }, [data]);
 
-  const handleSelectOrder = (orderId: string, isSelected: boolean) => {
-    setSelectedOrderIds(prev => 
-      isSelected ? [...prev, orderId] : prev.filter(id => id !== orderId)
-    );
-  };
-
-  const handleSelectAll = (isSelected: boolean) => {
-    if (isSelected && data?.items) {
-      setSelectedOrderIds(data.items.map(order => order.id));
-    } else {
-      setSelectedOrderIds([]);
-    }
-  };
-  
-  const isAllSelected = data?.items && data.items.length > 0 && selectedOrderIds.length === data.items.length;
-
   // TODO: Create these tRPC mutations in order.router.ts
   const deleteOrdersMutation = api.order.deleteMany.useMutation({
     onSuccess: () => {
@@ -140,13 +121,13 @@ function OrderListContent() {
     },
     onSettled: () => {
       setShowConfirmationDialog(false);
-      setActionInProgress(false);
     }
   });
 
   const sendToProductionMutation = api.order.sendManyToProduction.useMutation({
     onSuccess: (result) => {
-      toast.success(`Processing complete. ${result.successCount} orders sent to production, ${result.failCount} failed/skipped.`);
+      const failCount = selectedOrderIds.length - result.count;
+      toast.success(`Processing complete. ${result.count} orders sent to production, ${failCount} failed/skipped.`);
       queryClient.invalidateQueries({ queryKey: [["order", "list"]] });
       setSelectedOrderIds([]);
     },
@@ -155,7 +136,6 @@ function OrderListContent() {
     },
     onSettled: () => {
       setShowConfirmationDialog(false);
-      setActionInProgress(false);
     }
   });
 
@@ -171,7 +151,6 @@ function OrderListContent() {
   };
 
   const handleConfirmAction = async () => {
-    setActionInProgress(true);
     if (confirmationAction === 'delete') {
       deleteOrdersMutation.mutate({ ids: selectedOrderIds });
     } else if (confirmationAction === 'sendToProduction') {

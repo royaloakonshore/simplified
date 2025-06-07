@@ -1,18 +1,27 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { type Decimal } from '@prisma/client/runtime/library';
+import type { Decimal } from '@prisma/client/runtime/library'; // Import as type
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 // Basic currency formatter (assumes EUR for now)
-export function formatCurrency(amount: number | string | Decimal): string {
-  const numericAmount = typeof amount === 'object' && amount !== null && typeof (amount as any).toString === 'function'
-    ? parseFloat((amount as any).toString())
-    : typeof amount === 'string' ? parseFloat(amount) : amount;
+export function formatCurrency(amount: number | string | Decimal | null | undefined): string {
+  let numericAmount: number;
 
-  if (typeof numericAmount !== 'number' || isNaN(numericAmount)) {
+  if (typeof amount === 'object' && amount !== null && 'toNumber' in amount && typeof amount.toNumber === 'function') {
+    // Structurally duck-type for Decimal or similar objects with a toNumber method
+    numericAmount = (amount as { toNumber: () => number }).toNumber(); // Use a structural type for the cast
+  } else if (typeof amount === 'string') {
+    numericAmount = parseFloat(amount);
+  } else if (typeof amount === 'number') {
+    numericAmount = amount;
+  } else {
+    return "-"; // Handle null, undefined, or other unexpected types
+  }
+
+  if (isNaN(numericAmount)) {
     return "-";
   }
 

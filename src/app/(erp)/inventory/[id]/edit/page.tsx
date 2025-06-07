@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
@@ -12,6 +12,17 @@ import { type InventoryItemFormValues, type UpdateInventoryItemInput } from "@/l
 import { TRPCClientErrorLike } from '@trpc/react-query';
 import type { AppRouter } from "@/lib/api/root";
 import { type ItemType as PrismaItemType } from '@prisma/client';
+import { useSession } from 'next-auth/react';
+
+// Define a common type for selectable items in dropdowns
+interface SelectableItem {
+  value: string;
+  label: string;
+}
+
+// Ensure itemFromApi and categoriesData are correctly typed before mapping
+// Define type for category items if not already available globally
+type CategoryListItem = { id: string; name: string; companyId: string | null; createdAt: Date; updatedAt: Date };
 
 export default function EditInventoryItemPage() {
   const router = useRouter();
@@ -19,6 +30,8 @@ export default function EditInventoryItemPage() {
   const searchParams = useSearchParams();
   const itemId = params.id as string;
   const utils = api.useUtils();
+  const { data: session, status: sessionStatus } = useSession();
+  const userCompanyId = session?.user?.activeCompanyId;
 
   const formModeQuery = searchParams.get('mode');
   const currentFormMode: 'scan-edit' | 'full' = (formModeQuery === 'scan-edit') ? 'scan-edit' : 'full';
@@ -26,6 +39,11 @@ export default function EditInventoryItemPage() {
   const { data: itemFromApi, isLoading, error } = api.inventory.getById.useQuery(
     { id: itemId },
     { enabled: !!itemId }
+  );
+
+  const { data: categoriesData, isLoading: isLoadingCategories } = api.inventoryCategory.list.useQuery(
+    undefined, // Assuming list endpoint doesn't take companyId as input, uses context
+    { enabled: !!userCompanyId && sessionStatus === "authenticated" } 
   );
 
   const updateItemMutation = api.inventory.update.useMutation({
@@ -101,7 +119,9 @@ export default function EditInventoryItemPage() {
     }
   };
 
-  if (isLoading) {
+  const isLoadingPageData = isLoading || isLoadingCategories;
+
+  if (isLoadingPageData && itemId) {
     return (
       <div className="container mx-auto py-6 px-4 md:px-6">
         <h1 className="text-2xl font-bold mb-6">Edit Inventory Item</h1>
@@ -148,40 +168,41 @@ export default function EditInventoryItemPage() {
     );
   }
 
-  const itemFromApiCasted = itemFromApi as any;
+  const selectableCategories: SelectableItem[] = 
+    (categoriesData as CategoryListItem[] | undefined)?.map((cat: CategoryListItem) => ({ value: cat.id, label: cat.name })) || [];
 
   const formInitialData: ProcessedInventoryItemApiData = {
-    id: itemFromApiCasted.id,
-    sku: itemFromApiCasted.sku ?? null,
-    name: itemFromApiCasted.name,
-    description: itemFromApiCasted.description ?? null,
-    unitOfMeasure: itemFromApiCasted.unitOfMeasure ?? null,
-    itemType: itemFromApiCasted.itemType as PrismaItemType,
-    inventoryCategoryId: itemFromApiCasted.inventoryCategoryId ?? null,
-    costPrice: itemFromApiCasted.costPrice,
-    salesPrice: itemFromApiCasted.salesPrice,
-    minimumStockLevel: itemFromApiCasted.minimumStockLevel,
-    reorderLevel: itemFromApiCasted.reorderLevel,
-    quantityOnHand: itemFromApiCasted.quantityOnHand,
-    defaultVatRatePercent: itemFromApiCasted.defaultVatRatePercent !== null && itemFromApiCasted.defaultVatRatePercent !== undefined 
-                            ? parseFloat(itemFromApiCasted.defaultVatRatePercent.toString()) 
-                            : null,
-    qrIdentifier: itemFromApiCasted.qrIdentifier ?? null,
-    showInPricelist: itemFromApiCasted.showInPricelist ?? true,
-    internalRemarks: itemFromApiCasted.internalRemarks ?? null,
-    createdAt: itemFromApiCasted.createdAt ? new Date(itemFromApiCasted.createdAt) : undefined,
-    updatedAt: itemFromApiCasted.updatedAt ? new Date(itemFromApiCasted.updatedAt) : undefined,
-    leadTimeDays: itemFromApiCasted.leadTimeDays !== null && itemFromApiCasted.leadTimeDays !== undefined 
-                    ? Number(itemFromApiCasted.leadTimeDays) 
+    id: itemFromApi.id,
+    sku: itemFromApi.sku ?? null,
+    name: itemFromApi.name,
+    description: itemFromApi.description ?? null,
+    unitOfMeasure: itemFromApi.unitOfMeasure ?? null,
+    itemType: itemFromApi.itemType as PrismaItemType,
+    inventoryCategoryId: itemFromApi.inventoryCategoryId ?? null,
+    costPrice: itemFromApi.costPrice as string, // Expected as string by ProcessedInventoryItemApiData
+    salesPrice: itemFromApi.salesPrice as string, // Expected as string
+    minimumStockLevel: itemFromApi.minimumStockLevel as string, // Expected as string
+    reorderLevel: itemFromApi.reorderLevel as (string | null), // Expected as string | null
+    quantityOnHand: itemFromApi.quantityOnHand as string, // Expected as string
+    defaultVatRatePercent: itemFromApi.defaultVatRatePercent !== null && itemFromApi.defaultVatRatePercent !== undefined 
+                            ? parseFloat(itemFromApi.defaultVatRatePercent.toString()) 
+                            : null, // This remains number | null, assuming it's correct
+    qrIdentifier: itemFromApi.qrIdentifier ?? null,
+    showInPricelist: itemFromApi.showInPricelist ?? true,
+    internalRemarks: itemFromApi.internalRemarks ?? null,
+    createdAt: itemFromApi.createdAt ? new Date(itemFromApi.createdAt) : undefined,
+    updatedAt: itemFromApi.updatedAt ? new Date(itemFromApi.updatedAt) : undefined,
+    leadTimeDays: itemFromApi.leadTimeDays !== null && itemFromApi.leadTimeDays !== undefined 
+                    ? Number(itemFromApi.leadTimeDays) 
                     : null,
-    vendorSku: itemFromApiCasted.vendorSku ?? null,
-    vendorItemName: itemFromApiCasted.vendorItemName ?? null,
+    vendorSku: itemFromApi.vendorSku ?? null,
+    vendorItemName: itemFromApi.vendorItemName ?? null,
   };
 
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
       <h1 className="text-2xl font-bold mb-6">
-        {currentFormMode === 'scan-edit' ? 'Quick Update Item' : 'Edit Inventory Item'}: {itemFromApiCasted.name}
+        {currentFormMode === 'scan-edit' ? 'Quick Update Item' : 'Edit Inventory Item'}: {itemFromApi.name}
       </h1>
       <Card className="max-w-2xl mx-auto">
         <CardContent className="pt-6">
@@ -190,6 +211,7 @@ export default function EditInventoryItemPage() {
             initialData={formInitialData}
             isLoading={updateItemMutation.isPending || quickAdjustStockMutation.isPending}
             formMode={currentFormMode}
+            inventoryCategories={selectableCategories}
           />
         </CardContent>
       </Card>

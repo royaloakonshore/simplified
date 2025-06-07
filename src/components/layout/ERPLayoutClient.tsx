@@ -20,8 +20,7 @@ interface ERPLayoutClientProps {
 }
 
 function LayoutContent({ children, user }: ERPLayoutClientProps) {
-  const { open, toggleSidebar, isMobile, openMobile, state: sidebarState } = useSidebar();
-  const isSidebarEffectivelyOpen = isMobile ? openMobile : open;
+  const { toggleSidebar, isMobile, openMobile, state: sidebarState } = useSidebar();
 
   return (
     <div className={cn("flex h-screen bg-background", isMobile && openMobile ? "overflow-hidden" : "")}>

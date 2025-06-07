@@ -38,8 +38,8 @@ export const createOrderSchema = z.object({
   customerId: z.string().cuid('Invalid customer ID'),
   orderDate: z.date().optional().default(() => new Date()),
   deliveryDate: z.date().nullable().optional(),
-  status: z.nativeEnum(OrderStatus).optional().default(OrderStatus.draft),
-  orderType: z.nativeEnum(OrderType).optional().default(OrderType.work_order),
+  status: z.nativeEnum(OrderStatus).default(OrderStatus.draft),
+  orderType: z.nativeEnum(OrderType).default(OrderType.work_order),
   notes: z.string().nullable().optional(),
   items: z.array(orderItemBaseSchema).min(1, 'Order must have at least one item'),
 });

@@ -1,9 +1,8 @@
-import { Suspense } from 'react';
+import React from 'react';
 import { redirect, notFound } from 'next/navigation';
 import { getServerAuthSession } from "@/lib/auth";
 import { prisma } from '@/lib/db';
-import { Prisma } from '@prisma/client'; // Keep for potential future type use
-import OrderForm from '@/components/orders/OrderForm';
+import OrderForm from './OrderForm'; // Corrected import
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Fetch data required for the form (customers, inventory, specific order)
@@ -35,6 +34,7 @@ async function getEditFormData(orderId: string) {
             salesPrice: item.inventoryItem.salesPrice.toNumber(),
             minimumStockLevel: item.inventoryItem.minimumStockLevel !== null ? item.inventoryItem.minimumStockLevel.toNumber() : 0,
             reorderLevel: item.inventoryItem.reorderLevel !== null ? item.inventoryItem.reorderLevel.toNumber() : 0,
+            defaultVatRatePercent: item.inventoryItem.defaultVatRatePercent ? item.inventoryItem.defaultVatRatePercent.toNumber() : null,
         } : null;
 
         return {

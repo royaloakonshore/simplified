@@ -3,7 +3,11 @@
 This document details key user and business process flows within the ERP system.
 
 **Current Context & Progress:**
-The application has established user flows for core operations like login, profile updates (now robustly handles password changes and profile info updates), inventory item creation (basic, SKU handling fixed for orders), sales order creation and confirmation, invoicing from orders, and Finvoice export. The system uses tRPC for backend mutations and queries, with NextAuth for authentication. Recent work focused on build stabilization, resolving numerous type errors (all known type errors in `invoice.ts` and `inventory.ts` are fixed), and ensuring VAT calculations are correct (using `InventoryItem.defaultVatRatePercent` with a fallback to company-level default VAT when creating invoices from orders). The settings page now gracefully handles cases where company settings haven't been created. **The inventory item forms and backend now support directly editable `quantityOnHand` (with transaction generation) and new fields: `leadTimeDays`, `vendorSku`, `vendorItemName`.** Several UI enhancements for tables (customers) have been made, and a basic Kanban board for production exists. The build is currently passing and no type errors are reported by `npx tsc --noEmit`.
+The application has established user flows for core operations like login, profile updates (now robustly handles password changes and profile info updates), inventory item creation (basic, SKU handling fixed for orders), sales order creation and confirmation, invoicing from orders, and Finvoice export. The system uses tRPC for backend mutations and queries, with NextAuth for authentication. Recent work focused on build stabilization, resolving numerous type errors (all known type errors in `invoice.ts` and `inventory.ts` are fixed), and ensuring VAT calculations are correct (using `InventoryItem.defaultVatRatePercent` with a fallback to company-level default VAT when creating invoices from orders). The settings page now gracefully handles cases where company settings haven't been created. **The inventory item forms and backend now support directly editable `quantityOnHand` (with transaction generation) and new fields: `leadTimeDays`, `vendorSku`, `vendorItemName`.** Several UI enhancements for tables (customers) have been made, and a basic Kanban board for production exists. 
+
+**Multi-tenancy foundations have been implemented, including: a Company Switcher allowing users to belong to multiple companies and switch their active context; functionality for Global Admins to create new users and associate them with the admin's active company; and functionality for Global Admins to create new companies (tenants), automatically becoming a member and setting it as their active company. These features leverage a many-to-many relationship between Users and Companies, an `activeCompanyId` on the User model, and a `companyProtectedProcedure` for data scoping.**
+
+The build is currently passing and no type errors are reported by `npx tsc --noEmit`.
 
 ## 1. Core Entities & Lifecycle
 
@@ -12,7 +16,65 @@ The application has established user flows for core operations like login, profi
 *   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages via Kanban/Table) -> Shipped/Completed -> INVOICED **[Implemented. Production view needs BOM info display.]**
 *   **Invoice:** Draft (From Order/Manual) -> Sent -> Payment Recorded -> Paid / Overdue -> Exported (Finvoice) **[Implemented. Credit Note flow PENDING.]**
 
-## 2. Detailed User Flow: Inventory Item Lifecycle & Sale
+## 2. Multi-Tenancy & Company Management Flows (NEW SECTION)
+
+### 2.1. Admin Creates a New Company (Tenant)
+
+**Actor:** Global Administrator (User with `UserRole.admin`)
+
+1.  **Access Company Creation:** Admin navigates to the company creation interface (e.g., via "Create Company" option in the Team Switcher/Company Selector component).
+2.  **Open Create Company Dialog:** A dialog or form appears, prompting for the new company's name.
+3.  **Enter Company Name:** Admin inputs the desired name for the new company.
+4.  **Submit Form:** Admin submits the creation form.
+5.  **System Processing:**
+    *   The `company.create` tRPC mutation is called.
+    *   A new `Company` record is created in the database.
+    *   The admin user is automatically added as a member of this new company (via `CompanyMemberships` table).
+    *   The admin user's `activeCompanyId` in their `User` record is updated to the ID of the newly created company.
+    *   The user's session is updated to reflect the new `activeCompanyId`.
+6.  **Feedback & Redirection/Refresh:**
+    *   A success notification (e.g., toast: "Company '[New Company Name]' created successfully.") is displayed.
+    *   The company list in the Team Switcher is refreshed to include the new company.
+    *   The admin is now operating within the context of the newly created company.
+
+### 2.2. Admin Creates a New User in Their Active Company
+
+**Actor:** Global Administrator (User with `UserRole.admin`)
+
+1.  **Access User Creation:** Admin navigates to the user creation interface (e.g., a "Create User" section on the `/settings` page).
+2.  **Open Create User Form:** The form for creating a new user is displayed. This form is only visible/accessible to global admins.
+3.  **Enter User Details:** Admin inputs the new user's details:
+    *   Name
+    *   Email
+    *   Password
+    *   Role (e.g., `USER`, `COMPANY_ADMIN` - initially defaults to `USER`)
+4.  **Submit Form:** Admin submits the user creation form.
+5.  **System Processing:**
+    *   The `user.createUserInActiveCompany` tRPC mutation is called. This is a `companyProtectedProcedure` and uses the admin's `activeCompanyId` from the session context.
+    *   A new `User` record is created in the database with the provided details.
+    *   The new user is automatically added as a member of the admin's currently active company (via `CompanyMemberships` table, linked to the admin's `ctx.companyId`).
+    *   The new user's `activeCompanyId` is set to the admin's `ctx.companyId`.
+6.  **Feedback:**
+    *   A success notification (e.g., toast: "User '[New User Name]' created successfully and added to [Active Company Name].") is displayed.
+    *   The form may clear or the admin might be redirected to a user list (if it exists).
+
+### 2.3. User Switches Active Company
+
+**Actor:** Any authenticated user who is a member of multiple companies.
+
+1.  **Access Company Switcher:** User interacts with the Team Switcher/Company Selector component (e.g., in the sidebar).
+2.  **View Company List:** The switcher displays a list of companies the user is a member of. This list is fetched via the `user.getMemberCompanies` tRPC query.
+3.  **Select New Company:** User selects a different company from the list.
+4.  **System Processing:**
+    *   The `user.setActiveCompany` tRPC mutation is called with the ID of the selected company.
+    *   The backend verifies that the user is a member of the target company.
+    *   If membership is confirmed, the user's `activeCompanyId` field in their `User` record is updated in the database.
+    *   The user's session is updated (`useSession().update()`) to reflect the new `activeCompanyId` in `session.user.companyId`.
+5.  **Feedback & UI Update:**
+    *   A success notification (e.g., toast: "Active company changed to '[Selected Company Name]'.") may be displayed.
+    *   The UI updates to reflect the new company context. Data displayed throughout the application (e.g., dashboards, lists) will now be scoped to the newly selected company, assuming data fetching procedures correctly use `companyProtectedProcedure`.
+
+## 3. Detailed User Flow: Inventory Item Lifecycle & Sale
 
 **Persona:** Inventory Manager, Sales Rep, Finance Clerk, Admin
 
@@ -64,14 +126,14 @@ The application has established user flows for core operations like login, profi
 13. **Record Payment:** **[Implemented, UI review needed]**
     *   Status to 'Paid'.
 
-## 3. Backend Interaction Focus
+## 4. Backend Interaction Focus
 
 - **Data Validation:** Zod schemas for all tRPC inputs. **[Standard Practice]**
 - **Database Operations:** Prisma client. **[Standard Practice]**
 - **State Updates & UI Revalidation:** tRPC returns updated data; React Query handles cache invalidation and UI updates. **[Standard Practice]**
 - **Error Handling:** `TRPCError` for backend errors, toasts for frontend. **[Standard Practice]**
 
-## 4. Other Key Flows (Summary & Next Steps)
+## 5. Other Key Flows (Summary & Next Steps)
 
 *   **Customer Creation & Management:** **[Implemented, with advanced table and edit dialog]**
     *   **NEW:** From the Customer list, user can click a dropdown on a customer row to quickly: Create Invoice, Create Quotation, Create Work Order (pre-fills customer), or Edit Customer.
@@ -108,9 +170,9 @@ The application has established user flows for core operations like login, profi
 9.  **Build Health & Stability:** Maintain a clean build (`npm run build`) and TypeScript checks (`npx tsc --noEmit`) throughout development. **[Currently Stable]**
 10. **PDF Generation Access:** Ensure users can easily trigger and download PDF versions of Invoices, Orders, Pricelists, etc.
 
-## 3. Invoice Management Flows
+## 6. Invoice Management Flows
 
-### 3.1. Updating Invoice Status (Detail Page)
+### 6.1. Updating Invoice Status (Detail Page)
 
 1.  **Navigate:** User navigates to a specific invoice detail page (e.g., `/invoices/[id]`).
 2.  **Open Actions:** User clicks the consolidated "Actions" dropdown menu (likely represented by a "More" icon).
@@ -121,7 +183,7 @@ The application has established user flows for core operations like login, profi
 5.  **Feedback:** A toast notification confirms the successful status update (e.g., "Invoice status updated to PAID").
 6.  **UI Update:** The page re-renders or refreshes to reflect the new invoice status and any related information (like payment details).
 
-### 3.2. Performing Other Invoice Actions (Detail Page - e.g., Export PDF, Copy)
+### 6.2. Performing Other Invoice Actions (Detail Page - e.g., Export PDF, Copy)
 
 1.  **Navigate & Open Actions:** User is on an invoice detail page and opens the "Actions" dropdown menu.
 2.  **Select Action:**
@@ -130,24 +192,24 @@ The application has established user flows for core operations like login, profi
     *   **Export Finvoice/Create Credit Note:** User selects these options, and existing flows are triggered.
 3.  **Feedback:** Toast notifications for success or error of the action.
 
-### 3.3. Performing Invoice Actions (List View)
+### 6.3. Performing Invoice Actions (List View)
 
 1.  **Navigate:** User navigates to the Invoices list page (`/invoices`).
 2.  **Locate & Open Actions:** User finds the desired invoice row in the table and clicks the "Actions" dropdown menu specific to that row.
-3.  **Select Action & Flow:** The user selects an action (e.g., "Mark as Paid", "Export PDF", "Copy Invoice"). The subsequent flow and system processing are identical to performing the action from the detail page (as described in 3.1 and 3.2).
+3.  **Select Action & Flow:** The user selects an action (e.g., "Mark as Paid", "Export PDF", "Copy Invoice"). The subsequent flow and system processing are identical to performing the action from the detail page (as described in 6.1 and 6.2).
 
-## 4. Order Management Flows
+## 7. Order Management Flows
 
-### 4.1. Viewing Enhanced Order List
+### 7.1. Viewing Enhanced Order List
 
 1.  **Navigate:** User navigates to the Orders list page (`/orders`).
 2.  **View Table:** The orders table is displayed with the following key columns visible: Order Number, Customer Name, Order Date, Status, Order Type (rendered as a distinct visual pill, e.g., "Quote" or "Work Order"), Total Amount, and VAT Amount.
 3.  **Sort Data:** User can click on the column headers for "Order Type" and "VAT Amount" (and other existing sortable columns) to sort the table data accordingly.
 4.  **Multi-Select:** User sees a checkbox at the beginning of each order row. Clicking these checkboxes allows the user to select/deselect multiple orders, visually indicating selection. (Batch actions based on this selection are a future enhancement).
 
-## 5. Inventory & BOM Management Flows
+## 8. Inventory & BOM Management Flows
 
-### 5.1. Managing Tags (Inventory Items & BOMs)
+### 8.1. Managing Tags (Inventory Items & BOMs)
 
 1.  **Access Form:** User navigates to the form for creating a new or editing an existing Inventory Item or Bill of Material.
 2.  **Edit Tags:** User interacts with a "Tags" input field. This field should support adding multiple distinct text tags (e.g., via a tag-input component showing tags as pills, or by typing comma-separated values that are then parsed into tags).
@@ -157,7 +219,7 @@ The application has established user flows for core operations like login, profi
     *   On BOM list/detail views, associated tags are similarly displayed.
 5.  **Search by Tag:** User types a tag (or part of a tag) into the main search bar on the Inventory List page or BOM List page. The list filters to display only items/BOMs that have matching tags.
 
-### 5.2. Creating and Managing BOM Variants
+### 8.2. Creating and Managing BOM Variants
 
 1.  **Enable Variants for Template Item:** 
     *   User edits an existing `MANUFACTURED_GOOD` Inventory Item (this will become the "template item").
@@ -175,7 +237,7 @@ The application has established user flows for core operations like login, profi
 6.  **Edit Variant BOM (Optional Immediate Step):** The user might be automatically navigated to the BOM form for the newly created variant's BOM, allowing them to make immediate modifications specific to this variant.
 7.  **View Variants:** The "Variants" tab on the template item's page updates to list all created variant items, showing their SKUs and distinguishing attributes. Users can click on a variant to view/edit its details or its specific BOM.
 
-### 5.3. Using Inventory Excel Import/Export
+### 8.3. Using Inventory Excel Import/Export
 
 1.  **Export Inventory:**
     *   User navigates to the Inventory List page.

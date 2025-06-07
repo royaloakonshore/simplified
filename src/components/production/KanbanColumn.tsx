@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { SortableContext, useSortable } from '@dnd-kit/sortable';
+import { SortableContext } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { type Order, OrderStatus } from '@prisma/client';
 import { KanbanCard } from './KanbanCard';

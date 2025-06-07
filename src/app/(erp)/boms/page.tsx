@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { BOMTable } from "@/components/boms/BOMTable";
 import { api } from "@/lib/trpc/react";
-import { PlusCircle } from "lucide-react";
 
 const DUMMY_COMPANY_ID = "clxjv0l1s0000108kjrdy1z4h"; // Replace with actual company ID from session or context
 

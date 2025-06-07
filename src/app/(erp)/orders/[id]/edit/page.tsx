@@ -1,4 +1,4 @@
-import Link from 'next/link';
+// import Link from 'next/link'; // Removed unused import
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 
@@ -7,16 +7,14 @@ import EditOrderFormLoader, { OrderFormSkeleton } from '@/components/orders/Edit
 
 // Define the expected prop types for Next.js 15
 type PageRouteParams = { id: string };
-type PageSearchParams = { [key: string]: string | string[] | undefined };
+// type PageSearchParams = { [key: string]: string | string[] | undefined }; // Removed unused type
 
 type Props = {
   params: Promise<PageRouteParams>;
-  searchParams: Promise<PageSearchParams>; // searchParams should also be a Promise
 };
 
-export default async function EditOrderPage({ params: paramsPromise, searchParams: searchParamsPromise }: Props) {
+export default async function EditOrderPage({ params: paramsPromise }: Props) {
   const params = await paramsPromise;
-  const searchParams = await searchParamsPromise;
 
   if (!params.id) {
       notFound();

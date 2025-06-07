@@ -48,8 +48,8 @@ export type Database = {
       };
       // Other tables will be added here by the Supabase CLI
     };
-    Views: {};
-    Functions: {};
+    Views: Record<string, unknown>;
+    Functions: Record<string, unknown>;
     Enums: {
       UserRole: 'user' | 'admin';
     };

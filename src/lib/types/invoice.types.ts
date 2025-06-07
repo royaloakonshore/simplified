@@ -28,9 +28,10 @@ export interface InvoiceItem {
   vatRatePercent: Decimal; // VAT percentage for this line item
   discountAmount?: Decimal | null;
   discountPercent?: Decimal | null;
-  // Potentially link back to OrderItem or InventoryItem if needed
+  itemId?: UUID; // Link to InventoryItem
+  // Potentially link back to OrderItem if needed
   // orderItemId?: UUID;
-  // inventoryItemId?: UUID;
+  // inventoryItemId?: UUID; // Alternative naming for itemId
 }
 
 /**
@@ -50,6 +51,13 @@ export interface Invoice {
   vatReverseCharge: boolean;
   notes?: string;
   paymentDate?: Date | null; // Date when payment was recorded
+  paidAmount?: Decimal | null; // Total amount paid
+  creditedAmount?: Decimal | null; // Total amount credited
+  isCreditNote?: boolean; // True if this invoice is a credit note
+  sentAt?: Date | null; // Timestamp when the invoice was marked as sent
+  pdfUrl?: string | null; // Link to a generated PDF
+  companyId?: UUID | null; // Link to the company this invoice belongs to
+  userId?: UUID | null; // Link to the user who created/owns this invoice
   createdAt: Date;
   updatedAt: Date;
   customer: Customer;

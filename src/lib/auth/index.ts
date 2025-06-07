@@ -26,7 +26,7 @@ declare module "next-auth/adapters" {
     role?: UserRole;
     dashboardEnabled?: boolean;
     isTeamAdmin?: boolean;
-    companyId?: string | null;
+    activeCompanyId?: string | null;
   }
 }
 
@@ -41,10 +41,9 @@ declare module "next-auth" {
       login?: string;
       role?: UserRole;
       dashboardEnabled?: boolean;
-      isAdmin?: boolean;
       expires?: string;
       isTeamAdmin?: boolean;
-      companyId?: string | null;
+      activeCompanyId?: string | null;
     };
     accessToken?: string;
   }
@@ -59,12 +58,11 @@ declare module "next-auth" {
     firstName?: string | null;
     expires?: string;
     isTeamAdmin?: boolean;
-    isAdmin?: boolean;
-    companyId?: string | null;
+    activeCompanyId?: string | null;
   }
 }
 
-const debugLog = (location: string, data: any) => {
+const debugLog = (location: string, data: unknown) => {
   console.log(`[Auth Debug] ${location}:`, JSON.stringify(data, null, 2));
 };
 
@@ -77,7 +75,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email", placeholder: "jsmith@example.com" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials, req) {
+      async authorize(credentials) {
         debugLog("authorize:entry", { email: credentials?.email });
         
         if (!credentials?.email || !credentials.password) {
@@ -112,14 +110,15 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Return type must match the User interface from next-auth
-        return {
+        const nextAuthUser: import('next-auth').User = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
           image: user.image,
-          isAdmin: user.isAdmin,
-        } as any; // Cast to any to bypass complex type issues between Prisma User and NextAuth User
+          role: user.role as UserRole,
+          activeCompanyId: user.activeCompanyId,
+        };
+        return nextAuthUser;
       }
     }),
     EmailProvider({
@@ -139,7 +138,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
+    async signIn({ user, account }) {
       debugLog("signIn:entry", {
         userFromArg: user ? JSON.parse(JSON.stringify(user)) : null,
         accountFromArg: account ? JSON.parse(JSON.stringify(account)) : null,
@@ -184,7 +183,7 @@ export const authOptions: NextAuthOptions = {
         return false;
       }
     },
-    async jwt({ token, user, account, profile, trigger, isNewUser }) {
+    async jwt({ token, user, account, trigger, isNewUser }) {
       debugLog("jwt:entry", {
         tokenIN: JSON.parse(JSON.stringify(token)),
         userIN: user ? JSON.parse(JSON.stringify(user)) : null,
@@ -198,33 +197,34 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.email = user.email;
-        // Fetch companyId if user object is present (e.g., on sign-in or update)
+        // Fetch activeCompanyId if user object is present (e.g., on sign-in or update)
         // The 'user' object here might be from the provider or from a database refresh.
-        // It's safer to re-fetch from DB to ensure we have the latest companyId.
+        // It's safer to re-fetch from DB to ensure we have the latest activeCompanyId.
         if (user.id) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: user.id },
-                select: { companyId: true }
+                select: { activeCompanyId: true }
             });
-            token.companyId = dbUser?.companyId;
+            token.companyId = dbUser?.activeCompanyId; 
         } else {
-            // If user.id is not available, we cannot fetch companyId.
-            // This case should be rare if user object is present.
-            token.companyId = (user as any).companyId || null; 
+            // Fallback if user.id is not on the user object.
+            // Only rely on activeCompanyId if it exists directly on the user object.
+            token.companyId = user.activeCompanyId || null;
         }
       }
       
-      // If trigger is "update" and session data is passed
-      if (trigger === "update" && profile) { // Assuming 'profile' might carry update data. Adjust if session data is passed differently.
-        // Re-fetch user from DB to get potentially updated companyId
+      // If trigger is "update" and session data is passed (e.g. by calling update() from client)
+      // This is crucial for reflecting changes like setActiveCompany immediately in the token
+      if (trigger === "update") { 
+        // Re-fetch user from DB to get potentially updated activeCompanyId and other fields
         if (token.id) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: token.id as string },
-                select: { companyId: true, role: true, email: true } // Fetch other fields if they can be updated
+                select: { activeCompanyId: true, role: true, email: true }
             });
             if (dbUser) {
-                token.companyId = dbUser.companyId;
-                token.role = dbUser.role; // Example: also update role if it can change
+                token.companyId = dbUser.activeCompanyId;
+                token.role = dbUser.role; 
                 token.email = dbUser.email;
             }
         }
@@ -243,8 +243,8 @@ export const authOptions: NextAuthOptions = {
         if (token?.id) session.user.id = token.id as string;
         if (token?.role) session.user.role = token.role as UserRole;
         if (token?.email) session.user.email = token.email as string;
-        // Add companyId to session user
-        session.user.companyId = token.companyId as string | null;
+        // Add activeCompanyId to session user, using the name from token (which should be companyId)
+        session.user.activeCompanyId = token.companyId as string | null; 
       } else {
         debugLog("session:warning_cannot_enrich_session_user", { 
           tokenExists: !!token, 
@@ -254,13 +254,12 @@ export const authOptions: NextAuthOptions = {
       }
 
       debugLog("session:exit_returning_session", { sessionOUT: JSON.parse(JSON.stringify(session)) });
-      return session;
+      return session; // Correctly return only the session object
     },
   },
   events: {
-    async signOut({ session, token }) {
+    async signOut({ token }) {
       debugLog("events:signOut", {
-        sessionIN: session ? JSON.parse(JSON.stringify(session)) : null,
         tokenIN: token ? JSON.parse(JSON.stringify(token)) : null,
       });
     },

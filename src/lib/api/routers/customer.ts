@@ -3,18 +3,15 @@ import { prisma } from "@/lib/db";
 import {
   createTRPCRouter,
   protectedProcedure,
-  publicProcedure,
 } from "@/lib/api/trpc";
 import {
   createCustomerSchema,
   updateCustomerSchema,
-  customerBaseSchema,
   listCustomersSchema,
   yTunnusSchema,
   prhCompanyInfoSchema,
 } from "@/lib/schemas/customer.schema";
 import type { Address } from '@prisma/client';
-import { AddressType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 
@@ -86,7 +83,7 @@ export const customerRouter = createTRPCRouter({
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       return await prisma.customer.findUnique({
         where: { id: input.id },
         include: { addresses: true }, // Include addresses by default
@@ -95,7 +92,7 @@ export const customerRouter = createTRPCRouter({
 
   create: protectedProcedure
     .input(createCustomerSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { addresses, ...customerData } = input;
 
       // Use Prisma transaction to create customer and addresses together
@@ -119,7 +116,7 @@ export const customerRouter = createTRPCRouter({
 
   update: protectedProcedure
     .input(updateCustomerSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { id, addresses, ...customerData } = input;
 
       // Use Prisma transaction for update
@@ -150,7 +147,7 @@ export const customerRouter = createTRPCRouter({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       // Prisma schema uses onDelete: Cascade for Address, so they'll be deleted too
       // Need to consider related Orders/Invoices - what should happen?
       // For now, simple delete. Add checks/logic later if needed.
@@ -258,7 +255,7 @@ export const customerRouter = createTRPCRouter({
       // limit: z.number().min(1).max(100).optional().default(10),
       // cursor: z.string().cuid().optional(), 
     }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const { customerId } = input;
       // TODO: Add companyId filter: companyId: ctx.companyId
       const orders = await prisma.order.findMany({
@@ -280,7 +277,7 @@ export const customerRouter = createTRPCRouter({
       customerId: z.string().cuid(),
       // Optional: Add pagination/filtering params here if needed later
     }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const { customerId } = input;
       // TODO: Add companyId filter: companyId: ctx.companyId
       const invoices = await prisma.invoice.findMany({
@@ -294,5 +291,40 @@ export const customerRouter = createTRPCRouter({
         }
       });
       return invoices.map(invoice => ({ ...invoice, itemCount: invoice.items.length }));
+    }),
+
+  updateFinvoiceDetails: protectedProcedure
+    .input(z.object({
+      customerId: z.string().cuid(),
+      ovt: z.string(),
+      intermediator: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const { customerId, ovt, intermediator } = input;
+
+      await prisma.customer.update({
+        where: { id: customerId },
+        data: {
+          ovtIdentifier: ovt,
+          intermediatorAddress: intermediator,
+        },
+      });
+
+      return { success: true, message: 'Finvoice details updated.' };
+    }),
+
+  search: protectedProcedure
+    .input(z.object({ query: z.string().min(2) }))
+    .query(async ({ input }) => {
+      const { query } = input;
+      // TODO: Add companyId scoping
+      return await prisma.customer.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+      });
     }),
 }); 
