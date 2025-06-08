@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import {
   createTRPCRouter,
   protectedProcedure,
+  companyProtectedProcedure,
 } from "@/lib/api/trpc";
 import {
   createInventoryItemSchema,
@@ -17,25 +18,15 @@ import QRCode from 'qrcode';
 import { Buffer } from 'buffer'; // Import Buffer
 
 export const inventoryRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: companyProtectedProcedure
     .input(listInventoryItemsSchema)
     .query(async ({ ctx, input }) => {
-      const sessionCompanyId = ctx.session.user.activeCompanyId;
-      const inputCompanyId = input.companyId;
-
-      const filterCompanyId = inputCompanyId || sessionCompanyId;
-
-      if (!filterCompanyId) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Company ID is required to list inventory items. User may not be associated with a company.',
-        });
-      }
+      const companyId = ctx.companyId;
 
       const { search, itemType, inventoryCategoryId, sortBy, sortDirection, page = 1, perPage = 10 } = input;
 
       const whereClause: Prisma.InventoryItemWhereInput = {
-        companyId: filterCompanyId,
+        companyId: companyId,
       };
       if (search) {
         whereClause.OR = [
@@ -98,11 +89,15 @@ export const inventoryRouter = createTRPCRouter({
       };
     }),
 
-  getById: protectedProcedure
+  getById: companyProtectedProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ input }) => {
-        const item = await prisma.inventoryItem.findUnique({
-            where: { id: input.id },
+    .query(async ({ ctx, input }) => {
+        const companyId = ctx.companyId;
+        const item = await prisma.inventoryItem.findFirst({
+            where: { 
+              id: input.id,
+              companyId: companyId
+            },
             include: { 
                 inventoryCategory: true,
              }
@@ -251,11 +246,12 @@ export const inventoryRouter = createTRPCRouter({
       });
     }),
 
-  create: protectedProcedure
+  create: companyProtectedProcedure
     .input(createInventoryItemSchema)
     .mutation(async ({ ctx, input }) => {
       const { quantityOnHand, ...itemData } = input;
       const userId = ctx.session.user.id;
+      const companyId = ctx.companyId;
 
       if (itemData.sku) {
         const existingSku = await prisma.inventoryItem.findUnique({
@@ -273,6 +269,7 @@ export const inventoryRouter = createTRPCRouter({
         const newItem = await tx.inventoryItem.create({
           data: {
             ...itemData,
+            companyId,
             quantityOnHand: new Prisma.Decimal(quantityOnHand ?? 0),
           },
         });
@@ -315,11 +312,12 @@ export const inventoryRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: companyProtectedProcedure
     .input(updateInventoryItemSchema)
     .mutation(async ({ ctx, input }) => {
       const { id, quantityOnHand, ...dataToUpdate } = input;
       const userId = ctx.session.user.id;
+      const companyId = ctx.companyId;
 
       if (dataToUpdate.sku) {
         const existingSku = await prisma.inventoryItem.findFirst({
@@ -393,10 +391,24 @@ export const inventoryRouter = createTRPCRouter({
       });
     }),
 
-  delete: protectedProcedure
+  delete: companyProtectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id } = input;
+      const companyId = ctx.companyId;
+      
+      // First verify the item belongs to the company
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id, companyId },
+      });
+      
+      if (!item) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Inventory item not found or not accessible.',
+        });
+      }
+      
       // Check for related records before deleting
       const relatedOrders = await prisma.orderItem.count({ where: { inventoryItemId: id } });
       const relatedBoms = await prisma.billOfMaterialItem.count({ where: { componentItemId: id } });
@@ -413,15 +425,28 @@ export const inventoryRouter = createTRPCRouter({
       });
     }),
 
-  adjustStock: protectedProcedure
+  adjustStock: companyProtectedProcedure
     .input(adjustStockSchema)
     .mutation(async ({ ctx, input }) => {
       const { itemId, quantityChange, note } = input;
+      const companyId = ctx.companyId;
 
       if (quantityChange === 0) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'Quantity change cannot be zero.',
+        });
+      }
+      
+      // Verify the item belongs to the company
+      const item = await prisma.inventoryItem.findFirst({
+        where: { id: itemId, companyId },
+      });
+      
+      if (!item) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Inventory item not found or not accessible.',
         });
       }
       

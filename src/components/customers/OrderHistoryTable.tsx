@@ -39,7 +39,7 @@ export function OrderHistoryTable({ orders }: OrderHistoryTableProps) {
               <Badge>{order.status}</Badge>
             </TableCell>
             <TableCell className="text-right">
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(order.totalAmount.toNumber())}
+              {order.totalAmount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(order.totalAmount.toNumber()) : 'N/A'}
             </TableCell>
           </TableRow>
         ))}

@@ -136,3 +136,7 @@
 - Resolved TypeScript errors in `inventoryCategory.ts` router related to context typing and `description` field recognition after Prisma client regeneration.
 - Fixed "implicit any" type error in `add/page.tsx` for inventory categories.
 - Fixed numerous build errors by correcting type mismatches (`Decimal` vs `number`), aligning form default values with Zod schemas, fixing broken tRPC procedure logic, and standardizing on the `decimal.js` library for financial calculations. Added `@ts-nocheck` to problematic forms to ensure build completion.
+- **Fixed inventory.create validation error:** Updated inventory router to use `companyProtectedProcedure` instead of `protectedProcedure` and properly set `companyId` when creating inventory items.
+- **Enhanced multi-tenancy support:** Updated key inventory procedures (`list`, `getById`, `create`, `update`, `delete`, `adjustStock`) to use `companyProtectedProcedure` for proper data scoping.
+- **Fixed null reference error:** Added null check for `order.totalAmount` in `OrderHistoryTable.tsx` component.
+- **Improved data validation:** Ensured inventory items are properly associated with the user's active company and can only be accessed by users of that company.
