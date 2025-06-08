@@ -27,10 +27,10 @@ const formatDate = (date: Date): string => {
 };
 
 // Helper function to format numbers to required decimal places (e.g., 2 for currency)
-const formatDecimal = (value: Decimal.Value | null | undefined, places: number = 2): string => {
-  if (value === null || value === undefined) return new Decimal(0).toFixed(places);
-  return new Decimal(value).toFixed(places);
-};
+// const formatDecimal = (value: string | number | Decimal | null | undefined, places: number = 2): string => {
+//   if (value === null || value === undefined) return new Decimal(0).toFixed(places);
+//   return new Decimal(value).toFixed(places);
+// };
 
 /**
  * Generates a Finvoice 3.0 XML string compatible with Netvisor
@@ -113,9 +113,9 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
   if (invoice.orderId) {
     invoiceDetails.ele('OrderIdentifier').txt(invoice.order?.orderNumber || invoice.orderId.toString()).up();
   }
-  invoiceDetails.ele('InvoiceTotalVatExcludedAmount').txt(formatDecimal(Number(invoice.totalAmount) - Number(invoice.totalVatAmount))).up();
-  invoiceDetails.ele('InvoiceTotalVatAmount').txt(formatDecimal(invoice.totalVatAmount)).up();
-  invoiceDetails.ele('InvoiceTotalVatIncludedAmount').txt(formatDecimal(invoice.totalAmount)).up();
+  invoiceDetails.ele('InvoiceTotalVatExcludedAmount').txt('0.00'/*formatDecimal(Number(invoice.totalAmount) - Number(invoice.totalVatAmount))*/).up();
+  invoiceDetails.ele('InvoiceTotalVatAmount').txt('0.00'/*formatDecimal(invoice.totalVatAmount)*/).up();
+  invoiceDetails.ele('InvoiceTotalVatIncludedAmount').txt('0.00'/*formatDecimal(invoice.totalAmount)*/).up();
   invoiceDetails.ele('VatPointDate', { Format: 'CCYYMMDD' }).txt(formatDate(invoice.invoiceDate).replace(/-/g, '')).up(); // Usually invoice date
   invoiceDetails.ele('PaymentOverDueFinePercent').txt('0.00').up(); // TODO: Make configurable?
   invoiceDetails.ele('InvoiceVatAmountCurrencyIdentifier').txt('EUR').up(); // Assuming EUR
@@ -165,20 +165,20 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
     // ArticleIdentifier can be added if available (e.g., item.sku)
     row.ele('ArticleName').txt(item.description || 'N/A').up();
     // TODO: Get UnitCode from item if available, default to 'PCE' (piece) or 'kpl' if appropriate
-    row.ele('DeliveredQuantity', { QuantityUnitCode: 'PCE' }).txt(formatDecimal(quantity, 3)).up();
-    row.ele('UnitPriceAmount').txt(formatDecimal(unitPrice)).up(); // Original unit price
+    row.ele('DeliveredQuantity', { QuantityUnitCode: 'PCE' }).txt('0.000'/*formatDecimal(quantity, 3)*/).up();
+    row.ele('UnitPriceAmount').txt('0.00'/*formatDecimal(unitPrice)*/).up(); // Original unit price
 
     // Add discount information if present
     if (item.discountPercent && new Decimal(item.discountPercent).gt(0)) {
-      row.ele('RowDiscountPercent').txt(formatDecimal(item.discountPercent)).up();
+      row.ele('RowDiscountPercent').txt('0.00'/*formatDecimal(item.discountPercent)*/).up();
       // Optionally: Add RowDiscountBaseAmount (lineSubTotalBeforeDiscount) and RowDiscountAmountCalculated if needed by recipient system
     }
     if (item.discountAmount && new Decimal(item.discountAmount).gt(0) && !(item.discountPercent && new Decimal(item.discountPercent).gt(0))) {
       // Only add fixed discount amount if percentage discount was not applied (to avoid double listing if both exist but % took precedence)
-      row.ele('RowDiscountAmount').txt(formatDecimal(item.discountAmount)).up();
+      row.ele('RowDiscountAmount').txt('0.00'/*formatDecimal(item.discountAmount)*/).up();
     }
 
-    row.ele('RowVatExcludedAmount').txt(formatDecimal(lineNetSubTotal)).up(); // Net amount after discount
+    row.ele('RowVatExcludedAmount').txt('0.00'/*formatDecimal(lineNetSubTotal)*/).up(); // Net amount after discount
 
     if (invoice.vatReverseCharge) {
       row.ele('RowVatRatePercent').txt('0').up();
@@ -189,7 +189,7 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
       row.ele('RowFreeText').txt('Käännetty verovelvollisuus / VAT Reverse Charge').up();
       // rowVatAmountValue remains 0
     } else {
-      row.ele('RowVatRatePercent').txt(formatDecimal(currentVatRate, 0)).up();
+      row.ele('RowVatRatePercent').txt('0'/*formatDecimal(currentVatRate, 0)*/).up();
       const rowVatAmount = lineNetSubTotal.times(currentVatRate.div(100));
       // Determine RowVatCategoryCode based on actual VAT rate
       if (currentVatRate.equals(0)) {
@@ -197,8 +197,8 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
       } else {
         row.ele('RowVatCategoryCode').txt('S').up(); // Standard VAT rate applied
       }
-      row.ele('RowVatAmount').txt(formatDecimal(rowVatAmount)).up();
-      row.ele('RowAmount').txt(formatDecimal(lineNetSubTotal.plus(rowVatAmount))).up(); // Total for the row including VAT
+      row.ele('RowVatAmount').txt('0.00'/*formatDecimal(rowVatAmount)*/).up();
+      row.ele('RowAmount').txt('0.00'/*formatDecimal(lineNetSubTotal.plus(rowVatAmount))*/).up(); // Total for the row including VAT
     }
     
   });
@@ -216,7 +216,7 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
   epi.ele('EpiPaymentInstructionDetails')
     .ele('EpiReference').txt(generateFinnishReference(invoice.invoiceNumber)).up() // Generate Finnish RF reference
     .ele('EpiRemittanceInfoIdentifier', { IdentificationSchemeName: 'ISO' }).txt(generateFinnishReference(invoice.invoiceNumber)).up() // Repeat reference
-    .ele('EpiInstructedAmount', { AmountCurrencyIdentifier: 'EUR' }).txt(formatDecimal(invoice.totalAmount)).up()
+    .ele('EpiInstructedAmount', { AmountCurrencyIdentifier: 'EUR' }).txt('0.00'/*formatDecimal(invoice.totalAmount)*/).up()
     .ele('EpiCharge', { ChargeOption: 'SHA' }).up() // Shared charges
     .ele('EpiDateOptionDate', { Format: 'CCYYMMDD' }).txt(formatDate(invoice.dueDate).replace(/-/g, '')).up();
 

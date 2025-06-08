@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { 
     ColumnDef, 
     flexRender, 
@@ -25,19 +26,88 @@ import {
     TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuLabel, 
+    DropdownMenuSeparator, 
+    DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination"; 
 import { CustomerEditDialog } from './CustomerEditDialog';
 import { api } from '@/lib/trpc/react'; 
 
 import { DataTableToolbar } from "@/components/ui/data-table/data-table-toolbar";
 import { DataTableColumnHeader } from "@/components/ui/data-table/data-table-column-header";
+import { 
+    MoreHorizontal,
+    FileText,
+    FilePlus,
+    FileBox,
+    Edit,
+} from 'lucide-react';
 
 interface CustomerTableProps {
   customers: Customer[];
 }
 
+const CustomerTableRowActions = ({ customer, onEditSuccess }: { customer: Customer, onEditSuccess: () => void }) => {
+  const router = useRouter();
+
+  const handleCreateDocument = (customerId: string, type: 'invoice' | 'quotation' | 'work_order') => {
+    const baseUrl = type === 'invoice' ? '/invoices/add' : '/orders/add';
+    const params = new URLSearchParams({ customerId });
+    if (type !== 'invoice') {
+      params.set('orderType', type === 'quotation' ? 'QUOTATION' : 'WORK_ORDER');
+    }
+    router.push(`${baseUrl}?${params.toString()}`);
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'invoice')}>
+            <FileText className="mr-2 h-4 w-4" />
+            <span>Create Invoice</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'quotation')}>
+            <FilePlus className="mr-2 h-4 w-4" />
+            <span>Create Quotation</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'work_order')}>
+            <FileBox className="mr-2 h-4 w-4" />
+            <span>Create Work Order</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <CustomerEditDialog
+            customerId={customer.id}
+            onSuccess={onEditSuccess}
+            trigger={
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <Edit className="mr-2 h-4 w-4" />
+                <span>Edit Customer</span>
+              </DropdownMenuItem>
+            }
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+};
+
 export default function CustomerTable({ customers }: CustomerTableProps) {
   const utils = api.useUtils(); // Correct: Hook called at the top level
+  const router = useRouter();
 
   const columns = React.useMemo<ColumnDef<Customer>[]>(() => [
     {
@@ -81,12 +151,9 @@ export default function CustomerTable({ customers }: CustomerTableProps) {
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => (
         <div className="text-right">
-          <CustomerEditDialog 
-            customerId={row.original.id} 
-            trigger={<Button variant="outline" size="sm">Edit</Button>}
-            onSuccess={() => {
-              utils.customer.list.invalidate(); 
-            }}
+          <CustomerTableRowActions 
+            customer={row.original} 
+            onEditSuccess={() => utils.customer.list.invalidate()} 
           />
         </div>
       ),

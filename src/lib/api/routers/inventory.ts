@@ -734,60 +734,60 @@ export const inventoryRouter = createTRPCRouter({
       return lowStockItems;
     }),
   
-  generateAndPrintQRCodes: protectedProcedure
-    .input(z.object({ itemIds: z.array(z.string()) }))
-    .mutation(async ({ input }) => {
-      const { itemIds } = input;
-      const items = await prisma.inventoryItem.findMany({
-        where: { id: { in: itemIds } },
-      });
+  // generateAndPrintQRCodes: protectedProcedure
+  //   .input(z.object({ itemIds: z.array(z.string()) }))
+  //   .mutation(async ({ input }) => {
+  //     const { itemIds } = input;
+  //     const items = await prisma.inventoryItem.findMany({
+  //       where: { id: { in: itemIds } },
+  //     });
 
-      let htmlContent = `
-        <html>
-          <head>
-            <style>
-              @page { size: A4; margin: 1cm; }
-              body { font-family: sans-serif; }
-              .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-gap: 10px; }
-              .qr-code-item { border: 1px solid #ccc; padding: 10px; text-align: center; }
-              .qr-code-item img { max-width: 100%; height: auto; }
-              .item-name { font-weight: bold; margin-top: 5px; }
-              .item-sku { font-size: 0.8em; color: #555; }
-            </style>
-          </head>
-          <body>
-            <div class="grid-container">
-      `;
+  //     let htmlContent = `
+  //       <html>
+  //         <head>
+  //           <style>
+  //             @page { size: A4; margin: 1cm; }
+  //             body { font-family: sans-serif; }
+  //             .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-gap: 10px; }
+  //             .qr-code-item { border: 1px solid #ccc; padding: 10px; text-align: center; }
+  //             .qr-code-item img { max-width: 100%; height: auto; }
+  //             .item-name { font-weight: bold; margin-top: 5px; }
+  //             .item-sku { font-size: 0.8em; color: #555; }
+  //           </style>
+  //         </head>
+  //         <body>
+  //           <div class="grid-container">
+  //     `;
 
-      for (const item of items) {
-        const qrIdentifier = `ITEM:${item.id}`;
-        const qrCodeDataUrl = await QRCode.toDataURL(qrIdentifier, { errorCorrectionLevel: 'H' });
+  //     for (const item of items) {
+  //       const qrIdentifier = `ITEM:${item.id}`;
+  //       const qrCodeDataUrl = await QRCode.toDataURL(qrIdentifier, { errorCorrectionLevel: 'H' });
         
-        htmlContent += `
-          <div class="qr-code-item">
-            <img src="${qrCodeDataUrl}" alt="QR Code for ${item.name}" />
-            <div class="item-name">${item.name}</div>
-            <div class="item-sku">SKU: ${item.sku}</div>
-          </div>
-        `;
-      }
+  //       htmlContent += `
+  //         <div class="qr-code-item">
+  //           <img src="${qrCodeDataUrl}" alt="QR Code for ${item.name}" />
+  //           <div class="item-name">${item.name}</div>
+  //           <div class="item-sku">SKU: ${item.sku}</div>
+  //         </div>
+  //       `;
+  //     }
 
-      htmlContent += `
-            </div>
-          </body>
-        </html>
-      `;
+  //     htmlContent += `
+  //           </div>
+  //         </body>
+  //       </html>
+  //     `;
 
-      const browser = await puppeteer.launch({ headless: true });
-      const page = await browser.newPage();
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-      await browser.close();
+  //     const browser = await puppeteer.launch({ headless: true });
+  //     const page = await browser.newPage();
+  //     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+  //     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+  //     await browser.close();
 
-      return {
-        pdfBase64: pdfBuffer.toString('base64'),
-      };
-    }),
+  //     return {
+  //       pdfBase64: pdfBuffer.toString('base64'),
+  //     };
+  //   }),
 
   // New endpoint to find an item by its QR identifier
   findByQrIdentifier: protectedProcedure

@@ -8,6 +8,7 @@ import { settingsRouter } from "./routers/settings";
 import { bomRouter } from "./routers/bom";
 import { inventoryCategoryRouter } from "./routers/inventoryCategory";
 import { companyRouter } from "./routers/company";
+import { type inferRouterOutputs } from "@trpc/server";
 // import all routers here
 
 /**
@@ -30,6 +31,8 @@ export const appRouter = createTRPCRouter({
 
 // export type definition of API
 export type AppRouter = typeof appRouter;
+
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 /**
  * Create a server-side caller for the tRPC API.

@@ -173,30 +173,30 @@ export default function EditInventoryItemPage() {
 
   const formInitialData: ProcessedInventoryItemApiData = {
     id: itemFromApi.id,
-    sku: itemFromApi.sku ?? null,
+    sku: itemFromApi.sku ?? undefined,
     name: itemFromApi.name,
-    description: itemFromApi.description ?? null,
-    unitOfMeasure: itemFromApi.unitOfMeasure ?? null,
+    description: itemFromApi.description ?? undefined,
+    unitOfMeasure: itemFromApi.unitOfMeasure ?? undefined,
     itemType: itemFromApi.itemType as PrismaItemType,
-    inventoryCategoryId: itemFromApi.inventoryCategoryId ?? null,
-    costPrice: itemFromApi.costPrice as string, // Expected as string by ProcessedInventoryItemApiData
-    salesPrice: itemFromApi.salesPrice as string, // Expected as string
-    minimumStockLevel: itemFromApi.minimumStockLevel as string, // Expected as string
-    reorderLevel: itemFromApi.reorderLevel as (string | null), // Expected as string | null
-    quantityOnHand: itemFromApi.quantityOnHand as string, // Expected as string
-    defaultVatRatePercent: itemFromApi.defaultVatRatePercent !== null && itemFromApi.defaultVatRatePercent !== undefined 
-                            ? parseFloat(itemFromApi.defaultVatRatePercent.toString()) 
-                            : null, // This remains number | null, assuming it's correct
-    qrIdentifier: itemFromApi.qrIdentifier ?? null,
+    inventoryCategoryId: itemFromApi.inventoryCategoryId ?? undefined,
+    costPrice: parseFloat(itemFromApi.costPrice),
+    salesPrice: parseFloat(itemFromApi.salesPrice),
+    minimumStockLevel: parseFloat(itemFromApi.minimumStockLevel),
+    reorderLevel: itemFromApi.reorderLevel ? parseFloat(itemFromApi.reorderLevel) : null,
+    quantityOnHand: parseFloat(itemFromApi.quantityOnHand),
+    defaultVatRatePercent: itemFromApi.defaultVatRatePercent !== null && itemFromApi.defaultVatRatePercent !== undefined
+                            ? parseFloat(itemFromApi.defaultVatRatePercent.toString())
+                            : null,
+    qrIdentifier: itemFromApi.qrIdentifier ?? undefined,
     showInPricelist: itemFromApi.showInPricelist ?? true,
-    internalRemarks: itemFromApi.internalRemarks ?? null,
+    internalRemarks: itemFromApi.internalRemarks ?? undefined,
     createdAt: itemFromApi.createdAt ? new Date(itemFromApi.createdAt) : undefined,
     updatedAt: itemFromApi.updatedAt ? new Date(itemFromApi.updatedAt) : undefined,
     leadTimeDays: itemFromApi.leadTimeDays !== null && itemFromApi.leadTimeDays !== undefined 
                     ? Number(itemFromApi.leadTimeDays) 
                     : null,
-    vendorSku: itemFromApi.vendorSku ?? null,
-    vendorItemName: itemFromApi.vendorItemName ?? null,
+    vendorSku: itemFromApi.vendorSku ?? undefined,
+    vendorItemName: itemFromApi.vendorItemName ?? undefined,
   };
 
   return (

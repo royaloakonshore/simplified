@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react";
-import { useForm, Control } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ItemType as PrismaItemType } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -24,99 +24,116 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { inventoryItemBaseSchema, type InventoryItemFormValues } from "@/lib/schemas/inventory.schema";
 
-// Type for what the form receives as initialData (item from API with processed Decimals)
-export interface ProcessedInventoryItemApiData {
-  id: string; // Keep ID for context (e.g. edit vs create)
-  sku: string | null;
-  name: string;
-  description: string | null;
-  unitOfMeasure: string | null;
-  itemType: PrismaItemType; // Prisma enum
-  inventoryCategoryId: string | null;
-  // Stringified Decimal fields
-  costPrice: string | null;
-  salesPrice: string | null;
-  minimumStockLevel: string | null;
-  reorderLevel: string | null;
-  quantityOnHand: string | null; // Current total quantity, for display or context
-  // Parsed Decimal fields
-  defaultVatRatePercent?: number | null;
-  // New fields for initialData
-  leadTimeDays?: number | null;
-  vendorSku?: string | null;
-  vendorItemName?: string | null;
-  // Other InventoryItem fields if needed by the form for display (not for form submission values directly)
-  qrIdentifier?: string | null;
-  showInPricelist?: boolean | null;
-  internalRemarks?: string | null;
-  createdAt?: Date; // For display if needed
-  updatedAt?: Date; // For display if needed
-  variant?: string | null;
-}
+// Type for what the form receives as initialData.
+// This is data that has been processed from an API call to be ready for the form.
+export type ProcessedInventoryItemApiData = Partial<InventoryItemFormValues> & {
+  id?: string;
+  qrIdentifier?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  // Fields that might come in as strings or other types from an API
+  costPrice?: string | number | null;
+  salesPrice?: string | number | null;
+  minimumStockLevel?: string | number | null;
+  reorderLevel?: string | number | null;
+  quantityOnHand?: string | number | null;
+  leadTimeDays?: string | number | null;
+};
 
 interface InventoryItemFormProps {
   initialData?: ProcessedInventoryItemApiData;
-  onSubmitProp: (values: InventoryItemFormValues, mode: 'full' | 'scan-edit', initialStockOrAdjustment?: number) => void;
+  onSubmitProp: (
+    values: InventoryItemFormValues,
+    mode: 'full' | 'scan-edit',
+    initialStockOrAdjustment?: number
+  ) => void;
   isLoading?: boolean;
   formMode?: 'full' | 'scan-edit';
-  inventoryCategories: Array<{ value: string; label: string }>; // Added prop for categories
+  inventoryCategories: Array<{ value: string; label: string }>;
 }
+
+// A helper function to map API data to form values, ensuring type consistency.
+const mapApiDataToFormValues = (
+  item?: ProcessedInventoryItemApiData
+): InventoryItemFormValues => {
+  const parseNumber = (val: string | number | null | undefined): number => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string' && val.trim() !== '') return parseFloat(val);
+    return 0;
+  };
+
+  const parseNullableNumber = (val: string | number | null | undefined): number | null => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string' && val.trim() !== '') return parseFloat(val);
+    return null;
+  };
+
+  if (item) {
+    // Editing an existing item
+    return {
+      sku: item.sku ?? '',
+      name: item.name ?? '',
+      description: item.description ?? undefined,
+      unitOfMeasure: item.unitOfMeasure ?? 'kpl',
+      itemType: item.itemType ?? PrismaItemType.RAW_MATERIAL,
+      inventoryCategoryId: item.inventoryCategoryId ?? undefined,
+      costPrice: parseNumber(item.costPrice),
+      salesPrice: parseNumber(item.salesPrice),
+      minimumStockLevel: parseNumber(item.minimumStockLevel),
+      reorderLevel: parseNullableNumber(item.reorderLevel),
+      quantityOnHand: parseNumber(item.quantityOnHand),
+      defaultVatRatePercent: parseNullableNumber(item.defaultVatRatePercent),
+      leadTimeDays: parseNullableNumber(item.leadTimeDays),
+      vendorSku: item.vendorSku ?? null,
+      vendorItemName: item.vendorItemName ?? null,
+      variant: item.variant ?? null,
+      showInPricelist: item.showInPricelist ?? true,
+      internalRemarks: item.internalRemarks ?? undefined,
+    };
+  }
+
+  // Creating a new item
+  return {
+    sku: '',
+    name: '',
+    description: undefined,
+    unitOfMeasure: 'kpl',
+    costPrice: 0,
+    salesPrice: 0,
+    itemType: PrismaItemType.RAW_MATERIAL,
+    minimumStockLevel: 0,
+    reorderLevel: null,
+    quantityOnHand: 0,
+    showInPricelist: true,
+    inventoryCategoryId: undefined,
+    internalRemarks: undefined,
+    defaultVatRatePercent: null,
+    vendorSku: null,
+    vendorItemName: null,
+    leadTimeDays: null,
+    variant: null,
+  };
+};
 
 export function InventoryItemForm({
   initialData,
   onSubmitProp,
   isLoading,
   formMode = 'full',
-  inventoryCategories, // Destructure new prop
+  inventoryCategories,
 }: InventoryItemFormProps) {
   const router = useRouter();
 
   const form = useForm<InventoryItemFormValues>({
     resolver: zodResolver(inventoryItemBaseSchema),
-    defaultValues: initialData
-      ? {
-          ...initialData,
-          costPrice: initialData.costPrice ? parseFloat(initialData.costPrice) : 0,
-          salesPrice: initialData.salesPrice ? parseFloat(initialData.salesPrice) : 0,
-          minimumStockLevel: initialData.minimumStockLevel ? parseFloat(initialData.minimumStockLevel) : 0,
-          reorderLevel: initialData.reorderLevel ? parseFloat(initialData.reorderLevel) : null,
-          quantityOnHand: initialData.quantityOnHand ? parseFloat(initialData.quantityOnHand) : undefined,
-          leadTimeDays: initialData.leadTimeDays ?? null,
-          vendorSku: initialData.vendorSku ?? null,
-          vendorItemName: initialData.vendorItemName ?? null,
-          variant: initialData.variant ?? null,
-          description: initialData.description ?? undefined,
-          internalRemarks: initialData.internalRemarks ?? undefined,
-          inventoryCategoryId: initialData.inventoryCategoryId ?? undefined,
-          defaultVatRatePercent: initialData.defaultVatRatePercent ?? null,
-        }
-      : {
-          sku: '',
-          name: '',
-          description: undefined,
-          unitOfMeasure: 'kpl',
-          costPrice: 0,
-          salesPrice: 0,
-          itemType: PrismaItemType.RAW_MATERIAL,
-          minimumStockLevel: 0,
-          reorderLevel: null,
-          quantityOnHand: undefined,
-          showInPricelist: true,
-          inventoryCategoryId: undefined,
-          internalRemarks: undefined,
-          defaultVatRatePercent: null,
-          vendorSku: null,
-          vendorItemName: null,
-          leadTimeDays: null,
-          variant: null,
-        },
+    defaultValues: mapApiDataToFormValues(initialData),
   });
-
+  
   const watchedItemType = form.watch("itemType");
-
+  
   // Mutations for create/update are now handled by the parent page (EditInventoryItemPage, AddInventoryItemPage)
   // This form component will call onSubmitProp, which triggers those mutations.
-
+  
   function onSubmit(values: InventoryItemFormValues) {
     onSubmitProp(values, formMode, values.quantityOnHand);
   }
@@ -158,7 +175,7 @@ export function InventoryItemForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description</FormLabel>
-                  <FormControl><Textarea placeholder="Optional item description..." {...field} /></FormControl>
+                  <FormControl><Textarea placeholder="Optional item description..." {...field} value={field.value ?? ''} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -170,7 +187,7 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Quantity on Hand*</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+                        <FormControl><Input type="number" {...field} /></FormControl>
                         <FormDescription>
                             Current total stock quantity. Changes will create an adjustment transaction.
                         </FormDescription>
@@ -395,7 +412,6 @@ export function InventoryItemForm({
                                     type="number" 
                                     step="1" 
                                     {...field} 
-                                    onChange={e => field.onChange(parseFloat(e.target.value))}
                                     placeholder="Enter new total quantity" 
                                     /></FormControl>
                     <FormDescription>Enter the new total stock quantity. An adjustment transaction will be created.</FormDescription>

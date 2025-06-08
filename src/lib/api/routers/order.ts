@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import {
   createTRPCRouter,
   protectedProcedure,
+  companyProtectedProcedure,
 } from "@/lib/api/trpc";
 import {
   createOrderSchema,
@@ -266,22 +267,30 @@ const productionOrderPayload = {
 export type ProductionOrderFromFindMany = Prisma.OrderGetPayload<typeof productionOrderPayload>;
 
 export const orderRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: companyProtectedProcedure
     .input(listOrdersSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const { limit: limitInput, cursor, customerId, status, orderType } = input;
       const limit = limitInput ?? 10;
 
-      const whereClause: Prisma.OrderWhereInput = {
-        customerId: customerId, 
-        status: status === null ? undefined : status, 
-        orderType: orderType === null ? undefined : orderType,
+      const where: Prisma.OrderWhereInput = {
+        companyId: ctx.companyId,
       };
+
+      if (customerId) {
+        where.customerId = customerId;
+      }
+      if (status) {
+        where.status = status;
+      }
+      if (orderType) {
+        where.orderType = orderType;
+      }
 
       const items = await prisma.order.findMany({
         take: limit + 1, 
         cursor: cursor ? { id: cursor } : undefined,
-        where: whereClause,
+        where,
         orderBy: {
           createdAt: "desc",
         },
