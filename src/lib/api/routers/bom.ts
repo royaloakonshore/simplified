@@ -203,7 +203,14 @@ export const bomRouter = createTRPCRouter({
         prisma.billOfMaterial.findMany({
           where: whereClause,
           include: {
-            manufacturedItem: { select: { id: true, name: true, sku: true } },
+            manufacturedItem: { 
+              select: { 
+                id: true, 
+                name: true, 
+                sku: true,
+                inventoryCategory: { select: { id: true, name: true } }
+              } 
+            },
             _count: { select: { items: true } },
           },
           // TODO: Add orderBy, skip, take from input if pagination is added

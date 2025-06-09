@@ -221,6 +221,17 @@ interface InventoryTableToolbarProps<TData> {
 function InventoryTableToolbar<TData>({ table, categoryOptions }: InventoryTableToolbarProps<TData>) {
   // const isFiltered = table.getState().columnFilters.length > 0; // Commented out unused variable
 
+  const itemTypeOptions = [
+    {
+      value: ItemType.RAW_MATERIAL,
+      label: "Raw Material",
+    },
+    {
+      value: ItemType.MANUFACTURED_GOOD,
+      label: "Manufactured Good",
+    },
+  ];
+
   return (
     <div className="flex items-center justify-between py-4">
       <div className="flex flex-1 items-center space-x-2">
@@ -232,6 +243,13 @@ function InventoryTableToolbar<TData>({ table, categoryOptions }: InventoryTable
           }
           className="h-8 w-[150px] lg:w-[250px]"
         />
+        {table.getColumn("itemType") && (
+          <DataTableFacetedFilter
+            column={table.getColumn("itemType")}
+            title="Type"
+            options={itemTypeOptions}
+          />
+        )}
         {table.getColumn("inventoryCategory") && categoryOptions.length > 0 && (
           <DataTableFacetedFilter
             column={table.getColumn("inventoryCategory")}

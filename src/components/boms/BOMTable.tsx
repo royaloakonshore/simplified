@@ -32,6 +32,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 // Use inferRouterOutputs for more robust type inference
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -49,6 +50,18 @@ export const columns: ColumnDef<BOMTableRow>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+  },
+  {
+    accessorKey: "manufacturedItem.inventoryCategory.name",
+    header: "Category",
+    cell: ({ row }) => {
+      const category = row.original.manufacturedItem?.inventoryCategory?.name;
+      return category ? (
+        <Badge variant="outline">{category}</Badge>
+      ) : (
+        <span className="text-muted-foreground">N/A</span>
+      );
+    },
   },
   {
     accessorKey: "manufacturedItem.name", // Assuming nested object structure
@@ -78,10 +91,7 @@ export const columns: ColumnDef<BOMTableRow>[] = [
     ),
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("totalCalculatedCost") as string); // Prisma Decimal to number
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD", // TODO: Make currency dynamic based on company settings
-      }).format(amount);
+      const formatted = amount.toFixed(2); // Just show the number with 2 decimal places, no currency symbol
       return <div className="text-right font-medium">{formatted}</div>;
     },
   },

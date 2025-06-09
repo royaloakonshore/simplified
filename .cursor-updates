@@ -147,3 +147,26 @@
 - **Enhanced sign-in page:** Integrated animated background with letter-by-letter animated title "Simplified ERP" above the login form.
 - **Improved user experience:** The sign-in page now features beautiful background animations with floating paths and smooth title animation on load.
 - **Maintained functionality:** All existing sign-in functionality (credentials + email magic links) preserved while adding visual polish.
+
+## 2025-01-25: Multi-tenancy foundations implemented
+- Added Company Switcher allowing users to belong to multiple companies and switch active context
+- Implemented Global Admin functionality to create new users and associate them with admin's active company
+- Added Global Admin capability to create new companies (tenants), automatically becoming member and setting as active
+- Features leverage many-to-many relationship between Users and Companies, activeCompanyId on User model, and companyProtectedProcedure for data scoping
+- All changes committed and documented
+
+## 2025-01-25: Sign-in page background animation and theme toggle implementation  
+- Implemented animated background with 36 flowing SVG paths using Framer Motion
+- Added letter-by-letter animated "Simplified ERP" title with spring physics
+- Integrated theme toggle button in upper right corner with proper positioning using explicit CSS
+- Applied animations to both main content and skeleton loading states
+- All changes committed and build remains stable
+
+## 2025-01-25: BOM creation and quantity input fixes
+- Updated BOM router to use companyProtectedProcedure instead of protectedProcedure for proper multi-tenancy support
+- Removed companyId parameter from BOM schema and form props as it's now handled by tRPC context
+- Fixed controlled/uncontrolled input errors in RawMaterialSelectionTable by ensuring quantity inputs always have defined values
+- Improved quantity input state management to properly handle updates and prevent React warnings
+- Added debug logging to BOM form submission for better troubleshooting
+- Updated all BOM pages (list, add, edit) to use new router interface without companyId parameter
+- Build remains stable with successful compilation

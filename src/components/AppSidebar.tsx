@@ -93,7 +93,8 @@ const productionNavItems: NavItemDefinition[] = [
         isCollapsible: true,
         subItems: [
             { title: 'View All Items', url: '/inventory' },
-            { title: 'Add New Item', url: '/inventory/add' }
+            { title: 'Add New Item', url: '/inventory/add' },
+            { title: 'Price List', url: '/inventory/pricelist' }
         ]
     },
     { 
