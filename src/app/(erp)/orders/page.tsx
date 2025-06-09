@@ -289,9 +289,6 @@ function OrderListContent() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button asChild>
-              <Link href="/orders/add">Create New Order</Link>
-            </Button>
           </div>
         </div>
       </div>
@@ -323,13 +320,15 @@ export default function OrdersPage() {
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
       <PageBanner>
-        <div className="flex justify-between items-center">
-          <BannerTitle>Orders</BannerTitle>
-          <Button asChild className="text-white border-white hover:bg-white/20">
-              <Link href="/orders/add">Create New Order</Link>
-          </Button>
-        </div>
+        <BannerTitle>Orders</BannerTitle>
       </PageBanner>
+
+      <div className="flex justify-between items-center mb-6">
+        <div></div>
+        <Button asChild>
+          <Link href="/orders/add">Create New Order</Link>
+        </Button>
+      </div>
 
       <Suspense fallback={<div>Loading orders...</div>}>
         <OrderListContent />

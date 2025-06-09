@@ -179,3 +179,5 @@
 
 ## 2025-01-16
 - Implemented permanent banner component with H1 headings: Created PageBanner and BannerTitle components for full-width image banners with rounded edges, white text styling, and proper scoping to prevent CSS conflicts across application pages.
+- Reduced banner dimensions by 30%: Decreased banner height from 200px to 140px, reduced padding from 32px to 24px, and scaled H1 text sizes down by approximately 30% for a more compact appearance.
+- Moved action buttons outside banners: Relocated Add/Create buttons from inside PageBanner components to below banners on all major pages (Inventory, BOMs, Orders, Price List) for cleaner visual separation and improved layout organization.

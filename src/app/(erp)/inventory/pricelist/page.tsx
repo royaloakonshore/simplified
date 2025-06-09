@@ -55,14 +55,16 @@ export default function PriceListPage() {
   return (
     <div className="container mx-auto py-10">
       <PageBanner>
-        <div className="flex justify-between items-center">
-          <BannerTitle>Price List</BannerTitle>
-          <Button variant="outline" disabled className="text-white border-white hover:bg-white/20">
-            <FileDown className="mr-2 h-4 w-4" />
-            Export PDF
-          </Button>
-        </div>
+        <BannerTitle>Price List</BannerTitle>
       </PageBanner>
+
+      <div className="flex justify-between items-center mb-8">
+        <div></div>
+        <Button variant="outline" disabled>
+          <FileDown className="mr-2 h-4 w-4" />
+          Export PDF
+        </Button>
+      </div>
 
       {inventoryData?.meta?.totalCount && inventoryData.meta.totalCount > 100 && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">

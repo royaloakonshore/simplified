@@ -14,13 +14,16 @@ export default function BillOfMaterialsPage() {
   return (
     <div className="container mx-auto py-10">
       <PageBanner>
-        <div className="flex justify-between items-center">
-          <BannerTitle>Bill of Materials</BannerTitle>
-          <Button asChild className="text-white border-white hover:bg-white/20">
-            <Link href="/boms/add">Add New BOM</Link>
-          </Button>
-        </div>
+        <BannerTitle>Bill of Materials</BannerTitle>
       </PageBanner>
+
+      <div className="flex justify-between items-center mb-8">
+        <div></div>
+        <Button asChild>
+          <Link href="/boms/add">Add New BOM</Link>
+        </Button>
+      </div>
+
       <BOMTable data={bomsResponse?.data || []} isLoading={isLoading} />
     </div>
   );
