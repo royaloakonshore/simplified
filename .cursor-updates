@@ -140,3 +140,10 @@
 - **Enhanced multi-tenancy support:** Updated key inventory procedures (`list`, `getById`, `create`, `update`, `delete`, `adjustStock`) to use `companyProtectedProcedure` for proper data scoping.
 - **Fixed null reference error:** Added null check for `order.totalAmount` in `OrderHistoryTable.tsx` component.
 - **Improved data validation:** Ensured inventory items are properly associated with the user's active company and can only be accessed by users of that company.
+
+## 2025-01-23 - Added Background Animation to Sign-in Page
+
+- **Created animated background component:** Added `BackgroundPaths` component with flowing path animations using Framer Motion.
+- **Enhanced sign-in page:** Integrated animated background with letter-by-letter animated title "Simplified ERP" above the login form.
+- **Improved user experience:** The sign-in page now features beautiful background animations with floating paths and smooth title animation on load.
+- **Maintained functionality:** All existing sign-in functionality (credentials + email magic links) preserved while adding visual polish.

@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LoginForm } from "@/components/login-form"; // Import the new LoginForm
 import { Skeleton } from "@/components/ui/skeleton"; // Keep Skeleton for fallback
+import { BackgroundPaths } from "@/components/ui/background-paths";
 
 // This component contains the actual sign-in logic and state
 function SignInPageClientContent() {
@@ -98,63 +99,58 @@ function SignInPageClientContent() {
   };
 
   return (
-    // Adopt the styling from the login-04 block's page wrapper
-    <div className="flex min-h-svh flex-col items-center justify-center bg-neutral-100 p-6 dark:bg-neutral-900 md:p-10"> {/* Adjusted dark bg */}
-      <div className="w-full max-w-sm md:max-w-3xl"> {/* This matches the login-04 structure */}
-        <LoginForm 
-          email={email}
-          setEmail={setEmail}
-          password={password}
-          setPassword={setPassword}
-          isCredentialsLoading={isCredentialsLoading}
-          isEmailLoading={isEmailLoading}
-          handleCredentialsSignIn={handleCredentialsSignIn}
-          handleEmailSignIn={handleEmailSignIn}
-          error={displayError} // Pass the error to be displayed by LoginForm
-          appName="Simplified ERP" // Customize app name
-        />
-      </div>
-    </div>
+    <BackgroundPaths title="Simplified ERP">
+      <LoginForm 
+        email={email}
+        setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
+        isCredentialsLoading={isCredentialsLoading}
+        isEmailLoading={isEmailLoading}
+        handleCredentialsSignIn={handleCredentialsSignIn}
+        handleEmailSignIn={handleEmailSignIn}
+        error={displayError} // Pass the error to be displayed by LoginForm
+        appName="Simplified ERP" // Customize app name
+      />
+    </BackgroundPaths>
   );
 }
 
 // Skeleton for the new layout (can be simpler or more detailed)
 function SignInPageSkeleton() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center bg-neutral-100 p-6 dark:bg-neutral-900 md:p-10">
-      <div className="w-full max-w-sm md:max-w-3xl">
-        <div className="flex flex-col gap-6">
-          <div className="overflow-hidden shadow-lg rounded-lg"> {/* Mimic Card */}
-            <div className="grid p-0 md:grid-cols-2">
-              {/* Form Side Skeleton */}
-              <div className="p-6 md:p-8">
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col items-center text-center">
-                    <Skeleton className="h-7 w-1/2 mb-2" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Skeleton className="h-4 w-12"/>
-                    <Skeleton className="h-10 w-full"/>
-                  </div>
-                  <div className="grid gap-2">
-                    <Skeleton className="h-4 w-16"/>
-                    <Skeleton className="h-10 w-full"/>
-                  </div>
-                  <Skeleton className="h-10 w-full mt-2"/> {/* Credentials Sign In Button */}
-                  <div className="h-8 mt-2"></div> {/* Spacer for separator */}
-                  <Skeleton className="h-10 w-full"/> {/* Email Sign In Button */}
+    <BackgroundPaths title="Simplified ERP">
+      <div className="flex flex-col gap-6">
+        <div className="overflow-hidden shadow-lg rounded-lg"> {/* Mimic Card */}
+          <div className="grid p-0 md:grid-cols-2">
+            {/* Form Side Skeleton */}
+            <div className="p-6 md:p-8">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col items-center text-center">
+                  <Skeleton className="h-7 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-3/4" />
                 </div>
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-12"/>
+                  <Skeleton className="h-10 w-full"/>
+                </div>
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-16"/>
+                  <Skeleton className="h-10 w-full"/>
+                </div>
+                <Skeleton className="h-10 w-full mt-2"/> {/* Credentials Sign In Button */}
+                <div className="h-8 mt-2"></div> {/* Spacer for separator */}
+                <Skeleton className="h-10 w-full"/> {/* Email Sign In Button */}
               </div>
-              {/* Image Side Skeleton (hidden on md) */}
-              <div className="relative hidden bg-muted md:block dark:bg-neutral-800">
-                 <Skeleton className="absolute inset-0 h-full w-full" />
-              </div>
+            </div>
+            {/* Image Side Skeleton (hidden on md) */}
+            <div className="relative hidden bg-muted md:block dark:bg-neutral-800">
+               <Skeleton className="absolute inset-0 h-full w-full" />
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </BackgroundPaths>
   );
 }
 
