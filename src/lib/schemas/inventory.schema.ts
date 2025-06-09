@@ -87,6 +87,7 @@ export const listInventoryItemsSchema = z.object({
   itemType: z.nativeEnum(ItemType).optional(),
   inventoryCategoryId: z.string().cuid("Invalid category ID").optional(),
   companyId: z.string().cuid("Invalid company ID").optional(),
+  showInPricelist: z.boolean().optional(),
   sortBy: z.enum(['sku', 'name', 'quantityOnHand', 'costPrice', 'createdAt']).default('name'),
   sortDirection: z.enum(['asc', 'desc']).default('asc'),
 });

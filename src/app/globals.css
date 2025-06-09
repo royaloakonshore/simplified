@@ -57,6 +57,15 @@ body {
   animation: fade-in 0.5s ease-in-out;
 }
 
+/* Banner specific styles - scoped to avoid affecting other parts */
+.banner-content h1 {
+  color: white !important;
+}
+
+.banner-content p {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
 .modal-overlay {
   background-color: rgba(0, 0, 0, 0.75);
   position: fixed;

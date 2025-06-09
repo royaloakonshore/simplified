@@ -48,6 +48,7 @@ import { useRouter } from 'next/navigation';
 import { type ListInventoryItemsInput } from '@/lib/schemas/inventory.schema';
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { AppRouter } from "@/lib/api/root";
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 // Type reflecting InventoryItem after tRPC serialization (Decimals to strings)
 // Based on Prisma Schema: InventoryItem
@@ -412,9 +413,10 @@ function InventoryListContent() {
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Inventory Items</h1>
-        <div className="flex items-center space-x-2">
+      <PageBanner>
+        <div className="flex justify-between items-center">
+          <BannerTitle>Inventory Items</BannerTitle>
+          <div className="flex items-center space-x-2">
             {selectedItemIds.length > 0 && (
                  <Button variant="outline" size="sm" onClick={handleDeleteSelected} /* disabled={deleteInventoryItemsMutation.isPending} */ >
                     <Trash2 className="mr-2 h-4 w-4" />
@@ -427,8 +429,9 @@ function InventoryListContent() {
               <PlusCircle className="mr-2 h-4 w-4" /> Add Item
             </Link>
           </Button>
+          </div>
         </div>
-      </div>
+      </PageBanner>
 
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 py-4 border-b">
         <Input

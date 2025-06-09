@@ -167,12 +167,15 @@
 - Fixed BOM creation form to properly handle component selection and quantity updates
 - Enabled successful BOM creation and editing with proper validation and error handling
 
-## 2025-01-25: BOM and inventory UI enhancements
-- Fixed BOM table total cost column to remove currency symbol and display raw numeric value
-- Added category column to BOM table showing the category of the linked manufactured item
-- Added "Price List" sub-item to Inventory section in sidebar navigation
-- Created comprehensive Price List page showing inventory items with proper formatting and structure
-- Implemented proper BOM detail page as picking/assembly instruction sheet with component breakdown, cost information, and assembly details
-- Added item type filtering to inventory table toolbar allowing filtering by Raw Material vs Manufactured Good
-- Note: Item type column already existed in inventory table after Name column with proper badges and formatting
-- Enhanced inventory router BOM list query to include inventory category data for display
+## 2025-01-25: BOM and inventory UI improvements
+- Fixed BOM total cost currency formatting by removing dollar symbol, now shows raw numeric value
+- Added BOM category column showing the category of the linked manufactured item after Name column  
+- Added Price List sub-item to sidebar navigation under Inventory section
+- Created comprehensive Price List page showing inventory items filtered by showInPricelist=true
+- Implemented proper BOM detail page as picking/assembly instruction sheet with BOM details, manufactured item info, component list, and costs
+- Added item type filtering to inventory table with DataTableFacetedFilter for Raw Material/Manufactured Good types
+- Fixed tRPC validation error: changed perPage from 1000 to 100 in Price List to respect schema validation limits, added pagination warning for large inventories
+- Note: Item type column already existed in inventory table as requested
+
+## 2025-01-16
+- Implemented permanent banner component with H1 headings: Created PageBanner and BannerTitle components for full-width image banners with rounded edges, white text styling, and proper scoping to prevent CSS conflicts across application pages.

@@ -22,12 +22,12 @@ export const inventoryRouter = createTRPCRouter({
     .input(listInventoryItemsSchema)
     .query(async ({ ctx, input }) => {
       const companyId = ctx.companyId;
-
-      const { search, itemType, inventoryCategoryId, sortBy, sortDirection, page = 1, perPage = 10 } = input;
+      const { page, perPage, search, itemType, inventoryCategoryId, showInPricelist, sortBy, sortDirection } = input;
 
       const whereClause: Prisma.InventoryItemWhereInput = {
         companyId: companyId,
       };
+
       if (search) {
         whereClause.OR = [
           { name: { contains: search, mode: 'insensitive' } },
@@ -40,6 +40,9 @@ export const inventoryRouter = createTRPCRouter({
       }
       if (inventoryCategoryId) {
         whereClause.inventoryCategoryId = inventoryCategoryId;
+      }
+      if (showInPricelist !== undefined) {
+        whereClause.showInPricelist = showInPricelist;
       }
 
       const orderBy: Prisma.InventoryItemOrderByWithRelationInput = { [sortBy]: sortDirection };

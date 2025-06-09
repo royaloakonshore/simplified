@@ -41,6 +41,7 @@ import { ChevronDown } from 'lucide-react'; // Icons for actions. Removed Trash2
 import { toast } from "sonner"; // Import sonner toast
 import { useQueryClient } from '@tanstack/react-query'; // Correct import for react-query
 import React from 'react';
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 // Moved type definition from OrderTable
 type OrderInTable = Order & {
@@ -321,12 +322,14 @@ function OrderListContent() {
 export default function OrdersPage() {
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Orders</h1>
-        <Button asChild>
-            <Link href="/orders/add">Create New Order</Link>
-        </Button>
-      </div>
+      <PageBanner>
+        <div className="flex justify-between items-center">
+          <BannerTitle>Orders</BannerTitle>
+          <Button asChild className="text-white border-white hover:bg-white/20">
+              <Link href="/orders/add">Create New Order</Link>
+          </Button>
+        </div>
+      </PageBanner>
 
       <Suspense fallback={<div>Loading orders...</div>}>
         <OrderListContent />

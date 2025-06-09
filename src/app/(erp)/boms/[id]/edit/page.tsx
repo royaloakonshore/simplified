@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { AppRouter } from "@/lib/api/root";
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 // Define a type for the data returned by api.inventory.list.useQuery
 interface FetchedInventoryItem {
@@ -224,7 +225,9 @@ export default function EditBillOfMaterialPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-8">Edit Bill of Material: {bomData.name}</h1>
+      <PageBanner>
+        <BannerTitle>Edit Bill of Material: {bomData.name}</BannerTitle>
+      </PageBanner>
       <BOMForm 
         initialData={initialFormData}
         manufacturedItems={selectableManufacturedItems}

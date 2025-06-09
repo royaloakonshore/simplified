@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 // Define a type for the data returned by api.inventory.list.useQuery
 // This should match the actual structure including relational data like inventoryCategory
@@ -144,7 +145,9 @@ export default function AddBillOfMaterialPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-8">Create New Bill of Material</h1>
+      <PageBanner>
+        <BannerTitle>Create New Bill of Material</BannerTitle>
+      </PageBanner>
       <BOMForm 
         manufacturedItems={selectableManufacturedItems}
         rawMaterials={rawMaterialsForTable}

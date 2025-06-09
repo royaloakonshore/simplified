@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { BOMTable } from "@/components/boms/BOMTable";
 import { api } from "@/lib/trpc/react";
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 export default function BillOfMaterialsPage() {
   const { data: bomsResponse, isLoading, error } = api.bom.list.useQuery({});
@@ -12,12 +13,14 @@ export default function BillOfMaterialsPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Bill of Materials</h1>
-        <Button asChild>
-          <Link href="/boms/add">Add New BOM</Link>
-        </Button>
-      </div>
+      <PageBanner>
+        <div className="flex justify-between items-center">
+          <BannerTitle>Bill of Materials</BannerTitle>
+          <Button asChild className="text-white border-white hover:bg-white/20">
+            <Link href="/boms/add">Add New BOM</Link>
+          </Button>
+        </div>
+      </PageBanner>
       <BOMTable data={bomsResponse?.data || []} isLoading={isLoading} />
     </div>
   );

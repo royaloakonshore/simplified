@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 // import { debounce } from 'lodash'; // No longer needed here
 import React from 'react';
 import { CustomerTableSkeleton } from "@/components/customers/CustomerTableSkeleton"; // Import the skeleton
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 // Component to handle fetching and displaying data
 function CustomerListContent() {
@@ -63,7 +64,9 @@ function CustomerListContent() {
 export default function CustomersPage() {
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <h1 className="text-2xl font-bold mb-6">Customers</h1>
+      <PageBanner>
+        <BannerTitle>Customers</BannerTitle>
+      </PageBanner>
        <Suspense fallback={<CustomerTableSkeleton />}> {/* Use full skeleton as fallback */}
          <CustomerListContent />
        </Suspense>

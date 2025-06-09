@@ -23,6 +23,7 @@ import { settingsSchema, type SettingsInput } from "@/lib/schemas/settings.schem
 // Import UserRole for admin check and role assignment
 import { UserRole } from "@/lib/auth"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
 // Schema for profile update (excluding password initially)
 const profileUpdateSchema = z.object({
@@ -264,7 +265,9 @@ function SettingsPageContent() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <PageBanner>
+        <BannerTitle>Settings</BannerTitle>
+      </PageBanner>
 
       {/* Profile Update Form */}
       <Card>
