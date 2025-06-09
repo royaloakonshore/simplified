@@ -148,7 +148,6 @@ export default function AddBillOfMaterialPage() {
       <BOMForm 
         manufacturedItems={selectableManufacturedItems}
         rawMaterials={rawMaterialsForTable}
-        companyId={companyId}
       />
     </div>
   );

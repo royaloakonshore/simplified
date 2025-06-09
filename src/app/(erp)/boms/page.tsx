@@ -5,12 +5,8 @@ import Link from "next/link";
 import { BOMTable } from "@/components/boms/BOMTable";
 import { api } from "@/lib/trpc/react";
 
-const DUMMY_COMPANY_ID = "clxjv0l1s0000108kjrdy1z4h"; // Replace with actual company ID from session or context
-
 export default function BillOfMaterialsPage() {
-  const { data: bomsResponse, isLoading, error } = api.bom.list.useQuery(
-    { companyId: DUMMY_COMPANY_ID } // Using defined DUMMY_COMPANY_ID, removed keepPreviousData
-  );
+  const { data: bomsResponse, isLoading, error } = api.bom.list.useQuery({});
 
   if (error) return <p>Error loading BOMs: {error.message}</p>;
 

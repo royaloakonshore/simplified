@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { createTRPCRouter, protectedProcedure } from "@/lib/api/trpc";
+import { createTRPCRouter, companyProtectedProcedure } from "@/lib/api/trpc";
 import { UpsertBillOfMaterialSchema, GetBillOfMaterialSchema, ListBillOfMaterialsSchema } from "@/lib/schemas/bom.schema";
 import { prisma } from "@/lib/db";
 import { Decimal } from '@prisma/client/runtime/library';
@@ -14,17 +14,11 @@ const ItemTypeEnum = {
 } as const;
 
 export const bomRouter = createTRPCRouter({
-  upsert: protectedProcedure
+  upsert: companyProtectedProcedure
     .input(UpsertBillOfMaterialSchema)
-    .mutation(async ({ input }) => {
-      const { id, name, description, manualLaborCost, manufacturedItemId, items, companyId } = input;
-
-      // TODO: When multi-tenancy is fully active, companyId should primarily come from ctx.session.user.companyId
-      // and input.companyId could be used for an explicit override if allowed by roles.
-      // For now, ensure the input companyId is respected or matches context if available.
-      // if (ctx.session.user.companyId && ctx.session.user.companyId !== companyId) {
-      //   throw new TRPCError({ code: 'FORBIDDEN', message: 'Company ID mismatch.' });
-      // }
+    .mutation(async ({ ctx, input }) => {
+      const { id, name, description, manualLaborCost, manufacturedItemId, items } = input;
+      const companyId = ctx.companyId; // Use company ID from context
 
       if (manufacturedItemId) {
         const mfgItem = await prisma.inventoryItem.findUnique({ where: { id: manufacturedItemId, companyId } });
@@ -120,12 +114,12 @@ export const bomRouter = createTRPCRouter({
           }
 
           // Pre-flight checks for unique constraints on create
-          const existingByName = await prisma.billOfMaterial.findUnique({ where: { name, companyId } });
+          const existingByName = await prisma.billOfMaterial.findFirst({ where: { name, companyId } });
           if (existingByName) throw new TRPCError({ code: 'CONFLICT', message: `BOM name "${name}" already exists.` });
           
           // Check manufacturedItemId conflict only if it's not null and not undefined
           if (createDataInitial.manufacturedItemId) { 
-            const existingByMfgItem = await prisma.billOfMaterial.findUnique({ 
+            const existingByMfgItem = await prisma.billOfMaterial.findFirst({ 
               where: { manufacturedItemId: createDataInitial.manufacturedItemId, companyId } 
             });
             if (existingByMfgItem) throw new TRPCError({ code: 'CONFLICT', message: `Manufactured item already has a BOM.` });
@@ -150,26 +144,13 @@ export const bomRouter = createTRPCRouter({
       }
     }),
 
-  get: protectedProcedure
+  get: companyProtectedProcedure
     .input(GetBillOfMaterialSchema)
     .query(async ({ ctx, input }) => {
-      const sessionCompanyId = ctx.session.user.activeCompanyId;
-      const inputCompanyId = input.companyId; // companyId from input is optional
-
-      // Determine the companyId to use for filtering.
-      // If inputCompanyId is provided (e.g. admin override), it takes precedence.
-      // Otherwise, use the sessionCompanyId.
-      const filterCompanyId = inputCompanyId || sessionCompanyId;
-
-      if (!filterCompanyId) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Company ID is required to fetch a Bill of Material. User may not be associated with a company.',
-        });
-      }
+      const companyId = ctx.companyId; // Use company ID from context
 
       const bom = await prisma.billOfMaterial.findUnique({
-        where: { id: input.id, companyId: filterCompanyId }, // Enforce companyId in the where clause
+        where: { id: input.id, companyId }, // Enforce companyId in the where clause
         include: {
           items: {
             include: {
@@ -201,12 +182,13 @@ export const bomRouter = createTRPCRouter({
       };
     }),
 
-  list: protectedProcedure
-    .input(ListBillOfMaterialsSchema)
-    .query(async ({ input }) => {
-      // TODO: companyId should come from ctx.session.user.companyId and be enforced
+  list: companyProtectedProcedure
+    .input(ListBillOfMaterialsSchema.omit({ companyId: true })) // Remove companyId from input since it comes from context
+    .query(async ({ ctx, input }) => {
+      const companyId = ctx.companyId; // Use company ID from context
+
       const whereClause: Prisma.BillOfMaterialWhereInput = {
-        companyId: input.companyId,
+        companyId,
       };
 
       if (input.manufacturedItemId !== undefined) {
@@ -238,13 +220,14 @@ export const bomRouter = createTRPCRouter({
       };
     }),
 
-  delete: protectedProcedure
-    .input(z.object({ id: z.string().cuid()/*, companyId: z.string().cuid() // TODO */ }))
-    .mutation(async ({ input }) => {
-      // TODO: Enforce companyId from ctx.session.user.companyId
-      // First, ensure the BOM exists and belongs to the company (if companyId is available)
+  delete: companyProtectedProcedure
+    .input(z.object({ id: z.string().cuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.companyId; // Use company ID from context
+      
+      // First, ensure the BOM exists and belongs to the company
       const bomToDelete = await prisma.billOfMaterial.findUnique({
-        where: { id: input.id /*, companyId: ctx.session.user.companyId */ }
+        where: { id: input.id, companyId }
       });
 
       if (!bomToDelete) {

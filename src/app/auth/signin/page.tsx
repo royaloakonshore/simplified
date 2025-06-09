@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { LoginForm } from "@/components/login-form"; // Import the new LoginForm
 import { Skeleton } from "@/components/ui/skeleton"; // Keep Skeleton for fallback
 import { BackgroundPaths } from "@/components/ui/background-paths";
+import { ModeToggle } from "@/components/theme/ModeToggle";
 
 // This component contains the actual sign-in logic and state
 function SignInPageClientContent() {
@@ -99,58 +100,84 @@ function SignInPageClientContent() {
   };
 
   return (
-    <BackgroundPaths title="Simplified ERP">
-      <LoginForm 
-        email={email}
-        setEmail={setEmail}
-        password={password}
-        setPassword={setPassword}
-        isCredentialsLoading={isCredentialsLoading}
-        isEmailLoading={isEmailLoading}
-        handleCredentialsSignIn={handleCredentialsSignIn}
-        handleEmailSignIn={handleEmailSignIn}
-        error={displayError} // Pass the error to be displayed by LoginForm
-        appName="Simplified ERP" // Customize app name
-      />
-    </BackgroundPaths>
+    <div className="relative min-h-screen">
+      {/* Theme Toggle Button - Fixed to page upper right corner */}
+      <div 
+        className="fixed z-50" 
+        style={{ 
+          top: '1rem', 
+          right: '1rem' 
+        }}
+      >
+        <ModeToggle />
+      </div>
+
+      <BackgroundPaths title="Simplified ERP">
+        <LoginForm 
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          isCredentialsLoading={isCredentialsLoading}
+          isEmailLoading={isEmailLoading}
+          handleCredentialsSignIn={handleCredentialsSignIn}
+          handleEmailSignIn={handleEmailSignIn}
+          error={displayError} // Pass the error to be displayed by LoginForm
+          appName="Simplified ERP" // Customize app name
+        />
+      </BackgroundPaths>
+    </div>
   );
 }
 
 // Skeleton for the new layout (can be simpler or more detailed)
 function SignInPageSkeleton() {
   return (
-    <BackgroundPaths title="Simplified ERP">
-      <div className="flex flex-col gap-6">
-        <div className="overflow-hidden shadow-lg rounded-lg"> {/* Mimic Card */}
-          <div className="grid p-0 md:grid-cols-2">
-            {/* Form Side Skeleton */}
-            <div className="p-6 md:p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col items-center text-center">
-                  <Skeleton className="h-7 w-1/2 mb-2" />
-                  <Skeleton className="h-4 w-3/4" />
+    <div className="relative min-h-screen">
+      {/* Theme Toggle Button - Fixed to page upper right corner */}
+      <div 
+        className="fixed z-50" 
+        style={{ 
+          top: '1rem', 
+          right: '1rem' 
+        }}
+      >
+        <ModeToggle />
+      </div>
+
+      <BackgroundPaths title="Simplified ERP">
+        <div className="flex flex-col gap-6">
+          <div className="overflow-hidden shadow-lg rounded-lg"> {/* Mimic Card */}
+            <div className="grid p-0 md:grid-cols-2">
+              {/* Form Side Skeleton */}
+              <div className="p-6 md:p-8">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col items-center text-center">
+                    <Skeleton className="h-7 w-1/2 mb-2" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Skeleton className="h-4 w-12"/>
+                    <Skeleton className="h-10 w-full"/>
+                  </div>
+                  <div className="grid gap-2">
+                    <Skeleton className="h-4 w-16"/>
+                    <Skeleton className="h-10 w-full"/>
+                  </div>
+                  <Skeleton className="h-10 w-full mt-2"/> {/* Credentials Sign In Button */}
+                  <div className="h-8 mt-2"></div> {/* Spacer for separator */}
+                  <Skeleton className="h-10 w-full"/> {/* Email Sign In Button */}
                 </div>
-                <div className="grid gap-2">
-                  <Skeleton className="h-4 w-12"/>
-                  <Skeleton className="h-10 w-full"/>
-                </div>
-                <div className="grid gap-2">
-                  <Skeleton className="h-4 w-16"/>
-                  <Skeleton className="h-10 w-full"/>
-                </div>
-                <Skeleton className="h-10 w-full mt-2"/> {/* Credentials Sign In Button */}
-                <div className="h-8 mt-2"></div> {/* Spacer for separator */}
-                <Skeleton className="h-10 w-full"/> {/* Email Sign In Button */}
               </div>
-            </div>
-            {/* Image Side Skeleton (hidden on md) */}
-            <div className="relative hidden bg-muted md:block dark:bg-neutral-800">
-               <Skeleton className="absolute inset-0 h-full w-full" />
+              {/* Image Side Skeleton (hidden on md) */}
+              <div className="relative hidden bg-muted md:block dark:bg-neutral-800">
+                 <Skeleton className="absolute inset-0 h-full w-full" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </BackgroundPaths>
+      </BackgroundPaths>
+    </div>
   );
 }
 

@@ -109,24 +109,26 @@ export function RawMaterialSelectionTable({
             return null;
           }
 
+          // Ensure we always have a defined value to prevent controlled/uncontrolled issues
+          const currentQuantity = currentItem?.quantity ?? 1;
+
           return (
             <Input
               type="number"
-              value={currentItem?.quantity || 1}
+              value={currentQuantity.toString()} // Always provide a string value
               onChange={(e) => {
-                const newQuantity = parseInt(e.target.value, 10) || 0;
-                const updatedItems = selectedItems.map(item =>
-                  item.componentItemId === row.original.id
-                    ? { ...item, quantity: newQuantity }
-                    : item
-                );
-                if (!updatedItems.find(item => item.componentItemId === row.original.id)) {
-                    updatedItems.push({ componentItemId: row.original.id, quantity: newQuantity });
-                }
-                onSelectedItemsChange(updatedItems.filter(item => item.quantity > 0));
+                const inputValue = e.target.value;
+                const newQuantity = inputValue === '' ? 1 : Math.max(1, parseInt(inputValue, 10) || 1);
+                
+                // Update the existing item or add new one
+                const updatedItems = selectedItems.filter(item => item.componentItemId !== row.original.id);
+                updatedItems.push({ componentItemId: row.original.id, quantity: newQuantity });
+                
+                onSelectedItemsChange(updatedItems);
               }}
               className="w-20"
               min="1"
+              step="1"
             />
           );
         },
@@ -150,26 +152,32 @@ export function RawMaterialSelectionTable({
     getSortedRowModel: getSortedRowModel(),
   });
 
+  // Update selected items when row selection changes
   React.useEffect(() => {
     const newSelectedFormItems: BillOfMaterialItemInput[] = [];
-    allRawMaterials.forEach((material) => {
-      const originalRow = table.getCoreRowModel().rowsById[material.id];
-      if (originalRow && originalRow.getIsSelected()) {
-        const existingItem = selectedItems.find(item => item.componentItemId === material.id);
-        newSelectedFormItems.push({
-          componentItemId: material.id,
-          quantity: existingItem?.quantity || 1,
-        });
+    
+    Object.keys(rowSelection).forEach((rowId) => {
+      if (rowSelection[rowId]) {
+        const rowIndex = parseInt(rowId, 10);
+        const material = allRawMaterials[rowIndex];
+        if (material) {
+          const existingItem = selectedItems.find(item => item.componentItemId === material.id);
+          newSelectedFormItems.push({
+            componentItemId: material.id,
+            quantity: existingItem?.quantity ?? 1, // Default to 1 if not found
+          });
+        }
       }
     });
 
+    // Only update if there's a meaningful change
     const sortedNew = [...newSelectedFormItems].sort((a, b) => a.componentItemId.localeCompare(b.componentItemId));
     const sortedOld = [...selectedItems].sort((a, b) => a.componentItemId.localeCompare(b.componentItemId));
 
     if (JSON.stringify(sortedNew) !== JSON.stringify(sortedOld)) {
       onSelectedItemsChange(newSelectedFormItems);
     }
-  }, [rowSelection, allRawMaterials, selectedItems, onSelectedItemsChange, table]);
+  }, [rowSelection, allRawMaterials, selectedItems, onSelectedItemsChange]);
 
   return (
     <div className="space-y-4">

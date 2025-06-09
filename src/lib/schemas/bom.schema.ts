@@ -15,7 +15,7 @@ export const UpsertBillOfMaterialSchema = z.object({
   manualLaborCost: z.number().nonnegative({ message: 'Manual labor cost cannot be negative.' }),
   manufacturedItemId: z.string().cuid({ message: 'Manufactured Item ID is required.' }).optional().nullable(), // Made optional and nullable
   items: z.array(BillOfMaterialItemSchema).min(1, { message: 'BOM must have at least one component item.' }),
-  companyId: z.string().cuid({ message: 'Company ID is required.' }), // Assuming companyId is passed for now
+  // Removed companyId as it will come from tRPC context
 });
 
 export type UpsertBillOfMaterialInput = z.infer<typeof UpsertBillOfMaterialSchema>;

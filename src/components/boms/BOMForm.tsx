@@ -33,11 +33,10 @@ export interface BOMFormProps {
   initialData?: Partial<UpsertBillOfMaterialInput> & { id?: string; items?: BillOfMaterialItemInput[] }; // For edit mode
   manufacturedItems: SelectableInventoryItem[];
   rawMaterials: RawMaterialRow[];
-  companyId: string;
   onSuccess?: (id: string) => void;
 }
 
-export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyId, onSuccess }: BOMFormProps) {
+export function BOMForm({ initialData, manufacturedItems, rawMaterials, onSuccess }: BOMFormProps) {
   const router = useRouter();
 
   // State to manage selected BOM items from the table
@@ -51,21 +50,18 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
     })) || [];
   });
   
-  const defaultFormValues: Omit<UpsertBillOfMaterialInput, 'items'> = {
+  const defaultFormValues: UpsertBillOfMaterialInput = {
     id: initialData?.id,
     name: initialData?.name || '',
     description: initialData?.description || '',
     manualLaborCost: initialData?.manualLaborCost || 0,
     manufacturedItemId: initialData?.manufacturedItemId || undefined, // Use undefined for optional combobox
-    companyId: initialData?.companyId || companyId,
+    items: selectedBomItems, // Initialize form's items with state
   };
 
   const form = useForm<UpsertBillOfMaterialInput>({
     resolver: zodResolver(UpsertBillOfMaterialSchema),
-    defaultValues: {
-        ...defaultFormValues,
-        items: selectedBomItems, // Initialize form's items with state
-    },
+    defaultValues: defaultFormValues,
   });
 
   // Watch for changes in selectedBomItems and update the form value for validation
@@ -88,18 +84,11 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
     // 'values' from react-hook-form should already include the 'items' field
     // updated by the useEffect hook when selectedBomItems changes.
     // We directly use 'values' as it should be in the correct shape.
+    console.log('Submitting BOM data:', values); // Debug log
     upsertBOMMutation.mutate(values);
   };
   
   const manufacturedItemOptions = manufacturedItems.map(item => ({ value: item.id, label: `${item.name} (${item.sku || 'N/A'})` }));
-  
-  // Mapping for rawMaterials is now done in the parent page (add/edit BOM page)
-  // const tableRawMaterials: RawMaterialRow[] = rawMaterials.map(item => ({
-  //   id: item.id,
-  //   name: item.name,
-  //   sku: item.sku,
-  //   // categoryName, unitOfMeasure, variant will be on rawMaterials directly if mapped correctly by parent
-  // }));
 
   return (
     <Form {...form}>
@@ -125,7 +114,7 @@ export function BOMForm({ initialData, manufacturedItems, rawMaterials, companyI
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="Detailed description of the BOM..." {...field} value={field.value ?? ''} />
+                <Textarea placeholder="Detailed description of the BOM..." {...field} value={field.value || ''} />
               </FormControl>
               <FormMessage />
             </FormItem>

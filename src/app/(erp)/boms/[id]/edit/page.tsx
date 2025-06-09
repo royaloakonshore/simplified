@@ -61,22 +61,22 @@ export default function EditBillOfMaterialPage() {
     sortDirection: 'asc' as const,
   };
 
-  // Fetch BOM data - enable only if bomId and userCompanyId are available
+  // Fetch BOM data - enable only if bomId is available
   const { data: bomData, isLoading: isLoadingBOM, error: errorBOM } = api.bom.get.useQuery(
-    { id: bomId, companyId: userCompanyId! }, // Pass userCompanyId for scoping
-    { enabled: !!bomId && !!userCompanyId && sessionStatus === "authenticated" }
+    { id: bomId },
+    { enabled: !!bomId && sessionStatus === "authenticated" }
   );
 
-  // Fetch manufactured goods - enable only if userCompanyId is available
+  // Fetch manufactured goods
   const { data: manufacturedGoodsData, isLoading: isLoadingManGoods, error: errorManGoods } = api.inventory.list.useQuery(
-    { ...inventoryQueryOptions, itemType: ItemType.MANUFACTURED_GOOD, companyId: userCompanyId! },
-    { enabled: !!userCompanyId && sessionStatus === "authenticated" }
+    { ...inventoryQueryOptions, itemType: ItemType.MANUFACTURED_GOOD },
+    { enabled: sessionStatus === "authenticated" }
   );
 
-  // Fetch raw materials - enable only if userCompanyId is available
+  // Fetch raw materials
   const { data: rawMaterialsInventoryData, isLoading: isLoadingRawMat, error: errorRawMat } = api.inventory.list.useQuery(
-    { ...inventoryQueryOptions, itemType: ItemType.RAW_MATERIAL, companyId: userCompanyId! },
-    { enabled: !!userCompanyId && sessionStatus === "authenticated" }
+    { ...inventoryQueryOptions, itemType: ItemType.RAW_MATERIAL },
+    { enabled: sessionStatus === "authenticated" }
   );
 
   // --- Start of Loading and Permission Checks ---
@@ -134,8 +134,8 @@ export default function EditBillOfMaterialPage() {
   const isLoadingPageData = isLoadingBOM || isLoadingManGoods || isLoadingRawMat;
   const pageErrors = [errorBOM, errorManGoods, errorRawMat].filter(Boolean);
 
-  // Show loading skeleton if any primary data is still loading (and we have context to load it)
-  if (isLoadingPageData && bomId && userCompanyId) {
+  // Show loading skeleton if any primary data is still loading
+  if (isLoadingPageData && bomId) {
     return (
       <div className="container mx-auto py-10">
         <h1 className="text-3xl font-bold mb-8">Edit Bill of Material</h1>
@@ -167,7 +167,7 @@ export default function EditBillOfMaterialPage() {
   }
 
   // This implies that bom.get query finished, but found nothing (e.g. wrong bomId or company mismatch)
-  if (!bomData && !isLoadingBOM && bomId && userCompanyId) {
+  if (!bomData && !isLoadingBOM && bomId) {
     return (
       <div className="container mx-auto py-10">
         <Alert variant="destructive">
@@ -210,31 +210,11 @@ export default function EditBillOfMaterialPage() {
     variant: item.variant,
   }));
   
-  // First, determine the companyId that MUST be a string.
-  const determinedCompanyId = bomData.companyId || userCompanyId;
-
-  if (!determinedCompanyId) {
-    // This critical error means we cannot proceed to build form data or render the form.
-    return (
-        <div className="container mx-auto py-10">
-            <Alert variant="destructive">
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>Critical Error</AlertTitle>
-                <AlertDescription>
-                Cannot establish company context for the form. Please contact support.
-                </AlertDescription>
-            </Alert>
-        </div>
-    );
-  }
-  // At this point, determinedCompanyId is guaranteed to be a string.
-
   const initialFormData: BOMFormProps['initialData'] = {
     id: bomData.id,
     name: bomData.name,
     description: bomData.description,
     manufacturedItemId: bomData.manufacturedItemId,
-    companyId: determinedCompanyId, // Use the guarded string value
     manualLaborCost: bomData.manualLaborCost, 
     items: bomData.items?.map((item: FetchedBOMData['items'][number]) => ({ 
       componentItemId: item.componentItemId,
@@ -242,7 +222,6 @@ export default function EditBillOfMaterialPage() {
     })),
   };
 
-  // The companyId prop for BOMForm also uses the guarded determinedCompanyId.
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-8">Edit Bill of Material: {bomData.name}</h1>
@@ -250,7 +229,6 @@ export default function EditBillOfMaterialPage() {
         initialData={initialFormData}
         manufacturedItems={selectableManufacturedItems}
         rawMaterials={rawMaterialsForTable}
-        companyId={determinedCompanyId} // This was already correct from previous focus
       />
     </div>
   );
