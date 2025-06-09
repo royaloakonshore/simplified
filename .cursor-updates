@@ -158,15 +158,21 @@
 ## 2025-01-25: Sign-in page background animation and theme toggle implementation  
 - Implemented animated background with 36 flowing SVG paths using Framer Motion
 - Added letter-by-letter animated "Simplified ERP" title with spring physics
-- Integrated theme toggle button in upper right corner with proper positioning using explicit CSS
-- Applied animations to both main content and skeleton loading states
-- All changes committed and build remains stable
+- Fixed theme toggle positioning to appear in upper right corner of page
+- Enhanced user experience with beautiful, modern authentication flow
 
-## 2025-01-25: BOM creation and quantity input fixes
-- Updated BOM router to use companyProtectedProcedure instead of protectedProcedure for proper multi-tenancy support
-- Removed companyId parameter from BOM schema and form props as it's now handled by tRPC context
-- Fixed controlled/uncontrolled input errors in RawMaterialSelectionTable by ensuring quantity inputs always have defined values
-- Improved quantity input state management to properly handle updates and prevent React warnings
-- Added debug logging to BOM form submission for better troubleshooting
-- Updated all BOM pages (list, add, edit) to use new router interface without companyId parameter
-- Build remains stable with successful compilation
+## 2025-01-25: BOM creation and form functionality fixes
+- Fixed BOM router to use companyProtectedProcedure instead of protectedProcedure for proper multi-tenancy support
+- Resolved controlled/uncontrolled input errors in quantity fields with proper state management
+- Fixed BOM creation form to properly handle component selection and quantity updates
+- Enabled successful BOM creation and editing with proper validation and error handling
+
+## 2025-01-25: BOM and inventory UI enhancements
+- Fixed BOM table total cost column to remove currency symbol and display raw numeric value
+- Added category column to BOM table showing the category of the linked manufactured item
+- Added "Price List" sub-item to Inventory section in sidebar navigation
+- Created comprehensive Price List page showing inventory items with proper formatting and structure
+- Implemented proper BOM detail page as picking/assembly instruction sheet with component breakdown, cost information, and assembly details
+- Added item type filtering to inventory table toolbar allowing filtering by Raw Material vs Manufactured Good
+- Note: Item type column already existed in inventory table after Name column with proper badges and formatting
+- Enhanced inventory router BOM list query to include inventory category data for display

@@ -30,7 +30,7 @@ const formatItemType = (type: ItemType) => {
 
 export default function PriceListPage() {
   const { data: inventoryData, isLoading, error } = api.inventory.list.useQuery({
-    perPage: 1000, // Large number to get all items for pricelist
+    perPage: 100, // Maximum allowed by schema - for larger inventories, implement pagination
     page: 1,
     sortBy: 'name',
     sortDirection: 'asc',
@@ -46,7 +46,7 @@ export default function PriceListPage() {
     );
   }
 
-  const pricelistItems = inventoryData?.data?.filter(item => {
+  const pricelistItems = inventoryData?.data?.filter((_item) => {
     // Since showInPricelist might not be in the list query response, 
     // we'll show all items for now and note this as a TODO to fix the filter
     return true; // TODO: Filter by item.showInPricelist when available in list query
@@ -56,11 +56,22 @@ export default function PriceListPage() {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Price List</h1>
-        <Button variant="outline" disabled>
-          <FileDown className="mr-2 h-4 w-4" />
-          Export PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled>
+            <FileDown className="mr-2 h-4 w-4" />
+            Export PDF
+          </Button>
+        </div>
       </div>
+
+      {inventoryData?.meta?.totalCount && inventoryData.meta.totalCount > 100 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-sm text-yellow-800">
+            Showing first 100 items of {inventoryData.meta.totalCount} total. 
+            Consider implementing pagination for complete price list.
+          </p>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-4">
