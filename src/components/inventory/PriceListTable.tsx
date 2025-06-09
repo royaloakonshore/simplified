@@ -59,7 +59,7 @@ const formatItemType = (type: ItemType) => {
     case ItemType.RAW_MATERIAL:
       return "Raw Material";
     case ItemType.MANUFACTURED_GOOD:
-      return "Manufactured Good";
+      return "Manufactured";
     default:
       return type;
   }
@@ -78,7 +78,7 @@ function PriceListTableToolbar<TData>({ table, categoryOptions }: PriceListTable
     },
     {
       value: ItemType.MANUFACTURED_GOOD,
-      label: "Manufactured Good",
+      label: "Manufactured",
     },
   ];
 

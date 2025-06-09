@@ -63,7 +63,7 @@ function CustomerListContent() {
 // Main page component
 export default function CustomersPage() {
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
+    <div className="w-full">
       <PageBanner>
         <BannerTitle>Customers</BannerTitle>
       </PageBanner>

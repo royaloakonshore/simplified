@@ -127,7 +127,7 @@ export default function ViewBillOfMaterialPage() {
               <div className="border-t pt-4">
                 <label className="text-sm font-medium text-muted-foreground">Manufactured Item</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="default">Manufactured Good</Badge>
+                  <Badge variant="default">Manufactured</Badge>
                   <span className="font-medium">{bomData.manufacturedItem.name}</span>
                   {bomData.manufacturedItem.sku && (
                     <span className="text-muted-foreground">({bomData.manufacturedItem.sku})</span>

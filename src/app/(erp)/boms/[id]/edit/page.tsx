@@ -83,7 +83,7 @@ export default function EditBillOfMaterialPage() {
   // --- Start of Loading and Permission Checks ---
   if (sessionStatus === "loading") {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-8">Edit Bill of Material</h1>
         <p>Loading session information...</p>
         {/* Add Skeletons for form structure */}
@@ -96,7 +96,7 @@ export default function EditBillOfMaterialPage() {
   
   if (sessionStatus === "unauthenticated") {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Access Denied</AlertTitle>
@@ -108,7 +108,7 @@ export default function EditBillOfMaterialPage() {
 
   if (!bomId) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -121,7 +121,7 @@ export default function EditBillOfMaterialPage() {
   // If authenticated but no companyId, user can't proceed
   if (sessionStatus === "authenticated" && !userCompanyId) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
          <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Company Not Found</AlertTitle>
@@ -138,7 +138,7 @@ export default function EditBillOfMaterialPage() {
   // Show loading skeleton if any primary data is still loading
   if (isLoadingPageData && bomId) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-8">Edit Bill of Material</h1>
         <p>Loading data...</p>
         <Skeleton className="h-10 w-1/4 mb-4" />
@@ -154,7 +154,7 @@ export default function EditBillOfMaterialPage() {
 
   if (pageErrors.length > 0) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-8">Error Loading Data for BOM Edit</h1>
         {pageErrors.map((err, idx) => (
           <Alert variant="destructive" key={idx} className="mb-4">
@@ -170,7 +170,7 @@ export default function EditBillOfMaterialPage() {
   // This implies that bom.get query finished, but found nothing (e.g. wrong bomId or company mismatch)
   if (!bomData && !isLoadingBOM && bomId) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Not Found</AlertTitle>
@@ -183,7 +183,7 @@ export default function EditBillOfMaterialPage() {
   // Fallback if bomData is unexpectedly null after loading and no error
   if (!bomData) {
       return (
-          <div className="container mx-auto py-10">
+          <div className="w-full">
               <Alert variant="default">
                   <Terminal className="h-4 w-4" />
                   <AlertTitle>Data Incomplete</AlertTitle>
@@ -224,7 +224,7 @@ export default function EditBillOfMaterialPage() {
   };
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="w-full">
       <PageBanner>
         <BannerTitle>Edit Bill of Material: {bomData.name}</BannerTitle>
       </PageBanner>

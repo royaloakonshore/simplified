@@ -244,7 +244,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function InventoryPage() {
   return (
-    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div className="w-full">
       <PageBanner>
         <BannerTitle>Inventory Items</BannerTitle>
       </PageBanner>

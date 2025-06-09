@@ -167,7 +167,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col">
       <DashboardSiteHeader title="Dashboard" />
-      <div className="container mx-auto flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 @container/main">
+      <div className="w-full flex flex-1 flex-col gap-4 @container/main">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <Button variant="outline" size="sm" disabled>
             Date Range (TODO)

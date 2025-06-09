@@ -10,24 +10,24 @@ interface PageBannerProps {
 export function PageBanner({ 
   children, 
   className,
-  backgroundImage = '/placeholder-banner.jpg' // Default placeholder
+  backgroundImage = '/Fluid_7.jpeg' // Updated to use the beautiful fluid design
 }: PageBannerProps) {
   return (
     <div 
       className={cn(
         "relative w-full rounded-2xl p-6 mb-4 min-h-[140px] flex items-center justify-start overflow-hidden",
-        "bg-gradient-to-r from-blue-600 to-blue-800", // Fallback gradient
+        "bg-gray-900", // Simple fallback background
         className
       )}
       style={{
-        backgroundImage: `linear-gradient(to right, rgba(37, 99, 235, 0.8), rgba(29, 78, 216, 0.8)), url(${backgroundImage})`,
+        backgroundImage: `url(${backgroundImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Overlay for better text readability */}
-      <div className="absolute inset-0 bg-black/20" />
+      {/* Subtle overlay for better text readability */}
+      <div className="absolute inset-0 bg-black/30" />
       
       {/* Content wrapper with white text styling */}
       <div className="relative z-10 w-full">

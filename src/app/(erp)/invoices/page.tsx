@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 export default function InvoicesPage() {
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
+    <div className="w-full">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">Invoices</h1>
         <Button asChild>

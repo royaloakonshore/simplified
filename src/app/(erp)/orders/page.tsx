@@ -318,7 +318,7 @@ function OrderListContent() {
 // Main page component
 export default function OrdersPage() {
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
+    <div className="w-full">
       <PageBanner>
         <BannerTitle>Orders</BannerTitle>
       </PageBanner>
