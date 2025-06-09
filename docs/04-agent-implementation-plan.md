@@ -38,22 +38,26 @@ The project has a stable build. Phase 1 (Foundation & Core Modules) is largely c
 
 **Key Tasks & Features (Prioritized Next Steps):**
 
-1.  **Inventory Module Enhancements (NEW REQUIREMENTS):**
-    *   **Single, Editable `quantityOnHand` Field:**
-        *   Modify `InventoryItemForm.tsx` to use a single, directly editable `quantityOnHand` field. This replaces the previous "initial quantity/adjust by X" approach. **[DONE]**
-        *   Ensure this field updates `InventoryTransaction` records appropriately on create/edit. **[DONE - Backend logic implemented in `inventory.create` and `inventory.update`]**
-    *   **Additional Inventory Item Fields:**
-        *   Add `leadTimeDays` (number field) to `InventoryItemForm.tsx` and relevant table display. **[DONE for form. Table display PENDING]**
-        *   Add `vendorSku` and `vendorItemName` fields to `InventoryItemForm.tsx`, hidden if `itemType` is `MANUFACTURED_GOOD`. **[DONE for form. Conditional hiding and table display PENDING]**
-    *   **Editable `quantityOnHand` in Inventory Table:**
-        *   Modify the Inventory list table to display `quantityOnHand` as an inline-editable column. **[PENDING]**
-        *   Implement a tRPC mutation for quick, direct stock adjustment from this table cell. **[PENDING]**
-    *   **Product Category in Table & Filtering:**
-        *   Add `InventoryCategory.name` as a column (with pill tags) in the Inventory list table.
+1.  **Replenishment Module Implementation (NEW PRIORITY):**
+    *   **Create Dedicated Replenishment Page:**
+        *   Implement `/inventory/replenishment` route and page component. **[PENDING]**
+        *   Filter display to show only `itemType === 'RAW_MATERIAL'` items. **[PENDING]**
+    *   **Critical Alerts Table:**
+        *   Implement top section showing items below reorder level, sorted by urgency. **[PENDING]**
+        *   Display: Item Name/SKU, Current Stock, Reorder Level, Lead Time. **[PENDING]**
+    *   **Bulk Edit Capabilities:**
+        *   Add multi-select functionality for `leadTimeDays` and `reorderLevel` updates. **[PENDING]**
+        *   Implement bulk update tRPC mutations. **[PENDING]**
+    *   **Excel Import/Export for Replenishment:**
+        *   Export replenishment data with proper formatting. **[PENDING]**
+        *   Import with conservative validation and detailed preview. **[PENDING]**
+        *   Focus on replenishment fields: quantities, pricing, lead times, reorder levels. **[PENDING]**
+    *   **Inventory Form Enhancements (Conditional UI):**
+        *   Hide `vendorSku` and `vendorItemName` fields when `itemType` is `MANUFACTURED_GOOD`. **[DONE for form fields. Conditional UI PENDING]**
+    *   **Main Inventory Table Enhancements:**
+        *   Add `InventoryCategory.name` as a column (with pill tags) in the main Inventory list table.
         *   Implement filtering by `InventoryCategory`.
-    *   **Advanced Inventory Table Features:**
-        *   Add a search bar to the Inventory list table.
-        *   Implement robust filtering, sorting, and pagination.
+        *   Add search bar and robust filtering, sorting, pagination.
 
 2.  **Customer Module Enhancements (NEW REQUIREMENTS):**
     *   **Customer Table Action Dropdown:**

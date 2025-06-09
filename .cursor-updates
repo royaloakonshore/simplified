@@ -189,3 +189,5 @@
 ## 2025-01-25: Changed "Manufactured Good" pill tag text to "Manufactured" in InventoryTable and PriceListTable components, including both display text and filter labels.
 
 ## 2025-01-25: Fixed layout width jumping issue by removing `container mx-auto` classes from major ERP pages (inventory, customers, orders, invoices, dashboard, boms) and replacing with `w-full` to achieve full desktop width as requested. Updated ERPLayoutClient padding is now handled by the layout component itself.
+
+## 2025-01-26: Updated documentation to consolidate Replenishment management into a dedicated module with separate page (`/inventory/replenishment`) for raw material management, Excel import/export with conservative validation, and bulk editing capabilities for lead times and reorder levels.

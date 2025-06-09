@@ -68,12 +68,22 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
         *   `quantityOnHand` is a calculated field based on `InventoryTransaction` records. **[Implemented. The `InventoryItem.quantityOnHand` field now stores the target absolute quantity, and transactions reflect adjustments. The list/getById tRPC calls also calculate and return the actual QOH based on transactions for display consistency, though the direct field on the model is now the primary source for editing.]**
         *   Define Minimum Stock Level and Reorder Level for stock alerts. **[Schema fields exist, alert logic/UI PENDING]**
         *   Support for QR code identifiers on items for quick scanning. **[Implemented, PDF generation for tags exists]**
-        *   **NEW REQUIREMENT:** Inventory item `quantityOnHand` should be a single, directly editable field in the item creation/edit forms and in the inventory list table. Changes will directly update the quantity, triggering necessary `InventoryTransaction` records in the backend. **[Implemented in form and backend. Table editing is PENDING.]**
-        *   **NEW REQUIREMENT:** The inventory list/table should display `quantityOnHand` as an editable column for quick adjustments. This requires a new tRPC mutation for direct stock adjustment from the table. **[PENDING]**
-        *   **NEW REQUIREMENT:** Add a `leadTimeDays` (simple number) field to Inventory Items. This will be used for replenishment alerts and displayed in a relevant table column. **[Implemented - Schema, Zod, Form, tRPC `create`/`update`/`getById`/`list` updated. Display in table PENDING.]**
-        *   **NEW REQUIREMENT:** Add `vendorSku` and `vendorItemName` fields to Inventory Items. These fields should be hidden if `itemType` is `MANUFACTURED_GOOD`. **[Implemented - Schema, Zod, Form, tRPC `create`/`update`/`getById`/`list` updated. Conditional hiding in UI and display in table PENDING.]**
-        *   **NEW REQUIREMENT:** Add `InventoryCategory` to Inventory Items. This should be displayed as a column with pill tags in the inventory and pricelist views and allow filtering. `InventoryCategory` model exists; UI needs to display and allow filtering by it. **[PENDING]**
-        *   **NEW REQUIREMENT:** Inventory list needs a search bar, and robust client-side or server-side filtering, pagination, and sorting (currently basic tRPC list exists, UI table features need enhancement similar to CustomerTable).
+        *   **NEW REQUIREMENT:** Inventory item `quantityOnHand` should be a single, directly editable field in the item creation/edit forms. Changes will directly update the quantity, triggering necessary `InventoryTransaction` records in the backend. **[Implemented in form and backend.]**
+        *   **ENHANCED REQUIREMENT:** Add `InventoryCategory` to Inventory Items. This should be displayed as a column with pill tags in the inventory and pricelist views and allow filtering. `InventoryCategory` model exists; UI needs to display and allow filtering by it. **[PENDING]**
+        *   **ENHANCED REQUIREMENT:** Inventory list needs a search bar, and robust client-side or server-side filtering, pagination, and sorting (currently basic tRPC list exists, UI table features need enhancement similar to CustomerTable).
+    *   **Replenishment Management (NEW MODULE):**
+        *   **Dedicated Replenishment Page:** A separate page under Inventory (`/inventory/replenishment`) specifically for managing raw material replenishment.
+        *   **Raw Materials Focus:** Display and manage only items where `itemType === 'RAW_MATERIAL'`.
+        *   **Critical Alerts Table:** A compact table at the top showing the most critical reorder needs, sorted by urgency (items below reorder level, out of stock, etc.).
+        *   **Bulk Edit Capabilities:** Multi-select functionality for updating `leadTimeDays` and `reorderLevel` fields across multiple items.
+        *   **Excel Import/Export for Replenishment:** 
+            *   Export current replenishment data to Excel with proper formatting
+            *   Import updated Excel files with conservative validation
+            *   Focus on replenishment-specific fields: quantities, pricing, lead times, reorder levels
+            *   **Data Integrity Safeguards:** Implement strict validation with "are you sure" modals for critical changes
+            *   Skip any rows with questionable data rather than risk corruption
+            *   Detailed preview of all changes before applying
+        *   **Lead Time Management:** The `leadTimeDays` field should be prominently displayed and editable in this module (not in the main inventory table).
     *   **Inventory Transactions:** Record purchases, sales, adjustments (including automated deductions for production). **[Implemented, though UI for manual adjustments may need refinement]**
     *   **Stock Alerts:**
         *   System generates alerts when calculated stock level falls below Minimum Stock Level or Reorder Level. **[PENDING]**

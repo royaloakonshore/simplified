@@ -132,6 +132,10 @@ model Customer {
   Company              Company?  @relation(fields: [companyId], references: [id])
   companyId            String?
 
+  @@index([companyId])
+  @@index([name])
+  @@index([email])
+  @@index([vatId])
   @@schema("public")
 }
 
@@ -180,6 +184,12 @@ model InventoryItem {
   @@index([companyId])
   @@index([supplierId])
   @@index([inventoryCategoryId])
+  @@index([itemType])
+  @@index([showInPricelist])
+  @@index([name])
+  @@index([sku])
+  @@index([quantityOnHand])
+  @@index([reorderLevel])
   @@schema("public")
 }
 
@@ -315,6 +325,10 @@ model Invoice {
   @@index([customerId])
   @@index([orderId])
   @@index([originalInvoiceId]) // Index for faster lookups of credit notes
+  @@index([companyId])
+  @@index([status])
+  @@index([invoiceDate])
+  @@index([dueDate])
   @@schema("public")
 }
 

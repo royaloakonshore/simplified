@@ -91,12 +91,15 @@ The build is currently passing and no type errors are reported by `npx tsc --noE
     *   Fills in/Updates `InventoryForm` (SKU, Name, Description, Unit of Measure, VAT-exclusive Cost Price, VAT-exclusive Sales Price, Item Type (`RAW_MATERIAL`/`MANUFACTURED_GOOD`), **Inventory Category (pending)**, **`quantityOnHand` (single editable field - implemented in form)**, **`leadTimeDays` (implemented in form)**, **`vendorSku` (implemented in form)**, **`vendorItemName` (implemented in form)** (last two hidden if `MANUFACTURED_GOOD` - conditional hiding pending)). **[SKU handling for order creation is fixed. Backend logic for new fields and QOH adjustment is implemented.]**
     *   **NEW/ENHANCE:** User enters/adjusts `quantityOnHand`. For new items, this is initial stock. For existing items, this is a stock adjustment (backend creates an `InventoryTransaction`). This replaces the previous "initial quantity/adjust by X" approach. **[Implemented in form and backend tRPC.]**
     *   Saves the item. **[Backend `inventory.create` / `inventory.update` tRPC mutations handle this. Form submission logic is in place.]**
-4.  **Manage Stock (Inventory Table - NEW):**
-    *   User navigates to the Inventory list.
-    *   Table displays `quantityOnHand` as an editable column. Also displays `leadTimeDays` and `InventoryCategory` (as pill tags). **[Display of new fields & category PENDING. Editable QOH column PENDING]**
-    *   User directly modifies quantity in the table for an item.
-    *   System triggers a quick stock adjustment. **[Editable column and mutation PENDING]**
+4.  **Manage Stock & Replenishment:**
+    *   **Main Inventory List**: User navigates to the Inventory list for basic inventory overview.
+    *   Table displays `quantityOnHand`, `InventoryCategory` (as pill tags). **[Category display PENDING]**
     *   User can filter by **Inventory Category** (pill tags), search by name/SKU, sort, and paginate. **[Advanced table features PENDING]**
+    *   **Replenishment Management**: User navigates to `/inventory/replenishment` for detailed raw material management.
+    *   **Critical Alerts Table**: Top section shows most urgent reorder needs (sorted by criticality). **[PENDING]**
+    *   **Full Replenishment Table**: Displays all raw materials with `leadTimeDays`, `vendorSku`, `vendorItemName`, reorder levels. **[PENDING]**
+    *   **Bulk Operations**: User can multi-select items and bulk edit lead times and reorder levels. **[PENDING]**
+    *   **Excel Import/Export**: User can export current replenishment data, edit in Excel, and import with careful validation. **[PENDING]**
 5.  **Record Initial Stock / Replenishment (Alternative to Form Edit):** Covered by step 3 & 4. `leadTimeDays` will be used for future replenishment alert features. Manual `InventoryTransaction` creation UI might be a future enhancement if detailed transaction logging (e.g. purchase orders) is needed beyond simple adjustments.
 6.  **Create Sales Order:** **[Implemented]**
     *   (Sales Rep) Creates new `Order` (type `WORK_ORDER` or `QUOTATION`).

@@ -136,12 +136,16 @@ erp-system/
 - **Discounts & VAT Reverse Charge (Invoices):** Implemented.
 - **Inventory & Pricelist:**
     - Basic inventory list exists. `showInPricelist` flag in schema.
-    - **NEXT:** Implement a single, directly editable `quantityOnHand` field in `InventoryItemForm` and the inventory list table (with a new tRPC mutation for quick stock adjustment), replacing the previous "initial quantity/adjust by X" approach. **[Form & backend logic DONE. List table editing PENDING]**
-    - **NEXT:** Add `leadTimeDays` field to `InventoryItem` and display it. **[Field implemented. Display in table PENDING]**
-    - **NEXT:** Add `vendorSku` and `vendorItemName` fields (conditionally hidden for manufactured goods) to `InventoryItem`. **[Fields implemented. Conditional UI hiding & display in table PENDING]**
+    - **NEXT:** Implement a single, directly editable `quantityOnHand` field in `InventoryItemForm`. **[Form & backend logic DONE.]**
     - **NEXT:** Add "Product Category" (`InventoryCategory`) column to the inventory table and enable filtering by it (displaying categories as pill tags). **[PENDING]**
     - **NEXT:** Enhance inventory table with a search bar, and robust filtering, pagination, and sorting (similar to `CustomerTable`).
     - **NEXT:** PDF export for pricelist.
+- **Replenishment Management (NEW MODULE):**
+    - **NEXT:** Create dedicated Replenishment page (`/inventory/replenishment`) for raw material management.
+    - **NEXT:** Implement critical alerts table showing most urgent reorder needs.
+    - **NEXT:** Add bulk edit capabilities for `leadTimeDays` and `reorderLevel` fields.
+    - **NEXT:** Implement Excel import/export with conservative validation and data integrity safeguards.
+    - **NEXT:** Display `leadTimeDays` and vendor information prominently in replenishment context.
 - **BOMs:** Backend implemented. **NEXT: UI for BOM management (Scaffolding in progress: `BOMForm.tsx`, `BOMTable.tsx`, `ComboboxResponsive.tsx` created; new routes under `src/app/(erp)/boms/` exist. `BillOfMaterial.manufacturedItemId` is now optional).**
 - **Inventory Deduction for Production:** Implemented (when order status changes to `in_production`).
 - **Production Kanban/Table:**
