@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { createTRPCRouter, protectedProcedure } from "@/lib/api/trpc";
+import { createTRPCRouter, protectedProcedure, companyProtectedProcedure } from "@/lib/api/trpc";
 import { CreateInvoiceSchema, UpdateInvoiceSchema, invoiceFilterSchema, invoicePaginationSchema, createInvoiceFromOrderSchema, type CreateInvoiceItemSchema, type UpdateInvoiceItemSchema } from "@/lib/schemas/invoice.schema";
 import { Prisma, PrismaClient, InvoiceStatus, OrderStatus, type OrderItem, type InventoryItem, type ItemType, type Address, type InvoiceItem as PrismaInvoiceItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library'; 
@@ -43,7 +43,7 @@ const getOrderBy = (
 const listInvoicesInputSchema = invoicePaginationSchema.merge(invoiceFilterSchema);
 
 export const invoiceRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: companyProtectedProcedure
     .input(listInvoicesInputSchema) 
     .query(async ({ ctx, input }) => {
       const { 
@@ -58,7 +58,9 @@ export const invoiceRouter = createTRPCRouter({
         searchTerm 
       } = input;
 
-      const whereClause: Prisma.InvoiceWhereInput = {};
+      const whereClause: Prisma.InvoiceWhereInput = {
+        companyId: ctx.companyId,
+      };
 
       if (customerId) whereClause.customerId = customerId as string;
       if (status) whereClause.status = status as InvoiceStatus;
@@ -102,12 +104,13 @@ export const invoiceRouter = createTRPCRouter({
       };
     }),
 
-  get: protectedProcedure
+  get: companyProtectedProcedure
     .input(z.object({ id: z.string().cuid() }))
     .query(async ({ ctx, input }) => {
       const invoice = await prisma.invoice.findUnique({
         where: {
           id: input.id,
+          companyId: ctx.companyId,
         },
         include: {
           customer: true,
@@ -227,11 +230,11 @@ export const invoiceRouter = createTRPCRouter({
       return transformInvoiceData(invoice);
     }),
     
-  create: protectedProcedure
+  create: companyProtectedProcedure
     .input(CreateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
       const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.userId;
 
       let subTotal = new Decimal(0); 
       let totalVatAmountValue = new Decimal(0);
@@ -335,6 +338,7 @@ export const invoiceRouter = createTRPCRouter({
         totalAmount: subTotal, 
             totalVatAmount: totalVatAmountValue, 
         user: { connect: { id: userId } },
+        Company: { connect: { id: ctx.companyId } },
         ...(orderId && { order: { connect: { id: orderId } } }),
             items: {
           create: invoiceItemsToCreate.map(item => ({
@@ -367,11 +371,11 @@ export const invoiceRouter = createTRPCRouter({
       return newInvoice;
     }),
 
-  createFromOrder: protectedProcedure
+  createFromOrder: companyProtectedProcedure
     .input(createInvoiceFromOrderSchema)
     .mutation(async ({ ctx, input }) => {
       const { orderId, invoiceDate, dueDate, notes, vatReverseCharge } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.userId;
 
       type OrderWithIncludes = Prisma.OrderGetPayload<{
         include: {
@@ -381,7 +385,10 @@ export const invoiceRouter = createTRPCRouter({
       }>;
       
       const order = await prisma.order.findUnique({
-        where: { id: orderId },
+        where: { 
+          id: orderId,
+          companyId: ctx.companyId,
+        },
         include: {
           customer: true,
           items: {
@@ -489,6 +496,7 @@ export const invoiceRouter = createTRPCRouter({
         totalAmount: subTotal,
         totalVatAmount: totalVatAmountValue,
         user: { connect: { id: userId } },
+        Company: { connect: { id: ctx.companyId } },
         order: { connect: { id: orderId } },
         items: {
           create: invoiceItemsToCreate.map((item) => ({

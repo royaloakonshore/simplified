@@ -13,8 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowRight, MoreHorizontal, Eye, Factory } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { api } from "@/lib/trpc/react";
+import { toast } from "sonner";
 
 // Define the expected shape of the order prop passed to the table
 // Matches the include statement in the list procedure
@@ -78,6 +86,54 @@ const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "
     }
   };
 
+// OrderTableRowActions component for dropdown menu
+const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable, onActionSuccess: () => void }) => {
+  const router = useRouter();
+  const utils = api.useUtils();
+
+  const convertToWorkOrderMutation = api.order.convertToWorkOrder.useMutation({
+    onSuccess: () => {
+      toast.success("Order converted to Work Order successfully!");
+      onActionSuccess(); // Refresh the list
+    },
+    onError: (err) => {
+      toast.error(`Failed to convert to Work Order: ${err.message}`);
+    },
+  });
+
+  const handleSendToWorkOrder = () => {
+    convertToWorkOrderMutation.mutate({ orderId: order.id });
+  };
+
+  const canSendToWorkOrder = order.orderType === OrderType.quotation && 
+    (order.status === OrderStatus.quote_accepted || order.status === OrderStatus.draft);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
+          <Eye className="mr-2 h-4 w-4" />
+          <span>View Order</span>
+        </DropdownMenuItem>
+        {canSendToWorkOrder && (
+          <DropdownMenuItem 
+            onClick={handleSendToWorkOrder}
+            disabled={convertToWorkOrderMutation.isPending}
+          >
+            <Factory className="mr-2 h-4 w-4" />
+            <span>{convertToWorkOrderMutation.isPending ? "Converting..." : "Send to Work Order"}</span>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 export default function OrderTable({ 
   orders, 
@@ -90,6 +146,11 @@ export default function OrderTable({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const utils = api.useUtils();
+
+  const handleActionSuccess = () => {
+    utils.order.list.invalidate();
+  };
 
   const handleNextPage = () => {
     if (nextCursor) {
@@ -162,9 +223,7 @@ export default function OrderTable({
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(order.totalAmount ?? 0)}</TableCell>
                    <TableCell className="text-right">
-                     <Button variant="outline" size="sm" asChild>
-                       <Link href={`/orders/${order.id}`}>View</Link>
-                     </Button>
+                     <OrderTableRowActions order={order} onActionSuccess={handleActionSuccess} />
                    </TableCell>
                 </TableRow>
               ))

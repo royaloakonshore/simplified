@@ -63,7 +63,10 @@ declare module "next-auth" {
 }
 
 const debugLog = (location: string, data: unknown) => {
-  console.log(`[Auth Debug] ${location}:`, JSON.stringify(data, null, 2));
+  // Only log in development if AUTH_DEBUG is enabled
+  if (process.env.NODE_ENV === 'development' && process.env.AUTH_DEBUG === 'true') {
+    console.log(`[Auth Debug] ${location}:`, JSON.stringify(data, null, 2));
+  }
 };
 
 export const authOptions: NextAuthOptions = {

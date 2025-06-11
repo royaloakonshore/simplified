@@ -310,11 +310,14 @@ export const orderRouter = createTRPCRouter({
       };
     }),
 
-  getById: protectedProcedure
+  getById: companyProtectedProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const order = await prisma.order.findUnique({
-        where: { id: input.id },
+        where: { 
+          id: input.id,
+          companyId: ctx.companyId,
+        },
         include: orderDetailIncludeArgs,
       });
 
@@ -340,7 +343,7 @@ export const orderRouter = createTRPCRouter({
       return orders;
     }),
 
-  create: protectedProcedure
+  create: companyProtectedProcedure
     .input(createOrderSchema)
     .mutation(async ({ ctx, input }) => {
       return prisma.$transaction(async (tx) => {
@@ -351,7 +354,8 @@ export const orderRouter = createTRPCRouter({
           data: {
             ...orderData,
             orderNumber,
-            userId: ctx.session.user.id,
+            userId: ctx.userId,
+            companyId: ctx.companyId,
             totalAmount: orderTotal,
             items: {
               create: items.map((item) => ({
@@ -368,9 +372,9 @@ export const orderRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: companyProtectedProcedure
     .input(updateOrderSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, items, ...orderData } = input;
 
       // Ensure that 'id' is a string if it's not undefined.
@@ -406,7 +410,10 @@ export const orderRouter = createTRPCRouter({
         }
 
         const updatedOrder = await tx.order.findUnique({
-          where: { id: orderId },
+          where: { 
+            id: orderId,
+            companyId: ctx.companyId,
+          },
           include: orderDetailIncludeArgs,
         });
 
@@ -420,56 +427,80 @@ export const orderRouter = createTRPCRouter({
       });
     }),
 
-  updateStatus: protectedProcedure
+  updateStatus: companyProtectedProcedure
     .input(updateOrderStatusSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, status } = input;
 
-      const order = await prisma.order.findUnique({ where: { id } });
-
+      const order = await prisma.order.findUnique({ 
+        where: { 
+          id,
+          companyId: ctx.companyId,
+        } 
+      });
       if (!order) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found.' });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
       }
-
-      const currentStatus = order.status;
-
-      const validTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
-          [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled, OrderStatus.quote_sent],
-          [OrderStatus.quote_sent]: [OrderStatus.quote_accepted, OrderStatus.quote_rejected, OrderStatus.cancelled],
-          [OrderStatus.quote_accepted]: [OrderStatus.confirmed, OrderStatus.cancelled],
-          [OrderStatus.confirmed]: [OrderStatus.in_production, OrderStatus.cancelled, OrderStatus.shipped ],
-          [OrderStatus.in_production]: [OrderStatus.shipped, OrderStatus.cancelled], 
-          [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.cancelled], 
-      };
-
-      if (!validTransitions[currentStatus]?.includes(status)) {
-           throw new TRPCError({
-               code: 'BAD_REQUEST',
-               message: `Cannot transition order from ${currentStatus} to ${status}. Valid transitions: ${validTransitions[currentStatus]?.join(', ') || 'None'}`
-           });
-      }
-
-      // Original stock allocation for 'confirmed' status (for non-production items or finished goods)
-      if (currentStatus !== OrderStatus.confirmed && status === OrderStatus.confirmed) {
-         // We might want to refine checkAndAllocateStock to NOT deduct items that will have BOMs deducted later
-         // For now, it allocates the main items. If an item is manufactured, this might allocate the finished product.
-         await checkAndAllocateStock(id, prisma);
-      }
-      
-      // New: Deduct stock for production when status changes to 'in_production'
-      if (status === OrderStatus.in_production && currentStatus !== OrderStatus.in_production) {
-        if (order.orderType === OrderType.work_order) { // Only for work orders
-          await handleProductionStockDeduction(id, prisma);
-        }
-      }
-      // TODO: Handle stock de-allocation if order is cancelled after confirmation or after going into production.
 
       const updatedOrder = await prisma.order.update({
-        where: { id },
+        where: { 
+          id,
+          companyId: ctx.companyId,
+        },
         data: { status },
       });
 
       return updatedOrder;
+    }),
+
+  convertToWorkOrder: companyProtectedProcedure
+    .input(z.object({ orderId: z.string().cuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { orderId } = input;
+
+      // Find the quotation order
+      const order = await prisma.order.findUnique({
+        where: { 
+          id: orderId,
+          companyId: ctx.companyId,
+        },
+        include: {
+          customer: {
+            include: {
+              addresses: true,
+            },
+          },
+          items: {
+            include: {
+              inventoryItem: true,
+            },
+          },
+        },
+      });
+
+      if (!order) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+      }
+
+      if (order.orderType !== OrderType.quotation) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only quotations can be converted to work orders' });
+      }
+
+      if (order.status !== OrderStatus.quote_accepted && order.status !== OrderStatus.draft) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order status must be draft or quote_accepted to convert to work order' });
+      }
+
+      // Update the order to be a work order and set status to confirmed
+      const updatedOrder = await prisma.order.update({
+        where: { id: orderId },
+        data: { 
+          orderType: OrderType.work_order,
+          status: OrderStatus.confirmed,
+        },
+        include: orderDetailIncludeArgs,
+      });
+
+      return processOrderDecimals(updatedOrder);
     }),
 
   updateProductionStep: protectedProcedure

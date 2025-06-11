@@ -22,7 +22,10 @@ export default withAuth(
   async function middleware(req: NextRequest) {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const { pathname } = req.nextUrl;
-    console.log("[Middleware Debug] Path:", pathname, "Token:", token ? JSON.stringify(token, null, 2) : null);
+    // Only log middleware debug in development if MIDDLEWARE_DEBUG is enabled
+    if (process.env.NODE_ENV === 'development' && process.env.MIDDLEWARE_DEBUG === 'true') {
+      console.log("[Middleware Debug] Path:", pathname, "Token:", token ? JSON.stringify(token, null, 2) : null);
+    }
 
     // If user is authenticated and at the root path, redirect to dashboard
     if (token && pathname === '/') {
