@@ -1,14 +1,14 @@
-// @ts-nocheck
 'use client';
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ItemType as PrismaItemType } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from 'qrcode.react';
 import ClientOnly from "@/components/ClientOnly";
 
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -20,17 +20,32 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { inventoryItemBaseSchema, type InventoryItemFormValues } from "@/lib/schemas/inventory.schema";
 
 // Type for what the form receives as initialData.
 // This is data that has been processed from an API call to be ready for the form.
-export type ProcessedInventoryItemApiData = Partial<InventoryItemFormValues> & {
+export type ProcessedInventoryItemApiData = {
   id?: string;
   qrIdentifier?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  sku?: string;
+  name?: string;
+  description?: string | null;
+  unitOfMeasure?: string;
+  itemType?: PrismaItemType;
+  inventoryCategoryId?: string | null;
+  showInPricelist?: boolean;
+  internalRemarks?: string | null;
+  variant?: string | null;
   // Fields that might come in as strings or other types from an API
   costPrice?: string | number | null;
   salesPrice?: string | number | null;
@@ -38,6 +53,9 @@ export type ProcessedInventoryItemApiData = Partial<InventoryItemFormValues> & {
   reorderLevel?: string | number | null;
   quantityOnHand?: string | number | null;
   leadTimeDays?: string | number | null;
+  defaultVatRatePercent?: string | number | null;
+  vendorSku?: string | null;
+  vendorItemName?: string | null;
 };
 
 interface InventoryItemFormProps {
@@ -89,7 +107,7 @@ const mapApiDataToFormValues = (
       variant: item.variant ?? null,
       showInPricelist: item.showInPricelist ?? true,
       internalRemarks: item.internalRemarks ?? undefined,
-    };
+    } satisfies InventoryItemFormValues;
   }
 
   // Creating a new item
@@ -112,7 +130,7 @@ const mapApiDataToFormValues = (
     vendorItemName: null,
     leadTimeDays: null,
     variant: null,
-  };
+  } satisfies InventoryItemFormValues;
 };
 
 export function InventoryItemForm({
@@ -124,10 +142,10 @@ export function InventoryItemForm({
 }: InventoryItemFormProps) {
   const router = useRouter();
 
-  const form = useForm<InventoryItemFormValues>({
+  const form = useForm({
     resolver: zodResolver(inventoryItemBaseSchema),
     defaultValues: mapApiDataToFormValues(initialData),
-  });
+  }) as UseFormReturn<InventoryItemFormValues>;
   
   const watchedItemType = form.watch("itemType");
   
@@ -187,7 +205,14 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Quantity on Hand*</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                            value={field.value?.toString() ?? '0'}
+                          />
+                        </FormControl>
                         <FormDescription>
                             Current total stock quantity. Changes will create an adjustment transaction.
                         </FormDescription>
@@ -214,7 +239,14 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Cost Price (€)*</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                            value={field.value?.toString() ?? '0'}
+                          />
+                        </FormControl>
                         <FormMessage />
                     </FormItem>
                     )}

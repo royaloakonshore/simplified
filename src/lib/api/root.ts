@@ -1,14 +1,13 @@
 import { createCallerFactory, createTRPCRouter } from "@/lib/api/trpc";
-import { customerRouter } from "./routers/customer";
-import { inventoryRouter } from "./routers/inventory";
-import { orderRouter } from "./routers/order";
-import { invoiceRouter } from "./routers/invoice";
-import { userRouter } from "./routers/user";
-import { settingsRouter } from "./routers/settings";
-import { bomRouter } from "./routers/bom";
+import { customerRouter } from './routers/customer';
+import { orderRouter } from './routers/order';
+import { invoiceRouter } from './routers/invoice';
+import { inventoryRouter } from './routers/inventory';
+import { bomRouter } from './routers/bom';
+import { settingsRouter } from './routers/settings';
+import { userRouter } from './routers/user';
+import { companyRouter } from './routers/company';
 import { inventoryCategoryRouter } from "./routers/inventoryCategory";
-import { companyRouter } from "./routers/company";
-import { replenishmentRouter } from "./routers/replenishment";
 import { type inferRouterOutputs } from "@trpc/server";
 // import all routers here
 
@@ -27,7 +26,6 @@ export const appRouter = createTRPCRouter({
   bom: bomRouter,
   inventoryCategory: inventoryCategoryRouter, // Add the new router here
   company: companyRouter, // Add the company router
-  replenishment: replenishmentRouter, // Add the replenishment router
   // add routers here
 });
 
