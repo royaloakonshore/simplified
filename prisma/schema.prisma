@@ -176,31 +176,35 @@ model InventoryTransaction {
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  customerId     String
-  orderNumber    String      @unique
-  status         OrderStatus @default(draft)
-  notes          String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  orderDate      DateTime    @default(now())
-  orderType      OrderType   @default(work_order)
-  userId         String
-  deliveryDate   DateTime?
-  productionStep String?
-  totalAmount    Decimal?    @db.Decimal(10, 2)
-  companyId      String?
-  qrIdentifier   String?     @unique
-  invoices       Invoice[]   @relation("OrderToInvoices")
-  Company        Company?    @relation(fields: [companyId], references: [id])
-  customer       Customer    @relation(fields: [customerId], references: [id])
-  user           User        @relation(fields: [userId], references: [id])
-  items          OrderItem[]
+  id                  String      @id @default(cuid())
+  customerId          String
+  orderNumber         String      @unique
+  status              OrderStatus @default(draft)
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  orderDate           DateTime    @default(now())
+  orderType           OrderType   @default(work_order)
+  userId              String
+  deliveryDate        DateTime?
+  productionStep      String?
+  totalAmount         Decimal?    @db.Decimal(10, 2)
+  companyId           String?
+  qrIdentifier        String?     @unique
+  originalQuotationId String?
+  invoices            Invoice[]   @relation("OrderToInvoices")
+  Company             Company?    @relation(fields: [companyId], references: [id])
+  customer            Customer    @relation(fields: [customerId], references: [id])
+  user                User        @relation(fields: [userId], references: [id])
+  items               OrderItem[]
+  originalQuotation   Order?      @relation("QuotationToWorkOrder", fields: [originalQuotationId], references: [id])
+  derivedWorkOrders   Order[]     @relation("QuotationToWorkOrder")
 
   @@index([customerId])
   @@index([status])
   @@index([orderType])
   @@index([companyId])
+  @@index([originalQuotationId])
   @@schema("public")
 }
 

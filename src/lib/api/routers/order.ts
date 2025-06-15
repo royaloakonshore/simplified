@@ -30,6 +30,22 @@ const orderDetailIncludeArgs = {
       inventoryItem: true,
     },
   },
+  originalQuotation: {
+    select: {
+      id: true,
+      orderNumber: true,
+      orderType: true,
+      status: true,
+    },
+  },
+  derivedWorkOrders: {
+    select: {
+      id: true,
+      orderNumber: true,
+      orderType: true,
+      status: true,
+    },
+  },
 } satisfies Prisma.OrderInclude;
 
 // Type for the order when fetched with details for OrderDetail component
@@ -458,49 +474,71 @@ export const orderRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { orderId } = input;
 
-      // Find the quotation order
-      const order = await prisma.order.findUnique({
-        where: { 
-          id: orderId,
-          companyId: ctx.companyId,
-        },
-        include: {
-          customer: {
-            include: {
-              addresses: true,
+      return await prisma.$transaction(async (tx) => {
+        // Find the quotation order
+        const quotation = await tx.order.findUnique({
+          where: { 
+            id: orderId,
+            companyId: ctx.companyId,
+          },
+          include: {
+            customer: {
+              include: {
+                addresses: true,
+              },
+            },
+            items: {
+              include: {
+                inventoryItem: true,
+              },
             },
           },
-          items: {
-            include: {
-              inventoryItem: true,
+        });
+
+        if (!quotation) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Quotation not found' });
+        }
+
+        if (quotation.orderType !== OrderType.quotation) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only quotations can be converted to work orders' });
+        }
+
+        if (quotation.status !== OrderStatus.confirmed && quotation.status !== OrderStatus.draft) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Quotation status must be draft or confirmed to create work order' });
+        }
+
+        // Generate new order number for the work order
+        const newOrderNumber = await generateOrderNumber(tx);
+
+        // Create a new work order based on the quotation
+        const newWorkOrder = await tx.order.create({
+          data: {
+            orderNumber: newOrderNumber,
+            customerId: quotation.customerId,
+            orderType: OrderType.work_order,
+            status: OrderStatus.confirmed,
+            orderDate: new Date(),
+            deliveryDate: quotation.deliveryDate,
+            notes: quotation.notes,
+            totalAmount: quotation.totalAmount,
+            userId: ctx.userId,
+            companyId: ctx.companyId,
+            originalQuotationId: quotation.id, // Link back to the original quotation
+            items: {
+              create: quotation.items.map(item => ({
+                inventoryItemId: item.inventoryItemId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discountAmount: item.discountAmount,
+                discountPercentage: item.discountPercentage,
+              })),
             },
           },
-        },
+          include: orderDetailIncludeArgs,
+        });
+
+        return processOrderDecimals(newWorkOrder);
       });
-
-      if (!order) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
-      }
-
-      if (order.orderType !== OrderType.quotation) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only quotations can be converted to work orders' });
-      }
-
-      if (order.status !== OrderStatus.confirmed && order.status !== OrderStatus.draft) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order status must be draft or confirmed to convert to work order' });
-      }
-
-      // Update the order to be a work order and set status to confirmed
-      const updatedOrder = await prisma.order.update({
-        where: { id: orderId },
-        data: { 
-          orderType: OrderType.work_order,
-          status: OrderStatus.confirmed,
-        },
-        include: orderDetailIncludeArgs,
-      });
-
-      return processOrderDecimals(updatedOrder);
     }),
 
   updateProductionStep: protectedProcedure

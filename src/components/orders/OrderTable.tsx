@@ -92,12 +92,12 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
   const utils = api.useUtils();
 
   const convertToWorkOrderMutation = api.order.convertToWorkOrder.useMutation({
-    onSuccess: () => {
-      toast.success("Order converted to Work Order successfully!");
+    onSuccess: (newWorkOrder) => {
+      toast.success(`Work Order ${newWorkOrder.orderNumber} created successfully!`);
       onActionSuccess(); // Refresh the list
     },
     onError: (err) => {
-      toast.error(`Failed to convert to Work Order: ${err.message}`);
+      toast.error(`Failed to create Work Order: ${err.message}`);
     },
   });
 
@@ -127,7 +127,7 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
             disabled={convertToWorkOrderMutation.isPending}
           >
             <Factory className="mr-2 h-4 w-4" />
-            <span>{convertToWorkOrderMutation.isPending ? "Converting..." : "Send to Work Order"}</span>
+            <span>{convertToWorkOrderMutation.isPending ? "Creating..." : "Create Work Order"}</span>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

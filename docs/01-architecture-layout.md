@@ -90,45 +90,269 @@ Utilizes a standard Next.js App Router structure with feature-based organization
 *   tRPC for API.
 *   Shadcn UI & Tailwind.
 
-### 8.2. Expected Directory Structure (Simplified)
+### 8.2. Current Project Structure (Detailed File Tree)
 
 ```
-erp-system/
-├── src/
-│   ├── app/             # Next.js App Router (routes, layouts)
-│   │   ├── (auth)/      # Auth routes
-│   │   ├── (main)/      # Authenticated app routes (dashboard, customers, inventory, etc.)
-│   │   ├── api/         # API routes (tRPC, NextAuth)
-│   │   ├── components/  # Reusable UI components (feature-specific, core, ui)
-│   │   ├── lib/         # Core logic, utilities, types, services
-│   │   │   ├── api/     # tRPC (root router, trpc setup, feature routers)
-│   │   │   │   ├── root.ts
-│   │   │   │   ├── trpc.ts # Defines publicProcedure, protectedProcedure, companyProtectedProcedure
-│   │   │   │   └── routers/
-│   │   │   │       ├── userRouter.ts    # Handles user-specific operations including company memberships & active company
-│   │   │   │       ├── companyRouter.ts # Handles company creation and management
-│   │   │   │       └── ... (other feature routers: customer, order, invoice, etc.)
-│   │   │   ├── schemas/ # Zod validation schemas
-│   │   │   ├── services/ # Business logic services (e.g., Finvoice)
-│   │   │   ├── trpc/    # tRPC client setup
-│   │   │   └── ...      # db.ts, utils.ts, types.ts, etc.
-│   │   ├── middleware.ts # Next.js middleware
-│   ├── prisma/          # Prisma schema and migrations
-│   └── ...              # Config files, public assets, etc.
+simplified-erp/
+├── 📁 .git/                           # Git version control
+├── 📁 .next/                          # Next.js build output
+├── 📁 .storybook/                     # Storybook configuration
+├── 📁 docs/                           # Project documentation
+│   ├── 📄 00-product-requirements.md
+│   ├── 📄 01-architecture-layout.md
+│   ├── 📄 02-type-flow-and-finvoice.md
+│   ├── 📄 03-user-business-flows.md
+│   ├── 📄 04-agent-implementation-plan.md
+│   ├── 📄 05-tech-stack-and-patterns.md
+│   ├── 📄 06-ui-and-feature-roadmap.md
+│   ├── 📄 07-enhancement-plan-invoice-order.md
+│   ├── 📄 development-journal.md
+│   ├── 📄 next-steps-guide.md
+│   ├── 📄 performance-optimization-strategy.md
+│   └── 📄 README.md
+├── 📁 node_modules/                   # Dependencies
+├── 📁 prisma/                         # Database schema & migrations
+│   ├── 📄 schema.prisma              # Main database schema
+│   └── 📁 migrations/                # Database migration files
+├── 📁 public/                         # Static assets
+├── 📁 screenshots/                    # Project screenshots
+├── 📁 scripts/                        # Build and utility scripts
+├── 📁 src/                           # Main source code
+│   ├── 📁 app/                       # Next.js App Router
+│   │   ├── 📄 globals.css            # Global styles
+│   │   ├── 📄 layout.tsx             # Root layout
+│   │   ├── 📄 page.tsx               # Landing page
+│   │   ├── 📄 favicon.ico            # Site favicon
+│   │   ├── 📁 (erp)/                 # Main ERP application routes
+│   │   │   ├── 📄 layout.tsx         # ERP layout with sidebar
+│   │   │   ├── 📁 boms/              # Bill of Materials module
+│   │   │   │   ├── 📄 page.tsx       # BOM list page
+│   │   │   │   ├── 📁 add/           # Add new BOM
+│   │   │   │   ├── 📁 [id]/          # BOM detail/edit pages
+│   │   │   │   │   ├── 📄 page.tsx   # BOM detail view
+│   │   │   │   │   └── 📁 edit/      # BOM edit page
+│   │   │   ├── 📁 customers/         # Customer management module
+│   │   │   │   ├── 📄 page.tsx       # Customer list page
+│   │   │   │   ├── 📁 add/           # Add new customer
+│   │   │   │   └── 📁 [id]/          # Customer detail pages
+│   │   │   ├── 📁 dashboard/         # Main dashboard
+│   │   │   │   └── 📄 page.tsx       # Dashboard page
+│   │   │   ├── 📁 inventory/         # Inventory management module
+│   │   │   │   ├── 📄 page.tsx       # Inventory list page
+│   │   │   │   ├── 📁 add/           # Add new inventory item
+│   │   │   │   ├── 📁 pricelist/     # Pricelist view
+│   │   │   │   ├── 📁 replenishment/ # Replenishment management
+│   │   │   │   └── 📁 [id]/          # Inventory item detail/edit
+│   │   │   ├── 📁 invoices/          # Invoice management module
+│   │   │   │   ├── 📄 page.tsx       # Invoice list page
+│   │   │   │   ├── 📁 add/           # Create new invoice
+│   │   │   │   └── 📁 [id]/          # Invoice detail pages
+│   │   │   ├── 📁 orders/            # Order management module
+│   │   │   │   ├── 📄 page.tsx       # Order list page
+│   │   │   │   ├── 📁 add/           # Create new order
+│   │   │   │   └── 📁 [id]/          # Order detail/edit pages
+│   │   │   ├── 📁 production/        # Production management
+│   │   │   │   └── 📄 page.tsx       # Production Kanban view
+│   │   │   ├── 📁 scan/              # QR code scanning
+│   │   │   │   └── 📄 page.tsx       # Scan page
+│   │   │   └── 📁 settings/          # Application settings
+│   │   │       └── 📄 page.tsx       # Settings page
+│   │   ├── 📁 api/                   # API routes
+│   │   │   ├── 📁 auth/              # NextAuth endpoints
+│   │   │   │   └── 📁 [...nextauth]/ # NextAuth configuration
+│   │   │   ├── 📁 inngest/           # Inngest webhook endpoint
+│   │   │   │   └── 📄 route.ts       # Inngest route handler
+│   │   │   ├── 📁 transcribe/        # Speech-to-text API
+│   │   │   │   └── 📄 route.ts       # Transcription endpoint
+│   │   │   ├── 📁 trpc/              # tRPC API endpoint
+│   │   │   │   └── 📁 [trpc]/        # tRPC route handler
+│   │   │   └── 📁 upload/            # File upload endpoint
+│   │   │       └── 📄 route.ts       # Upload handler
+│   │   └── 📁 auth/                  # Authentication pages
+│   │       ├── 📄 error/             # Auth error page
+│   │       ├── 📄 logout/            # Logout page
+│   │       ├── 📄 signin/            # Sign-in page
+│   │       ├── 📄 signout/           # Sign-out page
+│   │       └── 📄 verify/            # Email verification
+│   ├── 📁 components/                # React components
+│   │   ├── 📄 AppSidebar.tsx         # Main application sidebar
+│   │   ├── 📄 Button.tsx             # Custom button component
+│   │   ├── 📄 ClientOnly.tsx         # Client-side only wrapper
+│   │   ├── 📄 ClientProvider.tsx     # Client providers wrapper
+│   │   ├── 📄 login-form.tsx         # Login form component
+│   │   ├── 📄 nav-main.tsx           # Main navigation component
+│   │   ├── 📄 nav-projects.tsx       # Projects navigation
+│   │   ├── 📄 nav-user.tsx           # User navigation component
+│   │   ├── 📄 SpeechToTextArea.tsx   # Speech-to-text component
+│   │   ├── 📄 team-switcher.tsx      # Company/team switcher
+│   │   ├── 📄 theme-provider.tsx     # Theme context provider
+│   │   ├── 📁 boms/                  # BOM-specific components
+│   │   │   ├── 📄 BOMForm.tsx        # BOM creation/edit form
+│   │   │   └── 📄 BOMTable.tsx       # BOM list table
+│   │   ├── 📁 common/                # Shared/common components
+│   │   ├── 📁 customers/             # Customer-specific components
+│   │   │   ├── 📄 CustomerForm.tsx   # Customer form
+│   │   │   ├── 📄 CustomerTable.tsx  # Customer list table
+│   │   │   └── 📄 EditCustomerDialog.tsx # Customer edit dialog
+│   │   ├── 📁 dashboard/             # Dashboard components
+│   │   │   ├── 📄 PlaceholderAreaChart.tsx
+│   │   │   ├── 📄 PlaceholderRecentOrdersTable.tsx
+│   │   │   └── 📄 PlaceholderReplenishmentTable.tsx
+│   │   ├── 📁 forms/                 # Form-related components
+│   │   ├── 📁 fulfillment/           # Fulfillment components
+│   │   ├── 📁 inventory/             # Inventory-specific components
+│   │   │   ├── 📄 InventoryItemForm.tsx # Inventory item form
+│   │   │   ├── 📄 InventoryTable.tsx # Inventory list table
+│   │   │   └── 📄 PriceListTable.tsx # Price list table
+│   │   ├── 📁 invoices/              # Invoice-specific components
+│   │   │   ├── 📄 InvoiceDetail.tsx  # Invoice detail view
+│   │   │   ├── 📄 InvoiceForm.tsx    # Invoice creation form
+│   │   │   ├── 📄 InvoiceSubmissionModal.tsx # Invoice submission
+│   │   │   └── 📄 InvoiceTable.tsx   # Invoice list table
+│   │   ├── 📁 layout/                # Layout components
+│   │   ├── 📁 orders/                # Order-specific components
+│   │   │   ├── 📄 EditOrderFormLoader.tsx # Order edit loader
+│   │   │   ├── 📄 OrderDetail.tsx    # Order detail view
+│   │   │   ├── 📄 OrderForm.tsx      # Order creation form
+│   │   │   ├── 📄 OrderStatusUpdateModal.tsx # Status update modal
+│   │   │   ├── 📄 OrderSubmissionModal.tsx # Order submission
+│   │   │   └── 📄 OrderTable.tsx     # Order list table
+│   │   ├── 📁 production/            # Production components
+│   │   │   └── 📄 ProductionKanban.tsx # Production Kanban board
+│   │   ├── 📁 settings/              # Settings components
+│   │   ├── 📁 theme/                 # Theme-related components
+│   │   └── 📁 ui/                    # Shadcn UI components
+│   │       ├── 📄 alert-dialog.tsx   # Alert dialog component
+│   │       ├── 📄 alert.tsx          # Alert component
+│   │       ├── 📄 avatar.tsx         # Avatar component
+│   │       ├── 📄 badge.tsx          # Badge component
+│   │       ├── 📄 breadcrumb.tsx     # Breadcrumb navigation
+│   │       ├── 📄 button.tsx         # Button component
+│   │       ├── 📄 calendar.tsx       # Calendar component
+│   │       ├── 📄 card.tsx           # Card component
+│   │       ├── 📄 checkbox.tsx       # Checkbox component
+│   │       ├── 📄 collapsible.tsx    # Collapsible component
+│   │       ├── 📄 combobox-responsive.tsx # Responsive combobox
+│   │       ├── 📄 command.tsx        # Command palette
+│   │       ├── 📁 data-table/        # Data table components
+│   │       ├── 📄 data-table-faceted-filter.tsx # Table filters
+│   │       ├── 📄 data-table-pagination.tsx # Table pagination
+│   │       ├── 📄 date-range-picker.tsx # Date range picker
+│   │       ├── 📄 dialog.tsx         # Dialog component
+│   │       ├── 📄 dropdown-menu.tsx  # Dropdown menu
+│   │       ├── 📄 form.tsx           # Form components
+│   │       ├── 📄 input.tsx          # Input component
+│   │       ├── 📄 kanban.tsx         # Kanban board component
+│   │       ├── 📄 label.tsx          # Label component
+│   │       ├── 📄 popover.tsx        # Popover component
+│   │       ├── 📄 scroll-area.tsx    # Scroll area component
+│   │       ├── 📄 select.tsx         # Select component
+│   │       ├── 📄 separator.tsx      # Separator component
+│   │       ├── 📄 sheet.tsx          # Sheet component
+│   │       ├── 📄 sidebar.tsx        # Sidebar component
+│   │       ├── 📄 skeleton.tsx       # Loading skeleton
+│   │       ├── 📄 sonner.tsx         # Toast notifications
+│   │       ├── 📄 table.tsx          # Table component
+│   │       ├── 📄 tabs.tsx           # Tabs component
+│   │       ├── 📄 textarea.tsx       # Textarea component
+│   │       └── 📄 tooltip.tsx        # Tooltip component
+│   ├── 📁 contexts/                  # React contexts
+│   ├── 📁 hooks/                     # Custom React hooks
+│   ├── 📁 lib/                       # Core logic and utilities
+│   │   ├── 📄 aiClient.ts            # AI client configuration
+│   │   ├── 📄 db.ts                  # Database client
+│   │   ├── 📄 inngest.ts             # Inngest configuration
+│   │   ├── 📄 storage.ts             # File storage utilities
+│   │   ├── 📄 types.ts               # Global type definitions
+│   │   ├── 📄 utils.ts               # Utility functions
+│   │   ├── 📁 actions/               # Server actions
+│   │   │   └── 📄 invoice.actions.ts # Invoice server actions
+│   │   ├── 📁 api/                   # tRPC API layer
+│   │   │   ├── 📄 root.ts            # Main tRPC router
+│   │   │   ├── 📄 trpc.ts            # tRPC configuration
+│   │   │   └── 📁 routers/           # Feature-specific routers
+│   │   │       ├── 📄 bom.ts         # BOM router
+│   │   │       ├── 📄 company.ts     # Company router
+│   │   │       ├── 📄 customer.ts    # Customer router
+│   │   │       ├── 📄 inventory.ts   # Inventory router
+│   │   │       ├── 📄 inventoryCategory.ts # Category router
+│   │   │       ├── 📄 invoice.ts     # Invoice router
+│   │   │       ├── 📄 order.ts       # Order router
+│   │   │       ├── 📄 replenishment.ts # Replenishment router
+│   │   │       ├── 📄 settings.ts    # Settings router
+│   │   │       └── 📄 user.ts        # User router
+│   │   ├── 📁 auth/                  # Authentication logic
+│   │   │   └── 📄 index.ts           # NextAuth configuration
+│   │   ├── 📁 email/                 # Email utilities
+│   │   ├── 📁 schemas/               # Zod validation schemas
+│   │   │   ├── 📄 customer.schema.ts # Customer schemas
+│   │   │   ├── 📄 inventory.schema.ts # Inventory schemas
+│   │   │   ├── 📄 invoice.schema.ts  # Invoice schemas
+│   │   │   └── 📄 order.schema.ts    # Order schemas
+│   │   ├── 📁 services/              # Business logic services
+│   │   │   └── 📄 finvoice.service.ts # Finvoice XML generation
+│   │   ├── 📁 supabase/              # Supabase utilities
+│   │   │   └── 📄 auth.ts            # Supabase auth helpers
+│   │   ├── 📁 trpc/                  # tRPC client setup
+│   │   │   ├── 📄 react.tsx          # tRPC React client
+│   │   │   └── 📄 server.ts          # tRPC server client
+│   │   ├── 📁 types/                 # Type definitions
+│   │   │   └── 📄 order.types.ts     # Order type definitions
+│   │   └── 📁 zod/                   # Zod utilities
+│   ├── 📄 middleware.ts              # Next.js middleware
+│   └── 📁 stories/                   # Storybook stories
+├── 📄 .cursor-updates                # Development progress log
+├── 📄 .cursor-tasks.md               # Task tracking
+├── 📄 .cursorrules                   # Cursor AI rules
+├── 📄 .eslintrc.json                 # ESLint configuration
+├── 📄 .gitignore                     # Git ignore rules
+├── 📄 components.json                # Shadcn UI configuration
+├── 📄 eslint.config.js               # Modern ESLint config
+├── 📄 inngest.config.ts              # Inngest configuration
+├── 📄 LICENSE                        # Project license
+├── 📄 next-env.d.ts                  # Next.js type definitions
+├── 📄 next.config.mjs                # Next.js configuration
+├── 📄 next.config.ts                 # TypeScript Next.js config
+├── 📄 package.json                   # Dependencies and scripts
+├── 📄 package-lock.json              # Dependency lock file
+├── 📄 postcss.config.mjs             # PostCSS configuration
+├── 📄 readme.md                      # Project README
+├── 📄 tailwind.config.ts             # Tailwind CSS configuration
+├── 📄 tsconfig.json                  # TypeScript configuration
+├── 📄 tsconfig.tsbuildinfo           # TypeScript build cache
+└── 📄 vercel.json                    # Vercel deployment config
 ```
 
-### 8.3. Key Components & Interactions
+### 8.3. Key Directory Explanations
 
-*   Layouts (`src/app/layout.tsx`, `src/app/(main)/layout.tsx`) manage structure and providers. `TRPCReactProvider` correctly initialized with cookies.
-*   Feature Routes (e.g., `src/app/(main)/inventory/page.tsx`) use Server Components and tRPC.
-*   UI Components (`src/components/`) are built with Shadcn and custom elements.
-*   tRPC Procedures (`src/lib/api/routers/` and `src/lib/api/trpc.ts`):
-    *   **`protectedProcedure`**: For actions requiring authentication but not necessarily company-specific context (e.g., fetching user profile details applicable across all companies they belong to, creating a new company before an active one is set for it).
-    *   **`companyProtectedProcedure` (New)**: Defined in `src/lib/api/trpc.ts`. This custom procedure extends `protectedProcedure`. It ensures that the user has an active `companyId` in their session (`ctx.session.user.companyId`). This `companyId` (along with `userId`) is then injected into the tRPC context (`ctx.companyId`, `ctx.userId`) for use in the resolver. All tRPC procedures that interact with company-specific data (e.g., listing customers, creating invoices for a company) **MUST** use this procedure to ensure data isolation and security between tenants.
-    *   Feature routers (e.g., `customerRouter`, `invoiceRouter`) utilize `companyProtectedProcedure` for their CRUD operations.
-    *   `userRouter.ts`: Contains procedures like `getMemberCompanies` (protected) to list companies a user is part of, `setActiveCompany` (protected) to update `User.activeCompanyId`, and `createUserInActiveCompany` (companyProtected, admin-only) to create new users within the admin's active company.
-    *   `companyRouter.ts`: Contains `create` (protected) to allow authenticated users (typically admins via UI restriction) to create new `Company` records.
-*   Middleware (`src/middleware.ts`) handles session management.
+**📁 `src/app/(erp)/`** - Main ERP application routes using Next.js App Router
+- Each subdirectory represents a module (customers, inventory, orders, etc.)
+- Follows Next.js file-based routing conventions
+- Contains page components, layouts, and nested routes
+
+**📁 `src/components/`** - React components organized by feature
+- **`ui/`** - Shadcn UI components and primitives
+- **Feature folders** - Module-specific components (customers/, inventory/, etc.)
+- **Root level** - Shared components (AppSidebar, team-switcher, etc.)
+
+**📁 `src/lib/api/routers/`** - tRPC API layer
+- Each router handles a specific domain (customer, inventory, order, etc.)
+- Contains procedures for CRUD operations and business logic
+- Uses `companyProtectedProcedure` for multi-tenant data scoping
+
+**📁 `src/lib/schemas/`** - Zod validation schemas
+- Input validation for forms and API endpoints
+- Type-safe data validation across the application
+- Shared schemas for consistent validation
+
+**📁 `prisma/`** - Database schema and migrations
+- **`schema.prisma`** - Main database schema definition
+- **`migrations/`** - Database migration files for version control
+
+**📁 `docs/`** - Comprehensive project documentation
+- Architecture, requirements, implementation plans
+- Development journal and progress tracking
+- Technical specifications and user flows
 
 ## 9. Key Feature Implementation Notes & Next Steps
 

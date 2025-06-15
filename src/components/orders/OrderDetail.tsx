@@ -95,12 +95,12 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   });
 
   const sendToWorkOrderMutation = api.order.convertToWorkOrder.useMutation({
-    onSuccess: () => {
-      toast.success(`Order converted to Work Order successfully!`);
-      window.location.reload();
+    onSuccess: (newWorkOrder) => {
+      toast.success(`Work Order ${newWorkOrder.orderNumber} created successfully!`);
+      router.push(`/orders/${newWorkOrder.id}`);
     },
     onError: (err) => {
-      toast.error(`Failed to convert to Work Order: ${err.message}`);
+      toast.error(`Failed to create Work Order: ${err.message}`);
     },
   });
 
@@ -214,7 +214,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
               </Button>
             )}
             
-            {/* Send to Work Order button for quotations */}
+            {/* Create Work Order button for quotations */}
             {order.orderType === OrderType.quotation && 
              (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft) && (
               <Button 
@@ -229,7 +229,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                     Converting...
                   </>
                 ) : (
-                  <><Factory className="mr-2 h-4 w-4" /> Send to Work Order</>
+                  <><Factory className="mr-2 h-4 w-4" /> Create Work Order</>
                 )}
               </Button>
             )}
