@@ -364,7 +364,7 @@ export const invoiceRouter = createTRPCRouter({
       if (orderId) {
         await prisma.order.update({
           where: { id: orderId },
-          data: { status: OrderStatus.INVOICED },
+          data: { status: OrderStatus.invoiced },
         });
       }
 
@@ -522,7 +522,7 @@ export const invoiceRouter = createTRPCRouter({
 
         await tx.order.update({
           where: { id: orderId },
-          data: { status: OrderStatus.INVOICED },
+          data: { status: OrderStatus.invoiced },
         });
         
         return createdInvoice;
@@ -806,6 +806,45 @@ export const invoiceRouter = createTRPCRouter({
         },
       });
       return { success: true, id: input.id };
+    }),
+
+  updateStatus: companyProtectedProcedure
+    .input(z.object({ 
+      id: z.string().cuid(),
+      status: z.nativeEnum(InvoiceStatus)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, status } = input;
+
+      const invoice = await prisma.invoice.findUnique({ 
+        where: { 
+          id,
+          companyId: ctx.companyId,
+        } 
+      });
+      if (!invoice) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Invoice not found' });
+      }
+
+      const updateData: any = { status };
+      
+      // Add status-specific fields
+      if (status === InvoiceStatus.sent) {
+        updateData.sentAt = new Date();
+      } else if (status === InvoiceStatus.paid) {
+        updateData.paymentDate = new Date();
+        updateData.paidAmount = invoice.totalAmount;
+      }
+
+      const updatedInvoice = await prisma.invoice.update({
+        where: { 
+          id,
+          companyId: ctx.companyId,
+        },
+        data: updateData,
+      });
+
+      return updatedInvoice;
     }),
 
 }); 

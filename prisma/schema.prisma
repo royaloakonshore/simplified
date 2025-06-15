@@ -1,43 +1,35 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
   output          = "../node_modules/.prisma/client"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["public", "auth"]
+  schemas  = ["public"]
 }
 
 model User {
-  id             String    @id @default(cuid())
-  name           String?
-  email          String?   @unique
-  emailVerified  DateTime?
-  image          String?
-  firstName      String?
-  hashedPassword String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  login          String?
-  role           UserRole  @default(user)
-  isAdmin        Boolean   @default(false)
-  accounts       Account[]
-  sessions       Session[]
-  orders         Order[]
-  invoices       Invoice[]
-
-  // Old single company association - replaced by activeCompanyId and CompanyMemberships
-  // Company        Company?  @relation(fields: [companyId], references: [id])
-  // companyId      String?
-
-  // New: For multi-company membership
-  memberOfCompanies Company[] @relation("CompanyMemberships")
-
-  // New: To store the currently active company for the session
+  id                String    @id @default(cuid())
+  name              String?
+  email             String?   @unique
+  emailVerified     DateTime?
+  image             String?
+  hashedPassword    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  login             String?
+  role              UserRole  @default(user)
+  isAdmin           Boolean   @default(false)
+  firstName         String?
   activeCompanyId   String?
-  activeCompany     Company?  @relation("ActiveCompanyForUser", fields: [activeCompanyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  accounts          Account[]
+  invoices          Invoice[]
+  orders            Order[]
+  sessions          Session[]
+  activeCompany     Company?  @relation("ActiveCompanyForUser", fields: [activeCompanyId], references: [id])
+  memberOfCompanies Company[] @relation("CompanyMemberships")
 
   @@schema("public")
 }
@@ -66,15 +58,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@schema("public")
-}
-
-enum UserRole {
-  admin
-  user
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@schema("public")
 }
@@ -96,21 +80,14 @@ model VerificationToken {
   @@schema("public")
 }
 
-enum AddressType {
-  billing
-  shipping
-
-  @@schema("public")
-}
-
 model Address {
   id            String      @id @default(cuid())
   customerId    String
   type          AddressType
-  streetAddress String // Changed from street
+  streetAddress String
   city          String
   postalCode    String
-  countryCode   String // Changed from country
+  countryCode   String
   customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@schema("public")
@@ -121,16 +98,16 @@ model Customer {
   name                 String
   email                String?
   phone                String?
-  vatId                String? // Y-tunnus in Finland
-  ovtIdentifier        String? // Changed from ovtId 
-  intermediatorAddress String? // Added for Finvoice
+  vatId                String?
+  ovtIdentifier        String?
+  intermediatorAddress String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
-  addresses            Address[]
-  orders               Order[]
-  invoices             Invoice[]
-  Company              Company?  @relation(fields: [companyId], references: [id])
   companyId            String?
+  addresses            Address[]
+  Company              Company?  @relation(fields: [companyId], references: [id])
+  invoices             Invoice[]
+  orders               Order[]
 
   @@index([companyId])
   @@index([name])
@@ -140,46 +117,38 @@ model Customer {
 }
 
 model InventoryItem {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  sku                 String?            @unique
-  name                String
-  description         String?
-  minimumStockLevel   Decimal            @default(0) @db.Decimal(10, 2)
-  reorderLevel        Decimal?           @db.Decimal(10, 2)
-  qrIdentifier        String?            @unique
-  unitOfMeasure       String? // e.g., 'kpl', 'kg', 'm'
-  costPrice           Decimal            @default(0)
-  salesPrice          Decimal            @default(0)
-  quantityOnHand      Decimal            @default(0) // This is the single, directly editable field. Transactions will adjust this.
-  defaultVatRatePercent Decimal?           @db.Decimal(5, 2) // Default VAT rate for this item
-  showInPricelist     Boolean            @default(true)
-  internalRemarks     String?
-  supplierId          String?
-  supplier            Supplier?          @relation(fields: [supplierId], references: [id])
-  inventoryCategoryId String?
-  inventoryCategory   InventoryCategory? @relation(fields: [inventoryCategoryId], references: [id])
-
-  // New fields from requirements
-  leadTimeDays        Int?    // Lead time in days
-  vendorSku           String? // Vendor-specific SKU
-  vendorItemName      String? // Vendor-specific item name
-  variant             String? // New field for item variant
-
-  // New fields for BOM and ItemType
-  itemType        ItemType             @default(RAW_MATERIAL)
-  bom             BillOfMaterial?      @relation("ManufacturedItemBOM")
-  componentInBOMs BillOfMaterialItem[] @relation("ComponentItemInBOMs")
-  // End new fields
-
-  orderItems            OrderItem[]
-  invoiceItems          InvoiceItem[]
+  id                    String                 @id @default(cuid())
+  sku                   String?                @unique
+  name                  String
+  description           String?
+  unitOfMeasure         String?
+  costPrice             Decimal                @default(0)
+  salesPrice            Decimal                @default(0)
+  minimumStockLevel     Decimal                @default(0) @db.Decimal(10, 2)
+  reorderLevel          Decimal?               @db.Decimal(10, 2)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  companyId             String?
+  qrIdentifier          String?                @unique
+  quantityOnHand        Decimal                @default(0)
+  showInPricelist       Boolean                @default(true)
+  supplierId            String?
+  internalRemarks       String?
+  inventoryCategoryId   String?
+  itemType              ItemType               @default(RAW_MATERIAL)
+  defaultVatRatePercent Decimal?               @db.Decimal(5, 2)
+  leadTimeDays          Int?
+  vendorItemName        String?
+  vendorSku             String?
+  variant               String?
+  bom                   BillOfMaterial?        @relation("ManufacturedItemBOM")
+  componentInBOMs       BillOfMaterialItem[]   @relation("ComponentItemInBOMs")
+  company               Company?               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  inventoryCategory     InventoryCategory?     @relation(fields: [inventoryCategoryId], references: [id])
+  supplier              Supplier?              @relation(fields: [supplierId], references: [id])
   inventoryTransactions InventoryTransaction[]
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoiceItems          InvoiceItem[]
+  orderItems            OrderItem[]
 
   @@index([companyId])
   @@index([supplierId])
@@ -193,20 +162,12 @@ model InventoryItem {
   @@schema("public")
 }
 
-enum TransactionType {
-  purchase
-  sale
-  adjustment
-
-  @@schema("public")
-}
-
 model InventoryTransaction {
   id        String          @id @default(cuid())
   itemId    String
   quantity  Decimal         @db.Decimal(10, 2)
   type      TransactionType
-  reference String? // Optional reference to order or invoice
+  reference String?
   note      String?
   createdAt DateTime        @default(now())
   item      InventoryItem   @relation(fields: [itemId], references: [id])
@@ -214,117 +175,81 @@ model InventoryTransaction {
   @@schema("public")
 }
 
-enum OrderStatus {
-  draft
-  confirmed
-  in_production // Added for clarity, maps to production workflow
-  shipped
-  delivered // Added for clarity
-  cancelled
-  quote_sent // Added for quote lifecycle
-  quote_accepted // Added for quote lifecycle
-  quote_rejected // Added for quote lifecycle
-  INVOICED // Added for orders that have been invoiced
-
-  @@schema("public")
-}
-
-enum OrderType {
-  quotation
-  work_order
-
-  @@schema("public")
-}
-
 model Order {
   id             String      @id @default(cuid())
-  companyId      String? // Comment removed
-  orderNumber    String      @unique
   customerId     String
-  customer       Customer    @relation(fields: [customerId], references: [id])
-  orderDate      DateTime    @default(now())
-  deliveryDate   DateTime?
+  orderNumber    String      @unique
   status         OrderStatus @default(draft)
-  orderType      OrderType   @default(work_order)
-  totalAmount    Decimal?    @db.Decimal(10, 2)
   notes          String?
-  qrIdentifier   String?     @unique
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
-  productionStep String?
+  orderDate      DateTime    @default(now())
+  orderType      OrderType   @default(work_order)
   userId         String
-  user           User        @relation(fields: [userId], references: [id])
-  items          OrderItem[]
+  deliveryDate   DateTime?
+  productionStep String?
+  totalAmount    Decimal?    @db.Decimal(10, 2)
+  companyId      String?
+  qrIdentifier   String?     @unique
   invoices       Invoice[]   @relation("OrderToInvoices")
   Company        Company?    @relation(fields: [companyId], references: [id])
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  user           User        @relation(fields: [userId], references: [id])
+  items          OrderItem[]
 
   @@index([customerId])
   @@index([status])
   @@index([orderType])
-  @@index([companyId]) // Index uncommented and comment removed
+  @@index([companyId])
   @@schema("public")
 }
 
 model OrderItem {
   id                 String        @id @default(cuid())
   orderId            String
-  inventoryItemId    String // Renamed from itemId to be explicit FK for inventoryItem relation
+  inventoryItemId    String
   quantity           Decimal       @db.Decimal(10, 2)
   unitPrice          Decimal       @db.Decimal(10, 2)
   discountAmount     Decimal?      @db.Decimal(10, 2)
-  discountPercentage Decimal?      @db.Decimal(5, 2) // Renamed from discountPercent
+  discountPercentage Decimal?      @db.Decimal(5, 2)
+  inventoryItem      InventoryItem @relation(fields: [inventoryItemId], references: [id])
   order              Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  inventoryItem      InventoryItem @relation(fields: [inventoryItemId], references: [id]) // Renamed relation from item
 
-  @@map("order_items") // Explicitly map table name if default (OrderItem) is not desired
-  @@schema("public")
-}
-
-enum InvoiceStatus {
-  draft
-  sent
-  paid
-  overdue
-  cancelled
-  credited
-
+  @@map("order_items")
   @@schema("public")
 }
 
 model Invoice {
   id                String        @id @default(cuid())
-  invoiceNumber     String        @unique // Should be sequential
+  invoiceNumber     String        @unique
   customerId        String
-  orderId           String? // Optional link to an Order
+  orderId           String?
+  status            InvoiceStatus @default(draft)
   invoiceDate       DateTime      @default(now())
   dueDate           DateTime
-  status            InvoiceStatus @default(draft)
   notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
   vatReverseCharge  Boolean       @default(false)
+  creditNoteId      String?       @unique
+  isCreditNote      Boolean       @default(false)
+  originalInvoiceId String?       @unique
   totalAmount       Decimal       @default(0) @db.Decimal(12, 2)
   totalVatAmount    Decimal       @default(0) @db.Decimal(12, 2)
-  isCreditNote      Boolean       @default(false)
-  originalInvoiceId String?       @unique // For credit notes, ID of the original invoice
-  creditNoteId      String?       @unique // For original invoices, ID of the credit note that credits this one
-  userId            String? // Added: ID of the user who created/managed this invoice
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  customer Customer      @relation(fields: [customerId], references: [id])
-  order    Order?        @relation("OrderToInvoices", fields: [orderId], references: [id]) // Corrected relation name
-  user     User?         @relation(fields: [userId], references: [id]) // Added: Relation to User
-  items    InvoiceItem[]
-  payments Payment[]
-
-  originalInvoice Invoice? @relation("CreditNoteToOriginal", fields: [originalInvoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  creditNote      Invoice? @relation("CreditNoteToOriginal") // Relation for the original invoice to its credit note
-  Company         Company? @relation(fields: [companyId], references: [id])
-  companyId       String?
+  userId            String?
+  companyId         String?
+  Company           Company?      @relation(fields: [companyId], references: [id])
+  customer          Customer      @relation(fields: [customerId], references: [id])
+  order             Order?        @relation("OrderToInvoices", fields: [orderId], references: [id])
+  originalInvoice   Invoice?      @relation("CreditNoteToOriginal", fields: [originalInvoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  creditNote        Invoice?      @relation("CreditNoteToOriginal")
+  user              User?         @relation(fields: [userId], references: [id])
+  payments          Payment[]
+  items             InvoiceItem[]
 
   @@index([customerId])
   @@index([orderId])
-  @@index([originalInvoiceId]) // Index for faster lookups of credit notes
+  @@index([originalInvoiceId])
   @@index([companyId])
   @@index([status])
   @@index([invoiceDate])
@@ -333,24 +258,20 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id                 String   @id @default(cuid())
-  invoiceId          String
-  inventoryItemId    String // Renamed from itemId
-  description        String?
-  quantity           Decimal  @db.Decimal(10, 2)
-  unitPrice          Decimal  @db.Decimal(10, 2) // This is NET (VAT-exclusive)
-  vatRatePercent     Decimal  @db.Decimal(5, 2)
-  discountAmount     Decimal? @db.Decimal(10, 2)
-  discountPercentage Decimal? @db.Decimal(5, 2) // Renamed from discountPercent
-
-  // New fields for profitability tracking
-  calculatedUnitCost   Decimal? @db.Decimal(10, 2) // Cost of the item at the time of sale (VAT-exclusive)
-  calculatedUnitProfit Decimal? @db.Decimal(10, 2) // Profit per unit at the time of sale (VAT-exclusive)
-  calculatedLineProfit Decimal? @db.Decimal(10, 2) // Total profit for this line at the time of sale (VAT-exclusive)
-  // End new fields
-
-  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id]) // Renamed relation from item
+  id                   String        @id @default(cuid())
+  invoiceId            String
+  inventoryItemId      String
+  description          String?
+  quantity             Decimal       @db.Decimal(10, 2)
+  unitPrice            Decimal       @db.Decimal(10, 2)
+  vatRatePercent       Decimal       @db.Decimal(5, 2)
+  discountAmount       Decimal?      @db.Decimal(10, 2)
+  discountPercentage   Decimal?      @db.Decimal(5, 2)
+  calculatedLineProfit Decimal?      @db.Decimal(10, 2)
+  calculatedUnitCost   Decimal?      @db.Decimal(10, 2)
+  calculatedUnitProfit Decimal?      @db.Decimal(10, 2)
+  inventoryItem        InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  invoice              Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@map("invoice_items")
   @@schema("public")
@@ -368,85 +289,163 @@ model Payment {
 }
 
 model Settings {
-  id String @id @default(cuid())
-  // companyId               String  @unique // TODO: Add when multi-tenancy is implemented (needs to be @unique for findFirst/update logic in settings router or tied to user)
-
-  companyName String // Was String, remains String (required by schema)
-  vatId       String // Was String, remains String (required by schema)
-  domicile    String // New, String (required by schema)
-
-  streetAddress String // Was String, remains String (required by schema)
-  postalCode    String // Was String, remains String (required by schema)
-  city          String // Was String, remains String (required by schema)
-  countryCode   String // Renamed from country, String (required by schema)
-  countryName   String // New, String (required by schema)
-
-  bankAccountIBAN String // Renamed from bankAccountIban, String (required by schema)
-  bankAccountBIC  String // Renamed from bankSwiftBic, String (required by schema)
-
-  // Optional fields from schema
-  website                    String? // New, optional
-  sellerIdentifier           String? // Renamed from ovtId, optional
-  sellerIntermediatorAddress String? // Renamed from finvoiceIntermediator, optional
-  bankName                   String? // Was String?, remains String? (optional)
-  defaultInvoicePaymentTermsDays Int?    // Added field for default payment terms
-  defaultVatRatePercent      Decimal? @db.Decimal(5, 2) // Added: Company-level default VAT rate
-
-  // Fields to review/remove from old model if not in new schema:
-  // phone                   String? // Not in settingsSchema, was optional
-  // email                   String? // Not in settingsSchema, was optional
-  // finvoiceIntermediatorId String? // Removed as sellerIntermediatorAddress should cover the OVT/identifier
-
-  // For now, I will comment them out. If they are truly unused, they can be deleted later.
-  phone String? @map("settings_phone") // Keep but map to avoid breaking old data if any, or remove if unused
-  email String? @map("settings_email") // Keep but map, or remove if unused
-  // finvoiceIntermediatorId String? // Removed as sellerIntermediatorAddress should cover the OVT/identifier
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                             String   @id @default(cuid())
+  companyName                    String
+  vatId                          String
+  bankName                       String?
+  city                           String
+  postalCode                     String
+  streetAddress                  String
+  bankAccountBIC                 String
+  bankAccountIBAN                String
+  countryCode                    String
+  countryName                    String
+  createdAt                      DateTime @default(now())
+  domicile                       String
+  sellerIdentifier               String?
+  sellerIntermediatorAddress     String?
+  email                          String?  @map("settings_email")
+  phone                          String?  @map("settings_phone")
+  updatedAt                      DateTime @updatedAt
+  website                        String?
+  defaultInvoicePaymentTermsDays Int?
+  defaultVatRatePercent          Decimal? @db.Decimal(5, 2)
 
   @@schema("public")
 }
 
 model BillOfMaterial {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name                String  @unique
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  manufacturedItemId  String?              @unique
+  manualLaborCost     Decimal              @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  companyId           String?
   description         String?
-  manualLaborCost     Decimal @default(0)
-  totalCalculatedCost Decimal @default(0) // To be updated by application logic
-
-  manufacturedItemId String?              @unique // Made optional
-  manufacturedItem   InventoryItem?       @relation("ManufacturedItemBOM", fields: [manufacturedItemId], references: [id], onDelete: Cascade)
-  items              BillOfMaterialItem[]
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  totalCalculatedCost Decimal              @default(0)
+  company             Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manufacturedItem    InventoryItem?       @relation("ManufacturedItemBOM", fields: [manufacturedItemId], references: [id], onDelete: Cascade)
+  items               BillOfMaterialItem[]
 
   @@index([companyId])
   @@schema("public")
 }
 
 model BillOfMaterialItem {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  quantity Decimal
-
+  id               String         @id @default(cuid())
   billOfMaterialId String
+  quantity         Decimal
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  companyId        String?
+  componentItemId  String
   billOfMaterial   BillOfMaterial @relation(fields: [billOfMaterialId], references: [id], onDelete: Cascade)
-
-  componentItemId String
-  componentItem   InventoryItem @relation("ComponentItemInBOMs", fields: [componentItemId], references: [id], onDelete: Cascade) // Cascade delete if component item is deleted? Or restrict? For now, Cascade.
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company          Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  componentItem    InventoryItem  @relation("ComponentItemInBOMs", fields: [componentItemId], references: [id], onDelete: Cascade)
 
   @@unique([billOfMaterialId, componentItemId])
   @@index([companyId])
+  @@schema("public")
+}
+
+model Company {
+  id                           String               @id @default(cuid())
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+  name                         String               @unique
+  billOfMaterials              BillOfMaterial[]
+  billOfMaterialItems          BillOfMaterialItem[]
+  customers                    Customer[]
+  inventoryCategories          InventoryCategory[]
+  inventoryItems               InventoryItem[]
+  invoices                     Invoice[]
+  orders                       Order[]
+  suppliers                    Supplier[]
+  usersWithThisAsActiveCompany User[]               @relation("ActiveCompanyForUser")
+  companyMembers               User[]               @relation("CompanyMemberships")
+
+  @@schema("public")
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  name           String
+  contactInfo    String?
+  companyId      String?
+  inventoryItems InventoryItem[]
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@schema("public")
+}
+
+model InventoryCategory {
+  id             String          @id @default(cuid())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  name           String
+  companyId      String?
+  description    String?
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  inventoryItems InventoryItem[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@schema("public")
+}
+
+enum UserRole {
+  admin
+  user
+
+  @@schema("public")
+}
+
+enum AddressType {
+  billing
+  shipping
+
+  @@schema("public")
+}
+
+enum TransactionType {
+  purchase
+  sale
+  adjustment
+
+  @@schema("public")
+}
+
+enum OrderStatus {
+  draft
+  confirmed
+  in_production
+  shipped
+  delivered
+  cancelled
+  invoiced
+
+  @@schema("public")
+}
+
+enum OrderType {
+  quotation
+  work_order
+
+  @@schema("public")
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+  cancelled
+  credited
+
   @@schema("public")
 }
 
@@ -457,64 +456,3 @@ enum ItemType {
   @@schema("public")
 }
 
-model Company {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  name      String   @unique
-
-  // Old back-relation for User.companyId - replaced by CompanyMemberships
-  // users               User[]
-
-  // New: For multi-company membership
-  companyMembers User[] @relation("CompanyMemberships")
-
-  // New: Back-relation for users having this company as active
-  usersWithThisAsActiveCompany User[] @relation("ActiveCompanyForUser")
-
-  customers           Customer[]
-  orders              Order[]
-  invoices            Invoice[]
-  inventoryItems      InventoryItem[]
-  inventoryCategories InventoryCategory[]
-  suppliers           Supplier[]
-  billOfMaterials     BillOfMaterial[]
-  billOfMaterialItems BillOfMaterialItem[]
-
-  @@schema("public")
-}
-
-model Supplier {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name        String
-  contactInfo String?
-
-  inventoryItems InventoryItem[]
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@schema("public")
-}
-
-model InventoryCategory {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  name        String
-  description String? // Added description field
-
-  inventoryItems InventoryItem[]
-
-  companyId String? // Optional because a category might be global or specific
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, name]) // A category name must be unique within a company (or globally if companyId is null)
-  @@index([companyId])
-  @@schema("public")
-}

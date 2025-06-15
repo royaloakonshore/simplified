@@ -106,7 +106,7 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
   };
 
   const canSendToWorkOrder = order.orderType === OrderType.quotation && 
-    (order.status === OrderStatus.quote_accepted || order.status === OrderStatus.draft);
+    (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft);
 
   return (
     <DropdownMenu>

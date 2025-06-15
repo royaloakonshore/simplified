@@ -32,7 +32,7 @@ const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "
       return "default";
     case OrderStatus.shipped:
     case OrderStatus.delivered:
-    case OrderStatus.INVOICED: // Added INVOICED if it uses same styling
+    case OrderStatus.invoiced: // Added invoiced if it uses same styling
       return "outline";
     case OrderStatus.cancelled:
       return "destructive";

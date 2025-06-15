@@ -52,6 +52,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/customers/CustomerForm";
+import InvoiceSubmissionModal from "./InvoiceSubmissionModal";
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -92,10 +93,16 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
     name: "items",
   });
 
+  const [showSubmissionModal, setShowSubmissionModal] = React.useState(false);
+  const [createdInvoice, setCreatedInvoice] = React.useState<{ id: string; invoiceNumber: string } | null>(null);
+
   const createInvoiceMutation = api.invoice.create.useMutation({
     onSuccess: (data) => {
-      toast.success(`Invoice ${data.invoiceNumber} created successfully!`);
-      router.push(`/invoices/${data.id}`);
+      setCreatedInvoice({
+        id: data.id,
+        invoiceNumber: data.invoiceNumber,
+      });
+      setShowSubmissionModal(true);
       form.reset();
     },
     onError: (error) => {
@@ -659,6 +666,16 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
           />
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Submission Modal */}
+      {createdInvoice && (
+        <InvoiceSubmissionModal
+          isOpen={showSubmissionModal}
+          onOpenChange={setShowSubmissionModal}
+          invoiceId={createdInvoice.id}
+          invoiceNumber={createdInvoice.invoiceNumber}
+        />
+      )}
     </>
   );
 } 

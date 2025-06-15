@@ -5,16 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type inferRouterOutputs } from '@trpc/server';
 import { type AppRouter } from "@/lib/api/root";
-import { OrderStatus, OrderType, type Address } from "@prisma/client";
+import { OrderStatus, OrderType, Prisma } from "@prisma/client";
 import { api } from "@/lib/trpc/react";
 import { toast } from "sonner";
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from "@/components/ui/button";
-import { CardContent, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ClientOnly from "@/components/ClientOnly";
-import { FileText, Loader, Factory } from 'lucide-react';
+import { FileText, Loader, Factory, Download, MoreHorizontal } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import OrderStatusUpdateModal from "./OrderStatusUpdateModal";
 
 // Types
@@ -37,18 +43,15 @@ interface OrderDetailProps {
 const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "destructive" | "outline" => {
   switch (status) {
     case OrderStatus.draft:
-    case OrderStatus.quote_sent:
-    case OrderStatus.quote_accepted:
       return "secondary";
     case OrderStatus.confirmed:
     case OrderStatus.in_production:
       return "default";
     case OrderStatus.shipped:
     case OrderStatus.delivered:
-    case OrderStatus.INVOICED:
+    case OrderStatus.invoiced:
       return "outline";
     case OrderStatus.cancelled:
-    case OrderStatus.quote_rejected:
       return "destructive";
     default:
       return "secondary";
@@ -66,9 +69,16 @@ const getOrderTypeDisplay = (orderType: OrderType): string => {
   }
 };
 
+// Format currency function
+const formatCurrency = (amount: number | string | Prisma.Decimal | null | undefined) => {
+  return new Intl.NumberFormat('fi-FI', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(Number(amount ?? 0));
+};
+
 export default function OrderDetail({ order }: OrderDetailProps) {
   const router = useRouter();
-  const utils = api.useUtils();
   const [showGoToInvoiceModal, setShowGoToInvoiceModal] = useState(false);
   const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
   const [isStatusUpdateModalOpen, setIsStatusUpdateModalOpen] = useState(false);
@@ -85,7 +95,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   });
 
   const sendToWorkOrderMutation = api.order.convertToWorkOrder.useMutation({
-    onSuccess: (workOrder) => {
+    onSuccess: () => {
       toast.success(`Order converted to Work Order successfully!`);
       window.location.reload();
     },
@@ -116,29 +126,30 @@ export default function OrderDetail({ order }: OrderDetailProps) {
     });
   };
 
-  // Format functions
-  const formatDateInternal = (date: Date | string) => {
-    return new Date(date).toLocaleDateString('fi-FI', {
-      year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  };
+  const exportPDFMutation = api.order.exportPDF.useMutation({
+    onSuccess: (result) => {
+      toast.success(result.message);
+    },
+    onError: (err) => {
+      toast.error(`Failed to export PDF: ${err.message}`);
+    },
+  });
 
-  const formatCurrencyInternal = (amount: number | string | null | undefined) => {
-    return new Intl.NumberFormat('fi-FI', {
-      style: 'currency', currency: 'EUR',
-    }).format(Number(amount ?? 0));
+  const handleExportPDF = () => {
+    if (!order.id) {
+      toast.error('Order ID is missing');
+      return;
+    }
+    exportPDFMutation.mutate({ id: order.id });
   };
 
   const canUpdateStatus = () => {
     const validTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
-      [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled, OrderStatus.quote_sent],
-      [OrderStatus.quote_sent]: [OrderStatus.quote_accepted, OrderStatus.quote_rejected, OrderStatus.cancelled],
-      [OrderStatus.quote_accepted]: [OrderStatus.confirmed, OrderStatus.cancelled],
+      [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled],
       [OrderStatus.confirmed]: [OrderStatus.in_production, OrderStatus.cancelled, OrderStatus.shipped],
       [OrderStatus.in_production]: [OrderStatus.shipped, OrderStatus.cancelled],
-      [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.INVOICED, OrderStatus.cancelled],
-      [OrderStatus.delivered]: [OrderStatus.INVOICED, OrderStatus.cancelled],
+      [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.invoiced, OrderStatus.cancelled],
+      [OrderStatus.delivered]: [OrderStatus.invoiced, OrderStatus.cancelled],
     };
     return (validTransitions[order.status] ?? []).length > 0;
   };
@@ -146,7 +157,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   return (
     <div className="bg-card text-card-foreground rounded-md shadow overflow-hidden">
       {/* Order Header */}
-      <div className="px-6 py-4 border-b border-border dark:border-border">
+      <div className="px-6 py-4 border-b border-border">
         <div className="flex flex-wrap justify-between items-center gap-4">
           <h2 className="text-xl font-semibold">Order {order.orderNumber}</h2>
           <div className="flex items-center space-x-2">
@@ -156,30 +167,61 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             <Badge variant={getStatusBadgeVariant(order.status)}>
               {order.status.replace('_', ' ').toUpperCase()}
             </Badge>
+            
+            {/* Actions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">More actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export PDF
+                </DropdownMenuItem>
+                {canUpdateStatus() && (
+                  <DropdownMenuItem onClick={() => setIsStatusUpdateModalOpen(true)}>
+                    Update Status
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {order.status === OrderStatus.draft && (
+                  <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>
+                    Edit Order
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Primary Action Buttons */}
             {order.status !== OrderStatus.cancelled &&
-            order.status !== OrderStatus.INVOICED && (
+            order.status !== OrderStatus.invoiced && (
               <Button 
                 onClick={handleCreateInvoice}
                 disabled={createInvoiceMutation.isPending}
-                className="mt-4 md:mt-0"
+                size="sm"
               >
                 {createInvoiceMutation.isPending ? (
                   <>
                     <Loader className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Invoice...
+                    Creating...
                   </>
                 ) : (
                   <><FileText className="mr-2 h-4 w-4" /> Create Invoice</>
                 )}
               </Button>
             )}
+            
             {/* Send to Work Order button for quotations */}
             {order.orderType === OrderType.quotation && 
-             (order.status === OrderStatus.quote_accepted || order.status === OrderStatus.draft) && (
+             (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft) && (
               <Button 
                 onClick={handleSendToWorkOrder}
                 disabled={sendToWorkOrderMutation.isPending}
                 variant="secondary"
+                size="sm"
               >
                 {sendToWorkOrderMutation.isPending ? (
                   <>
@@ -191,80 +233,135 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                 )}
               </Button>
             )}
-            {order.status === OrderStatus.draft && (
-              <Button asChild size="sm">
-                 <Link href={`/orders/${order.id}/edit`}>Edit Order</Link>
-              </Button>
-            )}
-            {canUpdateStatus() && (
-                <Button size="sm" onClick={() => setIsStatusUpdateModalOpen(true)}>
-                    Update Status
-                </Button>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Order Details */}
-      <CardContent className="px-6 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Customer Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Customer Information</h3>
-            <div className="space-y-1">
-              <p><strong>Customer:</strong> {order.customer?.name}</p>
-              <p><strong>Order Date:</strong> {formatDateInternal(order.createdAt)}</p>
-              {order.deliveryDate && <p><strong>Delivery Date:</strong> {formatDateInternal(order.deliveryDate)}</p>}
-            </div>
-          </div>
-
-          {/* Order Summary */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Order Summary</h3>
-            <div className="space-y-1">
-              <p><strong>Total Amount:</strong> {formatCurrencyInternal(order.totalAmount)}</p>
-              <p><strong>Notes:</strong> {order.notes || 'No notes'}</p>
+      {/* Order Details Grid - Restored half-width design */}
+      <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Customer Column */}
+        <div className="md:col-span-1">
+          <h3 className="text-lg font-medium mb-2">Customer</h3>
+          <div className="text-sm space-y-1 text-muted-foreground">
+            <p className="font-medium text-primary">
+              <Link href={`/customers/${order.customer.id}`} className="hover:underline">
+                {order.customer?.name}
+              </Link>
+            </p>
+            {order.customer?.email && <p>{order.customer.email}</p>}
+            {order.customer?.phone && <p>{order.customer.phone}</p>}
+            {order.customer?.vatId && <p>VAT ID: {order.customer.vatId}</p>}
+            
+            <div className="pt-2 mt-2 border-t">
+              <p className="font-medium text-primary">Order Details:</p>
+              <p>Order Date: {new Date(order.createdAt).toLocaleDateString('fi-FI')}</p>
+              {order.deliveryDate && (
+                <p>Delivery Date: {new Date(order.deliveryDate).toLocaleDateString('fi-FI')}</p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Order Items */}
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-4">Order Items</h3>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {order.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.inventoryItem.name}</TableCell>
-                  <TableCell>{item.inventoryItem.sku}</TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{formatCurrencyInternal(item.unitPrice)}</TableCell>
-                  <TableCell className="text-right">{formatCurrencyInternal(Number(item.quantity) * Number(item.unitPrice))}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        {/* Items Column */}
+        <div className="md:col-span-2">
+          <h3 className="text-lg font-medium mb-2">Order Items</h3>
+          <div className="border rounded-md overflow-hidden">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase">
+                    Item
+                  </th>
+                  <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">
+                    Qty
+                  </th>
+                  {order.orderType === OrderType.quotation && (
+                    <>
+                      <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">
+                        Unit Price
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase">
+                        Line Total
+                      </th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-background">
+                {order.items.map((orderItem) => {
+                  const quantity = new Prisma.Decimal(orderItem.quantity);
+                  const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
+                  const discountAmount = orderItem.discountAmount ? new Prisma.Decimal(orderItem.discountAmount) : new Prisma.Decimal(0);
+                  const lineItemTotal = quantity.mul(unitPrice).sub(discountAmount);
+
+                  return (
+                    <tr key={orderItem.id}>
+                      <td className="px-4 py-2 text-sm">
+                        <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
+                          {orderItem.inventoryItem.name}
+                        </Link>
+                        <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
+                      </td>
+                      <td className="px-4 py-2 text-right text-sm">{quantity.toString()}</td>
+                      {order.orderType === OrderType.quotation && (
+                        <>
+                          <td className="px-4 py-2 text-right text-sm">{formatCurrency(unitPrice)}</td>
+                          <td className="px-4 py-2 text-right text-sm">
+                            {formatCurrency(lineItemTotal)}
+                            {discountAmount.gt(0) && (
+                              <div className="text-xs text-red-500">(-{formatCurrency(discountAmount)})</div>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {order.orderType === OrderType.quotation && (
+                <tfoot className="bg-muted/50 border-t">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2 text-right text-sm font-medium uppercase">Total</td>
+                    <td className="px-4 py-2 text-right text-sm font-medium">{formatCurrency(order.totalAmount ?? 0)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+          
+          {order.notes && (
+            <div className="mt-4">
+              <h4 className="font-medium mb-1">Notes:</h4>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{order.notes}</p>
+            </div>
+          )}
         </div>
 
-        {/* QR Code (if exists) */}
+        {/* QR Code Section */}
         {order.qrIdentifier && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">QR Code</h3>
-            <ClientOnly>
-              <QRCodeSVG value={order.qrIdentifier} size={128} />
-            </ClientOnly>
+          <div className="md:col-span-3 mt-6 pt-6 border-t">
+            <h3 className="text-lg font-medium mb-2">Order QR Code</h3>
+            <div className="flex flex-col items-center md:items-start">
+              <ClientOnly>
+                <QRCodeSVG value={order.qrIdentifier} size={128} bgColor={"#ffffff"} fgColor={"#000000"} level={"Q"} />
+              </ClientOnly>
+              <p className="text-sm text-muted-foreground mt-2">Scan to view/update order details.</p>
+            </div>
           </div>
         )}
-      </CardContent>
+      </div>
+
+      {/* Totals Section - Only for quotations */}
+      {order.orderType === OrderType.quotation && (
+        <div className="px-6 py-4 border-t border-border">
+          <div className="flex justify-end">
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(order.totalAmount ?? 0)}</p>
+              <p className="text-lg font-semibold">Total: {formatCurrency(order.totalAmount ?? 0)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* OrderStatusUpdateModal */}
       <OrderStatusUpdateModal

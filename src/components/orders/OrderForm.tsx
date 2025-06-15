@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/customers/CustomerForm";
+import OrderSubmissionModal from "./OrderSubmissionModal";
 
 // Define form value types from Zod schemas
 type CreateFormValues = z.infer<typeof createOrderSchema>;
@@ -161,11 +162,17 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     }
   }, [order, isEditMode, updateForm, createForm]);
 
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<{ id: string; orderNumber: string; orderType: OrderType } | null>(null);
+
   const createOrderMutation = api.order.create.useMutation({
     onSuccess: (data) => {
-      toast.success("Order created successfully!");
-      router.push('/orders');
-      router.refresh();
+      setCreatedOrder({
+        id: data.id,
+        orderNumber: data.orderNumber,
+        orderType: data.orderType,
+      });
+      setShowSubmissionModal(true);
     },
     onError: (error) => {
       toast.error(`Failed to create order: ${error.message}`);
@@ -464,7 +471,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   type="button" 
                   variant="secondary"
                   onClick={() => handleCreateInvoice(order?.id)}
-                  disabled={!order || updateOrderMutation.isPending || createInvoiceMutation.isPending || order.status === OrderStatus.INVOICED || order.status === OrderStatus.cancelled}
+                  disabled={!order || updateOrderMutation.isPending || createInvoiceMutation.isPending || order.status === OrderStatus.invoiced || order.status === OrderStatus.cancelled}
                   className="mr-2"
               >
                   {createInvoiceMutation.isPending ? "Creating Invoice..." : "Create Invoice"}
@@ -703,6 +710,17 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             />
           </DialogContent>
         </Dialog>
+
+        {/* Order Submission Modal */}
+        {createdOrder && (
+          <OrderSubmissionModal
+            isOpen={showSubmissionModal}
+            onOpenChange={setShowSubmissionModal}
+            orderId={createdOrder.id}
+            orderType={createdOrder.orderType}
+            orderNumber={createdOrder.orderNumber}
+          />
+        )}
       </>
     );
   }

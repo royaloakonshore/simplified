@@ -486,8 +486,8 @@ export const orderRouter = createTRPCRouter({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only quotations can be converted to work orders' });
       }
 
-      if (order.status !== OrderStatus.quote_accepted && order.status !== OrderStatus.draft) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order status must be draft or quote_accepted to convert to work order' });
+      if (order.status !== OrderStatus.confirmed && order.status !== OrderStatus.draft) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order status must be draft or confirmed to convert to work order' });
       }
 
       // Update the order to be a work order and set status to confirmed
@@ -571,5 +571,36 @@ export const orderRouter = createTRPCRouter({
             });
             
             return { count: result.count, updatedIds: validOrderIds };
-        })
+        }),
+
+  exportPDF: companyProtectedProcedure
+    .input(z.object({ id: z.string().cuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { id } = input;
+
+      // Get the order with all details
+      const order = await prisma.order.findUnique({
+        where: { 
+          id,
+          companyId: ctx.companyId,
+        },
+        include: orderDetailIncludeArgs,
+      });
+
+      if (!order) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
+      }
+
+      // TODO: Implement actual PDF generation
+      // For work orders: exclude prices, focus on BOMs and manufacturing details
+      // For quotations: include all customer-oriented info including pricing
+      
+      // Placeholder implementation - return success for now
+      return {
+        success: true,
+        message: `PDF export for ${order.orderType === OrderType.quotation ? 'quotation' : 'work order'} ${order.orderNumber} - Implementation pending`,
+        orderType: order.orderType,
+        orderNumber: order.orderNumber,
+      };
+    }),
 }); 
