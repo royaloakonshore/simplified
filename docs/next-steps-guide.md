@@ -260,3 +260,206 @@ const CustomerActions = ({ customer }: { customer: Customer }) => (
 ---
 
 **Next Action**: Fix BOM detail page build error to unblock remaining Phase 2 development. 
+
+# Next Steps Implementation Guide
+
+## **🎯 IMMEDIATE NEXT STEPS - PRIORITY ORDER**
+
+Based on comprehensive analysis and latest user feedback, here's the systematic roadmap:
+
+### **✅ PHASE 1: COMPLETED (100%)**
+- ✅ VAT separation design implemented in OrderForm with totals breakdown
+- ✅ Fixed "Create Quotation" URL parameter bug (now correctly preselects quotation)
+- ✅ Added vatRatePercent field to OrderItem schema with Finnish VAT rates (0%, 10%, 14%, 25.5%)
+- ✅ Enhanced category filtering in InventoryTable with Badge components
+
+### **🔄 PHASE 2: TABLE STANDARDIZATION & UI CONSISTENCY (HIGH PRIORITY)**
+
+#### **2.1 Order Table Enhancements (2-3 hours)**
+**Status**: 🔴 **HIGH PRIORITY**
+**Goal**: Complete Order table to match Invoice table functionality
+
+**Requirements**:
+- [ ] **Three-dots dropdown** for Order rows with actions:
+  - View Order
+  - Create Invoice (for all orders)
+  - Create Work Order (for quotations only)
+- [ ] **Multi-select checkboxes** with bulk actions
+- [ ] **Export PDF bulk action** for selected orders
+- [ ] **Search functionality** across order fields
+- [ ] **Advanced filtering** (status, type, customer, date range)
+- [ ] **Pagination** for large datasets
+
+**Implementation**:
+```typescript
+// Pattern: Use OrderTableWithActions component similar to InvoiceTable
+// Location: src/components/orders/OrderTable.tsx
+// Reference: src/components/invoices/InvoiceTable.tsx for multi-select pattern
+```
+
+#### **2.2 BOM Table Enhancements (2-3 hours)**
+**Status**: 🔴 **HIGH PRIORITY**  
+**Goal**: Implement advanced table functionality for BOMs
+
+**Requirements**:
+- [ ] **Multi-select checkboxes** with bulk actions
+- [ ] **Search functionality** across BOM fields  
+- [ ] **Advanced filtering** (category, manufactured item, cost range)
+- [ ] **Pagination** for large datasets
+- [ ] **Table header sorting** matching Invoice table style
+- [ ] **Filter/sort section** matching Inventory page design
+
+#### **2.3 Table Header & Filter Design Standardization (1-2 hours)**
+**Status**: 🔴 **HIGH PRIORITY**
+**Goal**: Uniform look across all tables
+
+**Requirements**:
+- [ ] **Standardize table headers**: Use Invoice table header style with sorting across:
+  - Orders table ✅ (exists but needs styling consistency)
+  - BOMs table 🔄 (needs implementation)
+  - Production table 🔄 (needs implementation)  
+  - Customers table ✅ (exists but needs styling consistency)
+  - Invoices table ✅ (reference implementation)
+- [ ] **Standardize filter sections**: Use Inventory filter/sort section design across:
+  - Orders table 🔄 (needs implementation)
+  - BOMs table 🔄 (needs implementation)
+  - Production table ✅ (exists but needs styling consistency)
+  - Customers table 🔄 (needs implementation)
+  - Invoices table 🔄 (needs implementation)
+
+### **🔄 PHASE 3: PAGE LAYOUT CONSISTENCY (MEDIUM PRIORITY)**
+
+#### **3.1 Content Layout Standardization (1-2 hours)**
+**Status**: 🟡 **MEDIUM PRIORITY**
+**Goal**: Fix content width jumping and ensure consistency
+
+**Requirements**:
+- [ ] **Full-width content layout** across all pages to prevent jumping
+- [ ] **Consistent padding**: Fix BOM page padding to match Inventory page
+- [ ] **Header consistency**: Add H1 header image to Invoices page
+- [ ] **Container standardization**: Use consistent max-width and centering
+
+**Pages to standardize**:
+```typescript
+// Reference layout: src/app/(erp)/inventory/page.tsx
+- src/app/(erp)/orders/page.tsx ✅ (good reference) 
+- src/app/(erp)/boms/page.tsx 🔄 (needs padding fix)
+- src/app/(erp)/invoices/page.tsx 🔄 (needs H1 header image)
+- src/app/(erp)/production/page.tsx 🔄 (needs layout review)
+- src/app/(erp)/customers/page.tsx ✅ (good reference)
+```
+
+#### **3.2 Advanced Item Selection (1-2 hours)**
+**Status**: 🟡 **MEDIUM PRIORITY**  
+**Goal**: Replace basic dropdowns with searchable multi-select
+
+**Requirements**:
+- [ ] **Orders form**: Replace inventory item dropdown with MultiSelectCombobox ✅ (component added)
+- [ ] **Invoices form**: Replace item dropdown with MultiSelectCombobox
+- [ ] **BOM form**: Replace component item dropdown with MultiSelectCombobox
+
+**Implementation Pattern**:
+```typescript
+// Use: src/components/ui/multi-select-combobox.tsx ✅ (already added)
+// Replace single Select with MultiSelectCombobox for better UX
+```
+
+### **🔄 PHASE 4: INVENTORY ENHANCEMENTS (LOW PRIORITY)**
+
+#### **4.1 Excel Import/Export Functionality (2-3 hours)**
+**Status**: 🟢 **LOW PRIORITY**
+**Goal**: Add data management capabilities
+
+**Requirements**:
+- [ ] **Excel Export button** in Inventory page for bulk data export
+- [ ] **Excel Import button** in Inventory page for bulk data editing
+- [ ] **Template generation** for proper import format
+- [ ] **Validation logic** for imported data
+
+### **🔄 PHASE 5: BULK ACTIONS & PDF GENERATION (LOW PRIORITY)**
+
+#### **5.1 PDF Export Implementation (2-3 hours)**
+**Status**: 🟢 **LOW PRIORITY**
+**Goal**: Bulk PDF generation for orders and invoices
+
+**Requirements**:
+- [ ] **Orders PDF export**: Bulk export selected orders as PDF
+- [ ] **Invoices PDF export**: Bulk export selected invoices as PDF  
+- [ ] **PDF template consistency**: Use same styling as individual PDFs
+
+---
+
+## **🛠 TECHNICAL IMPLEMENTATION NOTES**
+
+### **Component Reuse Strategy**
+```typescript
+// Reference Components (DO NOT RECREATE):
+✅ src/components/invoices/InvoiceTable.tsx - Multi-select, sorting, pagination reference
+✅ src/components/inventory/InventoryTable.tsx - Filter section design reference  
+✅ src/components/customers/CustomerTable.tsx - Action dropdown reference
+✅ src/components/ui/multi-select-combobox.tsx - Advanced item selection
+
+// Components to Enhance:
+🔄 src/components/orders/OrderTable.tsx - Add multi-select, actions, filters
+🔄 src/components/boms/BOMTable.tsx - Add advanced table functionality
+🔄 src/components/production/* - Standardize table styling
+```
+
+### **Styling Consistency**
+```typescript
+// Header Styling (Invoice table reference):
+- Sortable columns with arrows
+- Consistent padding and alignment
+- Hover states and active indicators
+
+// Filter Section (Inventory page reference):  
+- Search input with icon
+- Filter dropdowns grouped logically
+- Clear/reset functionality
+- Responsive layout
+```
+
+### **Data Patterns**
+```typescript
+// Multi-select Pattern:
+- Checkbox column as first column
+- Row selection state management
+- Bulk action toolbar when items selected
+- "Select all" header checkbox
+
+// Action Dropdown Pattern:
+- Three-dots icon (MoreHorizontal)  
+- Context-aware actions based on row data
+- Consistent iconography (View, Edit, Create, etc.)
+```
+
+---
+
+## **📋 COMPLETION CRITERIA**
+
+### **Definition of Done**
+Each feature is complete when:
+- [ ] **Functionality**: All requirements implemented and tested
+- [ ] **Styling**: Matches design consistency requirements  
+- [ ] **TypeScript**: Zero compilation errors
+- [ ] **Build**: Successful `npm run build`
+- [ ] **Documentation**: Implementation documented in this file
+
+### **Success Metrics**
+- [ ] **Visual Consistency**: All tables look and behave similarly
+- [ ] **User Experience**: Smooth, predictable interactions across pages
+- [ ] **Performance**: No degradation from new features
+- [ ] **Maintainability**: Reusable components, consistent patterns
+
+---
+
+## **🚨 CRITICAL NOTES**
+
+- **DO NOT** recreate existing working components
+- **DO NOT** make breaking changes to working functionality  
+- **DO** follow existing code patterns and architectural decisions
+- **DO** test thoroughly before considering features complete
+- **DO** commit incrementally with descriptive messages
+
+**Last Updated**: 2025-01-29
+**Next Review**: After Phase 2 completion 

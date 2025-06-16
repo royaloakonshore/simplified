@@ -18,8 +18,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ArrowRight, MoreHorizontal, Eye, Factory } from "lucide-react";
+import { ArrowRight, MoreHorizontal, Eye, Factory, FileText, Download, ArrowUpDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { api } from "@/lib/trpc/react";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 // Matches the select statement in the list procedure
 type OrderInTable = Pick<Order, 'id' | 'orderNumber' | 'status' | 'orderType' | 'createdAt' | 'deliveryDate' | 'totalAmount'> & {
   customer: Pick<Customer, 'id' | 'name'> | null;
+  vatAmount?: number; // Add VAT amount for calculation
 };
 
 interface OrderTableProps {
@@ -38,6 +40,9 @@ interface OrderTableProps {
   onSelectOrder: (orderId: string, isSelected: boolean) => void;
   onSelectAll: (isSelected: boolean) => void;
   isAllSelected: boolean;
+  // Props for bulk actions
+  onBulkExportPDF?: () => void;
+  showBulkActions?: boolean;
 }
 
 // Helper function to format currency
@@ -100,12 +105,50 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
     },
   });
 
+  const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
+    onSuccess: (invoice) => {
+      toast.success(`Invoice ${invoice.invoiceNumber} created successfully!`);
+      router.push(`/invoices/${invoice.id}`);
+      onActionSuccess(); // Refresh the list
+    },
+    onError: (err) => {
+      toast.error(`Failed to create invoice: ${err.message}`);
+    },
+  });
+
+  const exportPDFMutation = api.order.exportPDF.useMutation({
+    onSuccess: () => {
+      toast.success("PDF export started");
+    },
+    onError: (err) => {
+      toast.error(`Failed to export PDF: ${err.message}`);
+    },
+  });
+
   const handleSendToWorkOrder = () => {
     convertToWorkOrderMutation.mutate({ orderId: order.id });
   };
 
+  const handleCreateInvoice = () => {
+    // Calculate due date (30 days from today by default)
+    const today = new Date();
+    const dueDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    createInvoiceMutation.mutate({ 
+      orderId: order.id,
+      dueDate,
+      invoiceDate: today,
+    });
+  };
+
+  const handleExportPDF = () => {
+    exportPDFMutation.mutate({ id: order.id });
+  };
+
   const canSendToWorkOrder = order.orderType === OrderType.quotation && 
     (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft);
+
+  const canCreateInvoice = order.status === OrderStatus.shipped || order.status === OrderStatus.delivered || order.status === OrderStatus.confirmed;
 
   return (
     <DropdownMenu>
@@ -120,6 +163,14 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
           <Eye className="mr-2 h-4 w-4" />
           <span>View Order</span>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={handleCreateInvoice}
+          disabled={!canCreateInvoice || createInvoiceMutation.isPending}
+        >
+          <FileText className="mr-2 h-4 w-4" />
+          <span>{createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}</span>
+        </DropdownMenuItem>
         {canSendToWorkOrder && (
           <DropdownMenuItem 
             onClick={handleSendToWorkOrder}
@@ -129,6 +180,14 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
             <span>{convertToWorkOrderMutation.isPending ? "Creating..." : "Create Work Order"}</span>
           </DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
+          onClick={handleExportPDF}
+          disabled={exportPDFMutation.isPending}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          <span>{exportPDFMutation.isPending ? "Exporting..." : "Export PDF"}</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -140,7 +199,9 @@ export default function OrderTable({
   selectedOrderIds,
   onSelectOrder,
   onSelectAll,
-  isAllSelected
+  isAllSelected,
+  onBulkExportPDF,
+  showBulkActions = false
 }: OrderTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,10 +220,71 @@ export default function OrderTable({
     }
   };
 
+  const handleSort = (column: string) => {
+    const params = new URLSearchParams(searchParams);
+    const currentSort = params.get('sortBy');
+    const currentDirection = params.get('sortDirection') || 'asc';
+    
+    let newDirection = 'asc';
+    if (currentSort === column && currentDirection === 'asc') {
+      newDirection = 'desc';
+    }
+    
+    params.set('sortBy', column);
+    params.set('sortDirection', newDirection);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const getSortIcon = (column: string) => {
+    const currentSort = searchParams.get('sortBy');
+    const currentDirection = searchParams.get('sortDirection') || 'asc';
+    
+    if (currentSort !== column) {
+      return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    }
+    
+    return currentDirection === 'asc' ? 
+      <ArrowUpDown className="ml-2 h-4 w-4 rotate-180" /> : 
+      <ArrowUpDown className="ml-2 h-4 w-4" />;
+  };
+
+  // Calculate VAT amount (assuming 25.5% VAT rate as default)
+  const calculateVATAmount = (order: OrderInTable) => {
+    if (order.vatAmount !== undefined) {
+      return order.vatAmount;
+    }
+    // Fallback calculation if VAT amount not provided
+    const vatRate = 0.255; // 25.5% default Finnish VAT
+    return Number(order.totalAmount || 0) * vatRate;
+  };
+
   // TODO: Implement handlePreviousPage if needed
 
   return (
     <div>
+      {/* Bulk Actions Toolbar */}
+      {showBulkActions && selectedOrderIds.length > 0 && (
+        <div className="mb-4 p-3 bg-muted rounded-md">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {selectedOrderIds.length} order{selectedOrderIds.length === 1 ? '' : 's'} selected
+            </span>
+            <div className="flex items-center space-x-2">
+              {onBulkExportPDF && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={onBulkExportPDF}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export PDF ({selectedOrderIds.length})
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="border rounded-md">
         <Table>
           <TableHeader>
@@ -174,20 +296,93 @@ export default function OrderTable({
                   aria-label="Select all rows"
                 />
               </TableHead>
-              <TableHead>Order #</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Delivery Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('orderNumber')}
+                  className="h-auto p-0 font-semibold text-left"
+                >
+                  Order #
+                  {getSortIcon('orderNumber')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('orderType')}
+                  className="h-auto p-0 font-semibold text-left"
+                >
+                  Type
+                  {getSortIcon('orderType')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('customer')}
+                  className="h-auto p-0 font-semibold text-left"
+                >
+                  Customer
+                  {getSortIcon('customer')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('createdAt')}
+                  className="h-auto p-0 font-semibold text-left"
+                >
+                  Date
+                  {getSortIcon('createdAt')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('deliveryDate')}
+                  className="h-auto p-0 font-semibold text-left"
+                >
+                  Delivery Date
+                  {getSortIcon('deliveryDate')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('status')}
+                  className="h-auto p-0 font-semibold text-left"
+                >
+                  Status
+                  {getSortIcon('status')}
+                </Button>
+              </TableHead>
+              <TableHead className="text-right">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('totalAmount')}
+                  className="h-auto p-0 font-semibold"
+                >
+                  Total
+                  {getSortIcon('totalAmount')}
+                </Button>
+              </TableHead>
+              <TableHead className="text-right">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => handleSort('vatAmount')}
+                  className="h-auto p-0 font-semibold"
+                >
+                  VAT Amount
+                  {getSortIcon('vatAmount')}
+                </Button>
+              </TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center">
+                <TableCell colSpan={10} className="h-24 text-center">
                   No orders found.
                 </TableCell>
               </TableRow>
@@ -223,6 +418,7 @@ export default function OrderTable({
                      </Badge>
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(order.totalAmount ?? 0)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(calculateVATAmount(order))}</TableCell>
                    <TableCell className="text-right">
                      <OrderTableRowActions order={order} onActionSuccess={handleActionSuccess} />
                    </TableCell>

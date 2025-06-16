@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from "react";
-// import { api } from "@/lib/trpc/react"; // No longer directly needed for type inference here
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/lib/api/root"; // Import AppRouter type
 import {
@@ -12,6 +11,9 @@ import {
   getSortedRowModel,
   SortingState,
   getPaginationRowModel,
+  RowSelectionState,
+  getFilteredRowModel,
+  ColumnFiltersState,
 } from "@tanstack/react-table";
 
 import {
@@ -23,16 +25,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Download, Search, Filter, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 // Use inferRouterOutputs for more robust type inference
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -40,11 +46,34 @@ export type BOMTableRow = RouterOutput["bom"]["list"]["data"][number];
 
 export const columns: ColumnDef<BOMTableRow>[] = [
   {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
     accessorKey: "name",
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="h-auto p-0 font-semibold text-left"
       >
         BOM Name
         <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -84,6 +113,7 @@ export const columns: ColumnDef<BOMTableRow>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="h-auto p-0 font-semibold"
       >
         Total Cost
         <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -95,7 +125,10 @@ export const columns: ColumnDef<BOMTableRow>[] = [
       const numericAmount = typeof amount === 'object' && amount !== null && 'toNumber' in amount 
         ? (amount as any).toNumber() 
         : Number(amount);
-      const formatted = numericAmount.toFixed(2); // Just show the number with 2 decimal places, no currency symbol
+      const formatted = new Intl.NumberFormat('fi-FI', {
+        style: 'currency',
+        currency: 'EUR',
+      }).format(numericAmount);
       return <div className="text-right font-medium">{formatted}</div>;
     },
   },
@@ -139,11 +172,22 @@ export const columns: ColumnDef<BOMTableRow>[] = [
 interface BOMTableProps {
   data: BOMTableRow[];
   isLoading: boolean;
-  // Add other props like pagination state and handlers if implementing client-side pagination
+  onBulkDelete?: (selectedIds: string[]) => void;
+  onBulkExport?: (selectedIds: string[]) => void;
+  showBulkActions?: boolean;
 }
 
-export function BOMTable({ data, isLoading }: BOMTableProps) {
+export function BOMTable({ 
+  data, 
+  isLoading, 
+  onBulkDelete,
+  onBulkExport,
+  showBulkActions = false 
+}: BOMTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [globalFilter, setGlobalFilter] = React.useState<string>("");
 
   const table = useReactTable({
     data,
@@ -151,11 +195,47 @@ export function BOMTable({ data, isLoading }: BOMTableProps) {
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(), // For client-side pagination
+    getPaginationRowModel: getPaginationRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: getFilteredRowModel(),
+    onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
     state: {
       sorting,
+      columnFilters,
+      rowSelection,
+      globalFilter,
     },
   });
+
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedIds = selectedRows.map(row => row.original.id);
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) {
+      toast.error("Please select BOMs to delete.");
+      return;
+    }
+    if (onBulkDelete) {
+      onBulkDelete(selectedIds);
+    } else {
+      // TODO: Implement default bulk delete
+      toast.success(`Deleting ${selectedIds.length} BOMs - Implementation pending`);
+    }
+  };
+
+  const handleBulkExport = () => {
+    if (selectedIds.length === 0) {
+      toast.error("Please select BOMs to export.");
+      return;
+    }
+    if (onBulkExport) {
+      onBulkExport(selectedIds);
+    } else {
+      // TODO: Implement default bulk export
+      toast.success(`Exporting ${selectedIds.length} BOMs - Implementation pending`);
+    }
+  };
 
   if (isLoading) {
     return <div>Loading BOMs...</div>; // Replace with a proper skeleton loader
@@ -166,6 +246,50 @@ export function BOMTable({ data, isLoading }: BOMTableProps) {
   }
 
   return (
+    <div className="space-y-4">
+      {/* Search and Filter Controls */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search BOMs..."
+            value={globalFilter ?? ""}
+            onChange={(event) => setGlobalFilter(String(event.target.value))}
+            className="pl-8"
+          />
+        </div>
+      </div>
+
+      {/* Bulk Actions Toolbar */}
+      {showBulkActions && selectedIds.length > 0 && (
+        <div className="mb-4 p-3 bg-muted rounded-md">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.length} BOM{selectedIds.length === 1 ? '' : 's'} selected
+            </span>
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleBulkExport}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export ({selectedIds.length})
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleBulkDelete}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete ({selectedIds.length})
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -207,25 +331,35 @@ export function BOMTable({ data, isLoading }: BOMTableProps) {
           )}
         </TableBody>
       </Table>
-      {/* Basic Pagination (optional, can be enhanced) */}
-      <div className="flex items-center justify-end space-x-2 py-4 px-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+      {/* Enhanced Pagination */}
+      <div className="flex items-center justify-between space-x-2 py-4 px-2">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm text-muted-foreground">
+            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+            {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)}{" "}
+            of {table.getFilteredRowModel().rows.length} results
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
       </div>
+    </div>
     </div>
   );
 } 

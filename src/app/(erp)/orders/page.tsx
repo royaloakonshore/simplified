@@ -8,25 +8,11 @@ import { Prisma } from '@prisma/client'; // Import Prisma namespace for Decimal
 import { api } from "@/lib/trpc/react"; // Import tRPC client hook
 // import { OrderFilter } from '@/components/orders/OrderFilter'; // Keep commented
 import { OrderStatus, Customer, Order } from "@prisma/client"; // Import directly from prisma
+import OrderTable from "@/components/orders/OrderTable"; // Import the enhanced OrderTable
 import { Button } from "@/components/ui/button"; // Use Shadcn button
 import { Skeleton } from "@/components/ui/skeleton"; // Use Shadcn skeleton
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
-import { Terminal, ArrowRight } from 'lucide-react'; // Icon for alert + Pagination. Removed ArrowLeft
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableHead, 
-    TableHeader, 
-    TableRow 
-} from "@/components/ui/table"; // Import Table components
-import { Badge } from "@/components/ui/badge"; // Import Badge
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Terminal } from 'lucide-react'; // Icon for alert
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,45 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronDown } from 'lucide-react'; // Icons for actions. Removed Trash2, Send
 import { toast } from "sonner"; // Import sonner toast
 import { useQueryClient } from '@tanstack/react-query'; // Correct import for react-query
 import React from 'react';
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
-// Moved type definition from OrderTable
+// Type definition for order data
 type OrderInTable = Order & {
   customer: Pick<Customer, 'id' | 'name'> | null;
-};
-
-// Moved helper functions from OrderTable
-const formatCurrency = (amount: number | string | Prisma.Decimal) => {
-  return new Intl.NumberFormat('fi-FI', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(Number(amount));
-};
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString('fi-FI', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  });
-};
-const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "destructive" | "outline" => {
-    // ... (status badge logic)
-    switch (status) {
-      case OrderStatus.draft:
-        return "secondary";
-      case OrderStatus.confirmed:
-      case OrderStatus.in_production:
-        return "default";
-      case OrderStatus.shipped:
-      case OrderStatus.delivered:
-        return "outline";
-      case OrderStatus.cancelled:
-        return "destructive";
-      default:
-        return "secondary";
-    }
 };
 
 // New component to handle search params and data fetching + rendering
@@ -109,6 +64,31 @@ function OrderListContent() {
     // Clear selection when data reloads (e.g., pagination)
     setSelectedOrderIds([]);
   }, [data]);
+
+  // Selection management functions
+  const handleSelectOrder = (orderId: string, isSelected: boolean) => {
+    setSelectedOrderIds(prev => 
+      isSelected 
+        ? [...prev, orderId]
+        : prev.filter(id => id !== orderId)
+    );
+  };
+
+  const handleSelectAll = (isSelected: boolean) => {
+    setSelectedOrderIds(isSelected ? orders.map(order => order.id) : []);
+  };
+
+  const isAllSelected = orders.length > 0 && selectedOrderIds.length === orders.length;
+
+  // Bulk actions
+  const handleBulkExportPDF = () => {
+    if (selectedOrderIds.length === 0) {
+      toast("Please select orders first.");
+      return;
+    }
+    // TODO: Implement bulk PDF export
+    toast.success(`Exporting PDF for ${selectedOrderIds.length} orders - Implementation pending`);
+  };
 
   // TODO: Create these tRPC mutations in order.router.ts
   const deleteOrdersMutation = api.order.deleteMany.useMutation({
@@ -197,101 +177,25 @@ function OrderListContent() {
       {/*   <OrderFilter /> */}
       {/* </Suspense> */}
 
-      {/* Table Rendering directly here */}
+      {/* Enhanced OrderTable */}
       <div className="mt-6">
         {isLoading || isFetching ? (
             <TableLoadingSkeleton />
         ) : (
-            <div> { /* Added wrapper div for table + pagination */}
-                <div className="border rounded-md">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Order #</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead><span className="sr-only">Actions</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {orders.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                            No orders found.
-                            </TableCell>
-                        </TableRow>
-                        ) : (
-                        orders.map((order) => (
-                            <TableRow key={order.id}>
-                            <TableCell className="font-medium">
-                                <Link href={`/orders/${order.id}`} className="hover:underline">
-                                {order.orderNumber}
-                                </Link>
-                            </TableCell>
-                            <TableCell>{order.customer?.name ?? '-'}</TableCell>
-                            <TableCell>{formatDate(order.createdAt)}</TableCell>
-                            <TableCell>
-                                <Badge variant={getStatusBadgeVariant(order.status)}>
-                                    {order.status.replace('_', ' ').toUpperCase()}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">{formatCurrency(order.totalAmount ?? 0)}</TableCell>
-                            <TableCell className="text-right">
-                                <Button variant="outline" size="sm" asChild>
-                                <Link href={`/orders/${order.id}`}>View</Link>
-                                </Button>
-                            </TableCell>
-                            </TableRow>
-                        ))
-                        )}
-                    </TableBody>
-                    </Table>
-                </div>
-                {/* Pagination Controls */}
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleNextPage()}
-                    disabled={!nextCursor}
-                    >
-                    Next Page <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            <OrderTable 
+              orders={orders}
+              nextCursor={nextCursor}
+              selectedOrderIds={selectedOrderIds}
+              onSelectOrder={handleSelectOrder}
+              onSelectAll={handleSelectAll}
+              isAllSelected={isAllSelected}
+              onBulkExportPDF={handleBulkExportPDF}
+              showBulkActions={true}
+            />
         )}
       </div>
 
-      <div className="mt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Bulk Actions</h2>
-          <div className="flex items-center space-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
-                  Actions <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  disabled={selectedOrderIds.length === 0 || deleteOrdersMutation.isPending}
-                  onClick={() => openConfirmationModal('delete')}
-                >
-                  {deleteOrdersMutation.isPending ? "Deleting..." : "Delete Selected"}
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  disabled={selectedOrderIds.length === 0 || sendToProductionMutation.isPending}
-                  onClick={() => openConfirmationModal('sendToProduction')}
-                >
-                  {sendToProductionMutation.isPending ? "Sending..." : "Send to Production"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
+
 
       <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
         <AlertDialogContent>
