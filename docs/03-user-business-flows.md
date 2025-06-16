@@ -13,7 +13,7 @@ The application has established user flows for core operations like login, profi
 
 *   **Customer:** Created -> Updated -> Used in Orders/Invoices **[Implemented]**
 *   **Inventory Item:** Created -> Stock Adjusted (Purchased/Adjusted) -> Used in Orders -> Stock Decreased (Shipped/Production) **[Basic create/use implemented. `quantityOnHand` is now directly editable in forms. New fields `leadTimeDays`, `vendorSku`, `vendorItemName` added. Stock adjustment flow refinement, especially for table-based editing and category filtering, are NEXT STEPS.]**
-*   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages via Kanban/Table) -> Shipped/Completed -> INVOICED **[Implemented. Production view needs BOM info display.]**
+*   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages via Kanban/Table) -> Shipped/Completed -> INVOICED **[Implemented. ✅ CRITICAL FIX: Create Work Order from Quotation now properly creates separate work order while preserving quotation history. Production view needs BOM info display enhancement.]**
 *   **Invoice:** Draft (From Order/Manual) -> Sent -> Payment Recorded -> Paid / Overdue -> Exported (Finvoice) **[Implemented. Credit Note flow PENDING.]**
 
 ## 2. Multi-Tenancy & Company Management Flows (NEW SECTION)
@@ -270,3 +270,51 @@ The application has established user flows for core operations like login, profi
     *   If the transaction is successful, a toast notification confirms: "Inventory import successful. X items created, Y items updated."
     *   If the transaction fails (due to an unexpected database error during the process), a toast notification indicates failure: "Inventory import failed. No changes were applied. Error: [error message]".
     *   The Inventory List page should refresh to show the updated data.
+
+## 5A. NEW: Delivery Date Management Flow (Enhanced Requirement)
+
+### 5A.1. Setting Delivery Dates in Work Orders
+
+**Actor:** Sales Rep, Project Manager, Operations Staff
+
+**Goal:** Establish realistic delivery commitments for production planning and customer expectations.
+
+**Steps:**
+1. **Order Creation/Editing:** When creating or editing a work order, user prominently sets the delivery date.
+2. **Date Validation:** System may provide warnings for dates that conflict with:
+   - Production capacity
+   - Component availability (based on inventory levels and lead times)
+   - Existing production commitments
+3. **Visual Prominence:** Delivery date field is clearly visible and user-friendly in the order form.
+4. **Save & Propagation:** Delivery date is saved and immediately visible across:
+   - Orders table (new delivery date column)
+   - Production Kanban cards
+   - Order detail pages
+
+### 5A.2. Production Planning Based on Delivery Dates
+
+**Actor:** Production Manager, Manufacturing Staff
+
+**Goal:** Prioritize and schedule production based on customer commitments.
+
+**Steps:**
+1. **Orders Table Review:** Production staff can sort and filter orders by delivery date to identify urgent priorities.
+2. **Production Kanban:** Cards display delivery dates prominently, allowing visual prioritization of work.
+3. **Deadline Awareness:** Overdue or approaching deadlines are visually highlighted (future enhancement).
+4. **BOM Planning:** Enhanced production modal shows both delivery requirements and component needs for comprehensive planning.
+
+### 5A.3. Enhanced Production Modal Workflow
+
+**Actor:** Production Staff, Manufacturing Operators
+
+**Goal:** Access comprehensive order and BOM information efficiently during production.
+
+**Steps:**
+1. **Access Production View:** Navigate to Production Kanban/table view.
+2. **Select Order Card:** Click on any production card showing a work order.
+3. **Enhanced Modal Display:** Modal opens showing:
+   - **Order Summary:** Customer, order number, delivery date, status
+   - **BOM Details:** Complete list of required components and quantities
+   - **Production Status:** Current stage and next steps
+   - **Quick Actions:** Status updates, notes, navigation to full order page
+4. **Informed Decision Making:** Staff can make production decisions with complete context of both order requirements and component needs.
