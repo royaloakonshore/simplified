@@ -34,7 +34,7 @@ export function OrderHistoryTable({ orders }: OrderHistoryTableProps) {
                 {order.orderNumber}
               </Link>
             </TableCell>
-            <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
+            <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
             <TableCell>
               <Badge>{order.status}</Badge>
             </TableCell>

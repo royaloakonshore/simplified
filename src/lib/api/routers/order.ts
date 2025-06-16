@@ -310,8 +310,15 @@ export const orderRouter = createTRPCRouter({
         orderBy: {
           createdAt: "desc",
         },
-        include: {
-            customer: { select: { id: true, name: true } }, 
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          orderType: true,
+          createdAt: true,
+          deliveryDate: true,
+          totalAmount: true,
+          customer: { select: { id: true, name: true } },
         }
       });
 

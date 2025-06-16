@@ -84,6 +84,24 @@ const KANBAN_COLUMNS: KanbanColumn[] = [
   { id: OrderStatus.shipped, name: 'Ready for Shipping/Shipped', color: '#22c55e' }, // green-500 
 ];
 
+// Status badge variant mapping (consistent with OrderTable)
+const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "destructive" | "outline" => {
+  switch (status) {
+    case OrderStatus.draft:
+      return "secondary";
+    case OrderStatus.confirmed:
+    case OrderStatus.in_production:
+      return "default";
+    case OrderStatus.shipped:
+    case OrderStatus.delivered:
+      return "outline";
+    case OrderStatus.cancelled:
+      return "destructive";
+    default:
+      return "secondary";
+  }
+};
+
 // Helper to render BOM details
 const renderBomDetails = (bom: NonNullable<KanbanOrder['items'][number]['inventoryItem']['bom']>, orderItemQuantity: PrismaTypes.Decimal) => {
   return (
@@ -202,16 +220,18 @@ function ProductionPageContent() {
         {order.items.some(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && item.inventoryItem.bom) && (
             <Dialog>
                 <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:bg-primary/10">
                         <PackageSearch className="h-4 w-4" />
                         <span className="sr-only">View BOMs</span>
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
                     <DialogHeader>
-                        <DialogTitle>Bill of Materials for Order: {order.orderNumber}</DialogTitle>
+                        <DialogTitle>Production Details - Order {order.orderNumber}</DialogTitle>
                         <DialogDescription>
-                            Components required for manufactured items in this order.
+                            Customer: {order.customer?.name || 'N/A'} • 
+                            {order.deliveryDate ? ` Due: ${new Date(order.deliveryDate).toLocaleDateString()}` : ' Due: Not Set'} • 
+                            Status: {order.status.replace('_', ' ').toUpperCase()}
                         </DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-[60vh] pr-3">
@@ -232,25 +252,45 @@ function ProductionPageContent() {
                         ))}
                         </div>
                     </ScrollArea>
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button type="button" variant="outline">Close</Button>
-                        </DialogClose>
+                    <DialogFooter className="sm:justify-between">
+                        <div className="text-sm text-muted-foreground">
+                            Total Order Quantity: {order.totalQuantity.toString()} items
+                        </div>
+                        <div className="flex gap-2">
+                            <Link href={`/orders/${order.id}`}>
+                                <Button variant="outline" size="sm">
+                                    View Full Order
+                                </Button>
+                            </Link>
+                            <DialogClose asChild>
+                                <Button type="button" variant="default" size="sm">
+                                    Close
+                                </Button>
+                            </DialogClose>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         )}
       </div>
       <p className="text-muted-foreground">Total Items: {order.totalQuantity.toString()}</p>
-      {order.deliveryDate && <p className="text-muted-foreground">Due: {new Date(order.deliveryDate).toLocaleDateString()}</p>}
+      {order.deliveryDate ? (
+        <p className="text-orange-600 font-medium">Due: {new Date(order.deliveryDate).toLocaleDateString()}</p>
+      ) : (
+        <p className="text-muted-foreground">Due: Not Set</p>
+      )}
       {/* Minimal item type badges below, detailed BOMs in dialog */}
       <div className="mt-1 flex flex-wrap gap-1">
         {order.items.map(item => (
           item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD ? (
-            <Badge key={`${order.id}-${item.inventoryItem.id}-mfd`} variant={item.inventoryItem.bom ? "secondary" : "outline"} className="text-xs">
-              {item.inventoryItem.name} (Mfd{item.inventoryItem.bom ? ", BOM" : ""})
+            <Badge key={`${order.id}-${item.inventoryItem.id}-mfd`} variant={item.inventoryItem.bom ? "default" : "outline"} className="text-xs">
+              {item.inventoryItem.name} {item.inventoryItem.bom && "• BOM"}
             </Badge>
-          ) : null
+          ) : (
+            <Badge key={`${order.id}-${item.inventoryItem.id}-raw`} variant="secondary" className="text-xs">
+              {item.inventoryItem.name}
+            </Badge>
+          )
         ))}
       </div>
     </div>
@@ -269,7 +309,15 @@ function ProductionPageContent() {
             return mfdItems.length > 0 ? mfdItems.join(", ") : "N/A";
         }
     },
-    { accessorKey: "status", header: "Status" },
+    { 
+      accessorKey: "status", 
+      header: "Status", 
+      cell: ({ row }) => (
+        <Badge variant={getStatusBadgeVariant(row.original.status)}>
+          {row.original.status.replace('_', ' ').toUpperCase()}
+        </Badge>
+      )
+    },
     { accessorKey: "totalQuantity", header: "Total Qty", cell: ({row}) => row.original.totalQuantity.toString() },
     { 
       accessorKey: "deliveryDate", 

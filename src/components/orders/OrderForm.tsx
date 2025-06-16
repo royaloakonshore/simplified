@@ -356,6 +356,29 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={updateForm.control}
+                name={"deliveryDate"}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Delivery Date</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                        disabled={updateOrderMutation.isPending}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      When this order should be delivered to the customer.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <div className="space-y-2">
                 <FormLabel>Order Items</FormLabel>
@@ -534,6 +557,29 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                         {field.value === OrderType.work_order ? 
                           "Work orders track production and can generate invoices." : 
                           "Quotations provide pricing information to customers."}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={createForm.control}
+                  name={"deliveryDate"}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Delivery Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          {...field} 
+                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                          disabled={createOrderMutation.isPending}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        When this order should be delivered to the customer.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

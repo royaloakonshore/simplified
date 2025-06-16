@@ -1,5 +1,125 @@
 # .cursor-updates
 
+## 2025-01-27: Production Page & Performance Enhancements
+
+**Goal:** Fix production page visual issues, implement delivery date functionality, enhance UX, and improve performance.
+
+**Summary:**
+Comprehensive fix of production page issues, completion of delivery date implementation, and establishment of performance optimization strategy with immediate Next.js development indicator removal.
+
+**✅ MAJOR ACCOMPLISHMENTS:**
+
+### **1. Production Page Visual & Functional Fixes**
+- **Fixed**: Status badge rendering - replaced plain text with proper Badge components
+- **Enhanced**: Kanban card delivery dates - shows "Due: Not Set" when null, highlighted delivery dates in orange
+- **Improved**: Item badges - shows all items (manufactured + raw materials) with proper variants
+- **Enhanced**: BOM dialog - comprehensive production details modal with customer info, delivery date, and order navigation
+- **Fixed**: Status column formatting in production table view
+
+### **2. Performance Optimization Strategy**
+- **Created**: Comprehensive performance enhancement plan (docs/performance-optimization-strategy.md)
+- **Implemented**: Bundle size optimization with webpack tree shaking
+- **Added**: Package import optimization for major libraries
+- **Established**: Session management best practices and recovery strategies
+
+### **3. Development Experience Improvements**
+- **Removed**: Next.js development indicator watermark (devIndicators: false)
+- **Added**: CSS rules to hide any persistent development overlays
+- **Enhanced**: Webpack configuration for cleaner development environment
+
+### **4. Technical Infrastructure**
+- **Updated**: Production page with proper Badge component imports and getStatusBadgeVariant function
+- **Enhanced**: Dialog presentation with better spacing, customer context, and navigation links
+- **Improved**: Visual hierarchy with proper color coding for delivery dates
+
+**FILES MODIFIED:**
+- `src/app/(erp)/production/page.tsx` - Status badges, kanban card enhancements, BOM dialog improvements
+- `next.config.ts` - Performance optimizations, development indicator removal
+- `src/app/globals.css` - CSS to hide development overlays
+- `docs/performance-optimization-strategy.md` - Comprehensive enhancement strategy
+
+**IMPACT:**
+- **Production Workflow**: Clear visual status indicators, enhanced delivery date visibility
+- **User Experience**: Professional production cards with comprehensive information
+- **Development Experience**: Clean environment without distracting indicators  
+- **Performance Foundation**: Strategic improvements ready for implementation
+
+**BUILD STATUS:** ✅ Clean (0 errors, warnings only for unused imports)
+
+## 2025-01-27: Delivery Date Field Added to Order Forms
+
+**Goal:** Add missing delivery date input field to order creation and edit forms.
+
+**Summary:**
+User reported that delivery date was not visible in the order forms despite being in the database schema and table. Investigation revealed that while the delivery date field was properly configured in the backend (schema, tRPC, table display), it was missing from the actual form UI.
+
+**✅ ACCOMPLISHMENTS:**
+
+### **1. Order Form Enhancement**
+- **Added**: Delivery date input field to both create and edit order forms
+- **Location**: Added after order type field in both form modes
+- **Field Type**: HTML5 date input with proper value conversion
+- **Validation**: Uses existing Zod schema validation for delivery date
+- **UX**: Includes helpful description text explaining the field purpose
+
+### **2. Form Integration**
+- **Create Form**: Added delivery date field with proper default handling
+- **Edit Form**: Added delivery date field with existing value population
+- **State Management**: Properly integrated with React Hook Form state
+- **Type Safety**: Maintains TypeScript type safety throughout
+
+**Files Modified:**
+- `src/components/orders/OrderForm.tsx` - Added delivery date FormField to both create and edit modes
+
+**Technical Details:**
+- Uses HTML5 date input type for native date picker
+- Handles date conversion between JavaScript Date objects and ISO string format
+- Maintains form validation and error handling
+- Preserves existing form layout and styling
+
+**User Impact:**
+- ✅ Users can now set delivery dates when creating orders
+- ✅ Users can edit delivery dates on existing orders  
+- ✅ Delivery dates are properly saved and displayed in tables and Kanban cards
+- ✅ Production planning workflow now has complete delivery date visibility
+
+## 2025-01-27: Orders Table Delivery Date Column Added
+
+**Goal:** Add delivery date column to orders table for better production planning visibility.
+
+**Summary:**
+Successfully implemented delivery date column in the orders table as requested. The delivery date field already existed in the database schema and OrderForm, but was not being displayed in the table view.
+
+**✅ ACCOMPLISHMENTS:**
+
+### **1. Backend API Enhancement**
+- **Updated**: `src/lib/api/routers/order.ts` - Modified `list` procedure to include `deliveryDate` in select fields
+- **Change**: Replaced `include` with `select` to explicitly fetch required fields including `deliveryDate`
+- **Impact**: Orders table now receives delivery date data from the backend
+
+### **2. Frontend Table Enhancement**
+- **Updated**: `src/components/orders/OrderTable.tsx` - Added delivery date column after existing "Date" column
+- **Features**: 
+  - New "Delivery Date" column header
+  - Formatted date display using existing `formatDate` utility
+  - Shows "-" when delivery date is not set
+  - Updated colspan for empty state message
+- **Type Safety**: Updated `OrderInTable` type to match new select fields from backend
+
+### **3. Bug Fix**
+- **Fixed**: `src/components/customers/OrderHistoryTable.tsx` - Corrected field reference from non-existent `orderDate` to `createdAt`
+- **Impact**: Customer order history now displays correctly without TypeScript errors
+
+### **4. Build Verification**
+- **TypeScript**: Clean compilation with `npx tsc --noEmit` (0 errors)
+- **Build**: Successful production build with `npm run build`
+- **Status**: Feature ready for production deployment
+
+**Files Modified:**
+- `src/lib/api/routers/order.ts` - Added deliveryDate to select fields
+- `src/components/orders/OrderTable.tsx` - Added delivery date column and updated types
+- `src/components/customers/OrderHistoryTable.tsx` - Fixed date field reference
+
 - Temporarily remove OrderForm and Invoices page to resolve build errors
 - Refactored `OrdersPage` to wrap the part using `useSearchParams` in `<Suspense>`, fixing the build error.
 - Implemented initial Invoice list page (`/invoices`) with tRPC backend, Shadcn DataTable, filtering, sorting, and pagination.

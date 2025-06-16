@@ -25,10 +25,9 @@ import { api } from "@/lib/trpc/react";
 import { toast } from "sonner";
 
 // Define the expected shape of the order prop passed to the table
-// Matches the include statement in the list procedure
-type OrderInTable = Order & {
+// Matches the select statement in the list procedure
+type OrderInTable = Pick<Order, 'id' | 'orderNumber' | 'status' | 'orderType' | 'createdAt' | 'deliveryDate' | 'totalAmount'> & {
   customer: Pick<Customer, 'id' | 'name'> | null;
-  // items: { id: string }[]; // items are not included in the list query anymore
 };
 
 interface OrderTableProps {
@@ -179,6 +178,7 @@ export default function OrderTable({
               <TableHead>Type</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead>Delivery Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -187,7 +187,7 @@ export default function OrderTable({
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   No orders found.
                 </TableCell>
               </TableRow>
@@ -216,6 +216,7 @@ export default function OrderTable({
                   </TableCell>
                   <TableCell>{order.customer?.name ?? '-'}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
+                  <TableCell>{order.deliveryDate ? formatDate(order.deliveryDate) : '-'}</TableCell>
                   <TableCell>
                      <Badge variant={getStatusBadgeVariant(order.status)}>
                         {order.status.replace('_', ' ').toUpperCase()}

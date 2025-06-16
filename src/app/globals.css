@@ -225,3 +225,16 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide Next.js development indicator */
+.__next-dev-overlay-toolbar,
+.__next-dev-overlay-footer,
+[data-nextjs-toast],
+iframe[src*="/_next/static/chunks/webpack.js"] {
+  display: none !important;
+}
+
+/* Hide any bottom-right development indicators */
+body > div:last-child[style*="position: fixed"][style*="bottom"][style*="right"] {
+  display: none !important;
+}
