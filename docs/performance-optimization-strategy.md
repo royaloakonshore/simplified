@@ -378,6 +378,11 @@ webpack: (config, { dev, isServer }) => {
 3. ⏳ **Real-time Updates** - WebSocket for live data
 4. ⏳ **Edge Caching** - CDN configuration for static assets
 
+### **Production Workflow Enhancements (2-3 hours)**
+1. 🔄 **Production Cards Archive System** - Archive/clear shipped orders from production Kanban
+2. 🔄 **Orders Table Declutter Filter** - Default "Hide Shipped" filter with toggle
+3. 🔄 **Production Status Management** - Clean separation of active vs completed work
+
 ## 🎯 **Expected Performance Gains**
 
 ### **Database & Backend** 
@@ -396,6 +401,165 @@ webpack: (config, { dev, isServer }) => {
 - **Loading Feedback**: Immediate visual confirmation for all actions
 - **Development Focus**: Distraction-free coding environment
 
+### **Workflow Efficiency Gains**
+- **Production Focus**: 80% reduction in visual clutter on production boards
+- **Order Management**: Default "active orders" view improves task prioritization
+- **Cognitive Load**: Reduced mental overhead from completed work items
+- **Navigation Speed**: Faster scrolling through relevant active work items
+
+## 🎯 **Production Workflow Decluttering Strategy**
+
+### **Problem Statement**
+As orders progress through the production pipeline and reach "shipped" status, production Kanban cards and table rows accumulate, creating visual clutter that impedes focus on active work items. Similarly, the main orders table becomes crowded with completed orders that are primarily needed for reference rather than active management.
+
+### **Solution Architecture**
+
+#### **1. Production Cards Archive System** (2 hours)
+```typescript
+// src/app/(erp)/production/page.tsx - Enhanced with archive functionality
+const ProductionCard = ({ order }: { order: ProductionOrder }) => {
+  const [isArchived, setIsArchived] = useState(false);
+  const archiveMutation = api.order.archiveFromProduction.useMutation();
+
+  const handleArchive = () => {
+    archiveMutation.mutate(
+      { orderId: order.id },
+      {
+        onSuccess: () => {
+          setIsArchived(true);
+          toast.success('Order archived from production view');
+        }
+      }
+    );
+  };
+
+  if (isArchived) return null; // Hide archived cards
+
+  return (
+    <Card className="production-card">
+      {/* Existing card content */}
+      {order.status === OrderStatus.shipped && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleArchive}
+          className="archive-btn"
+        >
+          <Archive className="h-4 w-4" />
+          Clear from Production
+        </Button>
+      )}
+    </Card>
+  );
+};
+```
+
+#### **2. Orders Table Declutter Filter** (1 hour)
+```typescript
+// src/components/orders/OrderTable.tsx - Default filter enhancement
+const OrderTable = () => {
+  const [hideShipped, setHideShipped] = useState(true); // Default to hide shipped
+  
+  const filteredOrders = useMemo(() => {
+    if (!hideShipped) return orders;
+    return orders.filter(order => order.status !== OrderStatus.shipped);
+  }, [orders, hideShipped]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="hide-shipped"
+            checked={hideShipped}
+            onCheckedChange={setHideShipped}
+          />
+          <Label htmlFor="hide-shipped">Hide Shipped Orders</Label>
+        </div>
+        <Badge variant="secondary">
+          {hideShipped ? 'Active Orders View' : 'All Orders View'}
+        </Badge>
+      </div>
+      
+      <DataTable data={filteredOrders} columns={columns} />
+    </div>
+  );
+};
+```
+
+#### **3. Backend Archive Support** (30 minutes)
+```typescript
+// src/lib/api/routers/order.ts - Archive functionality
+export const orderRouter = createTRPCRouter({
+  // ... existing procedures
+  
+  archiveFromProduction: companyProtectedProcedure
+    .input(z.object({ orderId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Optional: Add archived timestamp or flag if needed for analytics
+      const order = await prisma.order.update({
+        where: { 
+          id: input.orderId,
+          companyId: ctx.companyId,
+        },
+        data: {
+          // Could add archivedFromProductionAt: new Date() if tracking needed
+        },
+      });
+      
+      return { success: true, orderId: input.orderId };
+    }),
+});
+```
+
+### **User Experience Flow**
+
+#### **Production Staff Workflow**
+1. **Active Production View**: Production staff see only active work (confirmed, in_production status)
+2. **Completion Handling**: When order reaches "shipped" status, "Clear from Production" button appears
+3. **Clean Interface**: Archived orders disappear from production view, keeping focus on active work
+4. **Reference Access**: Completed orders remain accessible via main Orders table for reference
+
+#### **Management Workflow**  
+1. **Default Clean View**: Orders table defaults to showing only active orders (hideShipped = true)
+2. **Toggle Reference**: Managers can toggle to see all orders including shipped for reporting/reference
+3. **Status Indicator**: Clear visual indication of current filter state
+4. **Flexible Access**: Easy switching between active workflow view and comprehensive reference view
+
+### **Technical Implementation Details**
+
+#### **Frontend State Management**
+- **Local Storage**: Persist user's filter preferences across sessions
+- **URL State**: Optionally reflect filter state in URL for bookmarkable views
+- **Real-time Updates**: Archive actions reflect immediately without full page refresh
+
+#### **Performance Considerations**
+- **Client-side Filtering**: For small datasets, filter shipped orders on frontend
+- **Server-side Filtering**: For larger datasets, pass filter to backend tRPC procedures
+- **Pagination Impact**: Ensure pagination works correctly with filtered views
+
+#### **Data Integrity**
+- **No Data Deletion**: Archive functionality is purely UI-based, no order data is deleted
+- **Audit Trail**: All order history remains intact for reporting and compliance
+- **Reversible**: Easy to show archived items if needed for troubleshooting
+
+### **Expected Benefits**
+
+#### **Production Efficiency**
+- **Reduced Cognitive Load**: Focus only on active work items
+- **Faster Decision Making**: Clear visual priority without completed work clutter
+- **Improved Task Management**: Active orders stand out for better workflow management
+
+#### **User Experience**
+- **Cleaner Interfaces**: Both production and orders views stay organized
+- **Contextual Access**: Active work vs reference data accessed when needed
+- **Reduced Scrolling**: Smaller datasets mean faster navigation
+
+#### **Operational Impact**
+- **Better Prioritization**: Active orders get appropriate attention
+- **Reduced Errors**: Less chance of accidentally processing completed orders
+- **Improved Reporting**: Clean distinction between active and historical data
+
 ## 🔄 **Implementation Roadmap**
 
 ### **Week 1: Foundation (Current)**
@@ -403,10 +567,12 @@ webpack: (config, { dev, isServer }) => {
 - 🔄 Remove Next.js indicator
 - 🔄 Enhanced session recovery
 
-### **Week 2: Performance**  
+### **Week 2: Performance & Workflow**  
 - 🔄 Global loading system
 - 🔄 Bundle optimization
 - 🔄 Additional database indexes
+- 🔄 **Production cards archive system**
+- 🔄 **Orders table declutter filter**
 
 ### **Week 3: Polish**
 - 🔄 API caching implementation

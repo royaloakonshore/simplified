@@ -14,6 +14,7 @@ import {
   updateOrderSchema,
   CreateOrderInput,
   UpdateOrderInput,
+  FINNISH_VAT_RATES,
 } from "@/lib/schemas/order.schema";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -59,11 +60,12 @@ type ProcessedInventoryItemForOrder = Omit<InventoryItem, 'costPrice' | 'salesPr
 };
 
 // Based on OrderItem, but Decimals are numbers, and inventoryItem is ProcessedInventoryItemForOrder
-export type ProcessedOrderItem = Omit<OrderItem, 'quantity' | 'unitPrice' | 'discountAmount' | 'discountPercentage' | 'inventoryItem'> & {
+export type ProcessedOrderItem = Omit<OrderItem, 'quantity' | 'unitPrice' | 'discountAmount' | 'discountPercentage' | 'vatRatePercent' | 'inventoryItem'> & {
   quantity: number;
   unitPrice: number;
   discountAmount: number | null;
   discountPercentage: number | null;
+  vatRatePercent: number | null;
   inventoryItem: ProcessedInventoryItemForOrder | null; // inventoryItem can be null if not properly included, though schema implies it
 };
 
@@ -91,11 +93,12 @@ type OrderFormProps = {
   isEditMode?: boolean;
   initialData?: ProcessedOrder;
   companyId?: string;
+  searchParams?: { customerId?: string; orderType?: string };
 };
 
 // Removed OrderFormContent abstraction
 
-export default function OrderForm({ customers: initialCustomers, inventoryItems, order, isEditMode = false, initialData, companyId }: OrderFormProps) {
+export default function OrderForm({ customers: initialCustomers, inventoryItems, order, isEditMode = false, initialData, companyId, searchParams }: OrderFormProps) {
   const router = useRouter();
   const utils = api.useUtils(); // For cache invalidation
   const [customers, setCustomers] = useState(initialCustomers);
@@ -105,13 +108,13 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   const createForm = useForm<CreateFormValues>({
     resolver: zodResolver(createOrderSchema),
     defaultValues: {
-        customerId: '',
+        customerId: searchParams?.customerId || '',
         notes: '',
         status: OrderStatus.draft,
-        orderType: OrderType.work_order,
+        orderType: searchParams?.orderType === 'QUOTATION' ? OrderType.quotation : OrderType.work_order,
         orderDate: new Date(), // Added orderDate
         deliveryDate: undefined, // Added deliveryDate
-        items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }],
+        items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null }],
     },
   });
   const { fields: createFields, append: createAppend, remove: createRemove } = useFieldArray({
@@ -145,6 +148,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 inventoryItemId: orderItem.inventoryItemId, 
                 quantity: orderItem.quantity,
                 unitPrice: orderItem.unitPrice,
+                vatRatePercent: orderItem.vatRatePercent ?? 25.5, // Add VAT rate with fallback
                 discountAmount: orderItem.discountAmount ?? null,
                 discountPercent: orderItem.discountPercentage ?? null, // Prisma model uses discountPercentage
             })),
@@ -157,7 +161,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             orderType: OrderType.work_order,
             orderDate: new Date(),
             deliveryDate: undefined,
-            items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null }],
+            items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null }],
         });
     }
   }, [order, isEditMode, updateForm, createForm]);
@@ -288,6 +292,40 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     }, 0) : 0;
   };
 
+  const calculateVATTotal = (formInstance: CreateFormInstance | UpdateFormInstance) => {
+    let items: CreateFormValues['items'] | UpdateFormValues['items'] = [];
+    if (isEditMode) {
+      items = (formInstance as UpdateFormInstance).watch("items");
+    } else {
+      items = (formInstance as CreateFormInstance).watch("items");
+    }
+
+    return Array.isArray(items) ? items.reduce((vatTotal: number, item: any) => { 
+      const quantity = Number(item?.quantity) || 0;
+      const price = Number(item?.unitPrice) || 0;
+      const vatRate = Number(item?.vatRatePercent) || 0;
+      let lineTotal = quantity * price;
+
+      const discountPercent = item?.discountPercent;
+      const discountAmount = item?.discountAmount;
+
+      if (discountPercent != null && discountPercent > 0) {
+        lineTotal = lineTotal * (1 - discountPercent / 100);
+      } else if (discountAmount != null && discountAmount > 0) {
+        lineTotal = Math.max(0, lineTotal - discountAmount);
+      }
+      
+      const vatAmount = lineTotal * (vatRate / 100);
+      return vatTotal + vatAmount;
+    }, 0) : 0;
+  };
+
+  const calculateGrandTotal = (formInstance: CreateFormInstance | UpdateFormInstance) => {
+    const subtotal = calculateTotal(formInstance);
+    const vatTotal = calculateVATTotal(formInstance);
+    return subtotal + vatTotal;
+  };
+
   const calculateLineTotal = (item: any, formInstance: CreateFormInstance | UpdateFormInstance) => {
     const quantity = new Prisma.Decimal(item.quantity || 0);
     const unitPrice = new Prisma.Decimal(item.unitPrice || 0);
@@ -388,6 +426,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                       <TableHead className="w-[40%]">Item</TableHead>
                       <TableHead className="w-[100px]">Qty</TableHead>
                       <TableHead className="w-[120px]">Unit Price</TableHead>
+                      <TableHead className="w-[100px]">VAT %</TableHead>
                       <TableHead className="w-[120px]">Discount %</TableHead>
                       <TableHead className="w-[120px]">Discount Amt.</TableHead>
                       <TableHead className="text-right">Line Total</TableHead>
@@ -433,6 +472,30 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                               <FormItem>
                                 <FormLabel className="sr-only">Unit Price</FormLabel>
                                 <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell className="w-[100px]">
+                          <FormField
+                            control={updateForm.control}
+                            name={`items.${index}.vatRatePercent`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="sr-only">VAT %</FormLabel>
+                                <Select onValueChange={(value) => field.onChange(parseFloat(value))} value={field.value?.toString()} disabled={updateOrderMutation.isPending}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="VAT %" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {FINNISH_VAT_RATES.map(rate => (
+                                      <SelectItem key={rate} value={rate.toString()}>{rate}%</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -594,6 +657,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                         <TableHead className="w-2/5">Item</TableHead>
                         <TableHead>Quantity</TableHead>
                         <TableHead>Unit Price</TableHead>
+                        <TableHead className="w-[100px]">VAT %</TableHead>
                         <TableHead className="w-[120px]">Discount %</TableHead>
                         <TableHead className="w-[120px]">Discount Amt.</TableHead>
                         <TableHead className="text-right">Total</TableHead>
@@ -642,6 +706,30 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                   <FormItem>
                                     <FormLabel className="sr-only">Unit Price</FormLabel>
                                     <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={createForm.control}
+                                name={`items.${index}.vatRatePercent`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="sr-only">VAT %</FormLabel>
+                                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} value={field.value?.toString()} disabled={createOrderMutation.isPending}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="VAT %" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {FINNISH_VAT_RATES.map(rate => (
+                                          <SelectItem key={rate} value={rate.toString()}>{rate}%</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                   </FormItem>
                                 )}
@@ -704,7 +792,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   </Table>
                   <Button 
                     type="button" 
-                    onClick={() => createAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} 
+                    onClick={() => createAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null })} 
                     variant="outline" 
                     className="mt-4 w-full md:w-auto"
                     disabled={createOrderMutation.isPending}>
@@ -713,6 +801,23 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   {createForm.formState.errors.items && typeof createForm.formState.errors.items === 'object' && 'message' in createForm.formState.errors.items && (
                     <p className="text-sm font-medium text-destructive">{(createForm.formState.errors.items as any).message as string}</p>
                   )}
+                </div>
+
+                <div className="flex justify-end pt-6">
+                  <div className="w-full max-w-xs space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(calculateTotal(createForm))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>VAT</span>
+                      <span>{formatCurrency(calculateVATTotal(createForm))}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                      <span>Total</span>
+                      <span>{formatCurrency(calculateGrandTotal(createForm))}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <FormField
@@ -728,7 +833,6 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 />
               </CardContent>
               <CardFooter className="flex justify-end space-x-2">
-                  <span className="text-lg font-semibold mr-auto">Total: {formatCurrency(calculateTotal(createForm))}</span>
                   <Button type="button" variant="outline" onClick={() => router.back()} className="mr-2" disabled={createOrderMutation.isPending}>
                     Cancel
                   </Button>

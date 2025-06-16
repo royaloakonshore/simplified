@@ -43,6 +43,7 @@ async function getEditFormData(orderId: string) {
             unitPrice: item.unitPrice.toNumber(),
             discountAmount: item.discountAmount ? item.discountAmount.toNumber() : null,
             discountPercentage: item.discountPercentage ? item.discountPercentage.toNumber() : null,
+            vatRatePercent: item.vatRatePercent ? item.vatRatePercent.toNumber() : 25.5, // Add VAT rate with fallback
             inventoryItem: inventoryItemProcessed,
         };
     });

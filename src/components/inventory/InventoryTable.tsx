@@ -105,7 +105,18 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     header: "Category",
     cell: ({ row }) => {
       const item = row.original as InventoryItemRowData;
-      return item.inventoryCategory ? item.inventoryCategory.name : "N/A";
+      return item.inventoryCategory ? (
+        <Badge variant="outline">
+          {item.inventoryCategory.name}
+        </Badge>
+      ) : (
+        <span className="text-gray-400">-</span>
+      );
+    },
+    accessorFn: (row) => row.inventoryCategory?.name || "",
+    filterFn: (row, id, value) => {
+      const categoryName = row.original.inventoryCategory?.name || "";
+      return value.includes(categoryName);
     },
   },
   {

@@ -66,27 +66,41 @@ function OrderFormSkeleton() {
 // NOTE: This component MUST remain a Server Component (no 'use client') 
 // because it uses async/await for data fetching (getFormData, getServerAuthSession).
 // Data is passed as props (or promise) down to Client Components via the wrapper.
-export default async function AddOrderPage() {
+export default async function AddOrderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ customerId?: string; orderType?: string }>;
+}) {
   const session = await getServerAuthSession(); // Call the correct function
   if (!session?.user) {
     redirect('/api/auth/signin');
   }
 
-  // Fetch data in the Server Component
+  // Await searchParams and fetch data in the Server Component
+  const params = await searchParams;
   const formDataPromise = getFormData();
 
   return (
     <div className="container mx-auto py-8">
        <Suspense fallback={<OrderFormSkeleton />}>
          {/* Await data inside Suspense boundary */}
-          <AddOrderFormWrapper formDataPromise={formDataPromise} />
+          <AddOrderFormWrapper 
+            formDataPromise={formDataPromise} 
+            searchParams={params}
+          />
        </Suspense>
     </div>
   );
 }
 
 // Wrapper component to handle awaited promise inside Suspense
-async function AddOrderFormWrapper({ formDataPromise }: { formDataPromise: ReturnType<typeof getFormData> }) {
+async function AddOrderFormWrapper({ 
+  formDataPromise, 
+  searchParams 
+}: { 
+  formDataPromise: ReturnType<typeof getFormData>;
+  searchParams: { customerId?: string; orderType?: string };
+}) {
     const { customers, inventoryItems: rawInventoryItems } = await formDataPromise;
 
     const processedInventoryItems = rawInventoryItems.map(item => ({
@@ -101,6 +115,7 @@ async function AddOrderFormWrapper({ formDataPromise }: { formDataPromise: Retur
             customers={customers}
             inventoryItems={processedInventoryItems} // Pass processed items
             isEditMode={false}
+            searchParams={searchParams}
         />
     );
 } 

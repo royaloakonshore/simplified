@@ -214,6 +214,7 @@ model OrderItem {
   inventoryItemId    String
   quantity           Decimal       @db.Decimal(10, 2)
   unitPrice          Decimal       @db.Decimal(10, 2)
+  vatRatePercent     Decimal       @default(25.5) @db.Decimal(5, 2)
   discountAmount     Decimal?      @db.Decimal(10, 2)
   discountPercentage Decimal?      @db.Decimal(5, 2)
   inventoryItem      InventoryItem @relation(fields: [inventoryItemId], references: [id])

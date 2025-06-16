@@ -3,6 +3,10 @@
 import { z } from "zod";
 import { OrderStatus, OrderType } from "@prisma/client"; // Import OrderStatus and OrderType enums from Prisma
 
+// VAT rates for order items (same as invoice)
+export const FINNISH_VAT_RATES = [25.5, 14, 10, 0] as const;
+export type FinnishVatRate = (typeof FINNISH_VAT_RATES)[number];
+
 /**
  * Base for individual order item input, used in create and update schemas
  */
@@ -11,6 +15,7 @@ export const orderItemBaseSchema = z.object({
   inventoryItemId: z.string().cuid('Invalid inventory item ID'), // CHANGED from itemId
   quantity: z.coerce.number().positive('Quantity must be positive'),
   unitPrice: z.coerce.number().nonnegative('Unit price must be non-negative'),
+  vatRatePercent: z.coerce.number().min(0).max(100, 'VAT rate must be between 0 and 100').default(25.5), // Add VAT rate
   discountAmount: z.coerce.number().nonnegative('Discount amount must be non-negative').nullable().optional(),
   discountPercent: z.coerce.number().min(0).max(100, 'Discount percent must be between 0 and 100').nullable().optional(),
 });
