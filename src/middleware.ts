@@ -8,12 +8,14 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - auth (auth routes)
+     * - bootstrap (bootstrap routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - api/auth (NextAuth API routes)
+     * - api/bootstrap (bootstrap API routes)
      */
-    '/((?!auth|_next/static|_next/image|favicon.ico|api/auth).*)',
+    '/((?!auth|bootstrap|_next/static|_next/image|favicon.ico|api/auth|api/bootstrap).*)',
   ],
 }; 
 

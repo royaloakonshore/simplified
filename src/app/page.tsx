@@ -2,8 +2,10 @@ import React from "react";
 import ClientProvider from "@/components/ClientProvider";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Building } from "lucide-react";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,24 @@ async function getSession() {
   }
 }
 
+async function checkBootstrapNeeded() {
+  try {
+    const userCount = await prisma.user.count();
+    const companyCount = await prisma.company.count();
+    return userCount === 0 && companyCount === 0;
+  } catch (error) {
+    console.error("Failed to check bootstrap status:", error);
+    return false;
+  }
+}
+
 export default async function Page() {
+  // Check if system needs bootstrap first
+  const needsBootstrap = await checkBootstrapNeeded();
+  if (needsBootstrap) {
+    redirect("/bootstrap");
+  }
+
   const session = await getSession();
 
   return (
