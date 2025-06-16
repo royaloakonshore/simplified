@@ -53,6 +53,7 @@ const createUserFormSchema = z.object({
 type CreateUserFormValues = z.infer<typeof createUserFormSchema>;
 
 function SettingsPageContent() {
+  // All hooks must be called before any conditional returns
   const { data: session, status, update: updateSession } = useSession();
   const utils = api.useUtils();
 
