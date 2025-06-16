@@ -123,7 +123,6 @@ function InventoryListContent() {
           </Select>
         </div>
       </div>
-
       <div className="mb-4">
         <Input
           placeholder="Search inventory items..."
@@ -132,7 +131,6 @@ function InventoryListContent() {
           className="max-w-md"
         />
       </div>
-
       {error && (
         <Alert variant="destructive" className="mb-6">
           <Terminal className="h-4 w-4" />
@@ -140,7 +138,6 @@ function InventoryListContent() {
           <AlertDescription>{error.message || 'An unknown error occurred.'}</AlertDescription>
         </Alert>
       )}
-
       {isLoading || isFetching ? (
         <div className="space-y-4">
           <div className="border rounded-md">
@@ -180,7 +177,10 @@ function InventoryListContent() {
                   filteredItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/inventory/${item.id}/edit`} className="hover:underline">
+                        <Link
+                          href={`/inventory/${item.id}/edit`}
+                          className="hover:underline"
+                          legacyBehavior>
                           {item.name}
                         </Link>
                       </TableCell>

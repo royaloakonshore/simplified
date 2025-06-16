@@ -64,7 +64,12 @@ function StatsCard({
   );
 
   if (href) {
-    return <Link href={href} className="block hover:shadow-md transition-shadow">{cardContent}</Link>;
+    return (
+      <Link
+        href={href}
+        className="block hover:shadow-md transition-shadow"
+        legacyBehavior>{cardContent}</Link>
+    );
   }
   return cardContent;
 }
@@ -139,7 +144,10 @@ function ReplenishmentAlertsTable() {
           return (
             <TableRow key={item.id}>
               <TableCell className="font-medium px-4 whitespace-nowrap">
-                <Link href={`/inventory/${item.id}/edit`} className="hover:underline">
+                <Link
+                  href={`/inventory/${item.id}/edit`}
+                  className="hover:underline"
+                  legacyBehavior>
                   {item.sku || "N/A"}
                 </Link>
               </TableCell>

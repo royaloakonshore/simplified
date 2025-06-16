@@ -219,19 +219,27 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
            </div>
         </div>
         {invoice.originalInvoiceId && (
-          <p className="text-sm mt-2">Credits Invoice ID: <Link href={`/invoices/${invoice.originalInvoiceId}`} className="text-blue-600 hover:underline">{invoice.originalInvoiceId}</Link></p>
+          <p className="text-sm mt-2">Credits Invoice ID: <Link
+            href={`/invoices/${invoice.originalInvoiceId}`}
+            className="text-blue-600 hover:underline"
+            legacyBehavior>{invoice.originalInvoiceId}</Link></p>
         )}
         {invoice.creditNoteId && (
-          <p className="text-sm mt-2">Credited by Invoice ID: <Link href={`/invoices/${invoice.creditNoteId}`} className="text-blue-600 hover:underline">{invoice.creditNoteId}</Link></p>
+          <p className="text-sm mt-2">Credited by Invoice ID: <Link
+            href={`/invoices/${invoice.creditNoteId}`}
+            className="text-blue-600 hover:underline"
+            legacyBehavior>{invoice.creditNoteId}</Link></p>
         )}
       </div>
-
       <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
         <div>
           <h3 className="text-lg font-medium mb-2">Customer</h3>
           <div className="text-sm space-y-1 text-muted-foreground">
             <p className="font-medium text-primary">
-              <Link href={`/customers/${invoice.customer.id}`} className="hover:underline">
+              <Link
+                href={`/customers/${invoice.customer.id}`}
+                className="hover:underline"
+                legacyBehavior>
                 {invoice.customer.name}
               </Link>
             </p>
@@ -261,14 +269,12 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           </div>
         </div>
       </div>
-
       {invoice.notes && (
         <div className="px-6 py-4 border-t border-border">
           <h3 className="text-lg font-medium mb-2">Notes</h3>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
         </div>
       )}
-
       <div className="px-6 py-4 border-t border-border">
         <h3 className="text-lg font-medium mb-4">Invoice Items</h3>
         <div className="overflow-x-auto">
@@ -314,7 +320,6 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           </div>
         </div>
       </div>
-
       {error && <div className="p-4 text-red-500">Error: {error}</div>}
       {creditError && <div className="p-4 text-red-500">Error: {creditError}</div>}
     </div>

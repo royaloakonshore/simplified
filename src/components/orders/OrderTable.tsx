@@ -284,7 +284,6 @@ export default function OrderTable({
           </div>
         </div>
       )}
-      
       <div className="border rounded-md">
         <Table>
           <TableHeader>
@@ -400,7 +399,7 @@ export default function OrderTable({
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                     <Link href={`/orders/${order.id}`} className="hover:underline">
+                     <Link href={`/orders/${order.id}`} className="hover:underline" legacyBehavior>
                        {order.orderNumber}
                      </Link>
                   </TableCell>

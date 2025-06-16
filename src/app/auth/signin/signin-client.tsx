@@ -117,7 +117,6 @@ function SignInPageClientContent() {
       >
         <ModeToggle />
       </div>
-
       <BackgroundPaths title="Simplified ERP">
         <div className="flex flex-col gap-6">
           <LoginForm 
@@ -139,7 +138,7 @@ function SignInPageClientContent() {
               <AlertDescription className="flex items-center justify-between">
                 <span>First time setup? You may need to bootstrap the system.</span>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/bootstrap">
+                  <Link href="/bootstrap" legacyBehavior>
                     <Building className="mr-2 h-4 w-4" />
                     Setup System
                   </Link>

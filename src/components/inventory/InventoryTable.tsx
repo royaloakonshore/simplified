@@ -214,7 +214,7 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     cell: ({ row }) => {
       const item = row.original;
       return (
-        <Link href={`/inventory/${item.id}/edit`} passHref>
+        <Link href={`/inventory/${item.id}/edit`} passHref legacyBehavior>
           <Button variant="outline" size="sm">
             Edit
           </Button>

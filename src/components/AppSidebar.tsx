@@ -162,7 +162,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
     return (
         <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
             <SidebarHeader className="p-2 justify-center"> {/* Removed border-b */}
-                <Link href="/dashboard" className="flex items-center gap-2 ">
+                <Link href="/dashboard" className="flex items-center gap-2">
                     <Avatar className="h-8 w-8 rounded-lg">
                         <AvatarImage src="/logo.png" alt="App Logo" />
                         <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
@@ -179,8 +179,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     </span>
                 </Link>
             </SidebarHeader>
-            <TeamSwitcher /> 
-
+            <TeamSwitcher />
             <SidebarContent className="p-0 flex flex-col justify-between">
                 <div>
                     <NavMain items={processedDashboardItem} />

@@ -55,7 +55,7 @@ export function NavMain({ items }: NavMainProps) {
                 isActive={item.isActive}
                 className={cn(tooltipsActive && "px-0 w-8 justify-center")}
               >
-                <Link href={item.url} className="flex items-center w-full">
+                <Link href={item.url} className="flex items-center w-full" legacyBehavior>
                   {item.icon && <item.icon className={cn("h-4 w-4", tooltipsActive ? "mx-auto" : "mr-2")} />}
                   {!tooltipsActive && <span className="truncate">{item.title}</span>}
                 </Link>
@@ -75,7 +75,7 @@ export function NavMain({ items }: NavMainProps) {
                   {item.items.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton asChild isActive={subItem.isActive}>
-                        <Link href={subItem.url}>
+                        <Link href={subItem.url} legacyBehavior>
                           <span className="truncate">{subItem.title}</span>
                         </Link>
                       </SidebarMenuSubButton>
@@ -88,5 +88,5 @@ export function NavMain({ items }: NavMainProps) {
         </Collapsible>
       ))}
     </SidebarMenu>
-  )
+  );
 }

@@ -257,7 +257,7 @@ function ProductionPageContent() {
                             Total Order Quantity: {order.totalQuantity.toString()} items
                         </div>
                         <div className="flex gap-2">
-                            <Link href={`/orders/${order.id}`}>
+                            <Link href={`/orders/${order.id}`} legacyBehavior>
                                 <Button variant="outline" size="sm">
                                     View Full Order
                                 </Button>
@@ -333,10 +333,10 @@ function ProductionPageContent() {
             const order = row.original;
             // Could add a similar DialogTrigger here for table view if needed
             return (
-                <Link href={`/orders/${order.id}`} passHref>
-                    <Button variant="outline" size="sm">View</Button>
-                </Link>
-            )
+              <Link href={`/orders/${order.id}`} passHref legacyBehavior>
+                <Button variant="outline" size="sm">View</Button>
+              </Link>
+            );
         }
     }
   ], []);
@@ -487,10 +487,10 @@ function ProductionPageContent() {
 export default function ProductionPage() {
   return (
     // Ensure the parent container allows the Tabs component to fill height
-    <div className="container mx-auto py-6 px-4 md:px-6 h-[calc(100vh-var(--header-height)-theme(spacing.12))]"> 
-        <Suspense fallback={<div>Loading production view...</div>}>
-         <ProductionPageContent />
-        </Suspense>
+    <div className="container mx-auto py-6 px-4 md:px-6 h-[calc(100vh-var(--header-height)-theme(spacing.12))]">
+      <Suspense fallback={<div>Loading production view...</div>}>
+       <ProductionPageContent />
+      </Suspense>
     </div>
   );
 } 

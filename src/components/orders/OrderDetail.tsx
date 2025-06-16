@@ -236,7 +236,6 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           </div>
         </div>
       </div>
-
       {/* Order Details Grid - Restored half-width design */}
       <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Customer Column */}
@@ -244,7 +243,10 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           <h3 className="text-lg font-medium mb-2">Customer</h3>
           <div className="text-sm space-y-1 text-muted-foreground">
             <p className="font-medium text-primary">
-              <Link href={`/customers/${order.customer.id}`} className="hover:underline">
+              <Link
+                href={`/customers/${order.customer.id}`}
+                className="hover:underline"
+                legacyBehavior>
                 {order.customer?.name}
               </Link>
             </p>
@@ -297,7 +299,10 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                   return (
                     <tr key={orderItem.id}>
                       <td className="px-4 py-2 text-sm">
-                        <Link href={`/inventory/${orderItem.inventoryItem.id}`} className="font-medium text-primary hover:underline">
+                        <Link
+                          href={`/inventory/${orderItem.inventoryItem.id}`}
+                          className="font-medium text-primary hover:underline"
+                          legacyBehavior>
                           {orderItem.inventoryItem.name}
                         </Link>
                         <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>
@@ -350,7 +355,6 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           </div>
         )}
       </div>
-
       {/* Totals Section - Only for quotations */}
       {order.orderType === OrderType.quotation && (
         <div className="px-6 py-4 border-t border-border">
@@ -362,7 +366,6 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           </div>
         </div>
       )}
-
       {/* OrderStatusUpdateModal */}
       <OrderStatusUpdateModal
         orderId={order.id}
@@ -373,7 +376,6 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           window.location.reload();
         }}
       />
-
       {/* Modal for navigating to created invoice */}
       <Dialog open={showGoToInvoiceModal} onOpenChange={setShowGoToInvoiceModal}>
         <DialogContent>

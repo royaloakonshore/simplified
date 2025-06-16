@@ -82,7 +82,7 @@ export default function ViewBillOfMaterialPage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/boms">
+            <Link href="/boms" legacyBehavior>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to BOMs
             </Link>
@@ -93,13 +93,12 @@ export default function ViewBillOfMaterialPage() {
           </div>
         </div>
         <Button asChild>
-          <Link href={`/boms/${bomId}/edit`}>
+          <Link href={`/boms/${bomId}/edit`} legacyBehavior>
             <Edit className="h-4 w-4 mr-2" />
             Edit BOM
           </Link>
         </Button>
       </div>
-
       <div className="grid gap-6">
         {/* BOM Overview */}
         <Card>

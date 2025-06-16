@@ -30,7 +30,10 @@ export function OrderHistoryTable({ orders }: OrderHistoryTableProps) {
         {orders.map((order) => (
           <TableRow key={order.id}>
             <TableCell>
-              <Link href={`/orders/${order.id}`} className="text-blue-600 hover:underline">
+              <Link
+                href={`/orders/${order.id}`}
+                className="text-blue-600 hover:underline"
+                legacyBehavior>
                 {order.orderNumber}
               </Link>
             </TableCell>

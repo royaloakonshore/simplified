@@ -189,7 +189,10 @@ const columns: ColumnDef<InvoiceTableRowData>[] = [
   {
     accessorKey: "invoiceNumber",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Invoice #" />,
-    cell: ({ row }) => <Link href={`/invoices/${row.original.id}`} className="hover:underline">{row.getValue("invoiceNumber")}</Link>
+    cell: ({ row }) => <Link
+      href={`/invoices/${row.original.id}`}
+      className="hover:underline"
+      legacyBehavior>{row.getValue("invoiceNumber")}</Link>
   },
   {
     accessorKey: "customer.name",

@@ -81,7 +81,7 @@ export default function FulfillmentBoard({
         <Link
           href={`/orders/${order.id}`}
           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-        >
+          legacyBehavior>
           {order.orderNumber}
         </Link>
         <span className="text-xs text-neutral-500 dark:text-neutral-400">

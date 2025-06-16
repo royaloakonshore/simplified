@@ -86,7 +86,7 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/settings">
+                <Link href="/settings" legacyBehavior>
                   <BadgeCheck />
                   Account
                 </Link>
@@ -94,7 +94,7 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/auth/logout">
+              <Link href="/auth/logout" legacyBehavior>
                 <LogOut />
                 Log out
               </Link>
@@ -103,5 +103,5 @@ export function NavUser({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

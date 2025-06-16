@@ -31,7 +31,10 @@ export function InvoiceHistoryTable({ invoices }: InvoiceHistoryTableProps) {
         {invoices.map((invoice) => (
           <TableRow key={invoice.id}>
             <TableCell>
-              <Link href={`/invoices/${invoice.id}`} className="text-blue-600 hover:underline">
+              <Link
+                href={`/invoices/${invoice.id}`}
+                className="text-blue-600 hover:underline"
+                legacyBehavior>
                 {invoice.invoiceNumber}
               </Link>
             </TableCell>

@@ -49,7 +49,7 @@ function CustomerListContent() {
          </Button>
       </div>
       {isLoading && !data ? (
-        <CustomerTableSkeleton /> // Use the skeleton component
+        (<CustomerTableSkeleton />) // Use the skeleton component
       ) : (
         <CustomerTable 
             customers={data?.items ?? []} 
