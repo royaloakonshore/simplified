@@ -730,3 +730,10 @@ Successfully implemented delivery date column in the orders table as requested. 
 - Replaced Prisma Decimal `.times()` method with safe numeric multiplication in BOM calculations
 - Updated `renderBomDetails` function to properly convert Decimal objects to numbers before math operations
 - Ensured all BOM component quantity calculations work correctly in production view
+
+### 2025-01-30: Fixed Next.js Link Component Error
+- **Issue**: "Multiple children were passed to <Link>" error in AppSidebar.tsx
+- **Root Cause**: Next.js Link component requires single direct child, but had Avatar + span as multiple children
+- **Solution**: Wrapped Link children in single div container while preserving all styling and functionality
+- **Result**: Build passes successfully, no console errors, UI remains unchanged
+- **Status**: Production-ready with clean Link component implementation
