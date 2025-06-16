@@ -108,7 +108,16 @@ const renderBomDetails = (bom: NonNullable<KanbanOrder['items'][number]['invento
                 <TableCell>{bomItem.componentItem.sku}</TableCell>
                 <TableCell>{bomItem.componentItem.name}</TableCell>
                 <TableCell className="text-right">{bomItem.quantity.toString()}</TableCell>
-                <TableCell className="text-right">{(bomItem.quantity.times(orderItemQuantity)).toString()}</TableCell>
+                <TableCell className="text-right">{(() => {
+                  // Convert Prisma Decimals to numbers for safe calculation
+                  const componentQty = typeof bomItem.quantity === 'object' && bomItem.quantity !== null && 'toNumber' in bomItem.quantity 
+                    ? (bomItem.quantity as any).toNumber() 
+                    : Number(bomItem.quantity);
+                  const orderQty = typeof orderItemQuantity === 'object' && orderItemQuantity !== null && 'toNumber' in orderItemQuantity 
+                    ? (orderItemQuantity as any).toNumber() 
+                    : Number(orderItemQuantity);
+                  return (componentQty * orderQty).toFixed(2);
+                })()}</TableCell>
               </TableRow>
             ))}
           </TableBody>

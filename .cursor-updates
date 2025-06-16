@@ -266,3 +266,15 @@
 - Fixed OrderStatus enum inconsistencies between local types and Prisma client
 - Preserved quotation history and customer order chain: Customer → Quotation → Work Order → Invoice
 - Updated success messages to redirect to newly created work order instead of refreshing the page
+
+### 2024-12-19: Fixed Prisma Decimal toFixed() Error in BOM Components
+- Fixed `bomData.totalCalculatedCost.toFixed is not a function` error in BOM detail page
+- Replaced direct `.toFixed()` call with `formatCurrency()` utility function for proper Decimal handling
+- Fixed similar Decimal handling in BOM table component for safer numeric conversion
+- All Prisma Decimal values now properly converted before calling JavaScript number methods
+
+### 2024-12-19: Fixed Production Page Decimal times() Error  
+- Fixed `bomItem.quantity.times is not a function` error in Production Kanban/table view
+- Replaced Prisma Decimal `.times()` method with safe numeric multiplication in BOM calculations
+- Updated `renderBomDetails` function to properly convert Decimal objects to numbers before math operations
+- Ensured all BOM component quantity calculations work correctly in production view

@@ -90,8 +90,12 @@ export const columns: ColumnDef<BOMTableRow>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("totalCalculatedCost") as string); // Prisma Decimal to number
-      const formatted = amount.toFixed(2); // Just show the number with 2 decimal places, no currency symbol
+      const amount = row.getValue("totalCalculatedCost");
+      // Convert Prisma Decimal to number safely
+      const numericAmount = typeof amount === 'object' && amount !== null && 'toNumber' in amount 
+        ? (amount as any).toNumber() 
+        : Number(amount);
+      const formatted = numericAmount.toFixed(2); // Just show the number with 2 decimal places, no currency symbol
       return <div className="text-right font-medium">{formatted}</div>;
     },
   },

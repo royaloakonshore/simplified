@@ -222,7 +222,7 @@ export default function ViewBillOfMaterialPage() {
               </div>
               <div className="text-center p-4 border rounded-lg bg-primary/5">
                 <p className="text-sm text-muted-foreground">Total Calculated Cost</p>
-                <p className="text-2xl font-bold">{bomData.totalCalculatedCost.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(bomData.totalCalculatedCost)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Including materials + labor
                 </p>
