@@ -95,7 +95,36 @@ const calculateOrderTotal = (items: OrderItemInput[]): Prisma.Decimal => {
 };
 
 // Helper to generate unique order number (example)
-const generateOrderNumber = async (tx: Prisma.TransactionClient) => {
+const generateOrderNumber = async (tx: Prisma.TransactionClient, orderType?: OrderType, originalQuotationId?: string) => {
+  if (orderType === OrderType.work_order && originalQuotationId) {
+    // For work orders created from quotations, use the quotation number as base
+    const quotation = await tx.order.findUnique({
+      where: { id: originalQuotationId },
+      select: { orderNumber: true }
+    });
+    
+    if (quotation) {
+      // Find existing work orders created from this quotation
+      const existingWorkOrders = await tx.order.findMany({
+        where: { 
+          originalQuotationId: originalQuotationId,
+          orderType: OrderType.work_order
+        },
+        select: { orderNumber: true },
+        orderBy: { createdAt: 'asc' }
+      });
+      
+      const baseNumber = quotation.orderNumber; // e.g., "ORD-00001"
+      
+      if (existingWorkOrders.length === 0) {
+        return `${baseNumber}-WO`; // First work order: ORD-00001-WO
+      } else {
+        return `${baseNumber}-WO${existingWorkOrders.length + 1}`; // Subsequent: ORD-00001-WO2, ORD-00001-WO3
+      }
+    }
+  }
+  
+  // Default numbering for quotations and standalone work orders
   const lastOrder = await tx.order.findFirst({
     orderBy: { createdAt: 'desc' },
     select: { orderNumber: true },
@@ -107,7 +136,14 @@ const generateOrderNumber = async (tx: Prisma.TransactionClient) => {
       nextNumber = parseInt(match[0], 10) + 1;
     }
   }
-  return `ORD-${String(nextNumber).padStart(5, '0')}`;
+  
+  const baseNumber = `ORD-${String(nextNumber).padStart(5, '0')}`;
+  
+  if (orderType === OrderType.work_order) {
+    return `${baseNumber}-WO`; // Standalone work order: ORD-00001-WO
+  }
+  
+  return baseNumber; // Quotation: ORD-00001
 };
 
 // Helper function to check stock and potentially create transactions
@@ -237,7 +273,7 @@ const productionOrderPayload = {
     id: true,
     orderNumber: true,
     orderDate: true,
-    // deliveryDate: true, // Temporarily commented out due to linter issues; PRD shows it on Kanban card.
+    deliveryDate: true,
     status: true,
     orderType: true,
     notes: true,
@@ -372,7 +408,7 @@ export const orderRouter = createTRPCRouter({
       return prisma.$transaction(async (tx) => {
         const { items, ...orderData } = input;
         const orderTotal = calculateOrderTotal(items);
-        const orderNumber = await generateOrderNumber(tx);
+        const orderNumber = await generateOrderNumber(tx, orderData.orderType);
         const createdOrder = await tx.order.create({
           data: {
             ...orderData,
@@ -515,7 +551,7 @@ export const orderRouter = createTRPCRouter({
         }
 
         // Generate new order number for the work order
-        const newOrderNumber = await generateOrderNumber(tx);
+        const newOrderNumber = await generateOrderNumber(tx, OrderType.work_order, quotation.id);
 
         // Create a new work order based on the quotation
         const newWorkOrder = await tx.order.create({

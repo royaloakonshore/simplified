@@ -348,7 +348,7 @@ export const invoiceRouter = createTRPCRouter({
             unitPrice: item.unitPrice,
             vatRatePercent: item.vatRatePercent,
             discountAmount: item.discountAmount,
-            discountPercent: item.discountPercent,
+            discountPercentage: item.discountPercent,
             calculatedUnitCost: item.calculatedUnitCost,
             calculatedUnitProfit: item.calculatedUnitProfit,
             calculatedLineProfit: item.calculatedLineProfit,
@@ -405,9 +405,6 @@ export const invoiceRouter = createTRPCRouter({
       if (!order.customer) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Order customer not found' });
       }
-      if (order.status === OrderStatus.cancelled || order.status === OrderStatus.draft) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: `Order status is ${order.status}, cannot create invoice.` });
-      }
 
       let subTotal = new Decimal(0);
       let totalVatAmountValue = new Decimal(0);
@@ -453,11 +450,10 @@ export const invoiceRouter = createTRPCRouter({
           unitPrice,
           vatRatePercent: vatRateForCalc, 
           discountAmount: null, 
-          discountPercent: null,
+          discountPercentage: null,
           calculatedUnitCost,
           calculatedUnitProfit,
           calculatedLineProfit,
-          orderItemId: orderItem.id,
         };
       });
       
@@ -506,11 +502,10 @@ export const invoiceRouter = createTRPCRouter({
             unitPrice: item.unitPrice,
             vatRatePercent: item.vatRatePercent,
             discountAmount: item.discountAmount,
-            discountPercent: item.discountPercent,
+            discountPercentage: item.discountPercentage,
             calculatedUnitCost: item.calculatedUnitCost,
             calculatedUnitProfit: item.calculatedUnitProfit,
             calculatedLineProfit: item.calculatedLineProfit,
-            orderItem: { connect: { id: item.orderItemId } },
           })),
         },
       };

@@ -16,9 +16,10 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowLeft, Edit, Package, Wrench } from 'lucide-react';
+import { ArrowLeft, Edit, Package, Wrench, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function ViewBillOfMaterialPage() {
   const params = useParams();
@@ -28,6 +29,39 @@ export default function ViewBillOfMaterialPage() {
     { id: bomId },
     { enabled: !!bomId }
   );
+
+  const exportPDFMutation = api.bom.exportPDF.useMutation({
+    onSuccess: (data) => {
+      // Create a blob from the base64 data and trigger download
+      const byteCharacters = atob(data.pdfBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = data.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(data.message);
+    },
+    onError: (error) => {
+      toast.error(`Failed to export PDF: ${error.message}`);
+    },
+  });
+
+  const handleExportPDF = () => {
+    if (bomId) {
+      exportPDFMutation.mutate({ id: bomId });
+    }
+  };
 
   if (error) {
     return (
@@ -71,10 +105,7 @@ export default function ViewBillOfMaterialPage() {
     );
   }
 
-  const totalComponentCost = bomData.items.reduce((total, item) => {
-    // We don't have the component cost directly here, so we'll note this limitation
-    return total;
-  }, 0);
+
 
   return (
     <div className="container mx-auto py-10">
@@ -82,7 +113,7 @@ export default function ViewBillOfMaterialPage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/boms" legacyBehavior>
+            <Link href="/boms" className="flex items-center">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to BOMs
             </Link>
@@ -92,12 +123,23 @@ export default function ViewBillOfMaterialPage() {
             <p className="text-muted-foreground">{bomData.name}</p>
           </div>
         </div>
-        <Button asChild>
-          <Link href={`/boms/${bomId}/edit`} legacyBehavior>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit BOM
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleExportPDF}
+            disabled={exportPDFMutation.isPending}
+            className="flex items-center"
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            {exportPDFMutation.isPending ? 'Generating...' : 'Export PDF'}
+          </Button>
+          <Button asChild>
+            <Link href={`/boms/${bomId}/edit`} className="flex items-center">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit BOM
+            </Link>
+          </Button>
+        </div>
       </div>
       <div className="grid gap-6">
         {/* BOM Overview */}

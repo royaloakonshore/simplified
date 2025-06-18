@@ -298,10 +298,10 @@ The application has established user flows for core operations like login, profi
 **Goal:** Prioritize and schedule production based on customer commitments.
 
 **Steps:**
-1. **Orders Table Review:** Production staff can sort and filter orders by delivery date to identify urgent priorities.
-2. **Production Kanban:** Cards display delivery dates prominently, allowing visual prioritization of work.
+1. **Orders Table Review:** Production staff can sort and filter orders by delivery date to identify urgent priorities. **[IMPLEMENTED - Delivery date column with sorting in OrderTable]**
+2. **Production Kanban:** Cards display delivery dates prominently, allowing visual prioritization of work. **[IMPLEMENTED - Delivery date shown prominently in production modal]**
 3. **Deadline Awareness:** Overdue or approaching deadlines are visually highlighted (future enhancement).
-4. **BOM Planning:** Enhanced production modal shows both delivery requirements and component needs for comprehensive planning.
+4. **BOM Planning:** Enhanced production modal shows both delivery requirements and component needs for comprehensive planning. **[IMPLEMENTED - Comprehensive modal with order details + BOM]**
 
 ### 5A.3. Enhanced Production Modal Workflow
 
@@ -310,11 +310,11 @@ The application has established user flows for core operations like login, profi
 **Goal:** Access comprehensive order and BOM information efficiently during production.
 
 **Steps:**
-1. **Access Production View:** Navigate to Production Kanban/table view.
-2. **Select Order Card:** Click on any production card showing a work order.
-3. **Enhanced Modal Display:** Modal opens showing:
-   - **Order Summary:** Customer, order number, delivery date, status
-   - **BOM Details:** Complete list of required components and quantities
-   - **Production Status:** Current stage and next steps
-   - **Quick Actions:** Status updates, notes, navigation to full order page
-4. **Informed Decision Making:** Staff can make production decisions with complete context of both order requirements and component needs.
+1. **Access Production View:** Navigate to Production Kanban/table view. **[IMPLEMENTED]**
+2. **Select Order Card:** Click on any production card showing a work order. **[IMPLEMENTED - PackageSearch button opens modal]**
+3. **Enhanced Modal Display:** Modal opens showing: **[IMPLEMENTED]**
+   - **Order Summary:** Customer, order number, delivery date, status **[IMPLEMENTED]**
+   - **BOM Details:** Complete list of required components and quantities **[IMPLEMENTED with safe Decimal calculations]**
+   - **Production Status:** Current stage and next steps **[IMPLEMENTED]**
+   - **Quick Actions:** Status updates, notes, navigation to full order page **[IMPLEMENTED - "View Full Order" button]**
+4. **Informed Decision Making:** Staff can make production decisions with complete context of both order requirements and component needs. **[IMPLEMENTED]**

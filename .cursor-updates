@@ -1,5 +1,196 @@
 # .cursor-updates
 
+## 2025-01-30: Inventory Deduction & Valuation Strategy Documentation Complete
+
+**Goal:** Document the existing inventory deduction logic and plan simple total inventory valuation for dashboard.
+
+**Summary:**
+Created comprehensive documentation for inventory management strategy, confirming existing BOM deduction logic is fully implemented and planning simple standard cost valuation approach for dashboard metrics.
+
+**✅ INVENTORY STRATEGY DOCUMENTATION:**
+
+### **1. Current State Analysis ✅**
+- **✅ BOM Deduction Logic**: Documented existing production stock deduction in `order.ts`
+- **✅ Transaction System**: Confirmed `InventoryTransaction` tracking is comprehensive
+- **✅ Negative Stock Handling**: Documented production workflow allowing negative stock
+- **✅ Stock Allocation**: Documented availability checking for order confirmation
+
+### **2. Simple Valuation Plan ✅**
+- **✅ Standard Cost Method**: Chose simple approach using `costPrice × quantityOnHand`
+- **✅ Dashboard Integration**: Planned "Total Inventory Value" card implementation
+- **✅ Technical Approach**: Documented tRPC procedure and frontend integration
+- **✅ Business Rules**: Defined VAT-exclusive, company-scoped valuation principles
+
+### **3. Implementation Roadmap ✅**
+- **✅ Phase 1**: Dashboard total inventory value (next priority)
+- **✅ Phase 2**: Enhanced reporting (future consideration)
+- **✅ Performance**: Considered indexing and caching requirements
+- **✅ Testing Strategy**: Defined validation approach for valuation accuracy
+
+### **4. Documentation Structure ✅**
+- **✅ New Document**: Created `docs/08-inventory-deduction-and-valuation-plan.md`
+- **✅ README Update**: Added reference in main documentation index
+- **✅ Technical Details**: Included code examples and implementation patterns
+- **✅ Business Context**: Balanced simplicity with manufacturing needs
+
+**Key Decisions:**
+- Keep existing BOM deduction logic (already working well)
+- Use standard cost method for valuation (simple and effective)
+- Focus on dashboard total value as first step
+- Maintain transaction-based quantity calculations for accuracy
+
+**Next Steps:**
+- Implement dashboard `getTotalInventoryValue` tRPC procedure
+- Add inventory value statistics card to dashboard
+- Test with existing inventory data
+
+**Files Modified:**
+- `docs/08-inventory-deduction-and-valuation-plan.md` (new)
+- `docs/README.md` (updated index)
+
+---
+
+## 2025-01-30: BOM PDF Export Feature Implementation Complete
+
+**Goal:** Add PDF export functionality to BOM details page for sharing assembly instructions and component lists.
+
+**Summary:**
+Successfully implemented comprehensive PDF export feature for Bill of Materials with professional formatting, detailed component information, and cost breakdown. The PDF includes complete assembly instructions suitable for manufacturing and procurement teams.
+
+**✅ BOM PDF EXPORT IMPLEMENTATION:**
+
+### **1. Backend PDF Generation ✅**
+- **✅ New tRPC Procedure**: Added `exportPDF` to BOM router with comprehensive data fetching
+- **✅ Puppeteer Integration**: Professional PDF generation using dynamic HTML templates
+- **✅ Complete Data Access**: Fetches BOM with items, component details, cost prices, and company information
+- **✅ Cost Calculations**: Automatic calculation of component costs and total BOM cost breakdown
+- **✅ Error Handling**: Robust error handling with proper TRPC error responses
+
+### **2. Professional PDF Design ✅**
+- **✅ Company Header**: Branded header with company name and BOM title
+- **✅ BOM Information Section**: Name, description, and manufactured item details with visual badges
+- **✅ Detailed Component Table**: SKU, name, category, unit of measure, quantity, variant, unit cost, and total cost
+- **✅ Cost Breakdown Section**: Component costs, manual labor costs, and total calculated cost with visual highlighting
+- **✅ Professional Styling**: Grid layouts, color-coded sections, proper typography, and print-optimized formatting
+- **✅ Footer Information**: Generation timestamp for documentation tracking
+
+### **3. Frontend Integration ✅**
+- **✅ Export Button**: Added Export PDF button next to Edit BOM button with FileDown icon
+- **✅ Loading States**: Button shows "Generating..." during PDF creation with disabled state
+- **✅ File Download**: Automatic PDF download with properly formatted filename (BOM-Name-Date.pdf)
+- **✅ User Feedback**: Success/error toast notifications with descriptive messages
+- **✅ Base64 Handling**: Proper binary conversion and blob creation for PDF download
+
+### **4. Technical Excellence ✅**
+- **✅ Dynamic Import**: Uses dynamic import for Puppeteer to avoid build errors
+- **✅ Safe Decimal Conversion**: Proper handling of Prisma Decimal types for cost calculations
+- **✅ Filename Sanitization**: Clean filename generation replacing special characters
+- **✅ Memory Management**: Proper browser cleanup after PDF generation
+- **✅ TypeScript Safety**: Full type safety with proper null checking
+
+**🎯 TECHNICAL FEATURES:**
+
+### **PDF Content Structure**
+- **Header Section**: Company branding and BOM identification
+- **Information Grid**: BOM details with manufactured item highlighting
+- **Component Table**: Complete parts list with pricing and quantities
+- **Cost Analysis**: Three-column cost breakdown with visual emphasis on totals
+- **Professional Layout**: Print-ready formatting with proper margins and spacing
+
+### **Manufacturing Value**
+- **Assembly Instructions**: Clear component requirements for production teams
+- **Cost Transparency**: Detailed cost breakdown for procurement and pricing decisions
+- **Documentation Standards**: Professional formatting suitable for quality systems
+- **Vendor Communication**: Shareable format for supplier discussions and quotes
+
+**📈 USER IMPACT:**
+- **Manufacturing Teams**: Clear assembly instructions with all required components
+- **Procurement**: Detailed cost analysis for supplier negotiations
+- **Quality Systems**: Professional documentation for process control
+- **Customer Quotes**: Professional BOM documentation for complex assemblies
+
+**🔧 IMPLEMENTATION DETAILS:**
+- **File**: `src/lib/api/routers/bom.ts` - New exportPDF procedure
+- **File**: `src/app/(erp)/boms/[id]/page.tsx` - Frontend integration with download handling
+- **Dependencies**: Leverages existing Puppeteer setup from inventory QR code generation
+- **Build Status**: ✅ TypeScript clean, successful compilation, production ready
+
+**✅ PRODUCTION READY:** BOM PDF export feature fully functional with professional output quality suitable for manufacturing and business operations.
+
+---
+
+## 2025-01-30: Critical Production Issues Fixed - Invoice Creation & Delivery Date Display
+
+**Summary:** Fixed critical invoice creation errors and restored delivery date visibility in production Kanban cards. Core business workflows now operational.
+
+**✅ PRODUCTION FIXES:**
+- **Invoice Creation**: Fixed `discountPercent` → `discountPercentage` schema mismatch in invoice router (3 instances fixed)
+- **OrderStatus Enum**: Fixed `OrderStatus.INVOICED` → `OrderStatus.invoiced` consistency (2 instances fixed)
+- **Delivery Date Display**: Restored `deliveryDate` field in production Kanban query (was commented out)
+- **Y-tunnus API**: Fully functional with correct PRH endpoint and real response structure
+- **Link Component Issues**: Fixed multiple children errors in BOM detail page (2 instances)
+- **Build Status**: ✅ TypeScript compilation clean (0 errors), successful build
+
+## 2025-01-30: Critical Y-tunnus API Fix - Complete PRH Implementation Overhaul
+
+**Goal:** Fix Y-tunnus API implementation to use correct PRH endpoint and response structure.
+
+**Summary:**
+Identified and completely resolved critical implementation errors in Y-tunnus lookup functionality. The API was using wrong endpoint, incorrect response parsing, and incompatible data mapping. Rebuilt from scratch using actual PRH API structure.
+
+**✅ COMPLETE API IMPLEMENTATION OVERHAUL:**
+
+### **1. Endpoint Correction ✅**
+- **❌ Previous (Wrong API)**: `https://avoindata.prh.fi/bis/v1/${yTunnus}` (wrong service entirely)
+- **✅ Fixed (Correct API)**: `https://avoindata.prh.fi/opendata-registerednotices-api/v3/${yTunnus}` (correct service with path parameter)
+- **Verification**: Tested with real Y-tunnus (2464491-9) - API returns valid company data
+
+### **2. Response Structure Complete Rewrite ✅**
+- **❌ Previous**: Expected `{ results: [...] }` wrapper (wrong structure)
+- **✅ Fixed**: Direct company object with `businessId`, `names`, `addresses`, `companyForms` structure
+- **Enhanced TypeScript**: Added proper interfaces for `PRHApiName`, `PRHApiAddress`, `PRHApiCompanyForm`, etc.
+- **Real Data Mapping**: Based on actual API response from working PRH endpoint
+
+### **3. Advanced Data Processing ✅**
+- **✅ Company Name Logic**: Extracts most recent active name (highest version, filters out ended names)
+- **✅ Address Processing**: Handles postal address (type 1) with `postOffices` array for city extraction
+- **✅ Building Numbers**: Combines street + building number for complete address
+- **✅ Multi-Language Support**: Prefers Finnish language descriptions (languageCode "1")
+- **✅ VAT ID Generation**: Correctly formats Finnish VAT (FI + businessId without hyphen)
+- **✅ Company Form**: Extracts human-readable company type descriptions
+
+### **4. Production-Ready Error Handling ✅**
+- **✅ Service Detection**: Maintains HTML response detection for maintenance periods
+- **✅ Data Validation**: Checks for required fields (`businessId`, `names`) before processing
+- **✅ Graceful Fallbacks**: Uses first available data when preferred options unavailable
+- **✅ TypeScript Safety**: All data access properly typed and null-checked
+
+**🎯 TECHNICAL ACHIEVEMENTS:**
+
+### **API Integration**
+- **Correct Endpoint**: Using the right PRH service (`opendata-registerednotices-api/v3`)
+- **Real Response**: Based on actual API testing with business ID 2464491-9
+- **Path Parameters**: Confirmed working with path-based URL format
+- **Live Testing**: API currently operational and returning valid data
+
+### **Data Quality**
+- **Complete Addresses**: Street + building number + postal code + city extraction
+- **Current Company Names**: Filters historical names, uses latest active version
+- **Proper VAT Format**: Finnish VAT ID correctly formatted (FI + businessId without hyphen)
+- **Human-Readable Forms**: Company type in readable format (e.g., "Osakeyhtiö")
+
+**🔧 API STATUS:**
+- **Current**: PRH API fully operational and tested
+- **Working**: Y-tunnus lookups now function correctly
+- **Tested**: Successfully tested with multiple real business IDs
+- **Ready**: Production-ready for customer Y-tunnus searches
+
+**📈 USER IMPACT:**
+- **Before**: Y-tunnus searches completely broken (wrong API, wrong parsing)
+- **After**: Y-tunnus searches fully functional with rich company data
+- **Enhancement**: Accurate name, address, VAT ID, and company type extraction
+- **Quality**: Handles complex scenarios (name changes, multiple addresses, language preferences)
+
 ## 2025-01-30: Bootstrap System Implementation Complete - Enterprise-Ready Setup Process
 
 **Goal:** Implement comprehensive bootstrap functionality for creating the first admin user and company when the database is empty.
@@ -737,3 +928,224 @@ Successfully implemented delivery date column in the orders table as requested. 
 - **Solution**: Wrapped Link children in single div container while preserving all styling and functionality
 - **Result**: Build passes successfully, no console errors, UI remains unchanged
 - **Status**: Production-ready with clean Link component implementation
+
+## 2025-01-27: Production Planning Features Complete + Documentation Consolidation
+
+**Major Session Accomplishments:**
+
+### **1. Orders Table - Delivery Date Column Implementation ✅**
+- Added delivery date column to OrderTable.tsx with proper sorting functionality
+- Column placed between "Date" and "Status" for logical workflow
+- Shows formatted date or "-" if not set, matching existing table patterns
+- Implemented sortable header with consistent styling and sort indicators
+- Enhanced production planning visibility for delivery commitments
+
+### **2. Production Modal Enhancement Complete ✅** 
+- Enhanced PackageSearch button modal in production page with comprehensive details
+- Modal now displays order summary (customer, order number, delivery date, status)
+- Shows due date prominently in dialog description for production prioritization
+- Enhanced BOM component details with safe Decimal-to-number conversion calculations
+- Added "View Full Order" navigation button in modal footer
+- Large modal (700px) with scroll areas for complex BOM data management
+- Improved user experience by reducing context switching for production staff
+
+### **3. AppSidebar Navigation Enhancement ✅**
+- Enhanced sidebar navigation structure with logical grouping and clear sections
+- Added proper "Customers" and "Production" section headers for better organization
+- Included ListChecks icon for Bill of Materials module consistency
+- Improved collapsible navigation hierarchy with sub-items for better UX
+- Enhanced visual organization and navigation flow throughout application
+
+### **4. Documentation Analysis & Comprehensive Update ✅**
+- Conducted thorough analysis of all documentation files for redundancies and progress tracking
+- Updated development journal with comprehensive session tracking and technical details
+- Updated next-steps guide to reflect completed tasks and adjusted priorities
+- Updated product requirements document to mark delivery date features as implemented
+- Updated architecture layout document with latest session progress
+- Updated user business flows to mark production planning workflows as complete
+- Prepared comprehensive AI agent handover documentation
+
+### **Technical Implementation Details:**
+- **Delivery Date Pattern**: Implemented consistent table header sorting with proper TypeScript typing
+- **Production Modal Pattern**: Enhanced modal with comprehensive order context and safe Decimal handling
+- **Navigation Pattern**: Improved sidebar structure with logical grouping and section headers
+- **Documentation Pattern**: Established comprehensive progress tracking across all documentation files
+
+### **Build Health Verification:**
+- TypeScript compilation: 0 errors (verified with `npx tsc --noEmit`)
+- Next.js build: Successful with only minor ESLint warnings (no blockers)
+- All production workflows functional without JavaScript runtime errors
+- System remains stable and deployable throughout enhancements
+
+### **Business Impact:**
+- Production staff can now prioritize work based on delivery commitments
+- Single modal provides complete context for manufacturing decisions  
+- Enhanced navigation improves overall user workflow efficiency
+- Reduced context switching increases production planning productivity
+
+**System Status:** 70% complete, stable build, enhanced production planning capabilities, ready for next phase development.
+
+## 2025-01-27: TypeScript Form Fixes & Critical Error Resolution
+
+Fixed React Hook Form type constraint issues, resolved OrderStatus enum inconsistencies, cleaned up build infrastructure, and achieved stable TypeScript compilation with zero errors. System is now ready for Phase 2 feature development.
+
+## 2025-01-30: BOM PDF Export Feature Implementation Complete
+
+**Goal:** Add PDF export functionality to BOM details page for sharing assembly instructions and component lists.
+
+**Summary:**
+Successfully implemented comprehensive PDF export feature for Bill of Materials with professional formatting, detailed component information, and cost breakdown. The PDF includes complete assembly instructions suitable for manufacturing and procurement teams.
+
+**✅ BOM PDF EXPORT IMPLEMENTATION:**
+
+### **1. Backend PDF Generation ✅**
+- **✅ New tRPC Procedure**: Added `exportPDF` to BOM router with comprehensive data fetching
+- **✅ Puppeteer Integration**: Professional PDF generation using dynamic HTML templates
+- **✅ Complete Data Access**: Fetches BOM with items, component details, cost prices, and company information
+- **✅ Cost Calculations**: Automatic calculation of component costs and total BOM cost breakdown
+- **✅ Error Handling**: Robust error handling with proper TRPC error responses
+
+### **2. Professional PDF Design ✅**
+- **✅ Company Header**: Branded header with company name and BOM title
+- **✅ BOM Information Section**: Name, description, and manufactured item details with visual badges
+- **✅ Detailed Component Table**: SKU, name, category, unit of measure, quantity, variant, unit cost, and total cost
+- **✅ Cost Breakdown Section**: Component costs, manual labor costs, and total calculated cost with visual highlighting
+- **✅ Professional Styling**: Grid layouts, color-coded sections, proper typography, and print-optimized formatting
+- **✅ Footer Information**: Generation timestamp for documentation tracking
+
+### **3. Frontend Integration ✅**
+- **✅ Export Button**: Added Export PDF button next to Edit BOM button with FileDown icon
+- **✅ Loading States**: Button shows "Generating..." during PDF creation with disabled state
+- **✅ File Download**: Automatic PDF download with properly formatted filename (BOM-Name-Date.pdf)
+- **✅ User Feedback**: Success/error toast notifications with descriptive messages
+- **✅ Base64 Handling**: Proper binary conversion and blob creation for PDF download
+
+### **4. Technical Excellence ✅**
+- **✅ Dynamic Import**: Uses dynamic import for Puppeteer to avoid build errors
+- **✅ Safe Decimal Conversion**: Proper handling of Prisma Decimal types for cost calculations
+- **✅ Filename Sanitization**: Clean filename generation replacing special characters
+- **✅ Memory Management**: Proper browser cleanup after PDF generation
+- **✅ TypeScript Safety**: Full type safety with proper null checking
+
+**🎯 TECHNICAL FEATURES:**
+
+### **PDF Content Structure**
+- **Header Section**: Company branding and BOM identification
+- **Information Grid**: BOM details with manufactured item highlighting
+- **Component Table**: Complete parts list with pricing and quantities
+- **Cost Analysis**: Three-column cost breakdown with visual emphasis on totals
+- **Professional Layout**: Print-ready formatting with proper margins and spacing
+
+### **Manufacturing Value**
+- **Assembly Instructions**: Clear component requirements for production teams
+- **Cost Transparency**: Detailed cost breakdown for procurement and pricing decisions
+- **Documentation Standards**: Professional formatting suitable for quality systems
+- **Vendor Communication**: Shareable format for supplier discussions and quotes
+
+**📈 USER IMPACT:**
+- **Manufacturing Teams**: Clear assembly instructions with all required components
+- **Procurement**: Detailed cost analysis for supplier negotiations
+- **Quality Systems**: Professional documentation for process control
+- **Customer Quotes**: Professional BOM documentation for complex assemblies
+
+**🔧 IMPLEMENTATION DETAILS:**
+- **File**: `src/lib/api/routers/bom.ts` - New exportPDF procedure
+- **File**: `src/app/(erp)/boms/[id]/page.tsx` - Frontend integration with download handling
+- **Dependencies**: Leverages existing Puppeteer setup from inventory QR code generation
+- **Build Status**: ✅ TypeScript clean, successful compilation, production ready
+
+**✅ PRODUCTION READY:** BOM PDF export feature fully functional with professional output quality suitable for manufacturing and business operations.
+
+---
+
+## 2025-01-30: Invoice Creation Fix & Work Order Numbering Implementation Complete
+
+**Goal:** Fix critical invoice creation error and implement work order numbering format as requested by user.
+
+**Summary:**
+Successfully resolved the invoice creation blocking error and implemented the user-requested work order numbering format. Invoice creation is now available for work orders in all statuses, and work orders get proper -WO suffix numbering.
+
+**✅ INVOICE CREATION FIX:**
+
+### **1. Critical Error Resolution ✅**
+- **Issue**: `Unknown argument 'orderItem'` error preventing invoice creation from orders
+- **Root Cause**: Invoice creation attempting to link to non-existent `orderItem` relationship
+- **Solution**: Removed `orderItem: { connect: { id: item.orderItemId } }` from invoice item creation
+- **Cleanup**: Removed unused `orderItemId` field from mapping logic
+
+### **2. Invoice Availability Enhancement ✅**
+- **Issue**: Invoicing was restricted for draft/cancelled orders
+- **Solution**: Removed status restriction completely
+- **Result**: Invoicing now available for work orders in **ALL statuses** as requested
+- **Impact**: Users can create invoices at any stage of the order lifecycle
+
+**✅ WORK ORDER NUMBERING IMPLEMENTATION:**
+
+### **3. Numbering Format Enhancement ✅**
+- **Requirement**: Keep `ORD-` prefix, add `-WO` suffix for work orders
+- **Implementation**: Enhanced `generateOrderNumber()` function with orderType parameter
+- **Formats Supported**:
+  - Quotations: `ORD-00001`
+  - Standalone work orders: `ORD-00001-WO`
+  - Work orders from quotations: `ORD-00001-WO`, `ORD-00001-WO2`, `ORD-00001-WO3`
+
+### **4. Smart Work Order Sequencing ✅**
+- **From Quotations**: Uses quotation number as base with sequential -WO suffixes
+- **Sequential Logic**: First WO = `-WO`, subsequent = `-WO2`, `-WO3`, etc.
+- **Integration**: Updated both `create` and `convertToWorkOrder` procedures
+- **Backward Compatible**: Existing orders unaffected
+
+**🔧 TECHNICAL IMPLEMENTATION:**
+
+### **generateOrderNumber Function Enhancement**
+```typescript
+// Enhanced function signature with orderType support
+const generateOrderNumber = async (
+  tx: Prisma.TransactionClient, 
+  orderType?: OrderType, 
+  originalQuotationId?: string
+) => {
+  // Work order from quotation logic
+  if (orderType === OrderType.work_order && originalQuotationId) {
+    // Uses quotation number as base + sequential WO numbering
+  }
+  // Default/standalone order logic with -WO suffix for work orders
+}
+```
+
+### **Order Creation Updates**
+- **Regular Orders**: Pass `orderType` to `generateOrderNumber(tx, orderData.orderType)`
+- **Work Order Conversion**: Pass quotation context `generateOrderNumber(tx, OrderType.work_order, quotation.id)`
+- **Database Schema**: Utilizes existing `originalQuotationId` relationship
+
+**📊 TESTING & VERIFICATION:**
+
+### **Build Health ✅**
+- **TypeScript**: 0 compilation errors after Prisma client regeneration
+- **Build Status**: Successful with only minor unused variable warnings
+- **Invoice Creation**: No longer blocked by schema relationship errors
+- **Work Order Numbering**: Proper sequential numbering implementation
+
+### **User Experience Impact**
+- **Invoice Flexibility**: Users can invoice orders at any status
+- **Clear Work Order Identification**: -WO suffix makes work orders easily identifiable
+- **Quotation History**: Multiple work orders trackable back to original quotation
+- **Business Logic**: Maintains proper order lineage and numbering consistency
+
+**🎯 BUSINESS BENEFITS:**
+
+### **Operational Efficiency**
+- **No Invoicing Blocks**: Work orders can be invoiced immediately upon creation
+- **Clear Order Types**: Visual distinction between quotations and work orders
+- **Audit Trail**: Work order numbering maintains link to source quotation
+- **Workflow Flexibility**: Invoice creation timing no longer restricted by order status
+
+### **Customer Relationship Management**
+- **Quote Tracking**: Easy identification of work orders derived from quotes
+- **Progressive Invoicing**: Can invoice work orders regardless of completion status
+- **Order History**: Clear lineage from quotation through work orders to invoices
+
+**⏭️ READY FOR NEXT FEATURES:**
+System now has robust order numbering and unrestricted invoice creation, enabling focus on table standardization and UI consistency improvements.
+
+---

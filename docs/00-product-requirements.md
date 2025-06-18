@@ -112,7 +112,7 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
         *   Track Order Status. **[Implemented]**
         *   Link to generated Invoice(s) and Production workflow. **[Implemented]**
         *   PDF Export/Print for orders. **[PENDING]**
-        *   **Delivery Date Management:** Essential field for production planning and customer commitments. **[Field exists in schema, UI enhancements needed]**
+        *   **Delivery Date Management:** Essential field for production planning and customer commitments. **[IMPLEMENTED - Field exists in schema, prominently displayed in orders table with sorting, visible in production modal]**
         *   **NEW REQUIREMENT:** Order table (and Invoice table) should have multi-select checkboxes for rows and bulk action options (e.g., "Print PDF" - can be a placeholder initially if PDF generation is not yet implemented).
         *   **NEW REQUIREMENT:** Item and Customer dropdowns in Order and Invoice creation/editing forms should be searchable select components (e.g., using a popover with search).
         *   **NEW REQUIREMENT:** Orders table must display delivery date as a prominent column for production planning visibility.
@@ -125,8 +125,8 @@ The application has foundational modules for Invoicing, Orders, Inventory, Custo
             *   For each, it uses their `BillOfMaterial` to create negative `InventoryTransaction` records for the component raw materials, reducing their `quantityOnHand`. **[Implemented]**
         *   Production views exclude pricing. **[Implemented for Kanban]**
         *   **NEW REQUIREMENT:** Ensure orders sent to production create cards in the production Kanban/rows in a table view. These cards/rows should link to the specific order page. **[Kanban card creation is implemented. Linking to order page exists.]**
-        *   **NEW REQUIREMENT:** Production Kanban cards/table rows should also contain a BOM information view (e.g., a modal or expandable section showing components and quantities for manufactured items in the order). **[Basic modal exists but needs enhancement - currently shows only BOM, should show comprehensive order details]**
-        *   **NEW REQUIREMENT:** Production cards must display delivery date prominently to support production scheduling and priority management.
+        *   **NEW REQUIREMENT:** Production Kanban cards/table rows should also contain a BOM information view (e.g., a modal or expandable section showing components and quantities for manufactured items in the order). **[IMPLEMENTED - Enhanced modal shows comprehensive order details + BOM with proper calculations and navigation]**
+        *   **NEW REQUIREMENT:** Production cards must display delivery date prominently to support production scheduling and priority management. **[IMPLEMENTED - Delivery date prominently displayed in production modal]**
 
 ### 4. Customer Relationship Management (CRM)
     *   Manage customer database: contact details, addresses (billing/shipping). **[Implemented, including CustomerTable with advanced features]**

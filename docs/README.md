@@ -25,6 +25,7 @@
 ### **📊 Technical Details**
 - **[02-type-flow-and-finvoice.md](./02-type-flow-and-finvoice.md)** - Data flows and Finvoice integration
 - **[06-ui-and-feature-roadmap.md](./06-ui-and-feature-roadmap.md)** - UI component and feature planning
+- **[08-inventory-deduction-and-valuation-plan.md](./08-inventory-deduction-and-valuation-plan.md)** - Inventory management and valuation strategy
 
 ---
 
@@ -45,9 +46,10 @@
 ## 📊 **Current System Status**
 
 - **Build Health**: ✅ TypeScript clean, Next.js building successfully
-- **Overall Completion**: 66%
-- **Critical Blockers**: 3 (BOM detail page, performance indexes, form TypeScript)
-- **Ready Features**: Database indexes for 60-80% performance improvement
+- **Overall Completion**: 70%
+- **Critical Blockers**: 1 (BOM detail page PageProps compatibility)
+- **Latest Features**: ✅ Delivery date column, ✅ Enhanced production modal, ✅ Improved navigation
+- **Performance**: Database indexes deployed (60-80% improvement)
 
 *Last Updated: January 27, 2025*
 

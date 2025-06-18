@@ -15,28 +15,66 @@ import type { Address } from '@prisma/client';
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 
-// Define a type for the PRH API address structure for better type safety internally
+// Define types for the actual PRH API response structure (opendata-registerednotices-api/v3)
 interface PRHApiAddress {
+  type: number; // 1 = postal address, 2 = business address  
   street?: string;
   postCode?: string;
-  city?: string;
-  country?: string; // Typically a country code like 'FI'
-  type?: string;    // e.g., "Postiosoite", "Toimitusosoite"
-  language?: string;
+  postOffices?: Array<{
+    city: string;
+    languageCode: string;
+    municipalityCode: string;
+  }>;
+  buildingNumber?: string;
+  co?: string; // Care of
   registrationDate?: string;
-  endDate?: string;
-  careOf?: string;
+  source?: string;
 }
 
-// Define a type for the expected PRH API response structure (subset)
-interface PRHApiResponse {
+interface PRHApiName {
   name: string;
-  businessId: string;
-  vatNumber?: string; // This field is directly available in the PRH API if VAT registered
+  type: string;
+  registrationDate: string;
+  endDate?: string;
+  version: number;
+  source: string;
+}
+
+interface PRHApiCompanyForm {
+  type: string;
+  descriptions: Array<{
+    languageCode: string;
+    description: string;
+  }>;
+  registrationDate: string;
+  version: number;
+  source: string;
+}
+
+interface PRHApiRegisteredEntry {
+  type: string;
+  descriptions: Array<{
+    languageCode: string;
+    description: string;
+  }>;
+  registrationDate: string;
+  endDate?: string;
+  register?: string;
+  authority?: string;
+}
+
+// Actual PRH API response structure
+interface PRHApiResponse {
+  businessId: {
+    value: string;
+    registrationDate: string;
+    source: string;
+  };
+  names: PRHApiName[];
   addresses?: PRHApiAddress[];
-  companyForm?: string;
+  companyForms?: PRHApiCompanyForm[];
+  registeredEntries?: PRHApiRegisteredEntry[];
   registrationDate?: string;
-  // ... other fields we might not directly use but are present
 }
 
 export const customerRouter = createTRPCRouter({
@@ -161,7 +199,8 @@ export const customerRouter = createTRPCRouter({
     .output(prhCompanyInfoSchema)
     .query(async ({ input }) => {
       const { yTunnus } = input;
-      const apiUrl = `https://avoindata.prh.fi/bis/v1/${yTunnus}`;
+      // Correct PRH API endpoint - using the registered notices API
+      const apiUrl = `https://avoindata.prh.fi/opendata-registerednotices-api/v3/${yTunnus}`;
 
       try {
         const response = await fetch(apiUrl);
@@ -175,64 +214,101 @@ export const customerRouter = createTRPCRouter({
           }
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: `Failed to fetch data from PRH API. Status: ${response.status}`,
+            message: `PRH API service temporarily unavailable. Please try again later. (Status: ${response.status})`,
           });
         }
 
-        const apiDataArray = await response.json() as unknown as { results: PRHApiResponse[] };
+        const responseText = await response.text();
         
-        if (!apiDataArray.results || !Array.isArray(apiDataArray.results) || apiDataArray.results.length === 0) {
+        // Check if response is HTML (service interruption) instead of JSON
+        if (responseText.includes('<!doctype html>') || responseText.includes('<html')) {
+          throw new TRPCError({
+            code: "SERVICE_UNAVAILABLE",
+            message: "PRH API is currently under maintenance. Please try again later.",
+          });
+        }
+
+        let companyData: PRHApiResponse;
+        try {
+          // PRH API returns company data directly (not wrapped in results array)
+          companyData = JSON.parse(responseText) as PRHApiResponse;
+        } catch (parseError) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Invalid response format from PRH API. Service may be temporarily unavailable.",
+          });
+        }
+        
+        if (!companyData.businessId || !companyData.names || companyData.names.length === 0) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: `No company data found in PRH API response for Y-tunnus: ${yTunnus}`,
           });
         }
 
-        const companyData = apiDataArray.results[0];
-
-        if (!companyData) {
-            throw new TRPCError({
-                code: "NOT_FOUND",
-                message: `No company data found for Y-tunnus: ${yTunnus}`,
-            });
-        }
-
+        // Extract company information
         let streetAddress: string | undefined;
         let postalCode: string | undefined;
         let city: string | undefined;
-        let countryCode: string | undefined = "FI";
+        const countryCode: string | undefined = "FI";
 
+        // Find postal address (type 1) or fallback to first available address
         if (companyData.addresses && companyData.addresses.length > 0) {
-          let postalApiAddress = companyData.addresses.find(addr => addr.type === "Postiosoite");
+          let postalApiAddress = companyData.addresses.find(addr => addr.type === 1); // 1 = postal address
           if (!postalApiAddress && companyData.addresses.length > 0) {
             postalApiAddress = companyData.addresses[0];
           }
 
           if (postalApiAddress) {
             streetAddress = postalApiAddress.street;
+            if (postalApiAddress.buildingNumber) {
+              streetAddress = streetAddress ? `${streetAddress} ${postalApiAddress.buildingNumber}` : postalApiAddress.buildingNumber;
+            }
             postalCode = postalApiAddress.postCode;
-            city = postalApiAddress.city;
-            if (postalApiAddress.country && postalApiAddress.country.trim() !== "") {
-                countryCode = postalApiAddress.country.toUpperCase();
+            
+            // Get city from postOffices array (prefer Finnish language code "1")
+            if (postalApiAddress.postOffices && postalApiAddress.postOffices.length > 0) {
+              const finnishCity = postalApiAddress.postOffices.find(po => po.languageCode === "1");
+              city = finnishCity ? finnishCity.city : postalApiAddress.postOffices[0].city;
             }
           }
         }
         
-        let vatId = companyData.vatNumber;
-        if (!vatId && companyData.businessId && /^\d{7}-\d$/.test(companyData.businessId)) {
-            vatId = `FI${companyData.businessId.replace("-", "")}`;
+        // Get the most recent company name (highest version or most recent registration date)
+        let companyName = companyData.names[0].name;
+        if (companyData.names.length > 1) {
+          const sortedNames = companyData.names
+            .filter(n => !n.endDate) // Only active names
+            .sort((a, b) => b.version - a.version || new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
+          if (sortedNames.length > 0) {
+            companyName = sortedNames[0].name;
+          }
+        }
+
+        // Generate VAT ID from business ID (Finnish format: FI + businessId without hyphen)
+        const businessId = companyData.businessId.value;
+        let vatId: string | undefined;
+        if (businessId && /^\d{7}-\d$/.test(businessId)) {
+          vatId = `FI${businessId.replace("-", "")}`;
+        }
+
+        // Get company form (prefer Finnish description)
+        let companyForm: string | undefined;
+        if (companyData.companyForms && companyData.companyForms.length > 0) {
+          const finnishForm = companyData.companyForms[0].descriptions.find(d => d.languageCode === "1");
+          companyForm = finnishForm ? finnishForm.description : companyData.companyForms[0].descriptions[0].description;
         }
 
         return {
-          name: companyData.name,
-          businessId: companyData.businessId,
+          name: companyName,
+          businessId: businessId,
           vatId: vatId,
           streetAddress,
           postalCode,
           city,
           countryCode,
-          companyForm: companyData.companyForm,
-          registrationDate: companyData.registrationDate,
+          companyForm,
+          registrationDate: companyData.businessId.registrationDate,
         };
 
       } catch (error) {

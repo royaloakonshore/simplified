@@ -68,7 +68,7 @@ function StatsCard({
       <Link
         href={href}
         className="block hover:shadow-md transition-shadow"
-        legacyBehavior>{cardContent}</Link>
+        >{cardContent}</Link>
     );
   }
   return cardContent;
@@ -147,7 +147,7 @@ function ReplenishmentAlertsTable() {
                 <Link
                   href={`/inventory/${item.id}/edit`}
                   className="hover:underline"
-                  legacyBehavior>
+                  >
                   {item.sku || "N/A"}
                 </Link>
               </TableCell>

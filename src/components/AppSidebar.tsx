@@ -162,23 +162,21 @@ export function AppSidebar({ user }: AppSidebarProps) {
     return (
         <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
             <SidebarHeader className="p-2 justify-center"> {/* Removed border-b */}
-                <Link href="/dashboard">
-                    <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8 rounded-lg">
-                            <AvatarImage src="/logo.png" alt="App Logo" />
-                            <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
-                        </Avatar>
-                        <span 
-                            className={cn(
-                                "font-semibold text-lg whitespace-nowrap transition-opacity duration-300 ease-in-out",
-                                isIconMode 
-                                    ? "opacity-0 w-0 pointer-events-none"
-                                    : "opacity-100 w-auto ml-2"
-                            )}
-                        >
-                            SimplifiedERP
-                        </span>
-                    </div>
+                <Link href="/dashboard" className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                        <AvatarImage src="/logo.png" alt="App Logo" />
+                        <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
+                    </Avatar>
+                    <span 
+                        className={cn(
+                            "font-semibold text-lg whitespace-nowrap transition-opacity duration-300 ease-in-out",
+                            isIconMode 
+                                ? "opacity-0 w-0 pointer-events-none"
+                                : "opacity-100 w-auto ml-2"
+                        )}
+                    >
+                        SimplifiedERP
+                    </span>
                 </Link>
             </SidebarHeader>
             <TeamSwitcher />
