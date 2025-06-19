@@ -361,6 +361,34 @@ export default function DashboardPage() {
           />
         </div>
 
+        {/* Performance Indicators Row */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6">
+          <StatsCard 
+            title="Order Fulfillment Rate" 
+            value={statsLoading ? "..." : `${(stats?.orderFulfillmentRate.percentage || 0).toFixed(1)}%`} 
+            description={`${stats?.orderFulfillmentRate.onTime || 0} of ${stats?.orderFulfillmentRate.total || 0} on time`} 
+            trend={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "Excellent" : (stats?.orderFulfillmentRate.percentage ?? 0) >= 80 ? "Good" : "Needs Improvement"} 
+            trendDirection={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "up" : "down"} 
+            href="/orders"
+          />
+          <StatsCard 
+            title="Inventory Turnover" 
+            value={statsLoading ? "..." : `${Math.abs(stats?.inventoryTurnover.percentage || 0).toFixed(1)}%`} 
+            description="Inventory value change" 
+            trend={`${(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "↓" : "↑"} Stock movement`} 
+            trendDirection={(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "up" : "down"} 
+            href="/inventory"
+          />
+          <StatsCard 
+            title="Customer Growth" 
+            value={statsLoading ? "..." : `+${stats?.customerGrowth.current || 0}`} 
+            description="New customers this month" 
+            trend={statsLoading ? "..." : formatTrend(stats?.customerGrowth.trend || 0)} 
+            trendDirection={(stats?.customerGrowth.trend ?? 0) >= 0 ? "up" : "down"} 
+            href="/customers"
+          />
+        </div>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>

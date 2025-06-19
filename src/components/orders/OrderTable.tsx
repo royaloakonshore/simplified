@@ -1,10 +1,13 @@
 "use client";
 
-import { type Order, OrderStatus, OrderType, type Customer, Prisma } from "@prisma/client";
+import * as React from "react";
+import { type Order, OrderStatus, OrderType, type Customer } from "@prisma/client";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,134 +23,106 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ArrowRight, MoreHorizontal, Eye, Factory, FileText, Download, ArrowUpDown } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowUpDown, MoreHorizontal, Eye, Factory, FileText, Download } from "lucide-react";
 import { api } from "@/lib/trpc/react";
 import { toast } from "sonner";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  type SortingState,
+  type ColumnFiltersState,
+  type VisibilityState,
+  type RowSelectionState,
+} from "@tanstack/react-table";
+import { DataTableFacetedFilter } from "@/components/ui/data-table/data-table-faceted-filter";
+import { DataTableColumnHeader } from "@/components/ui/data-table/data-table-column-header";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 // Define the expected shape of the order prop passed to the table
-// Matches the select statement in the list procedure
-type OrderInTable = Pick<Order, 'id' | 'orderNumber' | 'status' | 'orderType' | 'createdAt' | 'deliveryDate' | 'totalAmount'> & {
+export type OrderTableRowData = Pick<Order, 'id' | 'orderNumber' | 'status' | 'orderType' | 'createdAt' | 'deliveryDate' | 'totalAmount'> & {
   customer: Pick<Customer, 'id' | 'name'> | null;
-  vatAmount?: number; // Add VAT amount for calculation
+  vatAmount?: number;
 };
 
 interface OrderTableProps {
-  orders: OrderInTable[];
-  nextCursor: string | undefined | null;
-  // Props for selection
-  selectedOrderIds: string[];
-  onSelectOrder: (orderId: string, isSelected: boolean) => void;
-  onSelectAll: (isSelected: boolean) => void;
-  isAllSelected: boolean;
-  // Props for bulk actions
-  onBulkExportPDF?: () => void;
-  showBulkActions?: boolean;
+  data: OrderTableRowData[];
+  isLoading: boolean;
+  onDataChange?: (data: OrderTableRowData[]) => void;
 }
 
-// Helper function to format currency
-const formatCurrency = (amount: number | string | Prisma.Decimal) => {
-  return new Intl.NumberFormat('fi-FI', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(Number(amount));
+// Status badge variant mapping
+const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "destructive" | "outline" => {
+  switch (status) {
+    case OrderStatus.draft:
+      return "secondary";
+    case OrderStatus.confirmed:
+    case OrderStatus.in_production:
+      return "default";
+    case OrderStatus.shipped:
+    case OrderStatus.delivered:
+      return "outline";
+    case OrderStatus.cancelled:
+      return "destructive";
+    default:
+      return "secondary";
+  }
 };
 
-// Helper function to format date
-const formatDate = (date: Date) => {
-  return new Date(date).toLocaleDateString('fi-FI', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  });
-};
-
-// Helper function to get order type display text
+// Order type display mapping
 const getOrderTypeDisplay = (orderType: OrderType): string => {
   switch (orderType) {
-    case OrderType.work_order:
-      return "Work Order";
     case OrderType.quotation:
       return "Quotation";
+    case OrderType.work_order:
+      return "Work Order";
     default:
       return orderType;
   }
 };
 
-// Status badge variant mapping (similar to OrderDetail)
-const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case OrderStatus.draft:
-        return "secondary";
-      case OrderStatus.confirmed:
-      case OrderStatus.in_production:
-        return "default";
-      case OrderStatus.shipped:
-      case OrderStatus.delivered:
-        return "outline";
-      case OrderStatus.cancelled:
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
+// Row Actions Component
+interface OrderTableRowActionsProps {
+  order: OrderTableRowData;
+  onActionSuccess?: () => void;
+}
 
-// OrderTableRowActions component for dropdown menu
-const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable, onActionSuccess: () => void }) => {
+const OrderTableRowActions: React.FC<OrderTableRowActionsProps> = ({ order, onActionSuccess }) => {
   const router = useRouter();
   const utils = api.useUtils();
 
-  const convertToWorkOrderMutation = api.order.convertToWorkOrder.useMutation({
-    onSuccess: (newWorkOrder) => {
-      toast.success(`Work Order ${newWorkOrder.orderNumber} created successfully!`);
-      onActionSuccess(); // Refresh the list
-    },
-    onError: (err) => {
-      toast.error(`Failed to create Work Order: ${err.message}`);
-    },
-  });
-
   const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
-    onSuccess: (invoice) => {
-      toast.success(`Invoice ${invoice.invoiceNumber} created successfully!`);
-      router.push(`/invoices/${invoice.id}`);
-      onActionSuccess(); // Refresh the list
+    onSuccess: (data) => {
+      toast.success("Invoice created successfully!");
+      router.push(`/invoices/${data.id}`);
+      onActionSuccess?.();
     },
-    onError: (err) => {
-      toast.error(`Failed to create invoice: ${err.message}`);
-    },
-  });
-
-  const exportPDFMutation = api.order.exportPDF.useMutation({
-    onSuccess: () => {
-      toast.success("PDF export started");
-    },
-    onError: (err) => {
-      toast.error(`Failed to export PDF: ${err.message}`);
+    onError: (error) => {
+      toast.error(`Failed to create invoice: ${error.message}`);
     },
   });
-
-  const handleSendToWorkOrder = () => {
-    convertToWorkOrderMutation.mutate({ orderId: order.id });
-  };
 
   const handleCreateInvoice = () => {
-    // Calculate due date (30 days from today by default)
-    const today = new Date();
-    const dueDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
-    createInvoiceMutation.mutate({ 
-      orderId: order.id,
-      dueDate,
-      invoiceDate: today,
-    });
+    // Navigate to invoice creation page with order prefilled
+    router.push(`/invoices/add?orderId=${order.id}`);
+  };
+
+  const handleSendToWorkOrder = () => {
+    toast.info("Work order conversion functionality will be implemented soon");
   };
 
   const handleExportPDF = () => {
-    exportPDFMutation.mutate({ id: order.id });
+    toast.info("PDF export functionality will be implemented soon");
   };
 
-  const canSendToWorkOrder = order.orderType === OrderType.quotation && 
-    (order.status === OrderStatus.confirmed || order.status === OrderStatus.draft);
-
+  const canSendToWorkOrder = order.orderType === OrderType.quotation;
   const canCreateInvoice = order.status === OrderStatus.shipped || order.status === OrderStatus.delivered || order.status === OrderStatus.confirmed;
 
   return (
@@ -172,286 +147,313 @@ const OrderTableRowActions = ({ order, onActionSuccess }: { order: OrderInTable,
           <span>{createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}</span>
         </DropdownMenuItem>
         {canSendToWorkOrder && (
-          <DropdownMenuItem 
-            onClick={handleSendToWorkOrder}
-            disabled={convertToWorkOrderMutation.isPending}
-          >
+          <DropdownMenuItem onClick={handleSendToWorkOrder}>
             <Factory className="mr-2 h-4 w-4" />
-            <span>{convertToWorkOrderMutation.isPending ? "Creating..." : "Create Work Order"}</span>
+            <span>Create Work Order</span>
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={handleExportPDF}
-          disabled={exportPDFMutation.isPending}
-        >
+        <DropdownMenuItem onClick={handleExportPDF}>
           <Download className="mr-2 h-4 w-4" />
-          <span>{exportPDFMutation.isPending ? "Exporting..." : "Export PDF"}</span>
+          <span>Export PDF</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 };
 
-export default function OrderTable({ 
-  orders, 
-  nextCursor, 
-  selectedOrderIds,
-  onSelectOrder,
-  onSelectAll,
-  isAllSelected,
-  onBulkExportPDF,
-  showBulkActions = false
-}: OrderTableProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const utils = api.useUtils();
+// Column definitions
+export const columns: ColumnDef<OrderTableRowData>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "orderNumber",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Order #" />
+    ),
+    cell: ({ row }) => (
+      <Link
+        href={`/orders/${row.original.id}`}
+        className="hover:underline font-medium"
+      >
+        {row.getValue("orderNumber")}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "orderType",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Type" />
+    ),
+    cell: ({ row }) => (
+      <Badge variant="outline">
+        {getOrderTypeDisplay(row.getValue("orderType"))}
+      </Badge>
+    ),
+    filterFn: (row, id, value) => value.includes(row.getValue(id)),
+  },
+  {
+    accessorKey: "customer.name",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Customer" />
+    ),
+    cell: ({ row }) => row.original.customer?.name ?? '-',
+    accessorFn: (row) => row.customer?.name || "",
+  },
+  {
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Date" />
+    ),
+    cell: ({ row }) => formatDate(row.getValue("createdAt")),
+  },
+  {
+    accessorKey: "deliveryDate",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Delivery Date" />
+    ),
+    cell: ({ row }) => {
+      const deliveryDate = row.getValue("deliveryDate") as Date | null;
+      return deliveryDate ? formatDate(deliveryDate) : '-';
+    },
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    cell: ({ row }) => (
+      <Badge variant={getStatusBadgeVariant(row.getValue("status"))}>
+        {(row.getValue("status") as string).replace('_', ' ').toUpperCase()}
+      </Badge>
+    ),
+    filterFn: (row, id, value) => value.includes(row.getValue(id)),
+  },
+  {
+    accessorKey: "totalAmount",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Total" className="text-right" />
+    ),
+    cell: ({ row }) => (
+      <div className="text-right">
+        {formatCurrency(row.getValue("totalAmount") ?? 0)}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "vatAmount",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="VAT Amount" className="text-right" />
+    ),
+    cell: ({ row }) => {
+      const vatAmount = row.original.vatAmount ?? (Number(row.original.totalAmount || 0) * 0.255);
+      return <div className="text-right">{formatCurrency(vatAmount)}</div>;
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => <OrderTableRowActions order={row.original} />,
+  },
+];
 
-  const handleActionSuccess = () => {
-    utils.order.list.invalidate();
-  };
+// Table Toolbar Component
+interface OrderTableToolbarProps {
+  table: ReturnType<typeof useReactTable<OrderTableRowData>>;
+}
 
-  const handleNextPage = () => {
-    if (nextCursor) {
-      const params = new URLSearchParams(searchParams);
-      params.set('cursor', nextCursor);
-      router.push(`${pathname}?${params.toString()}`);
-    }
-  };
+function OrderTableToolbar({ table }: OrderTableToolbarProps) {
+  const statusOptions = Object.values(OrderStatus).map(status => ({
+    value: status,
+    label: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '),
+  }));
 
-  const handleSort = (column: string) => {
-    const params = new URLSearchParams(searchParams);
-    const currentSort = params.get('sortBy');
-    const currentDirection = params.get('sortDirection') || 'asc';
-    
-    let newDirection = 'asc';
-    if (currentSort === column && currentDirection === 'asc') {
-      newDirection = 'desc';
-    }
-    
-    params.set('sortBy', column);
-    params.set('sortDirection', newDirection);
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
-  const getSortIcon = (column: string) => {
-    const currentSort = searchParams.get('sortBy');
-    const currentDirection = searchParams.get('sortDirection') || 'asc';
-    
-    if (currentSort !== column) {
-      return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    }
-    
-    return currentDirection === 'asc' ? 
-      <ArrowUpDown className="ml-2 h-4 w-4 rotate-180" /> : 
-      <ArrowUpDown className="ml-2 h-4 w-4" />;
-  };
-
-  // Calculate VAT amount (assuming 25.5% VAT rate as default)
-  const calculateVATAmount = (order: OrderInTable) => {
-    if (order.vatAmount !== undefined) {
-      return order.vatAmount;
-    }
-    // Fallback calculation if VAT amount not provided
-    const vatRate = 0.255; // 25.5% default Finnish VAT
-    return Number(order.totalAmount || 0) * vatRate;
-  };
-
-  // TODO: Implement handlePreviousPage if needed
+  const orderTypeOptions = Object.values(OrderType).map(type => ({
+    value: type,
+    label: getOrderTypeDisplay(type),
+  }));
 
   return (
-    <div>
-      {/* Bulk Actions Toolbar */}
-      {showBulkActions && selectedOrderIds.length > 0 && (
-        <div className="mb-4 p-3 bg-muted rounded-md">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {selectedOrderIds.length} order{selectedOrderIds.length === 1 ? '' : 's'} selected
-            </span>
-            <div className="flex items-center space-x-2">
-              {onBulkExportPDF && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={onBulkExportPDF}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export PDF ({selectedOrderIds.length})
-                </Button>
-              )}
-            </div>
-          </div>
+    <div className="flex items-center justify-between py-4">
+      <div className="flex flex-1 items-center space-x-2">
+        <Input
+          placeholder="Search orders..."
+          value={(table.getColumn("orderNumber")?.getFilterValue() as string) ?? ""}
+          onChange={(event) =>
+            table.getColumn("orderNumber")?.setFilterValue(event.target.value)
+          }
+          className="h-8 w-[150px] lg:w-[250px]"
+        />
+        {table.getColumn("status") && (
+          <DataTableFacetedFilter
+            column={table.getColumn("status")}
+            title="Status"
+            options={statusOptions}
+          />
+        )}
+        {table.getColumn("orderType") && (
+          <DataTableFacetedFilter
+            column={table.getColumn("orderType")}
+            title="Type"
+            options={orderTypeOptions}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main OrderTable Component
+export default function OrderTable({ data, isLoading, onDataChange }: OrderTableProps) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [globalFilter, setGlobalFilter] = React.useState('');
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      globalFilter,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    enableRowSelection: true,
+    // Add meta for data change callback if needed
+    meta: {
+      onDataChange,
+    },
+  });
+
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+
+  if (isLoading && !data.length) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {columns.map((_, i) => (
+                  <TableHead key={i}>
+                    <div className="h-4 bg-muted animate-pulse rounded" />
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  {columns.map((_, j) => (
+                    <TableCell key={j}>
+                      <div className="h-4 bg-muted animate-pulse rounded" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <OrderTableToolbar table={table} />
+      
+      {/* Bulk Actions */}
+      {selectedRows.length > 0 && (
+        <div className="flex items-center gap-2 p-4 bg-muted rounded-lg">
+          <span className="text-sm font-medium">
+            {selectedRows.length} order{selectedRows.length > 1 ? 's' : ''} selected
+          </span>
+          <Button variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Export PDF ({selectedRows.length})
+          </Button>
+          <Button variant="outline" size="sm">
+            Bulk Actions
+          </Button>
         </div>
       )}
-      <div className="border rounded-md">
+
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox 
-                  checked={isAllSelected}
-                  onCheckedChange={(checked) => onSelectAll(Boolean(checked))}
-                  aria-label="Select all rows"
-                />
-              </TableHead>
-              <TableHead>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('orderNumber')}
-                  className="h-auto p-0 font-semibold text-left"
-                >
-                  Order #
-                  {getSortIcon('orderNumber')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('orderType')}
-                  className="h-auto p-0 font-semibold text-left"
-                >
-                  Type
-                  {getSortIcon('orderType')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('customer')}
-                  className="h-auto p-0 font-semibold text-left"
-                >
-                  Customer
-                  {getSortIcon('customer')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('createdAt')}
-                  className="h-auto p-0 font-semibold text-left"
-                >
-                  Date
-                  {getSortIcon('createdAt')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('deliveryDate')}
-                  className="h-auto p-0 font-semibold text-left"
-                >
-                  Delivery Date
-                  {getSortIcon('deliveryDate')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('status')}
-                  className="h-auto p-0 font-semibold text-left"
-                >
-                  Status
-                  {getSortIcon('status')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('totalAmount')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  Total
-                  {getSortIcon('totalAmount')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleSort('vatAmount')}
-                  className="h-auto p-0 font-semibold"
-                >
-                  VAT Amount
-                  {getSortIcon('vatAmount')}
-                </Button>
-              </TableHead>
-              <TableHead><span className="sr-only">Actions</span></TableHead>
-            </TableRow>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {orders.length === 0 ? (
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No orders found.
                 </TableCell>
               </TableRow>
-            ) : (
-              orders.map((order) => (
-                <TableRow 
-                  key={order.id}
-                  data-state={selectedOrderIds.includes(order.id) ? "selected" : ""}
-                >
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedOrderIds.includes(order.id)}
-                      onCheckedChange={(checked) => onSelectOrder(order.id, Boolean(checked))}
-                      aria-label={`Select order ${order.orderNumber}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                     <Link href={`/orders/${order.id}`} className="hover:underline" legacyBehavior>
-                       {order.orderNumber}
-                     </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {getOrderTypeDisplay(order.orderType)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{order.customer?.name ?? '-'}</TableCell>
-                  <TableCell>{formatDate(order.createdAt)}</TableCell>
-                  <TableCell>{order.deliveryDate ? formatDate(order.deliveryDate) : '-'}</TableCell>
-                  <TableCell>
-                     <Badge variant={getStatusBadgeVariant(order.status)}>
-                        {order.status.replace('_', ' ').toUpperCase()}
-                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(order.totalAmount ?? 0)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(calculateVATAmount(order))}</TableCell>
-                   <TableCell className="text-right">
-                     <OrderTableRowActions order={order} onActionSuccess={handleActionSuccess} />
-                   </TableCell>
-                </TableRow>
-              ))
             )}
           </TableBody>
         </Table>
       </div>
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between py-4">
-        <div className="text-sm text-muted-foreground">
-          {selectedOrderIds.length} of {orders.length} row(s) selected.
-        </div>
-        <div className="space-x-2">
-          {/* TODO: Add Previous button if implementing bi-directional cursors */}
-          {/* <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePreviousPage()}
-            disabled={!previousCursor} // Need previousCursor prop
-          >
-             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
-          </Button> */} 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleNextPage()}
-            disabled={!nextCursor}
-          >
-            Next Page <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <DataTablePagination table={table} />
     </div>
   );
 } 

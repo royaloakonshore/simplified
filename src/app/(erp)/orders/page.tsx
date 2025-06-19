@@ -13,18 +13,6 @@ import { Button } from "@/components/ui/button"; // Use Shadcn button
 import { Skeleton } from "@/components/ui/skeleton"; // Use Shadcn skeleton
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Use Shadcn alert
 import { Terminal } from 'lucide-react'; // Icon for alert
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner"; // Import sonner toast
-import { useQueryClient } from '@tanstack/react-query'; // Correct import for react-query
 import React from 'react';
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 
@@ -39,16 +27,13 @@ function OrderListContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams(); 
   const cursor = searchParams.get('cursor');
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
-  const [confirmationAction, setConfirmationAction] = useState<'delete' | 'sendToProduction' | null>(null);
 
   // Extract pagination/filter parameters from URL
   const limit = Number(searchParams.get('limit') ?? 10);
   const status = searchParams.get('status') as OrderStatus | undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
 
-  const queryClient = useQueryClient();
+
 
   const { data, error, isLoading, isFetching } = api.order.list.useQuery({
     limit,
@@ -60,84 +45,7 @@ function OrderListContent() {
   const orders: OrderInTable[] = (data?.items as OrderInTable[]) ?? [];
   const nextCursor = data?.nextCursor;
 
-  useEffect(() => {
-    // Clear selection when data reloads (e.g., pagination)
-    setSelectedOrderIds([]);
-  }, [data]);
-
-  // Selection management functions
-  const handleSelectOrder = (orderId: string, isSelected: boolean) => {
-    setSelectedOrderIds(prev => 
-      isSelected 
-        ? [...prev, orderId]
-        : prev.filter(id => id !== orderId)
-    );
-  };
-
-  const handleSelectAll = (isSelected: boolean) => {
-    setSelectedOrderIds(isSelected ? orders.map(order => order.id) : []);
-  };
-
-  const isAllSelected = orders.length > 0 && selectedOrderIds.length === orders.length;
-
-  // Bulk actions
-  const handleBulkExportPDF = () => {
-    if (selectedOrderIds.length === 0) {
-      toast("Please select orders first.");
-      return;
-    }
-    // TODO: Implement bulk PDF export
-    toast.success(`Exporting PDF for ${selectedOrderIds.length} orders - Implementation pending`);
-  };
-
-  // TODO: Create these tRPC mutations in order.router.ts
-  const deleteOrdersMutation = api.order.deleteMany.useMutation({
-    onSuccess: () => {
-      toast.success("Selected orders deleted.");
-      queryClient.invalidateQueries({ queryKey: [["order", "list"]] });
-      setSelectedOrderIds([]);
-    },
-    onError: (err) => {
-      toast.error(`Failed to delete orders: ${err.message}`);
-    },
-    onSettled: () => {
-      setShowConfirmationDialog(false);
-    }
-  });
-
-  const sendToProductionMutation = api.order.sendManyToProduction.useMutation({
-    onSuccess: (result) => {
-      const failCount = selectedOrderIds.length - result.count;
-      toast.success(`Processing complete. ${result.count} orders sent to production, ${failCount} failed/skipped.`);
-      queryClient.invalidateQueries({ queryKey: [["order", "list"]] });
-      setSelectedOrderIds([]);
-    },
-    onError: (err) => {
-      toast.error(`Failed to send orders to production: ${err.message}`);
-    },
-    onSettled: () => {
-      setShowConfirmationDialog(false);
-    }
-  });
-
-  const openConfirmationModal = (action: 'delete' | 'sendToProduction') => {
-    if (selectedOrderIds.length === 0) {
-      toast("Please select orders first.");
-      return;
-    }
-    // TODO: For 'sendToProduction', could pre-filter here based on order status if data is available client-side
-    // to provide a more accurate count in the confirmation, or let the backend handle filtering.
-    setConfirmationAction(action);
-    setShowConfirmationDialog(true);
-  };
-
-  const handleConfirmAction = async () => {
-    if (confirmationAction === 'delete') {
-      deleteOrdersMutation.mutate({ ids: selectedOrderIds });
-    } else if (confirmationAction === 'sendToProduction') {
-      sendToProductionMutation.mutate({ ids: selectedOrderIds });
-    }
-  };
+  // The table state management is now handled by the OrderTable component using TanStack Table
 
   const handleNextPage = () => {
     if (nextCursor) {
@@ -177,44 +85,25 @@ function OrderListContent() {
       {/*   <OrderFilter /> */}
       {/* </Suspense> */}
 
-      {/* Enhanced OrderTable */}
+      {/* Advanced OrderTable */}
       <div className="mt-6">
         {isLoading || isFetching ? (
             <TableLoadingSkeleton />
         ) : (
             <OrderTable 
-              orders={orders}
-              nextCursor={nextCursor}
-              selectedOrderIds={selectedOrderIds}
-              onSelectOrder={handleSelectOrder}
-              onSelectAll={handleSelectAll}
-              isAllSelected={isAllSelected}
-              onBulkExportPDF={handleBulkExportPDF}
-              showBulkActions={true}
+              data={orders}
+              isLoading={isLoading}
+              onDataChange={(updatedData) => {
+                // Handle data changes if needed
+                console.log('Orders table data changed:', updatedData);
+              }}
             />
         )}
       </div>
 
 
 
-      <AlertDialog open={showConfirmationDialog} onOpenChange={setShowConfirmationDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmationAction === 'delete' ? "Confirm Deletion" : "Confirm Send to Production"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmationAction === 'delete'
-                ? `Are you sure you want to delete ${selectedOrderIds.length} order(s)? This action cannot be undone.`
-                : `Are you sure you want to send ${selectedOrderIds.length} order(s) to production?`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAction} disabled={deleteOrdersMutation.isPending || sendToProductionMutation.isPending}>
-              {(deleteOrdersMutation.isPending || sendToProductionMutation.isPending) ? "Processing..." : "Continue"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </>
   );
 }
