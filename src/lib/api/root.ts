@@ -8,6 +8,7 @@ import { settingsRouter } from './routers/settings';
 import { userRouter } from './routers/user';
 import { companyRouter } from './routers/company';
 import { inventoryCategoryRouter } from "./routers/inventoryCategory";
+import { dashboardRouter } from "./routers/dashboard";
 import { type inferRouterOutputs } from "@trpc/server";
 // import all routers here
 
@@ -26,6 +27,7 @@ export const appRouter = createTRPCRouter({
   bom: bomRouter,
   inventoryCategory: inventoryCategoryRouter, // Add the new router here
   company: companyRouter, // Add the company router
+  dashboard: dashboardRouter, // Add the dashboard router
   // add routers here
 });
 

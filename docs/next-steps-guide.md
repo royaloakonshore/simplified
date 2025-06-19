@@ -30,53 +30,36 @@
 - **Production Modal**: Complete redesign with order summary + BOM details
 - **Navigation Improvement**: Enhanced sidebar with better organization
 
-### 🚨 **Remaining Critical Blockers (Fix Next)**
+### 🎯 **Updated Priorities Based on Current State**
 
-#### **1. BOM Detail Page Build Error (2h)**
-- **File**: `src/app/(erp)/boms/[id]/page.tsx`
-- **Issue**: PageProps compatibility preventing BOM detail view
-- **Impact**: Blocks entire BOM management functionality
-- **Priority**: URGENT - Required for Phase 2B progress
+**✅ ALREADY COMPLETED** (as per user confirmation):
+- Customer action dropdown with Create Invoice/Quotation/Work Order/Edit actions
+- Vendor fields conditional hiding for manufactured goods  
+- Inventory search functionality
+- Inventory category column with badges
+- Multi-select in invoice and order tables (NOT inventory)
+- VAT amount column in order table
 
----
+**🔄 ACTUAL REMAINING WORK**:
 
-## 🔥 **Week 1 Immediate Priorities (24 hours remaining)**
+## 🔥 **Immediate High Impact Priorities**
 
-### **Day 1: Foundation Fix (2h)**
-1. **Fix BOM Detail Page** (2h) 🔧
-   - Resolve PageProps compatibility issue in `/boms/[id]/page.tsx`
-   - Enable BOM detail view functionality
+### **Priority 1: Dashboard Real Data (4h) 📊**
+- **Current Issue**: Dashboard shows placeholder "0" values with TODO comments
+- **Impact**: Makes system appear incomplete and unusable
+- **Solution**: Implement real calculations for dashboard statistics
+- **Files**: `src/app/(erp)/dashboard/page.tsx` + new tRPC procedures
 
-### **Day 2: Inventory Enhancements (8h)**
-1. **Inventory Category Pills** (3h) 🎨
-   - Add `InventoryCategory` column with pill tags
-   - Enable filtering by category
-2. **Conditional Vendor Fields** (3h) 🎯
-   - Hide `vendorSku`/`vendorItemName` for manufactured goods
-   - Implement conditional UI logic in InventoryItemForm
-3. **Inventory Table Search & Filters** (2h) 🔍
-   - Add search bar functionality
-   - Implement advanced filtering options
+### **Priority 2: Inventory Multi-select (2h) 📋**
+- **Current Issue**: Main inventory page uses simple table, not the advanced InventoryTable component
+- **Impact**: Inventory lacks multi-select that other tables have
+- **Solution**: Switch inventory page to use InventoryTable component
+- **Files**: `src/app/(erp)/inventory/page.tsx`
 
-### **Day 3: Customer & Table Standardization (8h)**
-1. **Customer Action Dropdown** (4h) 🎛️
-   - Replace "Edit" button with dropdown menu
-   - Add "Create Invoice/Quote/Work Order" actions
-   - Implement customer pre-filling logic
-2. **Order Table Multi-select** (2h) 📊
-   - Add multi-select checkboxes
-   - Implement bulk action capabilities
-3. **Invoice Table Consistency** (2h) 📋
-   - Ensure invoice table matches order table patterns
-   - Add any missing multi-select features
-
-### **Day 4: Advanced UI Features (6h)**
-1. **Invoice Actions Consolidation** (3h) 🎛️
-   - Consolidate invoice actions into dropdown menu
-   - Add PDF export and Copy Invoice functionality
-2. **Searchable Select Components** (3h) 🔍
-   - Implement for Customer/Item selection in forms
-   - Use popover with search functionality
+### **Priority 3: Customer Revenue Display (2h) 💰**
+- **Current Issue**: Customer detail pages missing total revenue/lifetime value
+- **Impact**: Incomplete customer information for business decisions
+- **Solution**: Add revenue calculations to customer detail pages
 
 ---
 

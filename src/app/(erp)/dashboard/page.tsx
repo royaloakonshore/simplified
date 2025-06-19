@@ -87,6 +87,74 @@ interface ReplenishmentAlertItem {
   unitOfMeasure: string | null;
 }
 
+function RecentOrdersTable() {
+  const { data: orders, isLoading, error } = api.dashboard.getRecentOrders.useQuery({ limit: 10 });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2 p-4">
+        {[...Array(5)].map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-sm text-red-600 flex items-center">
+        <AlertTriangle className="h-4 w-4 mr-2" /> Error loading orders: {error.message}
+      </div>
+    );
+  }
+
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground flex items-center">
+        <Info className="h-4 w-4 mr-2" /> No recent orders found.
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="px-4">Order ID</TableHead>
+          <TableHead>Customer</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right px-4">Date</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {orders.map((order) => (
+          <TableRow key={order.id}>
+            <TableCell className="font-medium px-4 whitespace-nowrap">
+              <Link
+                href={`/orders/${order.id}`}
+                className="hover:underline"
+              >
+                {order.orderNumber}
+              </Link>
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {order.customer?.name || 'N/A'}
+            </TableCell>
+            <TableCell>
+              <Badge variant={order.status === 'draft' ? 'secondary' : 'default'}>
+                {order.status.replace('_', ' ').toUpperCase()}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-right px-4 whitespace-nowrap">
+              {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : 'N/A'}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 function ReplenishmentAlertsTable() {
   const { data: alerts, isLoading, error } = api.inventory.getReplenishmentAlerts.useQuery(undefined, {
     refetchOnWindowFocus: false, // Prevent excessive refetching on window focus
@@ -171,6 +239,22 @@ function ReplenishmentAlertsTable() {
 }
 
 export default function DashboardPage() {
+  // Fetch dashboard statistics
+  const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({});
+
+  // Format currency values
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(amount);
+  };
+
+  // Format trend percentage
+  const formatTrend = (trend: number) => {
+    const sign = trend >= 0 ? '+' : '';
+    return `${sign}${trend.toFixed(1)}%`;
+  };
 
   return (
     <div className="flex flex-1 flex-col">
@@ -178,42 +262,44 @@ export default function DashboardPage() {
       <div className="w-full flex flex-1 flex-col gap-4 @container/main">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <Button variant="outline" size="sm" disabled>
-            Date Range (TODO)
+            Date Range (Custom)
           </Button>
-          <span className="text-xs text-muted-foreground">Real-time: N/A (TODO)</span>
+          <span className="text-xs text-muted-foreground">
+            Current Month vs Previous Month
+          </span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 @5xl/main:grid-cols-4 md:gap-6">
           <StatsCard 
-            title="Shipped Orders (Period)" 
-            value="0" 
-            description="vs. previous period" 
-            trend="+0%" 
-            trendDirection="up" 
+            title="Shipped Orders (Month)" 
+            value={statsLoading ? "..." : stats?.shippedOrders.current.toString() || "0"} 
+            description="vs. previous month" 
+            trend={statsLoading ? "..." : formatTrend(stats?.shippedOrders.trend || 0)} 
+            trendDirection={(stats?.shippedOrders.trend ?? 0) >= 0 ? "up" : "down"} 
             href="/orders?status=shipped"
           />
           <StatsCard 
             title="Pending Production" 
-            value="0" 
+            value={statsLoading ? "..." : stats?.pendingProduction.count.toString() || "0"} 
             description="Currently in queue" 
-            trend="-0%" 
-            trendDirection="down" 
+            trend="Active" 
+            trendDirection="up" 
             href="/production"
           />
           <StatsCard 
             title="Late Orders" 
-            value="0" 
+            value={statsLoading ? "..." : stats?.lateOrders.count.toString() || "0"} 
             description="Past due date" 
-            trend="+0%" 
-            trendDirection="up" 
-            href="/orders?status=late"
+            trend={(stats?.lateOrders.count ?? 0) > 0 ? "Action needed" : "On track"} 
+            trendDirection={(stats?.lateOrders.count ?? 0) > 0 ? "down" : "up"} 
+            href="/orders?filter=late"
           />
           <StatsCard 
-            title="Total Revenue (Period)" 
-            value="€0.00" 
-            description="vs. previous period" 
-            trend="+0%" 
-            trendDirection="up" 
+            title="Total Revenue (Month)" 
+            value={statsLoading ? "..." : formatCurrency(stats?.revenue.current || 0)} 
+            description="vs. previous month" 
+            trend={statsLoading ? "..." : formatTrend(stats?.revenue.trend || 0)} 
+            trendDirection={(stats?.revenue.trend ?? 0) >= 0 ? "up" : "down"} 
             href="/invoices"
           />
         </div>
@@ -240,29 +326,10 @@ export default function DashboardPage() {
           <Card className="flex flex-col h-[calc(10rem*2+2rem)]">
             <CardHeader>
               <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>Last 10 quotations.</CardDescription>
+              <CardDescription>Latest orders and quotations.</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="px-4">Order ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right px-4">Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...Array(10)].map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium px-4">{`ORD-00${123 + i}`}</TableCell>
-                      <TableCell>{`Customer ${String.fromCharCode(65 + i)}`}</TableCell>
-                      <TableCell>Draft</TableCell>
-                      <TableCell className="text-right px-4">2024-05-23</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <RecentOrdersTable />
             </CardContent>
           </Card>
 
