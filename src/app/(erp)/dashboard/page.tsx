@@ -17,9 +17,13 @@ import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
-import { PlaceholderAreaChart } from "@/components/dashboard/PlaceholderAreaChart";
+import { RevenueChart } from "@/components/dashboard/PlaceholderAreaChart";
 import { DashboardSiteHeader } from "@/components/dashboard/DashboardSiteHeader";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
 // StatsCard component (can be moved to its own file later if preferred)
 function StatsCard({
@@ -242,6 +246,17 @@ export default function DashboardPage() {
   // Fetch dashboard statistics
   const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({});
 
+  // Chart controls state
+  const [chartType, setChartType] = React.useState<"weekly" | "monthly">("monthly");
+  const [dateRange, setDateRange] = React.useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+  const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
+
   // Format currency values
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -256,16 +271,58 @@ export default function DashboardPage() {
     return `${sign}${trend.toFixed(1)}%`;
   };
 
+  const resetDateRange = () => {
+    setDateRange({ from: undefined, to: undefined });
+    setIsDatePickerOpen(false);
+  };
+
+  const formatDateRange = () => {
+    if (dateRange.from && dateRange.to) {
+      return `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd")}`;
+    }
+    return "Select Date Range";
+  };
+
   return (
     <div className="flex flex-1 flex-col">
       <DashboardSiteHeader title="Dashboard" />
       <div className="w-full flex flex-1 flex-col gap-4 @container/main">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <Button variant="outline" size="sm" disabled>
-            Date Range (Custom)
-          </Button>
+          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {formatDateRange()}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => {
+                  setDateRange({
+                    from: range?.from,
+                    to: range?.to,
+                  });
+                }}
+                numberOfMonths={2}
+                initialFocus
+              />
+              <div className="flex gap-2 p-3 border-t">
+                <Button size="sm" onClick={resetDateRange}>
+                  Clear
+                </Button>
+                <Button size="sm" onClick={() => setIsDatePickerOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <span className="text-xs text-muted-foreground">
-            Current Month vs Previous Month
+            {dateRange.from && dateRange.to 
+              ? "Custom range selected" 
+              : "Current Month vs Previous Month"
+            }
           </span>
         </div>
 
@@ -308,9 +365,11 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Revenue Trend</CardTitle>
-              <CardDescription>Comparison with previous period (TODO)</CardDescription>
+              <CardDescription>
+                {chartType === "monthly" ? "Monthly" : "Weekly"} revenue comparison
+              </CardDescription>
             </div>
-            <Tabs defaultValue="monthly" className="space-y-4">
+            <Tabs value={chartType} onValueChange={(value) => setChartType(value as "weekly" | "monthly")} className="space-y-4">
               <TabsList>
                 <TabsTrigger value="weekly">Weekly</TabsTrigger>
                 <TabsTrigger value="monthly">Monthly</TabsTrigger>
@@ -318,7 +377,7 @@ export default function DashboardPage() {
             </Tabs>
           </CardHeader>
           <CardContent>
-            <PlaceholderAreaChart />
+            <RevenueChart type={chartType} periods={chartType === "monthly" ? 6 : 8} />
           </CardContent>
         </Card>
 
