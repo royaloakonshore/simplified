@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   createTRPCRouter,
   protectedProcedure,
+  companyProtectedProcedure,
 } from "@/lib/api/trpc";
 import {
   createCustomerSchema,
@@ -367,6 +368,52 @@ export const customerRouter = createTRPCRouter({
         }
       });
       return invoices.map(invoice => ({ ...invoice, itemCount: invoice.items.length }));
+    }),
+
+  getRevenue: companyProtectedProcedure
+    .input(z.object({
+      customerId: z.string().cuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { customerId } = input;
+      const { companyId } = ctx;
+      
+      // Calculate lifetime revenue from paid invoices
+      const revenueAggregate = await prisma.invoice.aggregate({
+        where: {
+          customerId: customerId,
+          companyId: companyId,
+          status: "paid",
+        },
+        _sum: {
+          totalAmount: true,
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      // Get latest invoice to check customer activity
+      const latestInvoice = await prisma.invoice.findFirst({
+        where: {
+          customerId: customerId,
+          companyId: companyId,
+        },
+        orderBy: {
+          invoiceDate: 'desc',
+        },
+        select: {
+          invoiceDate: true,
+          status: true,
+        },
+      });
+
+      return {
+        totalRevenue: revenueAggregate._sum.totalAmount?.toNumber() || 0,
+        paidInvoiceCount: revenueAggregate._count.id || 0,
+        lastInvoiceDate: latestInvoice?.invoiceDate || null,
+        lastInvoiceStatus: latestInvoice?.status || null,
+      };
     }),
 
   updateFinvoiceDetails: protectedProcedure

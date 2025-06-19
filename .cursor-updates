@@ -1290,3 +1290,49 @@ Completed comprehensive analysis of the reported BOM build errors and inventory 
 **Status**: Documentation now accurately reflects actual system implementation state. Ready to proceed with Orders table multi-select as next priority.
 
 ---
+
+## Current Session - Customer Revenue Display Implementation
+
+### ✅ Customer Revenue Display Feature - COMPLETED
+
+**Problem**: Customer detail pages lacked visibility into customer value and revenue analytics, making it difficult to assess customer importance and profitability.
+
+**Solution**: Implemented comprehensive customer revenue analytics display with lifetime value calculation.
+
+**Implementation Details**:
+
+1. **Backend tRPC Procedure** (`src/lib/api/routers/customer.ts`):
+   - Added `getRevenue` companyProtectedProcedure
+   - Calculates lifetime revenue from paid invoices only
+   - Counts total paid invoices per customer
+   - Tracks last invoice date and status for activity monitoring
+   - Proper company scoping for multi-tenancy
+
+2. **Frontend Revenue Display** (`src/app/(erp)/customers/[id]/page.tsx`):
+   - Added 3 revenue stat cards to customer detail page:
+     - **Total Revenue**: Lifetime value from paid invoices with currency formatting
+     - **Paid Invoices**: Count of successfully completed transactions  
+     - **Last Activity**: Most recent invoice date and status
+   - Professional card layout with icons (TrendingUp, Receipt, Calendar)
+   - Proper loading states and error handling
+   - Responsive grid layout for mobile/desktop
+
+**Features Delivered**:
+- ✅ Real-time lifetime customer value calculation
+- ✅ Revenue based only on paid invoices (accurate profitability)
+- ✅ Activity tracking with last invoice date and status
+- ✅ Professional dashboard-style UI with proper spacing
+- ✅ Multi-company support with proper data scoping
+- ✅ Loading states and error handling
+- ✅ Responsive design for all screen sizes
+
+**Documentation Updates**:
+- Updated `docs/06-ui-and-feature-roadmap.md` to mark customer revenue display as completed
+- Increased overall completion status from 85% to 88%
+- Updated Phase 2 timeline to reflect completion
+
+**Business Impact**:
+- Sales teams can now quickly assess customer value and prioritize efforts
+- Customer service can see payment history and activity at a glance
+- Management can identify high-value customers for retention strategies
+- Improved customer relationship management with data-driven insights

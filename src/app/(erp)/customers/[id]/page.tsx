@@ -5,10 +5,11 @@ import { api } from '@/lib/trpc/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
+import { Terminal, TrendingUp, Receipt, Calendar } from 'lucide-react';
 import { OrderHistoryTable } from '@/components/customers/OrderHistoryTable';
 import { InvoiceHistoryTable } from '@/components/customers/InvoiceHistoryTable';
 import { Separator } from '@/components/ui/separator';
+import { formatCurrency } from '@/lib/utils';
 import React from 'react';
 
 export default function CustomerDetailPage() {
@@ -29,9 +30,14 @@ export default function CustomerDetailPage() {
     { customerId },
     { enabled: !!customerId }
   );
+
+  const { data: revenueData, isLoading: isLoadingRevenue, error: revenueError } = api.customer.getRevenue.useQuery(
+    { customerId },
+    { enabled: !!customerId }
+  );
   
-  const isLoading = isLoadingCustomer || isLoadingOrders || isLoadingInvoices;
-  const error = customerError || ordersError || invoicesError;
+  const isLoading = isLoadingCustomer || isLoadingOrders || isLoadingInvoices || isLoadingRevenue;
+  const error = customerError || ordersError || invoicesError || revenueError;
 
   if (isLoading) {
     return (
@@ -39,6 +45,11 @@ export default function CustomerDetailPage() {
         <Skeleton className="h-8 w-1/3" />
         <Skeleton className="h-6 w-1/4" />
         <Separator />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
         <Card>
           <CardHeader>
             <Skeleton className="h-6 w-1/4" />
@@ -90,6 +101,60 @@ export default function CustomerDetailPage() {
         <p className="text-muted-foreground">{customer.email}</p>
       </div>
       <Separator />
+
+      {/* Revenue Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(revenueData?.totalRevenue || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Lifetime value from paid invoices
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {revenueData?.paidInvoiceCount || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Successfully completed transactions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Last Activity</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {revenueData?.lastInvoiceDate 
+                ? new Date(revenueData.lastInvoiceDate).toLocaleDateString()
+                : 'N/A'
+              }
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {revenueData?.lastInvoiceStatus 
+                ? `Status: ${revenueData.lastInvoiceStatus}`
+                : 'No invoices found'
+              }
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
