@@ -227,7 +227,7 @@ function SettingsPageContent() {
 
   if (status === 'loading' || isLoadingSettings) {
     return (
-      <div className="container mx-auto py-8 space-y-6">
+      <div className="w-full space-y-6">
         <Skeleton className="h-8 w-1/4" />
         <Card>
           <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
@@ -265,7 +265,7 @@ function SettingsPageContent() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="w-full space-y-6">
       <PageBanner>
         <BannerTitle>Settings</BannerTitle>
       </PageBanner>

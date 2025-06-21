@@ -41,7 +41,7 @@ export default function CustomerDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6 px-4 md:px-6 space-y-6">
+      <div className="w-full space-y-6">
         <Skeleton className="h-8 w-1/3" />
         <Skeleton className="h-6 w-1/4" />
         <Separator />
@@ -72,7 +72,7 @@ export default function CustomerDetailPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Error loading customer data</AlertTitle>
@@ -84,7 +84,7 @@ export default function CustomerDetailPage() {
 
   if (!customer) {
     return (
-      <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Customer Not Found</AlertTitle>
@@ -95,7 +95,7 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6 space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold">{customer.name}</h1>
         <p className="text-muted-foreground">{customer.email}</p>

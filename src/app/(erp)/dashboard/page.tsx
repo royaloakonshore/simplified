@@ -284,9 +284,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="w-full flex-1 flex flex-col">
       <DashboardSiteHeader title="Dashboard" />
-      <div className="w-full flex flex-1 flex-col gap-4 @container/main">
+      <div className="w-full max-w-none flex flex-1 flex-col gap-4 @container/main">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>

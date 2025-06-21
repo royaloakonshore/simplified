@@ -59,7 +59,7 @@ export default function AddInventoryItemPage() {
 
   if (isLoadingCategories) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="w-full">
         <Card>
           <CardHeader><CardTitle>Add New Inventory Item</CardTitle></CardHeader>
           <CardContent className="pt-6">
@@ -75,7 +75,7 @@ export default function AddInventoryItemPage() {
 
   if (categoriesError) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Error Loading Categories</AlertTitle>
@@ -88,7 +88,7 @@ export default function AddInventoryItemPage() {
   const categoryOptions = categoriesData?.map((cat: InventoryCategory) => ({ value: cat.id, label: cat.name })) || [];
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="w-full">
       <Card>
         <CardHeader>
           <CardTitle>Add New Inventory Item</CardTitle>

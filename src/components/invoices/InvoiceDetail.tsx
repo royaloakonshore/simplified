@@ -218,17 +218,25 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
              )}
            </div>
         </div>
+        {/* Original Invoice Link */}
         {invoice.originalInvoiceId && (
-          <p className="text-sm mt-2">Credits Invoice ID: <Link
-            href={`/invoices/${invoice.originalInvoiceId}`}
-            className="text-blue-600 hover:underline"
-            legacyBehavior>{invoice.originalInvoiceId}</Link></p>
+          <p className="text-sm text-muted-foreground">
+            <strong>Original Invoice:</strong> <Link href={`/invoices/${invoice.originalInvoiceId}`} className="text-primary hover:underline">{invoice.originalInvoiceId}</Link>
+          </p>
         )}
+        
+        {/* Credit Note Link */}
         {invoice.creditNoteId && (
-          <p className="text-sm mt-2">Credited by Invoice ID: <Link
-            href={`/invoices/${invoice.creditNoteId}`}
-            className="text-blue-600 hover:underline"
-            legacyBehavior>{invoice.creditNoteId}</Link></p>
+          <p className="text-sm text-muted-foreground">
+            <strong>Credit Note:</strong> <Link href={`/invoices/${invoice.creditNoteId}`} className="text-primary hover:underline">{invoice.creditNoteId}</Link>
+          </p>
+        )}
+
+        {/* Link to Order if available */}
+        {invoice.order && (
+          <p className="text-sm text-muted-foreground">
+            <strong>Based on Order:</strong> <Link href={`/orders/${invoice.order.id}`} className="text-primary hover:underline">{invoice.order.orderNumber}</Link>
+          </p>
         )}
       </div>
       <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">

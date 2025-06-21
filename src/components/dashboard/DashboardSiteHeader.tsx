@@ -11,7 +11,7 @@ export function DashboardSiteHeader({ title }: DashboardSiteHeaderProps) {
   // We might not need a toggle here unless it's a different one.
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 md:px-6">
+    <header className="w-full flex h-16 shrink-0 items-center gap-2 border-b px-4 md:px-6">
       {/* <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2 lg:hidden">
         { (isMobile && !openMobile) ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         <span className="sr-only">Toggle sidebar</span>

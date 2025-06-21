@@ -111,7 +111,9 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
         customerId: searchParams?.customerId || '',
         notes: '',
         status: OrderStatus.draft,
-        orderType: searchParams?.orderType === 'QUOTATION' ? OrderType.quotation : OrderType.work_order,
+        orderType: searchParams?.orderType === 'QUOTATION' ? OrderType.quotation : 
+                   searchParams?.orderType === 'WORK_ORDER' ? OrderType.work_order : 
+                   OrderType.work_order, // Default to work_order
         orderDate: new Date(), // Added orderDate
         deliveryDate: undefined, // Added deliveryDate
         items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null }],
@@ -651,145 +653,147 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
 
                 <div>
                   <FormLabel>Items</FormLabel>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-2/5">Item</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Unit Price</TableHead>
-                        <TableHead className="w-[100px]">VAT %</TableHead>
-                        <TableHead className="w-[120px]">Discount %</TableHead>
-                        <TableHead className="w-[120px]">Discount Amt.</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {createFields.map((item, index) => {
-                        const currentItemValues = createForm.watch(`items.${index}`);
-                        const itemTotal = calculateLineTotal(currentItemValues, createForm);
-                        return (
-                          <TableRow key={item.key}>
-                            <TableCell>
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.inventoryItemId`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="sr-only">Item</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value} disabled={createOrderMutation.isPending}>
-                                      <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
-                                      <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.quantity`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.unitPrice`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="sr-only">Unit Price</FormLabel>
-                                    <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right" /></FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.vatRatePercent`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="sr-only">VAT %</FormLabel>
-                                    <Select onValueChange={(value) => field.onChange(parseFloat(value))} value={field.value?.toString()} disabled={createOrderMutation.isPending}>
+                  <div className="border rounded-md overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[240px]">Item</TableHead>
+                          <TableHead className="w-[100px]">Quantity</TableHead>
+                          <TableHead className="w-[120px]">Unit Price</TableHead>
+                          <TableHead className="w-[100px]">VAT %</TableHead>
+                          <TableHead className="w-[100px]">Disc %</TableHead>
+                          <TableHead className="w-[100px]">Disc Amt</TableHead>
+                          <TableHead className="w-[120px] text-right">Total</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {createFields.map((item, index) => {
+                          const currentItemValues = createForm.watch(`items.${index}`);
+                          const itemTotal = calculateLineTotal(currentItemValues, createForm);
+                          return (
+                            <TableRow key={item.key}>
+                              <TableCell className="min-w-[240px]">
+                                <FormField
+                                  control={createForm.control}
+                                  name={`items.${index}.inventoryItemId`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="sr-only">Item</FormLabel>
+                                      <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value} disabled={createOrderMutation.isPending}>
+                                        <FormControl><SelectTrigger className="min-w-[200px]"><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
+                                        <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={createForm.control}
+                                  name={`items.${index}.quantity`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right w-[80px]" /></FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={createForm.control}
+                                  name={`items.${index}.unitPrice`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="sr-only">Unit Price</FormLabel>
+                                      <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right w-[100px]" /></FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={createForm.control}
+                                  name={`items.${index}.vatRatePercent`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="sr-only">VAT %</FormLabel>
+                                      <Select onValueChange={(value) => field.onChange(parseFloat(value))} value={field.value?.toString()} disabled={createOrderMutation.isPending}>
+                                        <FormControl>
+                                          <SelectTrigger className="w-[80px]">
+                                            <SelectValue placeholder="VAT" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {FINNISH_VAT_RATES.map(rate => (
+                                            <SelectItem key={rate} value={rate.toString()}>{rate}%</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={createForm.control}
+                                  name={`items.${index}.discountPercent`}
+                                  render={({ field }) => (
+                                    <FormItem>
                                       <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="VAT %" />
-                                        </SelectTrigger>
+                                        <Input 
+                                          type="number" 
+                                          step="0.01" 
+                                          placeholder="%" 
+                                          {...field} 
+                                          value={field.value ?? ''}
+                                          onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                          className="text-right w-[80px]" 
+                                        />
                                       </FormControl>
-                                      <SelectContent>
-                                        {FINNISH_VAT_RATES.map(rate => (
-                                          <SelectItem key={rate} value={rate.toString()}>{rate}%</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.discountPercent`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input 
-                                        type="number" 
-                                        step="0.01" 
-                                        placeholder="%" 
-                                        {...field} 
-                                        value={field.value ?? ''}
-                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                        className="text-right" 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={createForm.control}
-                                name={`items.${index}.discountAmount`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input 
-                                        type="number" 
-                                        step="0.01" 
-                                        placeholder="Amt" 
-                                        {...field} 
-                                        value={field.value ?? ''}
-                                        onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                                        className="text-right" 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right">{formatCurrency(itemTotal)}</TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="icon" onClick={() => createRemove(index)} disabled={createFields.length <= 1}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={createForm.control}
+                                  name={`items.${index}.discountAmount`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          step="0.01" 
+                                          placeholder="Amt" 
+                                          {...field} 
+                                          value={field.value ?? ''}
+                                          onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                          className="text-right w-[80px]" 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right whitespace-nowrap">{formatCurrency(itemTotal)}</TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon" onClick={() => createRemove(index)} disabled={createFields.length <= 1}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                   <Button 
                     type="button" 
                     onClick={() => createAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null })} 

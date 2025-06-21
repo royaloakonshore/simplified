@@ -23,11 +23,11 @@ function LayoutContent({ children, user }: ERPLayoutClientProps) {
   const { toggleSidebar, isMobile, openMobile, state: sidebarState } = useSidebar();
 
   return (
-    <div className={cn("flex h-screen bg-background", isMobile && openMobile ? "overflow-hidden" : "")}>
+    <div className={cn("w-full max-w-none flex h-screen bg-background", isMobile && openMobile ? "overflow-hidden" : "")}>
       <AppSidebar user={user} />
 
-      <SidebarInset className="flex-1 flex flex-col overflow-hidden w-full">
-        <header className="flex sticky top-0 bg-background h-16 shrink-0 items-center gap-2 border-b px-4 z-10">
+      <SidebarInset className="w-full max-w-none flex-1 flex flex-col overflow-hidden">
+        <header className="w-full flex sticky top-0 bg-background h-16 shrink-0 items-center gap-2 border-b px-4 z-10">
           <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2">
             {(!isMobile && sidebarState === 'collapsed') || (isMobile && !openMobile) ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             <span className="sr-only">Toggle sidebar</span>
@@ -43,7 +43,7 @@ function LayoutContent({ children, user }: ERPLayoutClientProps) {
             </Link>
           </div>
         </header>
-        <div className="flex-1 overflow-auto p-4 md:p-6 w-full">
+        <div className="w-full max-w-none flex-1 overflow-auto p-4 md:p-6">
           {children}
         </div>
       </SidebarInset>

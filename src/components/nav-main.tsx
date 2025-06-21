@@ -55,9 +55,11 @@ export function NavMain({ items }: NavMainProps) {
                 isActive={item.isActive}
                 className={cn(tooltipsActive && "px-0 w-8 justify-center")}
               >
-                <Link href={item.url} className="flex items-center w-full">
-                  {item.icon && <item.icon className={cn("h-4 w-4", tooltipsActive ? "mx-auto" : "mr-2")} />}
-                  {!tooltipsActive && <span className="truncate">{item.title}</span>}
+                <Link href={item.url}>
+                  <div className="flex items-center w-full">
+                    {item.icon && <item.icon className={cn("h-4 w-4", tooltipsActive ? "mx-auto" : "mr-2")} />}
+                    {!tooltipsActive && <span className="truncate">{item.title}</span>}
+                  </div>
                 </Link>
               </SidebarMenuButton>
               {item.isCollapsible && item.items && item.items.length > 0 && !tooltipsActive && (

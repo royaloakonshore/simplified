@@ -430,7 +430,9 @@ export const invoiceRouter = createTRPCRouter({
         subTotal = subTotal.plus(lineTotal);
 
         let itemVat = new Decimal(0);
-        const vatRateForCalc = orderItem.inventoryItem.defaultVatRatePercent !== null && orderItem.inventoryItem.defaultVatRatePercent !== undefined 
+        const vatRateForCalc = orderItem.vatRatePercent !== null && orderItem.vatRatePercent !== undefined 
+          ? new Decimal(orderItem.vatRatePercent.toString()) 
+          : orderItem.inventoryItem.defaultVatRatePercent !== null && orderItem.inventoryItem.defaultVatRatePercent !== undefined 
           ? new Decimal(orderItem.inventoryItem.defaultVatRatePercent.toString()) 
           : companyDefaultVatRate;
         

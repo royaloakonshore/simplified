@@ -32,8 +32,8 @@ export function OrderHistoryTable({ orders }: OrderHistoryTableProps) {
             <TableCell>
               <Link
                 href={`/orders/${order.id}`}
-                className="text-blue-600 hover:underline"
-                legacyBehavior>
+                className="text-primary hover:underline"
+              >
                 {order.orderNumber}
               </Link>
             </TableCell>

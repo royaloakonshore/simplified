@@ -123,7 +123,7 @@ export default function EditInventoryItemPage() {
 
   if (isLoadingPageData && itemId) {
     return (
-      <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="w-full">
         <h1 className="text-2xl font-bold mb-6">Edit Inventory Item</h1>
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -142,7 +142,7 @@ export default function EditInventoryItemPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="w-full">
         <h1 className="text-2xl font-bold mb-6">Edit Inventory Item</h1>
         <Alert variant="destructive" className="max-w-2xl mx-auto">
           <Terminal className="h-4 w-4" />
@@ -155,7 +155,7 @@ export default function EditInventoryItemPage() {
 
   if (!itemFromApi) {
     return (
-      <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="w-full">
         <h1 className="text-2xl font-bold mb-6">Edit Inventory Item</h1>
         <Alert variant="destructive" className="max-w-2xl mx-auto">
           <Terminal className="h-4 w-4" />
@@ -200,7 +200,7 @@ export default function EditInventoryItemPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
+    <div className="w-full">
       <h1 className="text-2xl font-bold mb-6">
         {currentFormMode === 'scan-edit' ? 'Quick Update Item' : 'Edit Inventory Item'}: {itemFromApi.name}
       </h1>

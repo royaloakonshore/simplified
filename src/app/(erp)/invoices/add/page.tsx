@@ -5,8 +5,13 @@ import { prisma } from '@/lib/db';
 import { Skeleton } from "@/components/ui/skeleton"; // For fallback
 import InvoiceForm from '@/components/invoices/InvoiceForm'; // Placeholder form component
 
+// Update interface to include searchParams as Promise
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
 // Fetch data required for the form (initially just customers)
-async function getFormData() {
+async function getFormData(orderId?: string) {
   // Fetch customers (only need id and name for select)
   const customers = await prisma.customer.findMany({
     select: { id: true, name: true },
@@ -25,8 +30,32 @@ async function getFormData() {
       orderBy: { name: 'asc' },
     });
 
+  // Convert Decimal fields to numbers for client components (same pattern as OrderForm)
+  const processedInventoryItems = inventoryItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
+    unitOfMeasure: item.unitOfMeasure ?? '', // Provide default for null unitOfMeasure
+    sku: item.sku ?? '' // Provide default empty string for null SKU
+  }));
 
-  return { customers, inventoryItems }; // Adjust as needed
+  // If orderId is provided, fetch the order for prefilling
+  let order = null;
+  if (orderId) {
+    order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        items: {
+          include: {
+            inventoryItem: true
+          }
+        }
+      }
+    });
+  }
+
+  return { customers, inventoryItems: processedInventoryItems, order }; // Adjust as needed
 }
 
 // Loading component for Suspense boundary
@@ -57,21 +86,26 @@ function InvoiceFormSkeleton() {
 // export const dynamic = 'force-dynamic';
 
 // Add Invoice Page Component (Server Component)
-export default async function AddInvoicePage() {
-  const session = await getServerAuthSession(); // Call the correct function
-  if (!session?.user) {
-    redirect('/api/auth/signin');
+export default async function AddInvoicePage({ searchParams }: PageProps) {
+  const session = await getServerAuthSession();
+  if (!session) {
+    redirect('/auth/signin');
   }
 
-  // Fetch data in the Server Component
-  const formDataPromise = getFormData();
+  const resolvedSearchParams = await searchParams;
+  const orderId = typeof resolvedSearchParams.orderId === 'string' ? resolvedSearchParams.orderId : undefined;
+  const { customers, inventoryItems, order } = await getFormData(orderId);
 
   return (
-    <div className="container mx-auto py-8">
-       <Suspense fallback={<InvoiceFormSkeleton />}>
-         {/* Await data inside Suspense boundary */}
-          <AddInvoiceFormWrapper formDataPromise={formDataPromise} />
-       </Suspense>
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
+      <h1 className="text-3xl font-bold">Create Invoice</h1>
+      <Suspense fallback={<Skeleton className="h-[400px]" />}>
+        <InvoiceForm 
+          customers={customers} 
+          inventoryItems={inventoryItems}
+          order={order} // Pass the order for prefilling
+        />
+      </Suspense>
     </div>
   );
 }

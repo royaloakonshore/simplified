@@ -151,27 +151,41 @@ The application has established user flows for core operations like login, profi
 *   **Inventory Category Management (Implicit):** Categories are created/managed via Prisma Studio or migrations for now. Future: UI for category CRUD if needed.
 
 **Next Steps (User Flow Focused):**
-1.  **Inventory Management Enhancements:**
+1.  **UI/UX Enhancements (2025 Priority):**
+    *   **Team Switcher Alignment:** Fix icon positioning when sidebar is collapsed
+    *   **Global Font Colors:** Update to `#08100C` (light mode) and `#F4F1F8` (dark mode)
+    *   **Login Loading Modal:** Company logo with Framer Motion animation during data loading
+    *   **Login Feedback:** Add spinner/visual feedback during authentication
+    *   **Dashboard Performance:** Analyze and optimize 7-second load time
+2.  **Inventory Management Enhancements:**
     *   Implement UI for conditional hiding of `vendorSku`, `vendorItemName` in `InventoryItemForm` if `itemType` is `MANUFACTURED_GOOD`.
     *   Develop the editable `quantityOnHand` column in the Inventory list table with quick adjustment functionality.
     *   Add Inventory Category column (with pill tags) and filtering to the Inventory list. Display `leadTimeDays`, `vendorSku`, `vendorItemName` in the table.
     *   Implement advanced table features (search, sort, filter, pagination) for the Inventory list (similar to CustomerTable).
-2.  **Order & Invoice Flow Enhancements:**
+3.  **Order & Invoice Flow Enhancements:**
     *   Implement searchable select dropdowns for Customer and Item selection in Order/Invoice forms.
     *   Add multi-select checkboxes and bulk action capabilities (e.g., "Print PDF" placeholder) to Order and Invoice list tables.
-3.  **Customer Management Enhancements:**
+4.  **Customer Management Enhancements:**
     *   Implement the customer action dropdown (Create Invoice/Quotation/Work Order, Edit) on the Customer list table.
     *   Develop the UI on the Customer Detail Page to display order history, invoice history, and total net revenue.
-4.  **Production Kanban/Table Enhancements:**
+5.  **Production Kanban/Table Enhancements:**
     *   Design and implement the BOM information view within Kanban cards/table rows for manufactured items in an order.
-5.  **BOM Management UI:**
+6.  **BOM Management UI:**
     *   Create the frontend forms and views for managing Bill of Materials linked to `MANUFACTURED_GOOD` items. This includes finalizing the add/edit forms (`BOMForm.tsx`), the list view (`BOMTable.tsx` on `/boms`), and implementing the detail view page (`/boms/[id]`). Address the current build blocker for the detail page.
     *   Implement the enhanced table-based multi-select UI for adding raw materials to a BOM.
-6.  **Refine Payment Recording:** Review and potentially enhance the UI for recording invoice payments.
-7.  **Credit Note Flow:** Implement the full user flow for creating and managing credit notes from existing invoices.
-8.  **Dashboard & Reporting Flows:** Define and implement user flows for accessing and interacting with dashboard metrics and reports.
-9.  **Build Health & Stability:** Maintain a clean build (`npm run build`) and TypeScript checks (`npx tsc --noEmit`) throughout development. **[Currently Stable]**
-10. **PDF Generation Access:** Ensure users can easily trigger and download PDF versions of Invoices, Orders, Pricelists, etc.
+7.  **Security & Compliance:**
+    *   Implement systematic security analysis framework (see `docs/10-security-analysis-guide.md`)
+    *   Review authentication, authorization, and data protection measures
+    *   Establish ongoing security assessment procedures
+8.  **Multi-tenancy Administration:**
+    *   Enhance admin capabilities for creating and managing companies
+    *   Improve user management across multiple tenants
+    *   Refine company switching and data isolation
+9.  **Refine Payment Recording:** Review and potentially enhance the UI for recording invoice payments.
+10. **Credit Note Flow:** Implement the full user flow for creating and managing credit notes from existing invoices.
+11. **Dashboard & Reporting Flows:** Define and implement user flows for accessing and interacting with dashboard metrics and reports.
+12. **Build Health & Stability:** Maintain a clean build (`npm run build`) and TypeScript checks (`npx tsc --noEmit`) throughout development. **[Currently Stable]**
+13. **PDF Generation Access:** Ensure users can easily trigger and download PDF versions of Invoices, Orders, Pricelists, etc.
 
 ## 6. Invoice Management Flows
 

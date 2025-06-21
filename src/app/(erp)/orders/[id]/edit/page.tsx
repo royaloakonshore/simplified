@@ -21,7 +21,7 @@ export default async function EditOrderPage({ params: paramsPromise }: Props) {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="w-full">
        <Suspense fallback={<OrderFormSkeleton />}>
           {/* Render the loader component */}
           <EditOrderFormLoader orderId={params.id} /> 

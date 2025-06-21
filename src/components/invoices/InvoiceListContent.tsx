@@ -191,8 +191,9 @@ const columns: ColumnDef<InvoiceTableRowData>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title="Invoice #" />,
     cell: ({ row }) => <Link
       href={`/invoices/${row.original.id}`}
-      className="hover:underline"
-      legacyBehavior>{row.getValue("invoiceNumber")}</Link>
+      className="hover:underline">
+      {row.getValue("invoiceNumber")}
+    </Link>
   },
   {
     accessorKey: "customer.name",
@@ -399,13 +400,13 @@ export default function InvoiceListContent({
                     />
             </div>
         </div>
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
             <Table>
             <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
+                    <TableHead key={header.id} className="whitespace-nowrap" style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}>
                         {header.isPlaceholder
                             ? null
                             : flexRender(
@@ -425,7 +426,7 @@ export default function InvoiceListContent({
                     data-state={row.getIsSelected() && "selected"}
                     >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} style={{ width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined }}>
+                      <TableCell key={cell.id} className="whitespace-nowrap" style={{ width: cell.column.getSize() !== 150 ? cell.column.getSize() : undefined }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                     ))}

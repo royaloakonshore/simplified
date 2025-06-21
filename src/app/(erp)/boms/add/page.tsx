@@ -48,7 +48,7 @@ export default function AddBillOfMaterialPage() {
 
   if (sessionStatus === "loading") {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-8">Create New Bill of Material</h1>
         <p>Loading session information...</p>
         <Skeleton className="h-12 w-1/2 mb-4" />
@@ -59,7 +59,7 @@ export default function AddBillOfMaterialPage() {
   
   if (sessionStatus === "unauthenticated") {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Access Denied</AlertTitle>
@@ -74,7 +74,7 @@ export default function AddBillOfMaterialPage() {
   // If authenticated but no companyId, it means user is not linked to a company
   if (sessionStatus === "authenticated" && !companyId) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
          <Alert variant="destructive">
           <Terminal className="h-4 w-4" />
           <AlertTitle>Company Not Found</AlertTitle>
@@ -91,7 +91,7 @@ export default function AddBillOfMaterialPage() {
 
   if (isLoadingData && companyId) { // Only show loading for data if companyId is present
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <h1 className="text-3xl font-bold mb-8">Create New Bill of Material</h1>
         <p>Loading inventory items...</p>
         <Skeleton className="h-12 w-1/2 mb-4" />
@@ -102,7 +102,7 @@ export default function AddBillOfMaterialPage() {
 
   if (BOMErrors.length > 0) {
     return (
-      <div className="container mx-auto py-10 text-red-500">
+      <div className="w-full text-red-500">
         <h1 className="text-3xl font-bold mb-8">Error loading data</h1>
         {BOMErrors.map((err, idx) => <p key={idx}>{err?.message || "An unknown error occurred"}</p>)}
       </div>
@@ -131,7 +131,7 @@ export default function AddBillOfMaterialPage() {
   if (!companyId) {
      // This case should ideally be caught by earlier checks, but as a fallback:
     return (
-        <div className="container mx-auto py-10">
+        <div className="w-full">
             <Alert variant="destructive">
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>Configuration Error</AlertTitle>
@@ -144,7 +144,7 @@ export default function AddBillOfMaterialPage() {
   }
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="w-full">
       <PageBanner>
         <BannerTitle>Create New Bill of Material</BannerTitle>
       </PageBanner>

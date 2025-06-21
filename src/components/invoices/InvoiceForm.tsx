@@ -56,36 +56,73 @@ import InvoiceSubmissionModal from "./InvoiceSubmissionModal";
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
-  inventoryItems: Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 'unitOfMeasure' | 'sku'>[];
+  inventoryItems: {
+    id: string;
+    name: string;
+    salesPrice: number;
+    unitOfMeasure: string;
+    sku: string;
+  }[];
   isEditMode?: boolean;
+  order?: any;
 };
 
-type InventoryItemFormData = Pick<InventoryItem, 'id' | 'name' | 'salesPrice' | 'unitOfMeasure' | 'sku'>;
+type InventoryItemFormData = {
+  id: string;
+  name: string;
+  salesPrice: number;
+  unitOfMeasure: string;
+  sku: string;
+};
 
-export default function InvoiceForm({ customers: initialCustomers, inventoryItems, isEditMode = false }: InvoiceFormProps) {
+export default function InvoiceForm({ customers: initialCustomers, inventoryItems, isEditMode = false, order }: InvoiceFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = React.useState(false);
 
+  const getDefaultValues = () => {
+    if (order) {
+      return {
+        customerId: order.customerId,
+        invoiceDate: new Date(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
+        notes: order.notes || "",
+        items: order.items.map((orderItem: any) => ({
+          itemId: orderItem.inventoryItemId,
+          description: orderItem.inventoryItem.name,
+          quantity: Number(orderItem.quantity),
+          unitPrice: Number(orderItem.unitPrice),
+          vatRatePercent: Number(orderItem.vatRatePercent || 25.5),
+          discountAmount: orderItem.discountAmount ? Number(orderItem.discountAmount) : null,
+          discountPercent: orderItem.discountPercentage ? Number(orderItem.discountPercentage) : null
+        })),
+        orderId: order.id,
+        vatReverseCharge: false,
+      };
+    } else {
+      return {
+        customerId: "",
+        invoiceDate: new Date(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
+        notes: "",
+        items: [{ 
+          itemId: "",
+          description: "",
+          quantity: 1, 
+          unitPrice: 0, 
+          vatRatePercent: FINNISH_VAT_RATES[0],
+          discountAmount: null, 
+          discountPercent: null 
+        }],
+        orderId: undefined,
+        vatReverseCharge: false,
+      };
+    }
+  };
+
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormValidationSchema),
-    defaultValues: {
-      customerId: "",
-      invoiceDate: new Date(),
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
-      notes: "",
-      items: [{ 
-        itemId: "",
-        description: "",
-        quantity: 1, 
-        unitPrice: 0, 
-        vatRatePercent: FINNISH_VAT_RATES[0],
-        discountAmount: null, 
-        discountPercent: null 
-      }],
-      orderId: undefined,
-      vatReverseCharge: false,
-    },
+    defaultValues: getDefaultValues(),
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -171,7 +208,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
     const selectedItem = inventoryItems.find(item => item.id === itemId) as InventoryItemFormData | undefined;
     if (selectedItem) {
       form.setValue(`items.${index}.description`, selectedItem.name ?? '', { shouldValidate: true });
-      form.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice ? Number(selectedItem.salesPrice) : 0, { shouldValidate: true });
+      form.setValue(`items.${index}.unitPrice`, selectedItem.salesPrice, { shouldValidate: true });
     }
   };
 
@@ -369,20 +406,21 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
 
               <div>
                 <FormLabel>Items *</FormLabel>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[200px]">Item</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="w-[100px]">Qty</TableHead>
-                      <TableHead className="w-[120px]">Unit Price</TableHead>
-                      <TableHead className="w-[100px]">VAT %</TableHead>
-                      <TableHead className="w-[120px]">Discount %</TableHead>
-                      <TableHead className="w-[120px]">Discount Amt.</TableHead>
-                      <TableHead className="text-right">Line Total</TableHead>
-                      <TableHead className="w-[50px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <div className="border rounded-md overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[200px]">Item</TableHead>
+                        <TableHead className="min-w-[150px]">Description</TableHead>
+                        <TableHead className="w-[80px]">Qty</TableHead>
+                        <TableHead className="w-[100px]">Unit Price</TableHead>
+                        <TableHead className="w-[80px]">VAT %</TableHead>
+                        <TableHead className="w-[100px]">Disc %</TableHead>
+                        <TableHead className="w-[100px]">Disc Amt</TableHead>
+                        <TableHead className="w-[120px] text-right">Line Total</TableHead>
+                        <TableHead className="w-[50px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {fields.map((field, index) => {
                       const itemValue = watchItems[index];
@@ -536,6 +574,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                     })}
                   </TableBody>
                 </Table>
+                </div>
                 <Button
                   type="button"
                   variant="outline"

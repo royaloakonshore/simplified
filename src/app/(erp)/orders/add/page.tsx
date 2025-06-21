@@ -81,7 +81,7 @@ export default async function AddOrderPage({
   const formDataPromise = getFormData();
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="w-full">
        <Suspense fallback={<OrderFormSkeleton />}>
          {/* Await data inside Suspense boundary */}
           <AddOrderFormWrapper 

@@ -33,8 +33,8 @@ export function InvoiceHistoryTable({ invoices }: InvoiceHistoryTableProps) {
             <TableCell>
               <Link
                 href={`/invoices/${invoice.id}`}
-                className="text-blue-600 hover:underline"
-                legacyBehavior>
+                className="text-primary hover:underline"
+              >
                 {invoice.invoiceNumber}
               </Link>
             </TableCell>

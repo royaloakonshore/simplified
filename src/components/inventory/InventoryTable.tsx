@@ -214,7 +214,7 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
     cell: ({ row }) => {
       const item = row.original;
       return (
-        <Link href={`/inventory/${item.id}/edit`} passHref legacyBehavior>
+        <Link href={`/inventory/${item.id}/edit`}>
           <Button variant="outline" size="sm">
             Edit
           </Button>
@@ -304,14 +304,14 @@ export function InventoryTable({ table, isLoading, /* onDataChange, */ categoryO
   return (
     <div className="space-y-4">
       <InventoryTableToolbar table={table} categoryOptions={categoryOptions} />
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="whitespace-nowrap">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -332,7 +332,7 @@ export function InventoryTable({ table, isLoading, /* onDataChange, */ categoryO
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="whitespace-nowrap">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

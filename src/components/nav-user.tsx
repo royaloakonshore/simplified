@@ -86,16 +86,16 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/settings" legacyBehavior>
-                  <BadgeCheck />
+                <Link href="/settings" className="flex items-center gap-2">
+                  <BadgeCheck className="h-4 w-4" />
                   Account
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/auth/logout" legacyBehavior>
-                <LogOut />
+              <Link href="/auth/logout" className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
                 Log out
               </Link>
             </DropdownMenuItem>

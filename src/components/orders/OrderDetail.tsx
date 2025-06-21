@@ -85,12 +85,13 @@ export default function OrderDetail({ order }: OrderDetailProps) {
 
   // Mutations
   const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
-    onSuccess: (invoice) => {
-      toast.success(`Invoice ${invoice.invoiceNumber} created successfully!`);
-      router.push(`/invoices/${invoice.id}`);
+    onSuccess: (newInvoice) => {
+      setCreatedInvoiceId(newInvoice.id);
+      router.push(`/invoices/${newInvoice.id}`);
+      toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
     },
-    onError: (err) => {
-      toast.error(`Failed to create invoice: ${err.message}`);
+    onError: (error) => {
+      toast.error(`Failed to create invoice: ${error.message}`);
     },
   });
 
@@ -245,8 +246,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             <p className="font-medium text-primary">
               <Link
                 href={`/customers/${order.customer.id}`}
-                className="hover:underline"
-                legacyBehavior>
+                className="hover:underline">
                 {order.customer?.name}
               </Link>
             </p>
@@ -301,8 +301,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                       <td className="px-4 py-2 text-sm">
                         <Link
                           href={`/inventory/${orderItem.inventoryItem.id}`}
-                          className="font-medium text-primary hover:underline"
-                          legacyBehavior>
+                          className="font-medium text-primary hover:underline">
                           {orderItem.inventoryItem.name}
                         </Link>
                         <div className="text-xs text-muted-foreground">SKU: {orderItem.inventoryItem.sku}</div>

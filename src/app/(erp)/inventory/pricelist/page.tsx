@@ -22,7 +22,7 @@ export default function PriceListPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <PageBanner>
           <BannerTitle>Price List</BannerTitle>
         </PageBanner>
@@ -53,7 +53,7 @@ export default function PriceListPage() {
   })) || [];
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="w-full">
       <PageBanner>
         <BannerTitle>Price List</BannerTitle>
       </PageBanner>

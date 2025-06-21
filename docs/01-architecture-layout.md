@@ -366,6 +366,18 @@ simplified-erp/
     - **NEXT:** Add "Product Category" (`InventoryCategory`) column to the inventory table and enable filtering by it (displaying categories as pill tags). **[PENDING]**
     - **NEXT:** Enhance inventory table with a search bar, and robust filtering, pagination, and sorting (similar to `CustomerTable`).
     - **NEXT:** PDF export for pricelist.
+
+## 10. Current Enhancement Pipeline (2025)
+
+**Reference Documents:**
+- `docs/09-ui-enhancement-plan-2025.md` - Current UI/UX improvements
+- `docs/10-security-analysis-guide.md` - Security analysis framework
+
+**Priority Enhancements:**
+1. **UI Consistency & Polish** - Team switcher alignment, font colors, loading states
+2. **User Experience** - Company logo modal, login feedback, dashboard performance
+3. **Security Framework** - Comprehensive security analysis and guidelines
+4. **Multi-tenancy Features** - Admin company/user management capabilities
 - **Replenishment Management (NEW MODULE):**
     - **NEXT:** Create dedicated Replenishment page (`/inventory/replenishment`) for raw material management.
     - **NEXT:** Implement critical alerts table showing most urgent reorder needs.

@@ -65,7 +65,7 @@ export default function ViewBillOfMaterialPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
@@ -78,7 +78,7 @@ export default function ViewBillOfMaterialPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <div className="flex items-center gap-4 mb-8">
           <Skeleton className="h-10 w-10" />
           <Skeleton className="h-8 w-96" />
@@ -94,7 +94,7 @@ export default function ViewBillOfMaterialPage() {
 
   if (!bomData) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="w-full">
         <Alert>
           <AlertTitle>Not Found</AlertTitle>
           <AlertDescription>
@@ -108,7 +108,7 @@ export default function ViewBillOfMaterialPage() {
 
 
   return (
-    <div className="container mx-auto py-10">
+    <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">

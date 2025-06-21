@@ -1,5 +1,72 @@
 # .cursor-updates
 
+## 2025-01-30: Layout Width Consistency Fixes - Dashboard & Global Layout
+
+**Goal:** Fix layout width jumping and ensure consistent full-width layout across the dashboard and application.
+
+**Summary:**
+Resolved layout width inconsistencies that were causing content jumping between loading states and final content rendering. Applied systematic width fixes to ensure full-screen layout consistency throughout the application.
+
+**✅ LAYOUT WIDTH CONSISTENCY FIXES:**
+
+### **1. Dashboard Layout Fixes ✅**
+- **✅ Main Container**: Added `w-full` class to dashboard main container
+- **✅ Content Area**: Added `max-w-none` to prevent restrictive width constraints
+- **✅ Header Consistency**: Added `w-full` to DashboardSiteHeader for full-width alignment
+- **✅ Flex Layout**: Ensured proper flex-1 and full-width combination
+
+### **2. Global Layout Infrastructure ✅**
+- **✅ ERPLayoutClient**: Added `w-full max-w-none` to all major layout containers
+- **✅ SidebarInset**: Ensured full-width content area without max-width restrictions
+- **✅ Header Bar**: Added `w-full` to sticky header for consistent width
+- **✅ Content Container**: Fixed main content area with proper width classes
+
+### **3. Systematic Width Classes ✅**
+- **✅ Outer Container**: `w-full max-w-none` on main layout wrapper
+- **✅ Sidebar Integration**: Proper width handling with sidebar collapse/expand
+- **✅ Content Area**: `w-full max-w-none flex-1` for main content region
+- **✅ Header Consistency**: All headers now use `w-full` for alignment
+
+### **4. Layout Stability ✅**
+- **✅ No More Jumping**: Fixed content jumping between skeleton and final states
+- **✅ Full-Screen Width**: Achieved consistent edge-to-edge layout
+- **✅ Responsive Behavior**: Maintained proper responsive behavior with full width
+- **✅ Build Verification**: All changes pass TypeScript compilation and build process
+
+**🎯 TECHNICAL IMPLEMENTATION:**
+
+### **Key Width Classes Applied**
+- **`w-full`**: Full width within parent container
+- **`max-w-none`**: Remove default max-width constraints
+- **`flex-1`**: Flexible growth for main content areas
+- **Systematic Application**: Applied consistently across layout hierarchy
+
+### **Layout Hierarchy Fixed**
+```
+ERPLayoutClient (w-full max-w-none)
+├── SidebarInset (w-full max-w-none flex-1)
+│   ├── Header (w-full)
+│   └── Content Area (w-full max-w-none flex-1)
+│       └── Dashboard (w-full flex-1)
+│           └── Content (w-full max-w-none)
+```
+
+**📈 USER IMPACT:**
+- **Before**: Content jumping and inconsistent widths during page loads
+- **After**: Smooth, consistent full-width layout throughout application
+- **Stability**: No more layout shifts between loading and content states
+- **Professional**: Clean, edge-to-edge layout appearance
+
+**🔧 FILES MODIFIED:**
+- `src/app/(erp)/dashboard/page.tsx` - Dashboard container width fixes
+- `src/components/dashboard/DashboardSiteHeader.tsx` - Header width consistency
+- `src/components/layout/ERPLayoutClient.tsx` - Core layout width infrastructure
+- **Build Status**: ✅ TypeScript clean, successful compilation
+
+**✅ PRODUCTION READY:** Layout width consistency fully resolved with professional full-screen layout behavior.
+
+---
+
 ## 2025-01-30: Inventory Deduction & Valuation Strategy Documentation Complete
 
 **Goal:** Document the existing inventory deduction logic and plan simple total inventory valuation for dashboard.
@@ -1437,3 +1504,11 @@ This file tracks major changes and enhancements made to the simplified ERP syste
 - **✅ Transaction System**: Backend automatically creates InventoryTransaction records for all quantity changes
 - **✅ Schema Updates**: Enhanced InventoryItem model with supply chain management fields
 - **✅ Form Enhancement**: Improved inventory creation/editing with proper field validation and type safety
+
+## 2025-01-30 - Critical Bug Fixes and UI Improvements
+
+Fixed multiple critical errors including Link multiple children error in settings navigation, Decimal objects error in invoice creation, removed legacyBehavior warnings from Link components, added horizontal scroll to inventory and invoice tables, improved input field layout in order/invoice forms with proper column widths, and fixed customer autofill issues in order creation from customer dropdown.
+
+## 2025-01-30 - Critical Link and Invoice Flow Fixes
+
+Fixed multiple critical issues: resolved Link multiple children error in nav-main.tsx by wrapping children in single container, implemented complete invoice prefilling from orders by adding order prop to InvoiceForm and updating invoice add page to read orderId from URL params, removed all remaining legacyBehavior props from Link components across codebase (InvoiceTable, InvoiceDetail, customer history tables, production page), and fixed Next.js App Router searchParams Promise type compatibility issue.

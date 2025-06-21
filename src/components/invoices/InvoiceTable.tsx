@@ -117,7 +117,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
                   {/* Invoice # */}
-                  <td><Link href={`/invoices/${invoice.id}`} legacyBehavior>{invoice.invoiceNumber}</Link></td>
+                  <td><Link href={`/invoices/${invoice.id}`}>{invoice.invoiceNumber}</Link></td>
                   {/* Customer */}
                   <td>{invoice.customer?.name || '-'}</td>
                   {/* Status */}
