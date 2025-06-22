@@ -145,6 +145,7 @@ export const invoiceFormValidationSchema = z.object({
   customerId: z.string({ required_error: "Customer is required." }).min(1, "Customer is required."), // Expecting a non-empty string (CUID)
   invoiceDate: z.date({ required_error: "Invoice date is required." }),
   dueDate: z.date({ required_error: "Due date is required." }),
+  paymentTerms: z.string().optional(), // Add payment terms field
   notes: z.string().optional(),
   items: z.array(invoiceFormItemSchema).min(1, "Invoice must have at least one item."),
   orderId: z.string().cuid().optional(),

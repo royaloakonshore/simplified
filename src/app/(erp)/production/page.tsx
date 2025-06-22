@@ -149,6 +149,8 @@ function ProductionPageContent() {
   const [activeView, setActiveView] = useState<string>("kanban");
   const [orders, setOrders] = useState<KanbanOrder[]>([]);
   const [activeOrder, setActiveOrder] = useState<KanbanOrder | null>(null);
+  const [shippedModalOpen, setShippedModalOpen] = useState(false);
+  const [pendingShippedOrder, setPendingShippedOrder] = useState<KanbanOrder | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -188,6 +190,15 @@ function ProductionPageContent() {
     },
   });
 
+  const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
+    onSuccess: (newInvoice) => {
+      toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
+    },
+    onError: (error) => {
+      toast.error(`Failed to create invoice: ${error.message}`);
+    },
+  });
+
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const order = orders.find((o: KanbanOrder) => o.id === active.id);
@@ -198,15 +209,54 @@ function ProductionPageContent() {
     setActiveOrder(null);
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const orderId = active.id as string;
-      const newStatus = over.id as OrderStatus;
-      const originalOrder = orders.find(o => o.id === orderId);
+    if (!over || active.id === over.id) return;
 
-      if (originalOrder && originalOrder.status !== newStatus) {
-        updateOrderStatusMutation.mutate({ id: orderId, status: newStatus });
-      }
+    const orderId = active.id as string;
+    const newStatus = over.id as OrderStatus;
+    const order = orders.find((o: KanbanOrder) => o.id === orderId);
+
+    if (!order) return;
+
+    // If moving to shipped, show confirmation modal
+    if (newStatus === OrderStatus.shipped) {
+      setPendingShippedOrder(order);
+      setShippedModalOpen(true);
+      return;
     }
+
+    // For other status changes, update directly
+    updateOrderStatusMutation.mutate({ id: orderId, status: newStatus });
+  };
+
+  const handleShippedAction = (action: 'keep' | 'invoice-archive' | 'archive') => {
+    if (!pendingShippedOrder) return;
+
+    const orderId = pendingShippedOrder.id;
+
+    switch (action) {
+      case 'keep':
+        // Update to shipped but keep in board
+        updateOrderStatusMutation.mutate({ id: orderId, status: OrderStatus.shipped });
+        break;
+      case 'invoice-archive':
+        // Create invoice and archive (remove from board)
+        createInvoiceMutation.mutate(
+          { orderId, dueDate: new Date(new Date().setDate(new Date().getDate() + 14)) },
+          {
+            onSuccess: () => {
+              updateOrderStatusMutation.mutate({ id: orderId, status: OrderStatus.delivered });
+            }
+          }
+        );
+        break;
+      case 'archive':
+        // Just archive (remove from board)
+        updateOrderStatusMutation.mutate({ id: orderId, status: OrderStatus.delivered });
+        break;
+    }
+
+    setShippedModalOpen(false);
+    setPendingShippedOrder(null);
   };
 
   const renderKanbanCardContent = (order: KanbanOrder) => (
@@ -390,6 +440,7 @@ function ProductionPageContent() {
   }
 
   return (
+    <>
     <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
       <TabsList className="mb-4 w-full sm:w-auto self-start">
         <TabsTrigger value="kanban">Kanban View</TabsTrigger>
@@ -479,6 +530,57 @@ function ProductionPageContent() {
         <DataTablePagination table={table} />
       </TabsContent>
     </Tabs>
+    
+    {/* Shipped Confirmation Modal */}
+    <Dialog open={shippedModalOpen} onOpenChange={setShippedModalOpen}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Order Shipped</DialogTitle>
+          <DialogDescription>
+            Order {pendingShippedOrder?.orderNumber} has been marked as shipped.
+            What would you like to do next?
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => handleShippedAction('keep')}
+          >
+            Keep Order in Board
+            <span className="ml-auto text-sm text-muted-foreground">
+              Order stays visible in "Shipped" column
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => handleShippedAction('invoice-archive')}
+          >
+            Create Invoice & Archive
+            <span className="ml-auto text-sm text-muted-foreground">
+              Generate invoice and remove from board
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => handleShippedAction('archive')}
+          >
+            Archive Order
+            <span className="ml-auto text-sm text-muted-foreground">
+              Remove from board without invoice
+            </span>
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setShippedModalOpen(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

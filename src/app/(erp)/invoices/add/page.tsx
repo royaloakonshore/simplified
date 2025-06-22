@@ -42,7 +42,7 @@ async function getFormData(orderId?: string) {
   // If orderId is provided, fetch the order for prefilling
   let order = null;
   if (orderId) {
-    order = await prisma.order.findUnique({
+    const rawOrder = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
         customer: true,
@@ -53,6 +53,31 @@ async function getFormData(orderId?: string) {
         }
       }
     });
+
+    // Convert Decimal fields to numbers for client component
+    if (rawOrder) {
+      order = {
+        ...rawOrder,
+        totalAmount: rawOrder.totalAmount?.toNumber() || 0,
+        items: rawOrder.items.map(item => ({
+          ...item,
+          quantity: item.quantity.toNumber(),
+          unitPrice: item.unitPrice.toNumber(),
+          vatRatePercent: item.vatRatePercent?.toNumber() || 25.5,
+          discountAmount: item.discountAmount?.toNumber() || null,
+          discountPercentage: item.discountPercentage?.toNumber() || null,
+          inventoryItem: {
+            ...item.inventoryItem,
+            costPrice: item.inventoryItem.costPrice.toNumber(),
+            salesPrice: item.inventoryItem.salesPrice.toNumber(),
+            minimumStockLevel: item.inventoryItem.minimumStockLevel?.toNumber() || 0,
+            reorderLevel: item.inventoryItem.reorderLevel?.toNumber() || 0,
+            quantityOnHand: item.inventoryItem.quantityOnHand?.toNumber() || 0,
+            defaultVatRatePercent: item.inventoryItem.defaultVatRatePercent?.toNumber() || null,
+          }
+        }))
+      };
+    }
   }
 
   return { customers, inventoryItems: processedInventoryItems, order }; // Adjust as needed

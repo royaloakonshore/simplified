@@ -155,7 +155,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 discountPercent: orderItem.discountPercentage ?? null, // Prisma model uses discountPercentage
             })),
         });
-    } else if (!isEditMode) {
+    } else if (!isEditMode && !searchParams) {
+        // Only reset to defaults if no searchParams are provided
         createForm.reset({
             customerId: '',
             notes: '',
@@ -166,7 +167,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null }],
         });
     }
-  }, [order, isEditMode, updateForm, createForm]);
+  }, [order, isEditMode, updateForm, createForm, searchParams]);
 
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<{ id: string; orderNumber: string; orderType: OrderType } | null>(null);

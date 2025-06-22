@@ -1509,6 +1509,10 @@ This file tracks major changes and enhancements made to the simplified ERP syste
 
 Fixed multiple critical errors including Link multiple children error in settings navigation, Decimal objects error in invoice creation, removed legacyBehavior warnings from Link components, added horizontal scroll to inventory and invoice tables, improved input field layout in order/invoice forms with proper column widths, and fixed customer autofill issues in order creation from customer dropdown.
 
+## 2025-01-30 - Major UX and Feature Enhancements
+
+Implemented comprehensive bug fixes and feature improvements: resolved Settings navigation Link multiple children error in nav-main.tsx, fixed Decimal objects runtime error in invoice creation by properly converting server-side Decimals to numbers, added shipped order confirmation modal with options to keep in board/invoice and archive/archive only, enhanced production kanban with proper drag-and-drop workflow, added payment terms dropdown to invoice form with automatic due date calculation (7/14/30/60 days + custom), improved table responsiveness with horizontal scroll for inventory and invoice tables, optimized input field layouts in order/invoice creation forms to prevent cramming, fixed customer and order type prefilling in quotation creation from customer dropdown, and removed all remaining legacyBehavior props from Link components throughout the codebase.
+
 ## 2025-01-30 - Critical Link and Invoice Flow Fixes
 
 Fixed multiple critical issues: resolved Link multiple children error in nav-main.tsx by wrapping children in single container, implemented complete invoice prefilling from orders by adding order prop to InvoiceForm and updating invoice add page to read orderId from URL params, removed all remaining legacyBehavior props from Link components across codebase (InvoiceTable, InvoiceDetail, customer history tables, production page), and fixed Next.js App Router searchParams Promise type compatibility issue.

@@ -83,41 +83,49 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
   const getDefaultValues = () => {
     if (order) {
       return {
-        customerId: order.customerId,
+        customerId: order.customerId || '',
         invoiceDate: new Date(),
         dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
-        notes: order.notes || "",
-        items: order.items.map((orderItem: any) => ({
-          itemId: orderItem.inventoryItemId,
-          description: orderItem.inventoryItem.name,
-          quantity: Number(orderItem.quantity),
-          unitPrice: Number(orderItem.unitPrice),
-          vatRatePercent: Number(orderItem.vatRatePercent || 25.5),
-          discountAmount: orderItem.discountAmount ? Number(orderItem.discountAmount) : null,
-          discountPercent: orderItem.discountPercentage ? Number(orderItem.discountPercentage) : null
-        })),
-        orderId: order.id,
+        paymentTerms: '14', // Default to 14 days
+        notes: order.notes || '',
         vatReverseCharge: false,
-      };
-    } else {
-      return {
-        customerId: "",
-        invoiceDate: new Date(),
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
-        notes: "",
-        items: [{ 
-          itemId: "",
-          description: "",
-          quantity: 1, 
-          unitPrice: 0, 
-          vatRatePercent: FINNISH_VAT_RATES[0],
-          discountAmount: null, 
-          discountPercent: null 
+        items: order.items?.map((item: any) => ({
+          itemId: item.inventoryItemId || '',
+          description: item.inventoryItem?.name || '',
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+          vatRatePercent: item.vatRatePercent || 25.5,
+          discountAmount: item.discountAmount || null,
+          discountPercent: item.discountPercentage || null,
+        })) || [{
+          itemId: '',
+          description: '',
+          quantity: 1,
+          unitPrice: 0,
+          vatRatePercent: 25.5,
+          discountAmount: null,
+          discountPercent: null,
         }],
-        orderId: undefined,
-        vatReverseCharge: false,
       };
     }
+
+    return {
+      customerId: '',
+      invoiceDate: new Date(),
+      dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
+      paymentTerms: '14', // Default to 14 days
+      notes: '',
+      vatReverseCharge: false,
+      items: [{
+        itemId: '',
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        vatRatePercent: 25.5,
+        discountAmount: null,
+        discountPercent: null,
+      }],
+    };
   };
 
   const form = useForm<InvoiceFormValues>({
@@ -398,6 +406,46 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                           />
                         </PopoverContent>
                       </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Payment Terms Dropdown */}
+                <FormField
+                  control={form.control}
+                  name="paymentTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Payment Terms</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Auto-calculate due date based on payment terms
+                          const invoiceDate = form.getValues("invoiceDate");
+                          if (invoiceDate && value !== "custom") {
+                            const days = parseInt(value);
+                            const dueDate = new Date(invoiceDate);
+                            dueDate.setDate(dueDate.getDate() + days);
+                            form.setValue("dueDate", dueDate);
+                          }
+                        }} 
+                        value={field.value} 
+                        disabled={createInvoiceMutation.isPending}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment terms" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="7">7 days</SelectItem>
+                          <SelectItem value="14">14 days</SelectItem>
+                          <SelectItem value="30">30 days</SelectItem>
+                          <SelectItem value="60">60 days</SelectItem>
+                          <SelectItem value="custom">Custom due date</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
