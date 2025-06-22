@@ -26,6 +26,7 @@
 - **[02-type-flow-and-finvoice.md](./02-type-flow-and-finvoice.md)** - Data flows and Finvoice integration
 - **[06-ui-and-feature-roadmap.md](./06-ui-and-feature-roadmap.md)** - UI component and feature planning
 - **[08-inventory-deduction-and-valuation-plan.md](./08-inventory-deduction-and-valuation-plan.md)** - Inventory management and valuation strategy
+- **[09-current-backlog-and-priorities.md](./09-current-backlog-and-priorities.md)** - Comprehensive backlog with priority matrix and implementation roadmap
 
 ---
 

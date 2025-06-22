@@ -5,7 +5,17 @@ This plan outlines the step-by-step implementation process for the AI agent buil
 **Core Principle:** Build foundational elements first, then layer features module by module. Prioritize backend (types, schemas, actions, DB interactions) before frontend UI implementation within each module.
 
 **Current Context & Progress:**
-The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. **CRITICAL UPDATE: Phase 2A (Critical Form Fixes) is now complete. All TypeScript compilation errors have been resolved, including complex React Hook Form type constraint issues in `InventoryItemForm.tsx`. OrderStatus enum inconsistencies after Prisma client regeneration have been fixed across the codebase. All `@ts-nocheck` workarounds have been removed and proper TypeScript typing implemented. The project now passes `npm run build` and `npx tsc --noEmit` with zero errors. Performance indexes have been deployed providing 60-80% query improvement.** The system is stable and ready for Phase 2B feature development.
+The project has a stable build. Phase 1 (Foundation & Core Modules) is largely complete. This includes authentication, core layout, and basic CRUD functionalities for Customers, Inventory (Items & Transactions), Orders (Quotes/Work Orders), Invoices (including profitability calculation backend), and a simplified Production Kanban view. The backend for Bill of Materials (BOM) is also implemented. **CRITICAL UPDATE: Phase 2A (Critical Form Fixes) is now complete. All TypeScript compilation errors have been resolved, including complex React Hook Form type constraint issues in `InventoryItemForm.tsx`. OrderStatus enum inconsistencies after Prisma client regeneration have been fixed across the codebase. All `@ts-nocheck` workarounds have been removed and proper TypeScript typing implemented. The project now passes `npm run build` and `npx tsc --noEmit` with zero errors. Performance indexes have been deployed providing 60-80% query improvement.** 
+
+**MAJOR UX & STABILITY IMPROVEMENTS COMPLETED (2025-01-30):**
+- **✅ Critical Runtime Errors Fixed**: Resolved Settings navigation Link errors, Decimal objects runtime errors in invoice creation, and all legacyBehavior warnings
+- **✅ Production Workflow Enhanced**: Added shipped order confirmation modal with workflow options (keep/invoice & archive/archive), improved drag-and-drop UX
+- **✅ Table & Form UX Improvements**: Added horizontal scroll to tables, optimized input field layouts in forms, fixed cramped interfaces
+- **✅ Payment Terms Feature**: Implemented payment terms dropdown with automatic due date calculation (7/14/30/60 days + custom)
+- **✅ Customer & Order Prefilling**: Fixed quotation creation from customer dropdown, enhanced invoice prefilling from orders
+- **✅ Build & Type Safety**: All TypeScript errors resolved, Next.js App Router compatibility, proper Decimal handling throughout
+
+The system is now highly stable, user-friendly, and ready for advanced feature development.
 
 --- --- ---
 

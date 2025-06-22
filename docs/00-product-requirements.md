@@ -7,6 +7,24 @@ This document outlines the requirements for a simplified, multi-tenant ERP-style
 **Current Context & Progress:**
 The application has foundational modules for Invoicing, Orders, Inventory, Customers, and basic Settings/User Management. Key features like Finvoice export (partially integrated), order-to-invoice flow, and BOM-driven inventory deduction for production are implemented. Recent efforts focused on stabilizing the build, resolving numerous type errors across the codebase, and ensuring correct VAT handling. Specifically, `InventoryItem.defaultVatRatePercent` is now correctly used, with a fallback to a company-level default VAT rate, when creating invoice line items from an order. The settings page is more robust, handling cases where company settings might not yet exist. SKU handling in orders is now correct. The UI uses shadcn/ui components and a Next.js App Router structure. Authentication is handled by NextAuth. **The `InventoryItem` model and related forms/APIs have been enhanced with `leadTimeDays`, `vendorSku`, `vendorItemName`, and a directly editable `quantityOnHand` field, which correctly generates adjustment transactions.** **CRITICAL UPDATE: All TypeScript form errors have been resolved, including complex React Hook Form type constraint issues in `InventoryItemForm.tsx`. The `@ts-nocheck` workarounds have been removed and proper TypeScript typing implemented. OrderStatus enum inconsistencies after Prisma client regeneration have been fixed. The build now passes successfully with zero TypeScript compilation errors.** The system is currently stable and ready for Phase 2 feature development. Performance indexes have been deployed providing 60-80% query improvement. Multi-tenancy foundations are complete with company switching functionality.
 
+**MAJOR UX & CRITICAL FIXES COMPLETED (2025-01-30):**
+- **✅ Critical Link Errors Fixed**: Resolved Settings navigation "Link multiple children" error in nav-main.tsx by properly wrapping children in containers
+- **✅ Decimal Objects Runtime Error**: Fixed invoice creation error by converting server-side Decimal objects to numbers before passing to client components
+- **✅ Customer Autofill Issues**: Fixed quotation creation from customer dropdown - order type and customer now properly prefill
+- **✅ Invoice Prefilling from Orders**: Enhanced invoice creation from orders with proper Decimal conversion and order data prefilling
+- **✅ Production Kanban Enhancement**: Added shipped order confirmation modal with three workflow options (keep in board, invoice & archive, archive only)
+- **✅ Table Responsiveness**: Added horizontal scroll to inventory and invoice tables with optimized column widths
+- **✅ Form Input Optimization**: Fixed cramped input fields in order/invoice creation forms with proper column sizing and scroll
+- **✅ Payment Terms Feature**: Added payment terms dropdown to invoice form with automatic due date calculation (7/14/30/60 days + custom)
+- **✅ Legacy Behavior Cleanup**: Removed all remaining legacyBehavior props from Link components throughout codebase
+- **✅ Production Workflow**: Enhanced drag-and-drop with proper shipped order handling and invoice creation options
+
+**TECHNICAL IMPROVEMENTS:**
+- **✅ Type Safety**: Fixed all TypeScript compilation errors, proper Decimal handling, Next.js App Router Promise compatibility
+- **✅ Error Handling**: Enhanced error messages, user feedback, and runtime stability
+- **✅ Build Stability**: System passes both `npx tsc --noEmit` and `npm run build` with zero errors
+- **✅ UX Consistency**: Standardized table layouts, input field spacing, and responsive design patterns
+
 ## 2. Goals
 
 - Provide an intuitive and efficient tool for small businesses to manage core operations.
