@@ -124,26 +124,76 @@ const generateOrderNumber = async (tx: Prisma.TransactionClient, orderType?: Ord
     }
   }
   
-  // Default numbering for quotations and standalone work orders
-  const lastOrder = await tx.order.findFirst({
-    orderBy: { createdAt: 'desc' },
-    select: { orderNumber: true },
-  });
-  let nextNumber = 1;
-  if (lastOrder && lastOrder.orderNumber) {
-    const match = lastOrder.orderNumber.match(/\d+$/);
-    if (match) {
-      nextNumber = parseInt(match[0], 10) + 1;
+  // Default numbering for quotations and standalone work orders with retry logic
+  let attempts = 0;
+  const maxAttempts = 5;
+  
+  while (attempts < maxAttempts) {
+    try {
+      // Get the highest order number with a more specific query
+      const lastOrder = await tx.order.findFirst({
+        where: {
+          orderNumber: {
+            startsWith: 'ORD-'
+          }
+        },
+        orderBy: { orderNumber: 'desc' },
+        select: { orderNumber: true },
+      });
+      
+      let nextNumber = 1;
+      if (lastOrder && lastOrder.orderNumber) {
+        // Extract number from patterns like ORD-00001, ORD-00001-WO, etc.
+        const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+      
+      // Add some randomness to reduce collision probability
+      const randomOffset = Math.floor(Math.random() * 10);
+      nextNumber += randomOffset;
+      
+      const baseNumber = `ORD-${String(nextNumber).padStart(5, '0')}`;
+      
+      let candidateNumber: string;
+      if (orderType === OrderType.work_order) {
+        candidateNumber = `${baseNumber}-WO`; // Standalone work order: ORD-00001-WO
+      } else {
+        candidateNumber = baseNumber; // Quotation: ORD-00001
+      }
+      
+      // Check if this number already exists
+      const existingOrder = await tx.order.findUnique({
+        where: { orderNumber: candidateNumber },
+        select: { id: true }
+      });
+      
+      if (!existingOrder) {
+        return candidateNumber;
+      }
+      
+      // If it exists, increment and try again
+      attempts++;
+      continue;
+      
+    } catch (error) {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to generate unique order number after multiple attempts'
+        });
+      }
+      // Wait a bit before retrying to reduce collision probability
+      await new Promise(resolve => setTimeout(resolve, 10 * attempts));
     }
   }
   
-  const baseNumber = `ORD-${String(nextNumber).padStart(5, '0')}`;
-  
-  if (orderType === OrderType.work_order) {
-    return `${baseNumber}-WO`; // Standalone work order: ORD-00001-WO
-  }
-  
-  return baseNumber; // Quotation: ORD-00001
+  throw new TRPCError({
+    code: 'INTERNAL_SERVER_ERROR',
+    message: 'Failed to generate unique order number'
+  });
 };
 
 // Helper function to check stock and potentially create transactions

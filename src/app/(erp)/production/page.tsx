@@ -39,7 +39,7 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PackageSearch } from 'lucide-react';
+import { PackageSearch, X } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from "@/components/ui/input";
 import type { TRPCClientErrorLike } from "@trpc/client";
@@ -259,6 +259,11 @@ function ProductionPageContent() {
     setPendingShippedOrder(null);
   };
 
+  const handleRemoveFromBoard = (order: KanbanOrder) => {
+    // Remove from board by setting status to delivered (archived)
+    updateOrderStatusMutation.mutate({ id: order.id, status: OrderStatus.delivered });
+  };
+
   const renderKanbanCardContent = (order: KanbanOrder) => (
     <div className="space-y-1 text-sm">
       <div className="flex justify-between items-start">
@@ -266,8 +271,22 @@ function ProductionPageContent() {
             <p className="font-semibold text-base truncate">{order.orderNumber}</p>
             <p className="text-muted-foreground truncate">{order.customer?.name || 'N/A'}</p>
         </div>
-        {/* BOM Dialog Trigger for the whole order - if any item has a BOM */}
-        {order.items.some(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && item.inventoryItem.bom) && (
+        <div className="flex items-center gap-1">
+          {/* Remove from board button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 shrink-0 hover:bg-destructive/10 hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemoveFromBoard(order);
+            }}
+            title="Remove from board"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+          {/* BOM Dialog Trigger for the whole order - if any item has a BOM */}
+          {order.items.some(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && item.inventoryItem.bom) && (
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:bg-primary/10">
@@ -275,7 +294,7 @@ function ProductionPageContent() {
                         <span className="sr-only">View BOMs</span>
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
+                <DialogContent className="sm:max-w-[900px] max-h-[80vh]">
                     <DialogHeader>
                         <DialogTitle>Production Details - Order {order.orderNumber}</DialogTitle>
                         <DialogDescription>
@@ -319,7 +338,8 @@ function ProductionPageContent() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        )}
+          )}
+        </div>
       </div>
       <p className="text-muted-foreground">Total Items: {order.totalQuantity.toString()}</p>
       {order.deliveryDate ? (
@@ -533,7 +553,7 @@ function ProductionPageContent() {
     
     {/* Shipped Confirmation Modal */}
     <Dialog open={shippedModalOpen} onOpenChange={setShippedModalOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Order Shipped</DialogTitle>
           <DialogDescription>
