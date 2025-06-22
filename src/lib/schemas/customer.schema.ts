@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { AddressType } from '@prisma/client'; // Import enum from Prisma Client
 
+// Define CustomerLanguage enum for form validation
+export const CustomerLanguage = {
+  EN: 'EN',
+  FI: 'FI', 
+  SE: 'SE'
+} as const;
+
+export type CustomerLanguageType = typeof CustomerLanguage[keyof typeof CustomerLanguage];
+
 // Schema for a single address
 const addressSchema = z.object({
   id: z.string().optional(), // Optional for creation
@@ -19,6 +28,7 @@ export const customerBaseSchema = z.object({
   vatId: z.string().optional(), // Y-tunnus
   ovtIdentifier: z.string().optional(),
   intermediatorAddress: z.string().optional(),
+  language: z.enum(['EN', 'FI', 'SE']).optional(),
   addresses: z.array(addressSchema).min(1, "At least one address is required."), // Ensure at least one address
 });
 

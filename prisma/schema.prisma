@@ -94,18 +94,19 @@ model Address {
 }
 
 model Customer {
-  id                   String    @id @default(cuid())
+  id                   String           @id @default(cuid())
   name                 String
   email                String?
   phone                String?
   vatId                String?
   ovtIdentifier        String?
   intermediatorAddress String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  language             CustomerLanguage @default(EN)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
   companyId            String?
   addresses            Address[]
-  Company              Company?  @relation(fields: [companyId], references: [id])
+  Company              Company?         @relation(fields: [companyId], references: [id])
   invoices             Invoice[]
   orders               Order[]
 
@@ -457,6 +458,14 @@ enum InvoiceStatus {
 enum ItemType {
   RAW_MATERIAL
   MANUFACTURED_GOOD
+
+  @@schema("public")
+}
+
+enum CustomerLanguage {
+  EN
+  FI
+  SE
 
   @@schema("public")
 }

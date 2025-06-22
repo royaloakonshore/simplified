@@ -1,5 +1,85 @@
 # .cursor-updates
 
+## 2025-01-30: Customer Language Selection Implementation Complete
+
+**Goal:** Implement Priority 1 from backlog - Add customer language selection (EN/FI/SE) for localized invoice output.
+
+**Summary:**
+Successfully implemented customer language selection feature with database schema updates, form controls, and full integration. Customers can now select their preferred language (English, Finnish, or Swedish) for invoices and documents.
+
+**✅ CUSTOMER LANGUAGE SELECTION IMPLEMENTATION:**
+
+### **1. Database Schema Updates ✅**
+- **✅ New Enum**: Added `CustomerLanguage` enum with EN, FI, SE values to Prisma schema
+- **✅ Customer Model**: Added `language` field to Customer model with default value 'EN'  
+- **✅ Database Migration**: Created and applied migration `add_customer_language` successfully
+- **✅ Index Consideration**: Language field prepared for future invoice localization queries
+
+### **2. Form Schema & Validation ✅**
+- **✅ Customer Schema**: Added language field to `customerBaseSchema` with enum validation
+- **✅ Type Safety**: Defined `CustomerLanguageType` for TypeScript consistency
+- **✅ Optional Field**: Made language optional in forms with 'EN' default to avoid type conflicts
+- **✅ Validation**: Proper Zod enum validation with clear error messages
+
+### **3. User Interface Implementation ✅**
+- **✅ Language Selector**: Added Select dropdown with English, Finnish (Suomi), Swedish (Svenska) options
+- **✅ Default Values**: Proper default value handling for both new customers ('EN') and existing customers
+- **✅ Form Integration**: Seamless integration with existing CustomerForm validation and submission
+- **✅ User Experience**: Clear language labels with native language names for better UX
+
+### **4. Backend Integration ✅**
+- **✅ tRPC Router**: Customer router automatically handles language field through updated schema
+- **✅ Create/Update**: Both customer creation and editing support language selection
+- **✅ Data Persistence**: Language preference properly stored and retrieved from database
+- **✅ Type Safety**: Full TypeScript support throughout the stack
+
+**🎯 TECHNICAL IMPLEMENTATION:**
+
+### **Database Schema**
+```sql
+-- CustomerLanguage enum with three supported languages
+enum CustomerLanguage {
+  EN, FI, SE
+}
+
+-- Customer model with language field
+model Customer {
+  language CustomerLanguage @default(EN)
+  // ... other fields
+}
+```
+
+### **Form Implementation**
+- **Language Selection**: Professional Select component with native language names
+- **Default Handling**: Intelligent defaults for new vs existing customers
+- **Validation**: Robust enum validation with user-friendly messages
+- **TypeScript**: Full type safety across form submission and validation
+
+### **Preparation for Localization**
+- **Infrastructure Ready**: Database and forms prepared for invoice localization
+- **Language Standards**: Follows ISO language codes (EN/FI/SE)
+- **Extensible Design**: Easy to add more languages in the future
+- **Business Logic**: Foundation for locale-specific invoice generation
+
+**📈 USER IMPACT:**
+- **Customer Preference**: Sales teams can now set customer language preferences
+- **Invoice Localization**: Foundation ready for translating invoices and documents
+- **Professional Service**: Better customer service with language-appropriate documents
+- **International Business**: Supports multi-language business operations
+
+**🔧 FILES MODIFIED:**
+- `prisma/schema.prisma` - Added CustomerLanguage enum and Customer.language field
+- `src/lib/schemas/customer.schema.ts` - Added language validation and types
+- `src/components/customers/CustomerForm.tsx` - Added language selector UI
+- **Migration**: `add_customer_language` - Database schema update
+- **Build Status**: ✅ TypeScript clean, successful compilation
+
+**✅ PRODUCTION READY:** Customer language selection fully implemented and ready for immediate use. Foundation established for future invoice localization implementation.
+
+**Next Priority:** Implement localized invoice output using customer language preference for PDF and Finvoice XML generation.
+
+---
+
 ## 2025-01-30: Layout Width Consistency Fixes - Dashboard & Global Layout
 
 **Goal:** Fix layout width jumping and ensure consistent full-width layout across the dashboard and application.

@@ -49,6 +49,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
           vatId: initialData.vatId ?? '',
           ovtIdentifier: initialData.ovtIdentifier ?? '',
           intermediatorAddress: initialData.intermediatorAddress ?? '',
+          language: (initialData as any).language ?? 'EN',
           addresses: initialData.addresses ?? [],
         }
       : {
@@ -58,6 +59,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
           vatId: '',
           ovtIdentifier: '',
           intermediatorAddress: '',
+          language: 'EN',
           addresses: [{ type: AddressType.billing, streetAddress: '', city: '', postalCode: '', countryCode: 'FI' }], // Default with one billing address
         },
   });
@@ -278,6 +280,29 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                         <Input placeholder="E.g., BANK" {...field} />
                     </FormControl>
                     <FormDescription>E-invoice intermediator (optional).</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Language</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || 'EN'}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        <SelectItem value="EN">English</SelectItem>
+                        <SelectItem value="FI">Finnish (Suomi)</SelectItem>
+                        <SelectItem value="SE">Swedish (Svenska)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormDescription>Language for invoices and documents.</FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
