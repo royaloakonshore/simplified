@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { generateFinvoiceXml, type SellerSettings } from "@/lib/services/finvoice.service"; 
 import { createAppCaller } from "@/lib/api/root"; 
 import { createDecimal } from '../../types/branded'; // Added import for createDecimal
+import { generateInvoiceReferenceNumber } from '@/lib/utils/finnishReferenceNumber';
 
 // Type alias for Prisma Transaction Client
 type PrismaTransactionClient = Omit<PrismaClient, '\$connect' | '\$disconnect' | '\$on' | '\$transaction' | '\$use' | '\$extends'>;
@@ -233,7 +234,7 @@ export const invoiceRouter = createTRPCRouter({
   create: companyProtectedProcedure
     .input(CreateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
-      const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge } = input;
+      const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge, referenceNumber, sellerReference } = input;
       const userId = ctx.userId;
 
       let subTotal = new Decimal(0); 
@@ -323,13 +324,26 @@ export const invoiceRouter = createTRPCRouter({
             const paddingLength = lastNumericString.length > 0 ? lastNumericString.length : 5;
             nextInvoiceNumber = prefix + newNumericPart.toString().padStart(paddingLength, '0');
         } catch (e) {
-            console.error("Failed to parse last invoice number:", lastInvoice.invoiceNumber, e);
+            console.error("Failed to parse last invoice number:", nextInvoiceNumber, e);
+        }
+      }
+
+      // Generate Finnish reference number if not provided
+      let finalReferenceNumber = referenceNumber;
+      if (!finalReferenceNumber) {
+        try {
+          finalReferenceNumber = generateInvoiceReferenceNumber(nextInvoiceNumber);
+        } catch (error) {
+          console.error("Failed to generate Finnish reference number:", error);
+          finalReferenceNumber = undefined; // Let it be nullable in the database
         }
       }
 
       const dataForInvoiceCreate: Prisma.InvoiceCreateInput = {
         customer: { connect: { id: customerId } },
             invoiceNumber: nextInvoiceNumber,
+            referenceNumber: finalReferenceNumber,
+            sellerReference: sellerReference,
             invoiceDate,
             dueDate,
         status: InvoiceStatus.draft,
@@ -374,7 +388,7 @@ export const invoiceRouter = createTRPCRouter({
   createFromOrder: companyProtectedProcedure
     .input(createInvoiceFromOrderSchema)
     .mutation(async ({ ctx, input }) => {
-      const { orderId, invoiceDate, dueDate, notes, vatReverseCharge } = input;
+      const { orderId, invoiceDate, dueDate, notes, vatReverseCharge, referenceNumber, sellerReference } = input;
       const userId = ctx.userId;
 
       type OrderWithIncludes = Prisma.OrderGetPayload<{
@@ -483,9 +497,22 @@ export const invoiceRouter = createTRPCRouter({
         }
       }
 
+      // Generate Finnish reference number if not provided
+      let finalReferenceNumber = referenceNumber;
+      if (!finalReferenceNumber) {
+        try {
+          finalReferenceNumber = generateInvoiceReferenceNumber(nextInvoiceNumber);
+        } catch (error) {
+          console.error("Failed to generate Finnish reference number:", error);
+          finalReferenceNumber = undefined; // Let it be nullable in the database
+        }
+      }
+
       const dataForInvoiceCreate: Prisma.InvoiceCreateInput = {
         customer: { connect: { id: order.customerId } },
         invoiceNumber: nextInvoiceNumber,
+        referenceNumber: finalReferenceNumber,
+        sellerReference: sellerReference,
         invoiceDate: invoiceDate,
         dueDate: dueDate,
         status: InvoiceStatus.draft,

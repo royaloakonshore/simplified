@@ -29,6 +29,7 @@ export const customerBaseSchema = z.object({
   ovtIdentifier: z.string().optional(),
   intermediatorAddress: z.string().optional(),
   language: z.enum(['EN', 'FI', 'SE']).optional(),
+  buyerReference: z.string().optional(),
   addresses: z.array(addressSchema).min(1, "At least one address is required."), // Ensure at least one address
 });
 

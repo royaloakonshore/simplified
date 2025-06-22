@@ -49,7 +49,8 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
           vatId: initialData.vatId ?? '',
           ovtIdentifier: initialData.ovtIdentifier ?? '',
           intermediatorAddress: initialData.intermediatorAddress ?? '',
-          language: (initialData as any).language ?? 'EN',
+          language: (initialData as any).language ?? 'FI',
+          buyerReference: (initialData as any).buyerReference ?? '',
           addresses: initialData.addresses ?? [],
         }
       : {
@@ -59,7 +60,8 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
           vatId: '',
           ovtIdentifier: '',
           intermediatorAddress: '',
-          language: 'EN',
+          language: 'FI',
+          buyerReference: '',
           addresses: [{ type: AddressType.billing, streetAddress: '', city: '', postalCode: '', countryCode: 'FI' }], // Default with one billing address
         },
   });
@@ -290,7 +292,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Language</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || 'EN'}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || 'FI'}>
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Select language" />
@@ -303,6 +305,20 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                         </SelectContent>
                     </Select>
                     <FormDescription>Language for invoices and documents.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="buyerReference"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Buyer Reference</FormLabel>
+                    <FormControl>
+                        <Input placeholder="Contact person, project code, etc." {...field} />
+                    </FormControl>
+                    <FormDescription>Reference person or code for invoices (optional).</FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}

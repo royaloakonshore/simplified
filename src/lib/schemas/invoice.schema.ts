@@ -38,6 +38,8 @@ export const CreateInvoiceSchema = z.object({
   invoiceDate: z.coerce.date({ required_error: 'Invoice date is required' }),
   dueDate: z.coerce.date({ required_error: 'Due date is required' }),
   notes: z.string().optional(),
+  referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
+  sellerReference: z.string().optional(), // Free text field for seller reference
   items: z
     .array(InvoiceItemSchema)
     .min(1, { message: 'Invoice must have at least one item' }),
@@ -55,6 +57,8 @@ export const createInvoiceFromOrderSchema = z.object({
   invoiceDate: z.coerce.date().optional().default(() => new Date()),
   dueDate: z.coerce.date({ required_error: "Due date is required"}),
   notes: z.string().optional(),
+  referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
+  sellerReference: z.string().optional(), // Free text field for seller reference
   vatReverseCharge: z.boolean().default(false),
 });
 
@@ -147,6 +151,8 @@ export const invoiceFormValidationSchema = z.object({
   dueDate: z.date({ required_error: "Due date is required." }),
   paymentTerms: z.string().optional(), // Add payment terms field
   notes: z.string().optional(),
+  referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
+  sellerReference: z.string().optional(), // Free text field for seller reference
   items: z.array(invoiceFormItemSchema).min(1, "Invoice must have at least one item."),
   orderId: z.string().cuid().optional(),
   vatReverseCharge: z.boolean().optional(),

@@ -101,7 +101,8 @@ model Customer {
   vatId                String?
   ovtIdentifier        String?
   intermediatorAddress String?
-  language             CustomerLanguage @default(EN)
+  language             CustomerLanguage @default(FI)
+  buyerReference       String?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   companyId            String?
@@ -228,6 +229,8 @@ model OrderItem {
 model Invoice {
   id                String        @id @default(cuid())
   invoiceNumber     String        @unique
+  referenceNumber   String?       @unique
+  sellerReference   String?
   customerId        String
   orderId           String?
   status            InvoiceStatus @default(draft)
@@ -260,6 +263,7 @@ model Invoice {
   @@index([status])
   @@index([invoiceDate])
   @@index([dueDate])
+  @@index([referenceNumber])
   @@schema("public")
 }
 
