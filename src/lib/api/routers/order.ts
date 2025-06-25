@@ -734,4 +734,40 @@ export const orderRouter = createTRPCRouter({
         orderNumber: order.orderNumber,
       };
     }),
+
+  getFunnelStats: companyProtectedProcedure
+    .query(async ({ ctx }) => {
+      // Get all orders for the company
+      const orders = await prisma.order.findMany({
+        where: {
+          companyId: ctx.companyId,
+        },
+        select: {
+          status: true,
+          totalAmount: true,
+        },
+      });
+
+      const quotations = orders.filter(o => o.status === OrderStatus.draft);
+      const pending = orders.filter(o => o.status === OrderStatus.confirmed);
+      const production = orders.filter(o => o.status === OrderStatus.in_production);
+      const completed = orders.filter(o => 
+        o.status === OrderStatus.shipped || o.status === OrderStatus.delivered
+      );
+
+      const calculateStats = (orderList: typeof orders) => ({
+        count: orderList.length,
+        value: orderList.reduce((sum, order) => {
+          const amount = order.totalAmount ? parseFloat(order.totalAmount.toString()) : 0;
+          return sum + amount;
+        }, 0),
+      });
+
+      return {
+        quotations: calculateStats(quotations),
+        pending: calculateStats(pending),
+        production: calculateStats(production),
+        completed: calculateStats(completed),
+      };
+    }),
 }); 

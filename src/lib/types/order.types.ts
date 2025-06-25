@@ -11,7 +11,7 @@ export enum OrderStatus {
   CONFIRMED = "confirmed",
   IN_PRODUCTION = "in_production",
   SHIPPED = "shipped",
-  DELIVERED = "delivered",
+  DELIVERED = "delivered", // Note: UI displays this as "Ready to Invoice"
   CANCELLED = "cancelled",
   INVOICED = "invoiced",
 }

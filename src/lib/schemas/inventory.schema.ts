@@ -44,6 +44,14 @@ export const inventoryItemBaseSchema = z.object({
   vendorSku: z.string().optional().nullable(),
   vendorItemName: z.string().optional().nullable(),
   variant: z.string().optional().nullable(),
+  
+  // Physical attributes
+  dimensions: z.string().optional().nullable(), // Free text field for dimensions (e.g., "10cm x 5cm x 3cm")
+  weight: z.coerce
+    .number({ invalid_type_error: 'Weight must be a number' })
+    .nonnegative('Weight must be non-negative')
+    .optional()
+    .nullable(),
 });
 
 // Schema for creating an inventory item

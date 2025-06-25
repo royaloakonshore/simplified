@@ -69,6 +69,27 @@ const getOrderTypeDisplay = (orderType: OrderType): string => {
   }
 };
 
+const getStatusDisplayText = (status: OrderStatus): string => {
+  switch (status) {
+    case OrderStatus.draft:
+      return "DRAFT";
+    case OrderStatus.confirmed:
+      return "CONFIRMED";
+    case OrderStatus.in_production:
+      return "IN PROD.";
+    case OrderStatus.shipped:
+      return "SHIPPED";
+    case OrderStatus.delivered:
+      return "READY TO INVOICE";
+    case OrderStatus.cancelled:
+      return "CANCELLED";
+    case OrderStatus.invoiced:
+      return "INVOICED";
+    default:
+      return (status as string).replace('_', ' ').toUpperCase();
+  }
+};
+
 // Format currency function
 const formatCurrency = (amount: number | string | Prisma.Decimal | null | undefined) => {
   return new Intl.NumberFormat('fi-FI', {
@@ -166,7 +187,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
               {getOrderTypeDisplay(order.orderType)}
             </Badge>
             <Badge variant={getStatusBadgeVariant(order.status)}>
-              {order.status.replace('_', ' ').toUpperCase()}
+              {getStatusDisplayText(order.status)}
             </Badge>
             
             {/* Actions Dropdown */}

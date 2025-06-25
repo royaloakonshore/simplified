@@ -8,7 +8,7 @@ import { api } from '@/lib/trpc/react';
 import type { InventoryItem, InventoryTransaction } from '@prisma/client';
 import { toast } from "sonner";
 
-export interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'quantityOnHand' | 'minimumStockLevel' | 'reorderLevel' | 'defaultVatRatePercent'> {
+export interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'quantityOnHand' | 'minimumStockLevel' | 'reorderLevel' | 'defaultVatRatePercent' | 'dimensions' | 'weight'> {
   costPrice: string;
   salesPrice: string;
   quantityOnHand: string;
@@ -16,6 +16,8 @@ export interface CellItemData extends Omit<InventoryItem, 'costPrice' | 'salesPr
   reorderLevel: string | null;
   defaultVatRatePercent: string | null;
   variant: string | null;
+  dimensions: string | null;
+  weight: string | null;
 }
 
 interface EditableQuantityCellProps {

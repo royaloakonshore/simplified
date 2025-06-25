@@ -56,6 +56,8 @@ export type ProcessedInventoryItemApiData = {
   defaultVatRatePercent?: string | number | null;
   vendorSku?: string | null;
   vendorItemName?: string | null;
+  dimensions?: string | null;
+  weight?: string | number | null;
 };
 
 interface InventoryItemFormProps {
@@ -105,6 +107,8 @@ const mapApiDataToFormValues = (
       vendorSku: item.vendorSku ?? null,
       vendorItemName: item.vendorItemName ?? null,
       variant: item.variant ?? null,
+      dimensions: item.dimensions ?? null,
+      weight: parseNullableNumber(item.weight),
       showInPricelist: item.showInPricelist ?? true,
       internalRemarks: item.internalRemarks ?? undefined,
     } satisfies InventoryItemFormValues;
@@ -130,6 +134,8 @@ const mapApiDataToFormValues = (
     vendorItemName: null,
     leadTimeDays: null,
     variant: null,
+    dimensions: null,
+    weight: null,
   } satisfies InventoryItemFormValues;
 };
 
@@ -198,6 +204,34 @@ export function InventoryItemForm({
                 </FormItem>
               )}
             />
+
+            {/* Physical Attributes Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="dimensions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dimensions</FormLabel>
+                    <FormControl><Input placeholder="e.g., 10cm x 5cm x 3cm" {...field} value={field.value ?? ''} /></FormControl>
+                    <FormDescription>Physical dimensions (free text)</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="weight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight (kg)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 0.5" {...field} value={field.value ?? ''} /></FormControl>
+                    <FormDescription>Weight in kilograms</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <FormField
                     control={form.control}

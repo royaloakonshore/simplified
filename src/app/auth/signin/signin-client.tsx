@@ -138,7 +138,7 @@ function SignInPageClientContent() {
               <AlertDescription className="flex items-center justify-between">
                 <span>First time setup? You may need to bootstrap the system.</span>
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/bootstrap" legacyBehavior>
+                  <Link href="/bootstrap">
                     <Building className="mr-2 h-4 w-4" />
                     Setup System
                   </Link>

@@ -24,6 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { useSession } from "next-auth/react";
 
 // StatsCard component (can be moved to its own file later if preferred)
 function StatsCard({
@@ -132,7 +133,11 @@ function RecentOrdersTable() {
       </TableHeader>
       <TableBody>
         {orders.map((order) => (
-          <TableRow key={order.id}>
+          <TableRow 
+            key={order.id}
+            className="cursor-pointer hover:bg-muted/50"
+            onClick={() => window.location.href = `/orders/${order.id}`}
+          >
             <TableCell className="font-medium px-4 whitespace-nowrap">
               <Link
                 href={`/orders/${order.id}`}
@@ -243,8 +248,21 @@ function ReplenishmentAlertsTable() {
 }
 
 export default function DashboardPage() {
+  // Get session for user info and company context
+  const { data: session } = useSession();
+
   // Fetch dashboard statistics
   const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({});
+  
+  // Fetch user's member companies to get the active company name
+  const { data: memberCompanies } = api.user.getMemberCompanies.useQuery(undefined, {
+    enabled: !!session?.user
+  });
+  
+  // Find the active company
+  const activeCompany = memberCompanies?.find(
+    company => company.id === session?.user?.activeCompanyId
+  );
 
   // Chart controls state
   const [chartType, setChartType] = React.useState<"weekly" | "monthly">("monthly");
@@ -286,6 +304,23 @@ export default function DashboardPage() {
   return (
     <div className="w-full flex-1 flex flex-col">
       <DashboardSiteHeader title="Dashboard" />
+      
+      {/* Greeting Section */}
+      {session?.user && (
+        <div className="px-4 py-2 border-b bg-gradient-to-r from-background to-muted/30">
+          <div className="max-w-none">
+            <h2 className="text-xl font-semibold text-foreground">
+              Hello, {session.user.firstName || session.user.name}! 👋
+            </h2>
+            {activeCompany && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {activeCompany.name}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="w-full max-w-none flex flex-1 flex-col gap-4 @container/main">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>

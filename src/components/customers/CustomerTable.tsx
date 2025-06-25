@@ -46,6 +46,7 @@ import {
     FilePlus,
     FileBox,
     Edit,
+    User,
 } from 'lucide-react';
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -65,17 +66,30 @@ const CustomerTableRowActions = ({ customer, onEditSuccess }: { customer: Custom
     router.push(`${baseUrl}?${params.toString()}`);
   };
 
+  const handleViewProfile = (customerId: string) => {
+    router.push(`/customers/${customerId}`);
+  };
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
+          <Button 
+            variant="ghost" 
+            className="h-8 w-8 p-0"
+            onClick={(e) => e.stopPropagation()}
+          >
             <span className="sr-only">Open menu</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => handleViewProfile(customer.id)}>
+            <User className="mr-2 h-4 w-4" />
+            <span>View Profile</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'invoice')}>
             <FileText className="mr-2 h-4 w-4" />
@@ -245,9 +259,20 @@ export default function CustomerTable({ customers }: CustomerTableProps) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={(e) => {
+                    // Only navigate if the click is not on the checkbox or actions column
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('[data-no-click]') && !target.closest('button') && !target.closest('[role="checkbox"]')) {
+                      router.push(`/customers/${row.original.id}`);
+                    }
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell 
+                      key={cell.id}
+                      {...(cell.column.id === 'select' || cell.column.id === 'actions' ? { 'data-no-click': true } : {})}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

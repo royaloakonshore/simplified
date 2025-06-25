@@ -65,6 +65,7 @@ type InvoiceFormProps = {
   }[];
   isEditMode?: boolean;
   order?: any;
+  editInvoiceData?: any;
 };
 
 type InventoryItemFormData = {
@@ -75,12 +76,42 @@ type InventoryItemFormData = {
   sku: string;
 };
 
-export default function InvoiceForm({ customers: initialCustomers, inventoryItems, isEditMode = false, order }: InvoiceFormProps) {
+export default function InvoiceForm({ customers: initialCustomers, inventoryItems, isEditMode = false, order, editInvoiceData }: InvoiceFormProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = React.useState(false);
 
   const getDefaultValues = () => {
+    // If editing an existing invoice, populate with that data
+    if (isEditMode && editInvoiceData) {
+      return {
+        customerId: editInvoiceData.customerId || '',
+        invoiceDate: editInvoiceData.invoiceDate ? new Date(editInvoiceData.invoiceDate) : new Date(),
+        dueDate: editInvoiceData.dueDate ? new Date(editInvoiceData.dueDate) : new Date(new Date().setDate(new Date().getDate() + 14)),
+        paymentTerms: '14', // Default to 14 days
+        notes: editInvoiceData.notes || '',
+        vatReverseCharge: editInvoiceData.vatReverseCharge || false,
+        items: editInvoiceData.items?.map((item: any) => ({
+          itemId: item.inventoryItemId || '',
+          description: item.description || '',
+          quantity: parseFloat(item.quantity) || 1,
+          unitPrice: parseFloat(item.unitPrice) || 0,
+          vatRatePercent: parseFloat(item.vatRatePercent) || 25.5,
+          discountAmount: item.discountAmount ? parseFloat(item.discountAmount) : null,
+          discountPercent: item.discountPercentage ? parseFloat(item.discountPercentage) : null,
+        })) || [{
+          itemId: '',
+          description: '',
+          quantity: 1,
+          unitPrice: 0,
+          vatRatePercent: 25.5,
+          discountAmount: null,
+          discountPercent: null,
+        }],
+      };
+    }
+
+    // If creating from an order, populate with order data
     if (order) {
       return {
         customerId: order.customerId || '',
@@ -109,6 +140,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       };
     }
 
+    // Default values for new invoice
     return {
       customerId: '',
       invoiceDate: new Date(),

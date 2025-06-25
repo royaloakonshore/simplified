@@ -45,7 +45,8 @@ type CreateCompanyFormValues = z.infer<typeof createCompanyFormSchema>
 
 export function TeamSwitcher() {
   const { data: session, update: updateSession } = useSession()
-  const { isMobile } = useSidebar()
+  const { isMobile, state } = useSidebar()
+  const isCollapsed = state === "collapsed"
   const trpcUtils = trpc.useUtils()
   const [isCreateCompanyDialogOpen, setCreateCompanyDialogOpen] = React.useState(false)
 
@@ -109,11 +110,13 @@ export function TeamSwitcher() {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled className="justify-start">
+          <SidebarMenuButton size="lg" disabled className={isCollapsed ? "justify-center" : "justify-start"}>
             <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted animate-pulse" />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="h-4 w-20 bg-muted rounded animate-pulse"></span>
-            </div>
+            {!isCollapsed && (
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="h-4 w-20 bg-muted rounded animate-pulse"></span>
+              </div>
+            )}
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
@@ -155,15 +158,19 @@ export function TeamSwitcher() {
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size="lg" className="justify-start">
+              <SidebarMenuButton size="lg" className={isCollapsed ? "justify-center" : "justify-start"}>
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Plus className="size-4" />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">No Company</span>
-                  <span className="truncate text-xs text-muted-foreground">Select or Add</span>
-                </div>
-                <ChevronsUpDown className="ml-auto text-muted-foreground" />
+                {!isCollapsed && (
+                  <>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">No Company</span>
+                      <span className="truncate text-xs text-muted-foreground">Select or Add</span>
+                    </div>
+                    <ChevronsUpDown className="ml-auto text-muted-foreground" />
+                  </>
+                )}
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -194,18 +201,22 @@ export function TeamSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground justify-start"
+              className={`data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ${isCollapsed ? "justify-center" : "justify-start"}`}
               disabled={setActiveCompanyMutation.isPending}
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <DefaultCompanyIcon className="size-4" />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">
-                  {companyToDisplay.name}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground" />
+              {!isCollapsed && (
+                <>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">
+                      {companyToDisplay.name}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto text-muted-foreground" />
+                </>
+              )}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

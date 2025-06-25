@@ -9,6 +9,7 @@ import { api } from '@/lib/trpc/react';
 import { useRouter } from 'next/navigation';
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 import { InventoryTable, columns, type InventoryItemRowData } from '@/components/inventory/InventoryTable';
+import { CreateCategoryDialog } from '@/components/inventory/CreateCategoryDialog';
 import {
   useReactTable,
   getCoreRowModel,
@@ -74,6 +75,8 @@ function InventoryListContent() {
       minimumStockLevel: item.minimumStockLevel,
       reorderLevel: item.reorderLevel,
       defaultVatRatePercent: item.defaultVatRatePercent?.toString() || null,
+      dimensions: item.dimensions?.toString() || null,
+      weight: item.weight?.toString() || null,
     }));
   }, [inventoryData?.data]);
 
@@ -200,6 +203,7 @@ export default function InventoryPage() {
               Replenishment
             </Link>
           </Button>
+          <CreateCategoryDialog />
         </div>
 
         <Button asChild>

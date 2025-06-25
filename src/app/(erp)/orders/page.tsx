@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // 
 import { Terminal } from 'lucide-react'; // Icon for alert
 import React from 'react';
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
+import { SalesFunnel } from "@/components/orders/SalesFunnel";
 
 // Type definition for order data
 type OrderInTable = Order & {
@@ -121,6 +122,11 @@ export default function OrdersPage() {
         <Button asChild>
           <Link href="/orders/add">Create New Order</Link>
         </Button>
+      </div>
+
+      {/* Sales Funnel Visualization */}
+      <div className="mb-6">
+        <SalesFunnel />
       </div>
 
       <Suspense fallback={<div>Loading orders...</div>}>

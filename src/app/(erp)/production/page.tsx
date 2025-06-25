@@ -39,11 +39,28 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PackageSearch, X } from 'lucide-react';
+import { PackageSearch, X, MoreHorizontal, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { AppRouter } from "@/lib/api/root";
+import { PageBanner } from '@/components/common/PageBanner';
 
 // Define the structure of an order for the Kanban board more specifically
 interface KanbanOrder {
@@ -80,7 +97,7 @@ type KanbanColumn = {
 
 const KANBAN_COLUMNS: KanbanColumn[] = [
   { id: OrderStatus.confirmed, name: 'Confirmed', color: '#fbbf24' }, // amber-400
-  { id: OrderStatus.in_production, name: 'In Production', color: '#3b82f6' }, // blue-500
+  { id: OrderStatus.in_production, name: 'In Prod.', color: '#3b82f6' }, // blue-500
   { id: OrderStatus.shipped, name: 'Ready for Shipping/Shipped', color: '#22c55e' }, // green-500 
 ];
 
@@ -99,6 +116,30 @@ const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "
       return "destructive";
     default:
       return "secondary";
+  }
+};
+
+// Helper function to get available status transitions
+const getAvailableStatusOptions = (currentStatus: OrderStatus) => {
+  switch (currentStatus) {
+    case OrderStatus.confirmed:
+      return [
+        { value: OrderStatus.in_production, label: 'Move to Production' },
+        { value: OrderStatus.cancelled, label: 'Cancel Order' },
+      ];
+    case OrderStatus.in_production:
+      return [
+        { value: OrderStatus.shipped, label: 'Mark as Shipped' },
+        { value: OrderStatus.confirmed, label: 'Move Back to Confirmed' },
+        { value: OrderStatus.cancelled, label: 'Cancel Order' },
+      ];
+    case OrderStatus.shipped:
+      return [
+        { value: OrderStatus.delivered, label: 'Ready to Invoice' },
+        { value: OrderStatus.in_production, label: 'Move Back to Production' },
+      ];
+    default:
+      return [];
   }
 };
 
@@ -385,6 +426,28 @@ function ProductionPageContent() {
   );
 
   const columns = React.useMemo<ColumnDef<KanbanOrder>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     { accessorKey: "orderNumber", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Order #</Button> },
     { accessorKey: "customer.name", header: "Customer", cell: ({ row }) => row.original.customer?.name || 'N/A' },
     { 
@@ -417,13 +480,83 @@ function ProductionPageContent() {
     },
     {
         id: 'actions',
+        header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
             const order = row.original;
-            // Could add a similar DialogTrigger here for table view if needed
+            const availableStatuses = getAvailableStatusOptions(order.status);
+            
             return (
-              <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline">
-                {order.orderNumber}
-              </Link>
+              <div className="flex items-center gap-2 justify-end">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                      <PackageSearch className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Production Details - {order.orderNumber}</DialogTitle>
+                      <DialogDescription>
+                        Customer: {order.customer?.name || 'N/A'} | 
+                        Status: {order.status.replace('_', ' ').toUpperCase()} |
+                        Delivery: {order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : 'N/A'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        {order.items.map((item) => (
+                          <Badge key={`${order.id}-${item.inventoryItem.id}`} variant="outline">
+                            {item.inventoryItem.name} (x{item.quantity.toString()})
+                          </Badge>
+                        ))}
+                      </div>
+                      
+                      {order.items
+                        .filter(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && item.inventoryItem.bom)
+                        .map((item) => (
+                          <div key={`bom-${order.id}-${item.inventoryItem.id}`}>
+                            {renderBomDetails(item.inventoryItem.bom!, item.quantity)}
+                          </div>
+                        ))}
+                    </div>
+                    
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Close</Button>
+                      </DialogClose>
+                      <Link href={`/orders/${order.id}`}>
+                        <Button>View Full Order</Button>
+                      </Link>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Open menu</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {availableStatuses.map((status) => (
+                      <DropdownMenuItem 
+                        key={status.value}
+                        onClick={() => updateOrderStatusMutation.mutate({ id: order.id, status: status.value })}
+                      >
+                        {status.label}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleRemoveFromBoard(order)}>
+                      Remove from Board
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             );
         }
     }
@@ -480,8 +613,14 @@ function ProductionPageContent() {
   }
 
   return (
-    <>
-    <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
+    <div className="w-full">
+      <PageBanner 
+        title="Production" 
+        description="Manage work orders and production workflows"
+      />
+      
+      <div className="p-4 md:p-6">
+        <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
       <TabsList className="mb-4 w-full sm:w-auto self-start">
         <TabsTrigger value="kanban">Kanban View</TabsTrigger>
         <TabsTrigger value="table">Table View</TabsTrigger>
@@ -515,14 +654,42 @@ function ProductionPageContent() {
         </DndContext>
       </TabsContent>
       <TabsContent value="table" className="flex-grow">
-         {/* Basic Toolbar for Table View */}
-        <div className="flex items-center py-4">
-            <Input
-                placeholder="Filter orders... (e.g., by order number, customer)"
-                value={globalFilter ?? ''}
-                onChange={(event) => setGlobalFilter(event.target.value)}
-                className="max-w-sm"
-            />
+         {/* Enhanced Toolbar for Table View */}
+        <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-2">
+              <Input
+                  placeholder="Filter orders... (e.g., by order number, customer)"
+                  value={globalFilter ?? ''}
+                  onChange={(event) => setGlobalFilter(event.target.value)}
+                  className="max-w-sm"
+              />
+            </div>
+            {table.getFilteredSelectedRowModel().rows.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">
+                  {table.getFilteredSelectedRowModel().rows.length} of{" "}
+                  {table.getFilteredRowModel().rows.length} row(s) selected
+                </span>
+                <Select onValueChange={(status) => {
+                  const selectedOrders = table.getFilteredSelectedRowModel().rows.map(row => row.original);
+                  selectedOrders.forEach(order => {
+                    updateOrderStatusMutation.mutate({ id: order.id, status: status as OrderStatus });
+                  });
+                  table.resetRowSelection();
+                }}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Change Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={OrderStatus.confirmed}>Confirmed</SelectItem>
+                    <SelectItem value={OrderStatus.in_production}>In Production</SelectItem>
+                    <SelectItem value={OrderStatus.shipped}>Shipped</SelectItem>
+                    <SelectItem value={OrderStatus.delivered}>Ready to Invoice</SelectItem>
+                    <SelectItem value={OrderStatus.cancelled}>Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
         </div>
         <div className="rounded-md border">
             <Table>
@@ -689,7 +856,8 @@ function ProductionPageContent() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    </>
+      </div>
+    </div>
   );
 }
 

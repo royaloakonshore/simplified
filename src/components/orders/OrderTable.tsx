@@ -76,6 +76,28 @@ const getStatusBadgeVariant = (status: OrderStatus): "default" | "secondary" | "
   }
 };
 
+// Status display text mapping for better UX
+const getStatusDisplayText = (status: OrderStatus): string => {
+  switch (status) {
+    case OrderStatus.draft:
+      return "DRAFT";
+    case OrderStatus.confirmed:
+      return "CONFIRMED";
+    case OrderStatus.in_production:
+      return "IN PROD.";
+    case OrderStatus.shipped:
+      return "SHIPPED";
+    case OrderStatus.delivered:
+      return "READY TO INVOICE";
+    case OrderStatus.cancelled:
+      return "CANCELLED";
+    case OrderStatus.invoiced:
+      return "INVOICED";
+    default:
+      return String(status).replace('_', ' ').toUpperCase();
+  }
+};
+
 // Order type display mapping
 const getOrderTypeDisplay = (orderType: OrderType): string => {
   switch (orderType) {
@@ -244,7 +266,7 @@ export const columns: ColumnDef<OrderTableRowData>[] = [
     ),
     cell: ({ row }) => (
       <Badge variant={getStatusBadgeVariant(row.getValue("status"))}>
-        {(row.getValue("status") as string).replace('_', ' ').toUpperCase()}
+        {getStatusDisplayText(row.getValue("status") as OrderStatus)}
       </Badge>
     ),
     filterFn: (row, id, value) => value.includes(row.getValue(id)),

@@ -30,8 +30,8 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
 
     // Fetch necessary data for the form
     const [customers, inventoryItems] = await Promise.all([
-      api.customer.list({ perPage: 1000 }),
-      api.inventory.list({ perPage: 1000 })
+      api.customer.list({ perPage: 100 }),
+      api.inventory.list({ perPage: 100 })
     ]);
 
     return (
@@ -57,6 +57,7 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
             sku: item.sku || ''
           }))}
           isEditMode={true}
+          editInvoiceData={invoice}
         />
       </div>
     );

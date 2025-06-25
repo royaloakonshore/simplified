@@ -24,9 +24,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import EditableQuantityCell, { type CellItemData } from "./EditableQuantityCell";
 import { Input } from "@/components/ui/input";
 import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Edit, FileText, Package } from "lucide-react";
 
 // Define a more specific type for items in the table, matching what `itemsForTable` in inventory/page.tsx produces
-export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel' | 'quantityOnHand' | 'defaultVatRatePercent'> & { 
+export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice' | 'minimumStockLevel' | 'reorderLevel' | 'quantityOnHand' | 'defaultVatRatePercent' | 'dimensions' | 'weight'> & { 
   quantityOnHand: string; 
   costPrice: string; 
   salesPrice: string; 
@@ -35,6 +44,8 @@ export type InventoryItemRowData = Omit<InventoryItem, 'costPrice' | 'salesPrice
   defaultVatRatePercent: string | null;
   inventoryCategory: { id: string; name: string } | null; 
   variant: string | null;
+  dimensions: string | null;
+  weight: string | null;
 };
 
 interface InventoryTableProps {
@@ -167,6 +178,8 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
         quantityOnHand: currentItem.quantityOnHand,
         minimumStockLevel: currentItem.minimumStockLevel,
         reorderLevel: currentItem.reorderLevel,
+        dimensions: currentItem.dimensions,
+        weight: currentItem.weight,
       };
       
       const handleCellUpdate = (itemId: string, newQuantity: number) => { 
@@ -211,14 +224,46 @@ export const columns: ColumnDef<InventoryItemRowData>[] = [
   },
   {
     id: "actions",
+    header: () => <div className="text-right">Actions</div>,
     cell: ({ row }) => {
       const item = row.original;
+      const isManufactured = item.itemType === ItemType.MANUFACTURED_GOOD;
+      
       return (
-        <Link href={`/inventory/${item.id}/edit`}>
-          <Button variant="outline" size="sm">
-            Edit
-          </Button>
-        </Link>
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href={`/inventory/${item.id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Edit Item</span>
+                </Link>
+              </DropdownMenuItem>
+              {isManufactured && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/boms/add?itemId=${item.id}`}>
+                    <Package className="mr-2 h-4 w-4" />
+                    <span>Create BOM</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem asChild>
+                <Link href={`/inventory/${item.id}`}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  <span>View Details</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       );
     },
   },

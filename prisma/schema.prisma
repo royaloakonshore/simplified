@@ -101,11 +101,11 @@ model Customer {
   vatId                String?
   ovtIdentifier        String?
   intermediatorAddress String?
-  language             CustomerLanguage @default(FI)
-  buyerReference       String?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   companyId            String?
+  language             CustomerLanguage @default(FI)
+  buyerReference       String?
   addresses            Address[]
   Company              Company?         @relation(fields: [companyId], references: [id])
   invoices             Invoice[]
@@ -143,6 +143,8 @@ model InventoryItem {
   vendorItemName        String?
   vendorSku             String?
   variant               String?
+  dimensions            String?
+  weight                Decimal?               @db.Decimal(10, 2)
   bom                   BillOfMaterial?        @relation("ManufacturedItemBOM")
   componentInBOMs       BillOfMaterialItem[]   @relation("ComponentItemInBOMs")
   company               Company?               @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -197,10 +199,10 @@ model Order {
   invoices            Invoice[]   @relation("OrderToInvoices")
   Company             Company?    @relation(fields: [companyId], references: [id])
   customer            Customer    @relation(fields: [customerId], references: [id])
-  user                User        @relation(fields: [userId], references: [id])
-  items               OrderItem[]
   originalQuotation   Order?      @relation("QuotationToWorkOrder", fields: [originalQuotationId], references: [id])
   derivedWorkOrders   Order[]     @relation("QuotationToWorkOrder")
+  user                User        @relation(fields: [userId], references: [id])
+  items               OrderItem[]
 
   @@index([customerId])
   @@index([status])
@@ -214,12 +216,12 @@ model OrderItem {
   id                 String        @id @default(cuid())
   orderId            String
   inventoryItemId    String
-  rowFreeText        String?
   quantity           Decimal       @db.Decimal(10, 2)
   unitPrice          Decimal       @db.Decimal(10, 2)
-  vatRatePercent     Decimal       @default(25.5) @db.Decimal(5, 2)
   discountAmount     Decimal?      @db.Decimal(10, 2)
   discountPercentage Decimal?      @db.Decimal(5, 2)
+  vatRatePercent     Decimal       @default(25.5) @db.Decimal(5, 2)
+  rowFreeText        String?
   inventoryItem      InventoryItem @relation(fields: [inventoryItemId], references: [id])
   order              Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -230,8 +232,6 @@ model OrderItem {
 model Invoice {
   id                String        @id @default(cuid())
   invoiceNumber     String        @unique
-  referenceNumber   String?       @unique
-  sellerReference   String?
   customerId        String
   orderId           String?
   status            InvoiceStatus @default(draft)
@@ -248,6 +248,8 @@ model Invoice {
   totalVatAmount    Decimal       @default(0) @db.Decimal(12, 2)
   userId            String?
   companyId         String?
+  referenceNumber   String?       @unique
+  sellerReference   String?
   Company           Company?      @relation(fields: [companyId], references: [id])
   customer          Customer      @relation(fields: [customerId], references: [id])
   order             Order?        @relation("OrderToInvoices", fields: [orderId], references: [id])
@@ -273,7 +275,6 @@ model InvoiceItem {
   invoiceId            String
   inventoryItemId      String
   description          String?
-  rowFreeText          String?
   quantity             Decimal       @db.Decimal(10, 2)
   unitPrice            Decimal       @db.Decimal(10, 2)
   vatRatePercent       Decimal       @db.Decimal(5, 2)
@@ -282,6 +283,7 @@ model InvoiceItem {
   calculatedLineProfit Decimal?      @db.Decimal(10, 2)
   calculatedUnitCost   Decimal?      @db.Decimal(10, 2)
   calculatedUnitProfit Decimal?      @db.Decimal(10, 2)
+  rowFreeText          String?
   inventoryItem        InventoryItem @relation(fields: [inventoryItemId], references: [id])
   invoice              Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
@@ -410,8 +412,8 @@ model InventoryCategory {
 }
 
 enum UserRole {
-  admin
   user
+  admin
 
   @@schema("public")
 }
@@ -475,4 +477,3 @@ enum CustomerLanguage {
 
   @@schema("public")
 }
-
