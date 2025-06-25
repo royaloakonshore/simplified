@@ -122,15 +122,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="p-4 justify-center">
-        {/* <TeamSwitcher teams={data.teams} /> */}
-        {/* Replace TeamSwitcher with a simple logo or title */}
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <Avatar className="h-8 w-8 rounded-lg">
-            <AvatarImage src="/logo.png" alt="App Logo" />
-            <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
-          </Avatar>
-          <span className="font-semibold text-lg">SimplifiedERP</span>
+      <SidebarHeader className="p-4 justify-center border-b border-sidebar-border">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <div className="relative">
+            <Avatar className="h-10 w-10 rounded-lg ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300">
+              <AvatarImage src="/logo.png" alt="Simplified ERP Logo" className="object-contain" />
+              <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm">
+                ERP
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              Simplified
+            </span>
+            <span className="text-xs text-muted-foreground font-medium tracking-wider uppercase">
+              Manufacturing ERP
+            </span>
+          </div>
         </Link>
       </SidebarHeader>
       <SidebarContent>

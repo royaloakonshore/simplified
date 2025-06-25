@@ -161,22 +161,32 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
     return (
         <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
-            <SidebarHeader className="p-2 justify-center"> {/* Removed border-b */}
-                <Link href="/dashboard" className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8 rounded-lg">
-                        <AvatarImage src="/logo.png" alt="App Logo" />
-                        <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">ERP</AvatarFallback>
-                    </Avatar>
-                    <span 
+            <SidebarHeader className="p-4 justify-center border-b border-sidebar-border">
+                <Link href="/dashboard" className="flex items-center gap-3 group">
+                    <div className="relative">
+                        <Avatar className="h-10 w-10 rounded-lg ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300">
+                            <AvatarImage src="/logo.png" alt="Simplified ERP Logo" className="object-contain" />
+                            <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-sm">
+                                ERP
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+                    </div>
+                    <div 
                         className={cn(
-                            "font-semibold text-lg whitespace-nowrap transition-opacity duration-300 ease-in-out",
+                            "flex flex-col transition-all duration-300 ease-in-out",
                             isIconMode 
-                                ? "opacity-0 w-0 pointer-events-none"
-                                : "opacity-100 w-auto ml-2"
+                                ? "opacity-0 w-0 pointer-events-none overflow-hidden"
+                                : "opacity-100 w-auto"
                         )}
                     >
-                        SimplifiedERP
-                    </span>
+                        <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent whitespace-nowrap">
+                            Simplified
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium tracking-wider uppercase whitespace-nowrap">
+                            Manufacturing ERP
+                        </span>
+                    </div>
                 </Link>
             </SidebarHeader>
             <TeamSwitcher />

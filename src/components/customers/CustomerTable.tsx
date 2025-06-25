@@ -47,6 +47,7 @@ import {
     FileBox,
     Edit,
 } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -110,6 +111,28 @@ export default function CustomerTable({ customers }: CustomerTableProps) {
   const router = useRouter();
 
   const columns = React.useMemo<ColumnDef<Customer>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: 'name',
       header: ({ column }) => (

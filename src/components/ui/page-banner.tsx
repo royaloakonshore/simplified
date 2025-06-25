@@ -15,8 +15,8 @@ export function PageBanner({
   return (
     <div 
       className={cn(
-        "relative w-full rounded-2xl p-6 mb-4 min-h-[140px] flex items-center justify-start overflow-hidden",
-        "bg-gray-900", // Simple fallback background
+        "relative w-full rounded-2xl p-8 mb-6 min-h-[160px] flex items-center justify-start overflow-hidden",
+        "bg-gradient-to-br from-primary/90 to-primary/70 shadow-lg", // Enhanced fallback background
         className
       )}
       style={{
@@ -26,20 +26,24 @@ export function PageBanner({
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Subtle overlay for better text readability */}
-      <div className="absolute inset-0 bg-black/30" />
+      {/* Enhanced overlay with gradient for better depth */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/30 to-transparent" />
       
-      {/* Content wrapper with white text styling */}
+      {/* Content wrapper with improved styling */}
       <div className="relative z-10 w-full">
         <div className="banner-content text-white">
           {children}
         </div>
       </div>
+      
+      {/* Decorative elements */}
+      <div className="absolute top-4 right-4 w-16 h-16 bg-white/10 rounded-full blur-2xl" />
+      <div className="absolute bottom-4 right-8 w-12 h-12 bg-primary/20 rounded-full blur-xl" />
     </div>
   );
 }
 
-// Specific styling for H1 elements within the banner
+// Enhanced typography components for the banner
 export function BannerTitle({ 
   children, 
   className 
@@ -49,7 +53,9 @@ export function BannerTitle({
 }) {
   return (
     <h1 className={cn(
-      "text-xl md:text-2xl lg:text-3xl font-bold text-white drop-shadow-lg tracking-tight",
+      "text-2xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-xl tracking-tight",
+      "bg-gradient-to-r from-white to-white/95 bg-clip-text text-transparent",
+      "leading-tight mb-2",
       className
     )}>
       {children}
@@ -66,10 +72,29 @@ export function BannerSubtitle({
 }) {
   return (
     <p className={cn(
-      "text-lg md:text-xl text-white/90 mt-2 drop-shadow-md",
+      "text-lg md:text-xl text-white/95 mt-3 drop-shadow-lg font-medium",
+      "leading-relaxed max-w-2xl",
       className
     )}>
       {children}
     </p>
+  );
+}
+
+// New component for action areas in banners
+export function BannerActions({ 
+  children, 
+  className 
+}: { 
+  children: React.ReactNode; 
+  className?: string; 
+}) {
+  return (
+    <div className={cn(
+      "flex flex-wrap gap-3 mt-6 items-center",
+      className
+    )}>
+      {children}
+    </div>
   );
 } 

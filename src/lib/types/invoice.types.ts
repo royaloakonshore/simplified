@@ -56,6 +56,8 @@ export interface Invoice {
   isCreditNote?: boolean; // True if this invoice is a credit note
   sentAt?: Date | null; // Timestamp when the invoice was marked as sent
   pdfUrl?: string | null; // Link to a generated PDF
+  referenceNumber?: string | null; // Finnish reference number (automatically generated)
+  sellerReference?: string | null; // Free text seller reference
   companyId?: UUID | null; // Link to the company this invoice belongs to
   userId?: UUID | null; // Link to the user who created/owns this invoice
   createdAt: Date;

@@ -1,6 +1,12 @@
 import { create } from 'xmlbuilder2';
 import { Invoice } from '@/lib/types/invoice.types';
 import Decimal from 'decimal.js';
+import { 
+  getLanguageWithFallback, 
+  formatPaymentTerms, 
+  formatVatReverseChargeNotice,
+  type SupportedLanguage 
+} from '@/lib/utils/localization';
 
 // TODO: Replace with actual settings retrieval (from DB or config)
 export interface SellerSettings {
@@ -45,6 +51,7 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
   const generationDate = new Date();
 
   const buyer = invoice.customer;
+  const customerLanguage = getLanguageWithFallback(buyer.language);
   const billingAddress = buyer.addresses?.find(a => a.type === 'billing');
   // TODO: Add better error handling if billing address is missing
   if (!billingAddress) {
@@ -123,8 +130,13 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
 
   // Payment Terms Details
   const paymentTerms = root.ele('PaymentTermsDetails');
-  paymentTerms.ele('PaymentTermsCode').txt('14').up(); // TODO: Map from terms? Default: Net days
-  paymentTerms.ele('PaymentTermsFreeText').txt('Maksuaika 14 päivää').up(); // TODO: Generate based on due date
+  
+  // Calculate payment days from invoice date to due date
+  const paymentDays = Math.max(0, Math.ceil((new Date(invoice.dueDate).getTime() - new Date(invoice.invoiceDate).getTime()) / (1000 * 60 * 60 * 24)));
+  const localizedPaymentTerms = formatPaymentTerms(customerLanguage, paymentDays);
+  
+  paymentTerms.ele('PaymentTermsCode').txt(paymentDays > 0 ? paymentDays.toString() : '0').up();
+  paymentTerms.ele('PaymentTermsFreeText').txt(localizedPaymentTerms).up();
   paymentTerms.ele('InvoiceDueDate', { Format: 'CCYYMMDD' }).txt(formatDate(invoice.dueDate).replace(/-/g, '')).up();
 
   // Seller Account Details (for payment)
@@ -184,9 +196,8 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
       row.ele('RowVatRatePercent').txt('0').up();
       row.ele('RowVatCode').txt('AE').up(); // AE = VAT Reverse Charge
       row.ele('RowVatCategoryCode').txt('AE').up(); // Or standard specific code like 'VATEX-EU-AE' if available
-      // Add free text for reverse charge only if not already present at invoice level, or if required per row.
-      // The guide suggested it per row, which is fine for clarity.
-      row.ele('RowFreeText').txt('Käännetty verovelvollisuus / VAT Reverse Charge').up();
+      // Add localized free text for reverse charge
+      row.ele('RowFreeText').txt(formatVatReverseChargeNotice(customerLanguage)).up();
       // rowVatAmountValue remains 0
     } else {
       row.ele('RowVatRatePercent').txt('0'/*formatDecimal(currentVatRate, 0)*/).up();

@@ -214,6 +214,7 @@ model OrderItem {
   id                 String        @id @default(cuid())
   orderId            String
   inventoryItemId    String
+  rowFreeText        String?
   quantity           Decimal       @db.Decimal(10, 2)
   unitPrice          Decimal       @db.Decimal(10, 2)
   vatRatePercent     Decimal       @default(25.5) @db.Decimal(5, 2)
@@ -272,6 +273,7 @@ model InvoiceItem {
   invoiceId            String
   inventoryItemId      String
   description          String?
+  rowFreeText          String?
   quantity             Decimal       @db.Decimal(10, 2)
   unitPrice            Decimal       @db.Decimal(10, 2)
   vatRatePercent       Decimal       @db.Decimal(5, 2)

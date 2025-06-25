@@ -32,6 +32,7 @@ import { DataTableFacetedFilter } from "@/components/ui/data-table/data-table-fa
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Type for price list items (subset of inventory items)
 export type PriceListItemRowData = {
@@ -114,6 +115,28 @@ function PriceListTableToolbar<TData>({ table, categoryOptions }: PriceListTable
 
 export default function PriceListTable({ data, isLoading, categoryOptions }: PriceListTableProps) {
   const columns = React.useMemo<ColumnDef<PriceListItemRowData>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: 'sku',
       header: ({ column }) => (

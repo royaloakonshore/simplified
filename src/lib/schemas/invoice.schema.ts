@@ -16,6 +16,7 @@ const baseInvoiceItemSchema = z.object({
   vatRatePercent: z.number().min(0).max(100, "VAT rate must be between 0 and 100").default(25.5), // Default to 25.5%
   discountAmount: z.number().nonnegative({ message: 'Discount amount cannot be negative' }).optional().nullable(),
   discountPercent: z.number().min(0).max(100, { message: 'Discount percent must be between 0 and 100' }).optional().nullable(),
+  rowFreeText: z.string().optional(), // Additional description/notes for the row
 });
 
 
@@ -125,6 +126,7 @@ export type InvoiceFormData = {
     vatRatePercent: FinnishVatRate | number; // Allow number for input flexibility
     discountAmount?: number | null;
     discountPercent?: number | null;
+    rowFreeText?: string; // Additional description/notes for the row
   }[];
   orderId?: string | null;
   vatReverseCharge: boolean;
@@ -141,6 +143,7 @@ export const invoiceFormItemSchema = z.object({
   vatRatePercent: z.number({ required_error: "VAT rate is required", invalid_type_error: "VAT rate must be a number"}).min(0).max(100, "VAT rate must be between 0 and 100"),
   discountAmount: z.number().nonnegative({message: "Discount amount must be non-negative"}).optional().nullable(),
   discountPercent: z.number().min(0, {message: "Discount percent must be between 0 and 100"}).max(100, { message: 'Discount percent must be between 0 and 100' }).optional().nullable(),
+  rowFreeText: z.string().optional(), // Additional description/notes for the row
 });
 
 // NEW: Schema for the entire InvoiceForm for client-side validation

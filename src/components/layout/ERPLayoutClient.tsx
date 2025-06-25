@@ -27,17 +27,22 @@ function LayoutContent({ children, user }: ERPLayoutClientProps) {
       <AppSidebar user={user} />
 
       <SidebarInset className="w-full max-w-none flex-1 flex flex-col overflow-hidden">
-        <header className="w-full flex sticky top-0 bg-background h-16 shrink-0 items-center gap-2 border-b px-4 z-10">
-          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2">
+        <header className="w-full flex sticky top-0 bg-background/95 backdrop-blur-sm h-16 shrink-0 items-center gap-2 border-b px-4 z-10 shadow-sm">
+          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="mr-2 hover:bg-primary/10">
             {(!isMobile && sidebarState === 'collapsed') || (isMobile && !openMobile) ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             <span className="sr-only">Toggle sidebar</span>
           </Button>
           <Breadcrumbs />
           
-          <div className="ml-auto flex items-center space-x-4">
+          <div className="ml-auto flex items-center space-x-3">
+            {/* System Status Indicator */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              System Online
+            </div>
             <ModeToggle />
             <Link href="/auth/logout" passHref legacyBehavior>
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" size="sm" className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20">
                 <a>Sign Out</a>
               </Button>
             </Link>

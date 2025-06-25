@@ -22,6 +22,8 @@ export interface Customer {
   vatId?: string | null; // Y-tunnus in Finland
   ovtIdentifier?: string | null;
   intermediatorAddress?: string | null;
+  language?: 'EN' | 'FI' | 'SE' | null;
+  buyerReference?: string | null;
   addresses?: Address[];
   createdAt?: Date;
   updatedAt?: Date;

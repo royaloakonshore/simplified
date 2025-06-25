@@ -18,6 +18,7 @@ export const orderItemBaseSchema = z.object({
   vatRatePercent: z.coerce.number().min(0).max(100, 'VAT rate must be between 0 and 100').default(25.5), // Add VAT rate
   discountAmount: z.coerce.number().nonnegative('Discount amount must be non-negative').nullable().optional(),
   discountPercent: z.coerce.number().min(0).max(100, 'Discount percent must be between 0 and 100').nullable().optional(),
+  rowFreeText: z.string().optional(), // Additional description/notes for the row
 });
 
 export type OrderItemInput = z.infer<typeof orderItemBaseSchema>;

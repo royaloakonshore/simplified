@@ -165,6 +165,14 @@ function ProductionPageContent() {
     }
   );
 
+  // Query for archived (removed) orders  
+  const archivedOrdersQuery = api.order.list.useQuery({
+    orderType: 'work_order',
+    status: OrderStatus.delivered, // Orders that were archived/removed from board
+  }, {
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
     if (productionOrdersQuery.data) {
       const transformedOrders = productionOrdersQuery.data.map(order => ({
@@ -262,6 +270,18 @@ function ProductionPageContent() {
   const handleRemoveFromBoard = (order: KanbanOrder) => {
     // Remove from board by setting status to delivered (archived)
     updateOrderStatusMutation.mutate({ id: order.id, status: OrderStatus.delivered });
+  };
+
+  const handleSendBackToProduction = (orderId: string) => {
+    // Send back to production by setting status to confirmed
+    updateOrderStatusMutation.mutate({ 
+      id: orderId, 
+      status: OrderStatus.confirmed 
+    }, {
+      onSuccess: () => {
+        archivedOrdersQuery.refetch(); // Refresh archived orders
+      }
+    });
   };
 
   const renderKanbanCardContent = (order: KanbanOrder) => (
@@ -465,6 +485,7 @@ function ProductionPageContent() {
       <TabsList className="mb-4 w-full sm:w-auto self-start">
         <TabsTrigger value="kanban">Kanban View</TabsTrigger>
         <TabsTrigger value="table">Table View</TabsTrigger>
+        <TabsTrigger value="archived">Archived Orders ({archivedOrdersQuery.data?.items.length || 0})</TabsTrigger>
       </TabsList>
       <TabsContent value="kanban" className="flex-grow overflow-auto">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={rectIntersection}>
@@ -548,6 +569,74 @@ function ProductionPageContent() {
             </Table>
         </div>
         <DataTablePagination table={table} />
+      </TabsContent>
+      <TabsContent value="archived" className="flex-grow">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">Archived Orders</h3>
+            <p className="text-sm text-muted-foreground">
+              Orders that have been removed from the production board
+            </p>
+          </div>
+          
+          {archivedOrdersQuery.isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-muted animate-pulse rounded-md"></div>
+              ))}
+            </div>
+          ) : archivedOrdersQuery.data?.items.length === 0 ? (
+            <Card className="p-6">
+              <div className="text-center">
+                <p className="text-muted-foreground">No archived orders found.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Orders that are removed from the production board will appear here.
+                </p>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {archivedOrdersQuery.data?.items.map((order) => (
+                <Card key={order.id} className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <Link 
+                            href={`/orders/${order.id}`} 
+                            className="font-medium text-primary hover:underline"
+                          >
+                            {order.orderNumber}
+                          </Link>
+                          <p className="text-sm text-muted-foreground">
+                            Customer: {order.customer?.name || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <p>Status: {order.status.replace('_', ' ').toUpperCase()}</p>
+                          <p>
+                            Delivery: {order.deliveryDate 
+                              ? new Date(order.deliveryDate).toLocaleDateString() 
+                              : 'Not Set'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSendBackToProduction(order.id)}
+                      className="ml-4"
+                    >
+                      Send Back to Production
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </TabsContent>
     </Tabs>
     
