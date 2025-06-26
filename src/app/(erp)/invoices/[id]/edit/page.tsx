@@ -52,12 +52,57 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
           inventoryItems={inventoryItems.data.map(item => ({
             id: item.id,
             name: item.name,
-            salesPrice: parseFloat(item.salesPrice),
+            salesPrice: parseFloat(item.salesPrice.toString()),
             unitOfMeasure: item.unitOfMeasure || '',
             sku: item.sku || ''
           }))}
           isEditMode={true}
-          editInvoiceData={invoice}
+          editInvoiceData={{
+            ...invoice,
+            totalAmount: parseFloat(invoice.totalAmount.toString()),
+            totalVatAmount: parseFloat(invoice.totalVatAmount.toString()),
+            items: invoice.items.map((item: any) => ({
+              ...item,
+              quantity: parseFloat(item.quantity.toString()),
+              unitPrice: parseFloat(item.unitPrice.toString()),
+              vatRatePercent: parseFloat(item.vatRatePercent.toString()),
+              calculatedLineProfit: item.calculatedLineProfit ? parseFloat(item.calculatedLineProfit.toString()) : null,
+              calculatedUnitCost: item.calculatedUnitCost ? parseFloat(item.calculatedUnitCost.toString()) : null,
+              calculatedUnitProfit: item.calculatedUnitProfit ? parseFloat(item.calculatedUnitProfit.toString()) : null,
+              inventoryItem: item.inventoryItem ? {
+                ...item.inventoryItem,
+                costPrice: parseFloat(item.inventoryItem.costPrice.toString()),
+                salesPrice: parseFloat(item.inventoryItem.salesPrice.toString()),
+                minimumStockLevel: parseFloat(item.inventoryItem.minimumStockLevel.toString()),
+                reorderLevel: parseFloat(item.inventoryItem.reorderLevel.toString()),
+                quantityOnHand: parseFloat(item.inventoryItem.quantityOnHand.toString()),
+                defaultVatRatePercent: parseFloat(item.inventoryItem.defaultVatRatePercent.toString()),
+                weight: item.inventoryItem.weight ? parseFloat(item.inventoryItem.weight.toString()) : null
+              } : null
+            })),
+            order: invoice.order ? {
+              ...invoice.order,
+              totalAmount: parseFloat(invoice.order.totalAmount.toString()),
+              items: invoice.order.items.map((orderItem: any) => ({
+                ...orderItem,
+                quantity: parseFloat(orderItem.quantity.toString()),
+                unitPrice: parseFloat(orderItem.unitPrice.toString()),
+                discountAmount: parseFloat(orderItem.discountAmount.toString()),
+                discountPercentage: parseFloat(orderItem.discountPercentage.toString()),
+                vatRatePercent: parseFloat(orderItem.vatRatePercent.toString()),
+                inventoryItem: orderItem.inventoryItem ? {
+                  ...orderItem.inventoryItem,
+                  costPrice: parseFloat(orderItem.inventoryItem.costPrice.toString()),
+                  salesPrice: parseFloat(orderItem.inventoryItem.salesPrice.toString()),
+                  minimumStockLevel: parseFloat(orderItem.inventoryItem.minimumStockLevel.toString()),
+                  reorderLevel: parseFloat(orderItem.inventoryItem.reorderLevel.toString()),
+                  quantityOnHand: parseFloat(orderItem.inventoryItem.quantityOnHand.toString()),
+                  defaultVatRatePercent: parseFloat(orderItem.inventoryItem.defaultVatRatePercent.toString()),
+                  weight: orderItem.inventoryItem.weight ? parseFloat(orderItem.inventoryItem.weight.toString()) : null
+                } : null
+              }))
+            } : null
+          }}
         />
       </div>
     );
