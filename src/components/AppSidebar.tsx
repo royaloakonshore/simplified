@@ -190,7 +190,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     </div>
                 </Link>
             </SidebarHeader>
-            <TeamSwitcher />
+            <SidebarHeader className="p-2">
+                <TeamSwitcher />
+            </SidebarHeader>
             <SidebarContent className="p-0 flex flex-col justify-between">
                 <div>
                     <NavMain items={processedDashboardItem} />
