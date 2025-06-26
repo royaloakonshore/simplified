@@ -177,6 +177,69 @@ ERPLayoutClient (w-full max-w-none)
 
 ---
 
+## 2025-01-31: ERP Logo Alignment Fix & Sales Funnel Replacement Complete
+
+**Goal:** Fix ERP logo alignment in collapsed sidebar and replace sales funnel visualization with new interactive component.
+
+**Summary:**
+Successfully fixed logo centering issue in collapsed sidebar state and replaced the placeholder sales funnel with an advanced interactive visualization featuring date range filtering and detailed metrics.
+
+**✅ UI FIXES & ENHANCEMENTS:**
+
+### **1. ERP Logo Alignment Fix ✅**
+- **✅ Collapsed State Centering**: Fixed ERP logo positioning in collapsed sidebar to center properly
+- **✅ Link Wrapper**: Added `justify-center w-full` classes to center the logo link when collapsed
+- **✅ Header Container**: Applied proper centering classes to SidebarHeader in collapsed state
+- **✅ Visual Consistency**: Logo now properly centers without alignment issues
+
+### **2. Sales Funnel Replacement ✅**
+- **✅ Interactive Visualization**: Replaced placeholder funnel with advanced visual component
+- **✅ Date Range Filtering**: Added calendar-based date range selection for pipeline filtering
+- **✅ Stage Visualization**: Beautiful horizontal funnel segments with hover effects and tooltips
+- **✅ Summary Metrics**: Four key metrics - Total Orders, Total Value, Conversion Rate, Avg Order Value
+- **✅ Responsive Design**: Mobile-friendly layout with proper breakpoints and styling
+
+### **3. Technical Implementation ✅**
+- **✅ Self-Contained Component**: SalesFunnel component manages its own date range state
+- **✅ TypeScript Safety**: Proper type handling for DateRange and calendar components  
+- **✅ Sample Data Integration**: Comprehensive sample data with realistic pipeline stages
+- **✅ Interactive Features**: Hover tooltips, stage highlighting, and smooth transitions
+
+### **4. User Experience ✅**
+- **✅ Intuitive Controls**: Clear date range picker with visual calendar interface
+- **✅ Visual Feedback**: Hover states, tooltips, and interactive funnel segments
+- **✅ Clear Metrics**: Easy-to-read summary statistics with proper formatting
+- **✅ Responsive Layout**: Adapts smoothly to different screen sizes
+
+**🎯 COMPONENT FEATURES:**
+
+### **Sales Funnel Visualization**
+- **Pipeline Stages**: Quotations → Work Orders → In Production → Invoiced
+- **Interactive Segments**: Hover for detailed tooltips with value/count/average
+- **Date Filtering**: Calendar-based range selection with clear/reset functionality
+- **Real-time Updates**: Metrics update based on selected date range
+
+### **Key Metrics Display**
+- **Total Orders**: Count of all orders in selected timeframe
+- **Total Value**: Sum of all pipeline value ($M format)
+- **Conversion Rate**: Quotations to invoiced percentage
+- **Average Order Value**: Mean order value across pipeline
+
+**🔧 FILES MODIFIED:**
+- `src/components/AppSidebar.tsx` - ERP logo alignment fixes for collapsed state
+- `src/components/orders/SalesFunnel.tsx` - Complete funnel component replacement
+- **Build Status**: ✅ TypeScript clean, successful compilation, all tests passing
+
+**📈 USER IMPACT:**
+- **Before**: Misaligned logo in collapsed sidebar, basic placeholder funnel
+- **After**: Perfect logo centering and advanced interactive sales pipeline visualization
+- **Visual Polish**: Professional appearance with smooth animations and interactions
+- **Data Insights**: Rich metrics and filtering capabilities for sales pipeline analysis
+
+**✅ PRODUCTION READY:** Both UI fixes implemented successfully with enhanced user experience and visual consistency.
+
+---
+
 ## 2025-01-30: Inventory Deduction & Valuation Strategy Documentation Complete
 
 **Goal:** Document the existing inventory deduction logic and plan simple total inventory valuation for dashboard.

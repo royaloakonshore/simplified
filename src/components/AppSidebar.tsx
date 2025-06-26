@@ -162,8 +162,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
     return (
         <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
-            <SidebarHeader className="p-4 justify-center border-b border-sidebar-border">
-                <Link href="/dashboard" className="flex items-center gap-3 group">
+            <SidebarHeader className={cn(
+                "p-4 border-b border-sidebar-border",
+                isIconMode ? "justify-center" : "justify-center"
+            )}>
+                <Link href="/dashboard" className={cn(
+                    "flex items-center gap-3 group",
+                    isIconMode ? "justify-center w-full" : ""
+                )}>
                     <div className="relative">
                         <Avatar className={cn(
                             "rounded-lg ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300",
