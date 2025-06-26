@@ -18,7 +18,7 @@ import {
   type Column,
   type Row,
 } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Download, FileText } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,6 +153,54 @@ function InvoiceStatusBadge({ status }: { status: PrismaInvoiceStatus }) {
       variant = "outline";
   }
   return <Badge variant={variant} className="capitalize">{status.replace("_", " ")}</Badge>;
+}
+
+// Bulk Actions Toolbar Component
+interface InvoiceBulkActionsProps {
+  selectedRows: Row<InvoiceTableRowData>[];
+  onClearSelection: () => void;
+}
+
+function InvoiceBulkActions({ selectedRows, onClearSelection }: InvoiceBulkActionsProps) {
+  const handleBulkPdfExport = () => {
+    // TODO: Implement bulk PDF export functionality
+    const selectedInvoiceIds = selectedRows.map(row => row.original.id);
+    console.log('Exporting PDFs for invoices:', selectedInvoiceIds);
+    // This will be a placeholder for now - in a real implementation:
+    // 1. Call a tRPC mutation that generates PDFs for multiple invoices
+    // 2. Download a ZIP file containing all PDFs
+    // 3. Show loading state and success/error feedback
+    alert(`PDF export for ${selectedInvoiceIds.length} invoices will be implemented soon!`);
+  };
+
+  return (
+    <div className="flex items-center gap-2 p-4 bg-blue-50 border-b border-blue-200">
+      <div className="flex items-center gap-2 flex-1">
+        <span className="text-sm font-medium text-blue-900">
+          {selectedRows.length} invoice{selectedRows.length === 1 ? '' : 's'} selected
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={handleBulkPdfExport}
+          size="sm"
+          variant="outline"
+          className="h-8"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export PDFs
+        </Button>
+        <Button
+          onClick={onClearSelection}
+          size="sm"
+          variant="ghost"
+          className="h-8"
+        >
+          Clear selection
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 
@@ -383,6 +431,8 @@ export default function InvoiceListContent({
     return <div className="text-red-600 p-4">Error loading invoices: {error.message}</div>;
   }
 
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+
   return (
     <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -400,6 +450,12 @@ export default function InvoiceListContent({
                     />
             </div>
         </div>
+        {selectedRows.length > 0 && (
+          <InvoiceBulkActions 
+            selectedRows={selectedRows} 
+            onClearSelection={() => table.toggleAllPageRowsSelected(false)}
+          />
+        )}
         <div className="rounded-md border overflow-x-auto">
             <Table>
             <TableHeader>

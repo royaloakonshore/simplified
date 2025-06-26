@@ -94,7 +94,8 @@ const productionNavItems: NavItemDefinition[] = [
         subItems: [
             { title: 'View All Items', url: '/inventory' },
             { title: 'Add New Item', url: '/inventory/add' },
-            { title: 'Price List', url: '/inventory/pricelist' }
+            { title: 'Price List', url: '/inventory/pricelist' },
+            { title: 'Replenishment', url: '/inventory/replenishment' }
         ]
     },
     { 

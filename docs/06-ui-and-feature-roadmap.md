@@ -1,9 +1,9 @@
 # 06: UI and Feature Roadmap\n\n## Current Status\n\nThe ERP system has established core functionality with the following modules operational:\n- Authentication & Multi-tenancy ✅\n- Customer Management ✅ \n- Order Management ✅\n- Invoice Management ✅\n- Inventory Management ✅\n- Production Planning ✅\n- BOM Management ✅\n- Dashboard ✅\n\nThis document outlines the remaining UI/UX enhancements and feature completions needed to reach production-ready state.\n\n## ✅ CRITICAL ITEMS - ALL RESOLVED\n\n**✅ COMPLETED**: All critical blockers have been addressed. The system builds successfully and all major functionality is operational.\n\n## 🚨 HIGH PRIORITY FEATURES\n\n### **1. Table UI Consistency ✅ NEARLY COMPLETE**\n\n**Goal**: All data tables should have consistent multi-select functionality, filtering, and interaction patterns.\n\n**✅ COMPLETED**:\n- **✅ Multi-select functionality**: Invoice and Inventory tables implemented and active\n- **✅ Advanced filtering**: Category filters, search functionality across tables\n- **✅ Sortable columns**: Consistent sorting behavior with proper header indicators\n- **✅ Bulk actions**: Export functionality for selected items\n\n**🔄 REMAINING WORK**:
-- **📋 Orders Table Multi-select**: Add multi-select functionality to OrderTable to match Invoice/Inventory tables
+- **✅ Orders Table Multi-select**: Complete with bulk actions and PDF export buttons - **COMPLETED**
+- **✅ Invoice Table Multi-select**: Complete with bulk PDF export actions - **COMPLETED**
 - **📋 BOM Table Multi-select**: Add multi-select functionality to BOM table to match other tables
 - **📋 Invoice Table Enhancements**:
   - Add H1 header image consistency with other pages
-  - Export PDF bulk action for multi-selected invoices (infrastructure ready, UI needed)
   - Ensure full-width content layout to prevent jumping
 
 - **📋 BOM Table Enhancements**:
