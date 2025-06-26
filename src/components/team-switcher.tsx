@@ -37,6 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { UserRole } from "@/lib/auth"
+import { cn } from "@/lib/utils"
 
 const createCompanyFormSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -110,8 +111,14 @@ export function TeamSwitcher() {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" disabled className={isCollapsed ? "justify-center" : "justify-start"}>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted animate-pulse" />
+          <SidebarMenuButton size="lg" disabled className={cn(
+            "w-full",
+            isCollapsed ? "justify-center p-0" : "justify-start"
+          )}>
+            <div className={cn(
+              "flex aspect-square items-center justify-center rounded-lg bg-muted animate-pulse",
+              isCollapsed ? "size-8" : "size-8"
+            )} />
             {!isCollapsed && (
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="h-4 w-20 bg-muted rounded animate-pulse"></span>
@@ -158,8 +165,14 @@ export function TeamSwitcher() {
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size="lg" className={isCollapsed ? "justify-center" : "justify-start"}>
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <SidebarMenuButton size="lg" className={cn(
+                "w-full",
+                isCollapsed ? "justify-center p-0" : "justify-start"
+              )}>
+                <div className={cn(
+                  "flex aspect-square items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground",
+                  isCollapsed ? "size-8" : "size-8"
+                )}>
                   <Plus className="size-4" />
                 </div>
                 {!isCollapsed && (
@@ -201,10 +214,16 @@ export function TeamSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className={`data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground ${isCollapsed ? "justify-center" : "justify-start"}`}
+              className={cn(
+                "w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+                isCollapsed ? "justify-center p-0" : "justify-start"
+              )}
               disabled={setActiveCompanyMutation.isPending}
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <div className={cn(
+                "flex aspect-square items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground",
+                isCollapsed ? "size-8" : "size-8"
+              )}>
                 <DefaultCompanyIcon className="size-4" />
               </div>
               {!isCollapsed && (

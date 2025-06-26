@@ -18,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { RevenueChart } from "@/components/dashboard/PlaceholderAreaChart";
-import { DashboardSiteHeader } from "@/components/dashboard/DashboardSiteHeader";
+import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -251,8 +251,22 @@ export default function DashboardPage() {
   // Get session for user info and company context
   const { data: session } = useSession();
 
-  // Fetch dashboard statistics
-  const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({});
+  // Chart controls state
+  const [chartType, setChartType] = React.useState<"weekly" | "monthly">("monthly");
+  const [dateRange, setDateRange] = React.useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  // Fetch dashboard statistics with date filter
+  const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({
+    periodType: "month",
+    startDate: dateRange.from,
+    endDate: dateRange.to,
+  });
   
   // Fetch user's member companies to get the active company name
   const { data: memberCompanies } = api.user.getMemberCompanies.useQuery(undefined, {
@@ -263,16 +277,6 @@ export default function DashboardPage() {
   const activeCompany = memberCompanies?.find(
     company => company.id === session?.user?.activeCompanyId
   );
-
-  // Chart controls state
-  const [chartType, setChartType] = React.useState<"weekly" | "monthly">("monthly");
-  const [dateRange, setDateRange] = React.useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
-    from: undefined,
-    to: undefined,
-  });
   const [isDatePickerOpen, setIsDatePickerOpen] = React.useState(false);
 
   // Format currency values
@@ -303,14 +307,16 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full flex-1 flex flex-col">
-      <DashboardSiteHeader title="Dashboard" />
+      <PageBanner>
+        <BannerTitle>Dashboard</BannerTitle>
+      </PageBanner>
       
       {/* Greeting Section */}
       {session?.user && (
-        <div className="px-4 py-2 border-b bg-gradient-to-r from-background to-muted/30">
+        <div className="px-4 py-3 border-b bg-gradient-to-r from-background to-muted/30">
           <div className="max-w-none">
             <h2 className="text-xl font-semibold text-foreground">
-              Hello, {session.user.firstName || session.user.name}! 👋
+              Hello, {session.user.firstName || session.user.name?.split(' ')[0]}! 👋
             </h2>
             {activeCompany && (
               <p className="text-sm text-muted-foreground mt-1">

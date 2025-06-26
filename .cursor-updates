@@ -1967,6 +1967,11 @@ Successfully implemented 11 major enhancements covering navigation improvements,
 - **✅ Fixed ERP Logo Size Overflow**: Resolved ERP logo being too large in collapsed sidebar state - now responsive (32px collapsed, 40px expanded) to prevent overflow
 - **✅ Fixed Invoice Edit Decimal Errors**: Resolved critical runtime errors where Decimal objects were being passed to Client Components, causing "Only plain objects can be passed" errors
 - **✅ Enhanced Sidebar Navigation UX**: Made dropdown arrows always visible on collapsible menu items to improve discoverability of sub-pages (previously only visible on hover)
+- **✅ Fixed Team Switcher Center Alignment**: Resolved team switcher icon being offset to right edge in collapsed state - now properly centered with responsive sizing
+- **✅ Unified Banner Design**: Implemented consistent banner design across Dashboard and Invoices pages matching Orders layout, moved action buttons below banners
+- **✅ Enhanced Dashboard Greeting**: Modified greeting to show only first name instead of full name for better UX
+- **✅ Connected Date Filters**: Dashboard date range filters now functional - properly connected to API with real-time data updates
+- **✅ Comprehensive TODO Audit**: Documented all 25 remaining TODOs and placeholders in new docs/remaining-todos-and-placeholders.md for development prioritization
 
 ### **📋 System Verification & Status**
 - **✅ Inventory Management**: Complete with detail pages, QR codes, bulk PDF generation, and replenishment functionality

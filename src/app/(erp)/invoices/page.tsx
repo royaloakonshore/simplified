@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button'; // Assuming Shadcn Button
 import InvoiceListContent from '@/components/invoices/InvoiceListContent'; // Placeholder for the client component
 import { DataTableSkeleton } from '@/components/common/DataTableSkeleton'; // Assuming a reusable skeleton
-import { PageBanner } from '@/components/common/PageBanner';
+import { PageBanner, BannerTitle } from '@/components/ui/page-banner';
 
 export const metadata: Metadata = {
   title: 'Invoices',
@@ -17,14 +17,16 @@ export const dynamic = 'force-dynamic';
 export default function InvoicesPage() {
   return (
     <div className="w-full">
-      <PageBanner 
-        title="Invoices" 
-        description="Manage your invoices and billing"
-      >
+      <PageBanner>
+        <BannerTitle>Invoices</BannerTitle>
+      </PageBanner>
+
+      <div className="flex justify-between items-center mb-6">
+        <div></div>
         <Button asChild>
           <Link href="/invoices/add">Create Invoice</Link>
         </Button>
-      </PageBanner>
+      </div>
 
       <div className="p-4 md:p-6">
         {/* TODO: Add Filter controls here */}
