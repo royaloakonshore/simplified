@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // 
 import { Terminal } from 'lucide-react'; // Icon for alert
 import React from 'react';
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
-import { SalesFunnel } from "@/components/orders/SalesFunnel";
+import SalesFunnel from "@/components/orders/SalesFunnel";
 
 // Type definition for order data
 type OrderInTable = Order & {

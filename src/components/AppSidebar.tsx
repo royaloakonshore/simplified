@@ -163,12 +163,12 @@ export function AppSidebar({ user }: AppSidebarProps) {
     return (
         <Sidebar collapsible="icon" className="border-r fixed top-0 left-0 z-30 h-full group">
             <SidebarHeader className={cn(
-                "p-4 border-b border-sidebar-border",
-                isIconMode ? "justify-center" : "justify-center"
+                "p-4 border-b border-sidebar-border flex",
+                isIconMode ? "justify-center items-center" : "justify-center items-center"
             )}>
                 <Link href="/dashboard" className={cn(
                     "flex items-center gap-3 group",
-                    isIconMode ? "justify-center w-full" : ""
+                    isIconMode ? "justify-center" : ""
                 )}>
                     <div className="relative">
                         <Avatar className={cn(

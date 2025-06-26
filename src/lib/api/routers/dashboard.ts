@@ -331,4 +331,124 @@ export const dashboardRouter = createTRPCRouter({
 
       return data;
     }),
+
+  getSalesFunnelData: companyProtectedProcedure
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { companyId } = ctx;
+      // Base where clause
+      const baseWhere = { companyId };
+      
+      // Add date filtering if provided
+      const whereClause = input.startDate && input.endDate 
+        ? {
+            ...baseWhere,
+            createdAt: {
+              gte: input.startDate,
+              lte: input.endDate,
+            }
+          }
+        : baseWhere;
+
+      // Get orders by status and type
+      const [quotations, workOrders, inProduction, shipped, invoiced] = await Promise.all([
+        // Quotations
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "quotation",
+            status: {
+              in: ["draft", "confirmed"]
+            }
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // Work Orders (confirmed, not yet in production)
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: "confirmed"
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // In Production
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: "in_production"
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // Shipped (ready to invoice)
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: {
+              in: ["shipped", "delivered"]
+            }
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // Invoiced
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: "invoiced"
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+      ]);
+
+      // Calculate totals and format for funnel
+      const calculateStageData = (orders: any[], stage: string, color: string) => {
+        const totalValue = orders.reduce((sum, order) => sum + (order.totalAmount?.toNumber() || 0), 0);
+        const count = orders.length;
+        return {
+          stage,
+          value: totalValue,
+          count,
+          color,
+          orders: orders.map(order => ({
+            value: order.totalAmount?.toNumber() || 0,
+            date: order.createdAt.toISOString().split('T')[0]
+          }))
+        };
+      };
+
+      return [
+        calculateStageData(quotations, "Quotations", "#10b981"), // emerald-500
+        calculateStageData(workOrders, "Work Orders", "#059669"), // emerald-600
+        calculateStageData(inProduction, "In Production", "#047857"), // emerald-700
+        calculateStageData(shipped, "Ready to Invoice", "#065f46"), // emerald-800
+        calculateStageData(invoiced, "Invoiced", "#064e3b"), // emerald-900
+      ];
+    }),
 }); 
