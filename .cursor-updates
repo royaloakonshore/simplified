@@ -1966,6 +1966,7 @@ Successfully implemented 11 major enhancements covering navigation improvements,
 - **✅ Fixed Team Switcher Alignment**: Corrected team switcher icon positioning in collapsed sidebar state - now properly centered instead of left-aligned to browser edge
 - **✅ Fixed ERP Logo Size Overflow**: Resolved ERP logo being too large in collapsed sidebar state - now responsive (32px collapsed, 40px expanded) to prevent overflow
 - **✅ Fixed Invoice Edit Decimal Errors**: Resolved critical runtime errors where Decimal objects were being passed to Client Components, causing "Only plain objects can be passed" errors
+- **✅ Enhanced Sidebar Navigation UX**: Made dropdown arrows always visible on collapsible menu items to improve discoverability of sub-pages (previously only visible on hover)
 
 ### **📋 System Verification & Status**
 - **✅ Inventory Management**: Complete with detail pages, QR codes, bulk PDF generation, and replenishment functionality

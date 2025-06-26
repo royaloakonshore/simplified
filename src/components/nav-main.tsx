@@ -64,7 +64,7 @@ export function NavMain({ items }: NavMainProps) {
               </SidebarMenuButton>
               {item.isCollapsible && item.items && item.items.length > 0 && !tooltipsActive && (
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuAction className="data-[state=open]:rotate-90 ml-auto group-hover/menu-item:opacity-100 md:opacity-0 focus:opacity-100 transition-opacity">
+                  <SidebarMenuAction className="data-[state=open]:rotate-90 ml-auto opacity-100 transition-opacity">
                     <ChevronRight className="h-4 w-4" />
                     <span className="sr-only">Toggle {item.title}</span>
                   </SidebarMenuAction>
