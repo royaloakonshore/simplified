@@ -1,5 +1,39 @@
 # .cursor-updates
 
+## 2025-01-31: Sales Funnel Date Picker UX Improvement
+
+**Goal:** Fix immediate API refresh when selecting first date in sales funnel date range picker, implementing proper debouncing to wait for complete date range selection.
+
+**Summary:**
+Enhanced user experience in the Sales Funnel component by implementing smart date range handling that waits for both "from" and "to" dates to be selected before triggering API calls, preventing jarring immediate refreshes when only the first date is chosen.
+
+**✅ DATE PICKER BEHAVIOR FIX:**
+
+### **1. Smart Date Range Logic ✅**
+- **✅ Separate Query State**: Added `queryDateRange` state separate from UI `dateRange` to control when API calls are made
+- **✅ Complete Range Waiting**: API only triggers when both "from" and "to" dates are selected
+- **✅ Immediate Clear**: When clearing dates, immediately shows all data without delay
+
+### **2. Debouncing Implementation ✅**
+- **✅ 500ms Debounce**: Added debounce function with 500ms delay for complete date range selections
+- **✅ Smart Logic**: No API call when only "from" date is selected - waits for "to" date
+- **✅ Immediate Response**: Clear button immediately updates query for better responsiveness
+
+### **3. Enhanced User Experience ✅**
+- **✅ No Jarring Refreshes**: Eliminated immediate data refresh when selecting first date
+- **✅ Visual Feedback**: Date picker shows selected range while waiting for complete selection
+- **✅ Responsive Clear**: Clear button immediately resets to show all data
+- **✅ Smooth Transitions**: Data updates smoothly after complete date range selection
+
+**Technical Implementation:**
+- Added `useEffect` with dependency array to handle date range changes intelligently
+- Implemented `useCallback` for debounce function to prevent unnecessary re-renders
+- Separated UI state (`dateRange`) from query state (`queryDateRange`) for better control
+- Enhanced clear functionality to provide immediate feedback
+
+**Files Modified:**
+- `src/components/orders/SalesFunnel.tsx` - Enhanced date range picker behavior with debouncing and smart API triggering
+
 ## 2025-01-31: Delivery Date Transfer Fix - Quotation to Work Order Flow
 
 **Goal:** Fix delivery date not transferring consistently from quotations to work orders during conversion, ensuring production planning continuity.

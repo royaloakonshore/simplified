@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,12 @@ export default function SalesFunnel() {
     to: undefined,
   })
 
+  // Separate state for the actual query dates (only updated when we have a complete range)
+  const [queryDateRange, setQueryDateRange] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  })
+
   const [hoveredStage, setHoveredStage] = useState<{
     stage: string
     value: number
@@ -25,10 +31,40 @@ export default function SalesFunnel() {
     y: number
   } | null>(null)
 
-  // Fetch real sales funnel data
+  // Debounce function to delay API calls
+  const debounceQuery = useCallback(
+    (range: DateRange | undefined) => {
+      const timeoutId = setTimeout(() => {
+        setQueryDateRange(range)
+      }, 500) // 500ms delay
+
+      return () => clearTimeout(timeoutId)
+    },
+    []
+  )
+
+  // Effect to handle date range changes with smart logic
+  useEffect(() => {
+    if (!dateRange?.from && !dateRange?.to) {
+      // Both dates are cleared - update query immediately
+      setQueryDateRange({ from: undefined, to: undefined })
+      return
+    }
+
+    if (dateRange?.from && dateRange?.to) {
+      // Both dates are selected - update query with a short debounce
+      const cleanup = debounceQuery(dateRange)
+      return cleanup
+    }
+
+    // Only "from" date is selected - don't update query yet, wait for "to" date
+    // This prevents the immediate refresh when only the first date is selected
+  }, [dateRange, debounceQuery])
+
+  // Fetch real sales funnel data using queryDateRange
   const { data: funnelData, isLoading } = api.dashboard.getSalesFunnelData.useQuery({
-    startDate: dateRange?.from,
-    endDate: dateRange?.to,
+    startDate: queryDateRange?.from,
+    endDate: queryDateRange?.to,
   })
 
   // Calculate metrics from real data
@@ -63,6 +99,8 @@ export default function SalesFunnel() {
 
   const clearDateRange = () => {
     setDateRange({ from: undefined, to: undefined })
+    // Immediately clear the query to show all data
+    setQueryDateRange({ from: undefined, to: undefined })
   }
 
   if (isLoading) {
