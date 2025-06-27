@@ -17,6 +17,14 @@ export default function SalesFunnel() {
     to: undefined,
   })
 
+  const [hoveredStage, setHoveredStage] = useState<{
+    stage: string
+    value: number
+    count: number
+    x: number
+    y: number
+  } | null>(null)
+
   // Fetch real sales funnel data
   const { data: funnelData, isLoading } = api.dashboard.getSalesFunnelData.useQuery({
     startDate: dateRange?.from,
@@ -65,7 +73,7 @@ export default function SalesFunnel() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
           </div>
         </CardContent>
       </Card>
@@ -73,12 +81,13 @@ export default function SalesFunnel() {
   }
 
   return (
-    <Card className="w-full bg-gradient-to-br from-background to-muted/20 border-emerald-200/50 dark:border-emerald-800/50">
-      <CardHeader className="pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
-            Sales Pipeline
-          </CardTitle>
+    <div className="relative">
+      <Card className="w-full bg-gradient-to-br from-background to-muted/20">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="text-xl font-bold text-foreground">
+              Sales Pipeline
+            </CardTitle>
           
           {/* Date Range Controls */}
           <div className="flex items-center gap-2">
@@ -87,9 +96,9 @@ export default function SalesFunnel() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  className="hover:bg-muted/50"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <CalendarIcon className="mr-2 h-4 w-4" />
                   {dateRange?.from ? (
                     dateRange.to ? (
                       <>
@@ -121,7 +130,7 @@ export default function SalesFunnel() {
                 variant="ghost" 
                 size="sm" 
                 onClick={clearDateRange}
-                className="text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                className="text-muted-foreground hover:text-foreground"
               >
                 Clear
               </Button>
@@ -133,38 +142,38 @@ export default function SalesFunnel() {
       <CardContent className="space-y-6">
         {/* Key Metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="text-center p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/50">
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+          <div className="text-center p-3 rounded-lg bg-background border">
+            <div className="text-2xl font-bold text-foreground">
               {metrics.totalOrders}
             </div>
-            <div className="text-sm text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+            <div className="text-sm text-muted-foreground font-medium">
               Total Orders
             </div>
           </div>
           
-          <div className="text-center p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/50">
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+          <div className="text-center p-3 rounded-lg bg-background border">
+            <div className="text-2xl font-bold text-foreground">
               €{metrics.totalValue.toLocaleString()}
             </div>
-            <div className="text-sm text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+            <div className="text-sm text-muted-foreground font-medium">
               Total Value
             </div>
           </div>
           
-          <div className="text-center p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/50">
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+          <div className="text-center p-3 rounded-lg bg-background border">
+            <div className="text-2xl font-bold text-foreground">
               {metrics.conversionRate.toFixed(1)}%
             </div>
-            <div className="text-sm text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+            <div className="text-sm text-muted-foreground font-medium">
               Conversion Rate
             </div>
           </div>
           
-          <div className="text-center p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/50">
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+          <div className="text-center p-3 rounded-lg bg-background border">
+            <div className="text-2xl font-bold text-foreground">
               €{metrics.avgOrderValue.toLocaleString()}
             </div>
-            <div className="text-sm text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+            <div className="text-sm text-muted-foreground font-medium">
               Avg Order Value
             </div>
           </div>
@@ -184,7 +193,7 @@ export default function SalesFunnel() {
               >
                 <div className="flex items-center gap-4">
                   {/* Stage Label */}
-                  <div className="w-32 text-sm font-medium text-foreground dark:text-foreground">
+                  <div className="w-32 text-sm font-medium text-foreground">
                     {stage.stage}
                   </div>
                   
@@ -192,12 +201,22 @@ export default function SalesFunnel() {
                   <div className="flex-1 relative">
                     <div className="h-12 bg-muted/30 dark:bg-muted/10 rounded-lg overflow-hidden relative">
                       <div
-                        className="h-full rounded-lg transition-all duration-700 ease-out relative group-hover:brightness-110"
+                        className="h-full rounded-lg transition-all duration-700 ease-out relative group-hover:brightness-110 cursor-pointer"
                         style={{
                           backgroundColor: stage.color,
                           width: `${displayWidth}%`,
                           background: `linear-gradient(135deg, ${stage.color}, ${stage.color}dd)`
                         }}
+                        onMouseMove={(e) => {
+                          setHoveredStage({
+                            stage: stage.stage,
+                            value: stage.value,
+                            count: stage.count,
+                            x: e.clientX,
+                            y: e.clientY
+                          })
+                        }}
+                        onMouseLeave={() => setHoveredStage(null)}
                       >
                         {/* Hover tooltip content */}
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -217,24 +236,10 @@ export default function SalesFunnel() {
                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
                       <Badge 
                         variant="secondary" 
-                        className="bg-background/90 dark:bg-background/80 text-foreground dark:text-foreground border-emerald-200 dark:border-emerald-800 font-semibold"
+                        className="bg-background/90 text-foreground border font-semibold"
                       >
                         €{stage.value.toLocaleString()}
                       </Badge>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Hover Tooltip */}
-                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-                  <div className="bg-popover dark:bg-popover border border-border rounded-lg shadow-lg p-3 min-w-48">
-                    <div className="text-sm font-medium text-popover-foreground dark:text-popover-foreground mb-1">
-                      {stage.stage}
-                    </div>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <div>Orders: {stage.count}</div>
-                      <div>Total Value: €{stage.value.toLocaleString()}</div>
-                      <div>Avg Value: €{stage.count > 0 ? (stage.value / stage.count).toLocaleString() : '0'}</div>
                     </div>
                   </div>
                 </div>
@@ -245,11 +250,11 @@ export default function SalesFunnel() {
 
         {/* Summary */}
         {funnelData && funnelData.length > 0 && (
-          <div className="pt-4 border-t border-emerald-200/50 dark:border-emerald-800/50">
+          <div className="pt-4 border-t">
             <div className="text-center text-sm text-muted-foreground">
               Pipeline represents the flow from quotations through to invoiced orders
               {dateRange?.from && dateRange?.to && (
-                <span className="block mt-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                <span className="block mt-1 text-foreground font-medium">
                   Filtered: {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
                 </span>
               )}
@@ -268,5 +273,26 @@ export default function SalesFunnel() {
         }
       `}</style>
     </Card>
+
+    {/* Cursor-following Tooltip */}
+    {hoveredStage && (
+      <div 
+        className="fixed bg-popover border border-border rounded-lg shadow-lg p-3 min-w-48 pointer-events-none z-50"
+        style={{
+          left: `${hoveredStage.x + 15}px`,
+          top: `${hoveredStage.y - 60}px`,
+        }}
+      >
+        <div className="text-sm font-medium text-popover-foreground mb-1">
+          {hoveredStage.stage}
+        </div>
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div>Orders: {hoveredStage.count}</div>
+          <div>Total Value: €{hoveredStage.value.toLocaleString()}</div>
+          <div>Avg Value: €{hoveredStage.count > 0 ? (hoveredStage.value / hoveredStage.count).toLocaleString() : '0'}</div>
+        </div>
+      </div>
+    )}
+  </div>
   )
 } 

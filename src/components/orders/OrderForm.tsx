@@ -210,6 +210,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
   const handleCreateSubmit: SubmitHandler<CreateFormValues> = (data) => {
     const processedData: CreateOrderInput = {
       ...data,
+      deliveryDate: data.deliveryDate || null,
       items: (data.items || []).map(item => ({
         inventoryItemId: item.inventoryItemId,
         quantity: Number(item.quantity),
@@ -228,7 +229,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
       id: data.id,
       ...(data.customerId && { customerId: data.customerId }),
       ...(data.orderDate && { orderDate: data.orderDate }),
-      ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate }),
+      ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate || null }),
       ...(data.orderType && { orderType: data.orderType }),
       ...(data.notes !== undefined && { notes: data.notes }),
     };

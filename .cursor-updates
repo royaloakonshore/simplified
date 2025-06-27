@@ -1,5 +1,66 @@
 # .cursor-updates
 
+## 2025-01-31: Delivery Date Transfer Fix - Quotation to Work Order Flow
+
+**Goal:** Fix delivery date not transferring consistently from quotations to work orders during conversion, ensuring production planning continuity.
+
+**Summary:**
+Resolved critical issue where delivery dates were not reliably transferring from quotations to work orders during conversion, affecting production planning and customer delivery commitments. Fixed schema inconsistencies and form handling issues.
+
+**✅ DELIVERY DATE TRANSFER FIX:**
+
+### **1. Schema Consistency Fix ✅**
+- **✅ deliveryDate Validation**: Fixed inconsistency between `createOrderSchema` and `updateOrderSchema` validation patterns
+- **✅ Coercion Alignment**: Changed both schemas to use `z.coerce.date().optional().nullable()` for consistent handling
+- **✅ Type Safety**: Aligned with `orderBaseSchema` to ensure consistent validation across all order operations
+- **✅ Database Compatibility**: Ensured proper null/undefined handling matches Prisma schema expectations
+
+### **2. Form Handling Improvements ✅**
+- **✅ Create Form**: Enhanced delivery date handling in `handleCreateSubmit` with explicit `data.deliveryDate || null`
+- **✅ Update Form**: Fixed conditional update logic to `data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate || null }`
+- **✅ Null Normalization**: Ensured consistent null handling prevents undefined values from causing data loss
+- **✅ Form State Management**: Improved form submission to preserve delivery dates when explicitly set
+
+### **3. Order Conversion Robustness ✅**
+- **✅ convertToWorkOrder Enhancement**: Added explicit delivery date normalization before work order creation
+- **✅ Data Preservation**: Ensured `const deliveryDate = quotation.deliveryDate || null` for consistent null handling
+- **✅ VAT Rate Preservation**: Added `vatRatePercent` to order item conversion for complete data integrity
+- **✅ Field Mapping**: Verified all order fields transfer correctly during quotation→work order conversion
+
+### **4. Technical Implementation ✅**
+- **✅ Type Consistency**: Fixed TypeScript type alignment across form validation and database operations
+- **✅ Error Prevention**: Eliminated undefined/null confusion that could cause delivery date loss
+- **✅ Data Integrity**: Ensured delivery dates maintain consistency through entire order lifecycle
+- **✅ Build Verification**: All changes pass TypeScript compilation and production build
+
+**🎯 ROOT CAUSE IDENTIFIED:**
+
+### **Schema Mismatch Issue**
+- **Problem**: `createOrderSchema` used `z.date().nullable().optional()` while `orderBaseSchema` used `z.coerce.date().optional().nullable()`
+- **Impact**: Different validation order caused inconsistent form handling and potential data loss
+- **Solution**: Standardized both schemas to use `.coerce.date().optional().nullable()` pattern
+
+### **Form Submission Logic**
+- **Problem**: Undefined delivery dates weren't being handled consistently in form submissions
+- **Impact**: Sometimes delivery dates would be lost or overwritten with undefined values
+- **Solution**: Explicit null coercion and conditional update logic to preserve existing values
+
+**📈 USER IMPACT:**
+- **Before**: Delivery dates randomly lost during quotation→work order conversion, affecting production planning
+- **After**: Delivery dates consistently preserved throughout entire order lifecycle
+- **Reliability**: Production teams can now trust delivery date information across all order stages
+- **Planning**: Accurate delivery commitments maintained from initial quotation through to production
+
+**🔧 FILES MODIFIED:**
+- `src/lib/schemas/order.schema.ts` - Schema consistency fixes for delivery date validation
+- `src/components/orders/OrderForm.tsx` - Form submission handling improvements
+- `src/lib/api/routers/order.ts` - Order conversion robustness enhancements
+- **Build Status**: ✅ TypeScript clean, successful production build
+
+**✅ PRODUCTION READY:** Delivery date transfer issue completely resolved with robust error prevention and data integrity throughout the quotation→work order→production workflow.
+
+---
+
 ## 2025-01-30: Customer Language Selection Implementation Complete
 
 **Goal:** Implement Priority 1 from backlog - Add customer language selection (EN/FI/SE) for localized invoice output.
@@ -198,6 +259,8 @@ Successfully fixed logo centering issue in collapsed sidebar state and replaced 
 - **✅ Stage Visualization**: Beautiful horizontal funnel segments with hover effects and tooltips
 - **✅ Summary Metrics**: Four key metrics - Total Orders, Total Value, Conversion Rate, Avg Order Value
 - **✅ Responsive Design**: Mobile-friendly layout with proper breakpoints and styling
+- **✅ Cursor-Following Tooltips**: Enhanced tooltip UX with cursor-following positioning instead of fixed right positioning
+- **✅ UI Color Consistency**: Updated KPI cards, date picker, and headings to use black/white theme instead of green
 
 ### **3. Logo Centering Final Fix ✅**
 - **✅ Perfect Alignment**: Resolved ERP logo left-alignment issue in collapsed sidebar

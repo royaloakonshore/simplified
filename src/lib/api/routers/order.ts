@@ -603,6 +603,9 @@ export const orderRouter = createTRPCRouter({
         // Generate new order number for the work order
         const newOrderNumber = await generateOrderNumber(tx, OrderType.work_order, quotation.id);
 
+        // Ensure delivery date is properly handled - use null if undefined for consistency
+        const deliveryDate = quotation.deliveryDate || null;
+
         // Create a new work order based on the quotation
         const newWorkOrder = await tx.order.create({
           data: {
@@ -611,7 +614,7 @@ export const orderRouter = createTRPCRouter({
             orderType: OrderType.work_order,
             status: OrderStatus.confirmed,
             orderDate: new Date(),
-            deliveryDate: quotation.deliveryDate,
+            deliveryDate: deliveryDate, // Explicitly use the normalized delivery date
             notes: quotation.notes,
             totalAmount: quotation.totalAmount,
             userId: ctx.userId,
@@ -624,6 +627,7 @@ export const orderRouter = createTRPCRouter({
                 unitPrice: item.unitPrice,
                 discountAmount: item.discountAmount,
                 discountPercentage: item.discountPercentage,
+                vatRatePercent: item.vatRatePercent, // Ensure VAT rate is preserved
               })),
             },
           },

@@ -43,7 +43,7 @@ export const orderBaseSchema = z.object({
 export const createOrderSchema = z.object({
   customerId: z.string().cuid('Invalid customer ID'),
   orderDate: z.date().optional().default(() => new Date()),
-  deliveryDate: z.date().nullable().optional(),
+  deliveryDate: z.coerce.date().optional().nullable(), // Made consistent with orderBaseSchema
   status: z.nativeEnum(OrderStatus).default(OrderStatus.draft),
   orderType: z.nativeEnum(OrderType).default(OrderType.work_order),
   notes: z.string().nullable().optional(),
@@ -57,7 +57,7 @@ export const updateOrderSchema = z.object({
   id: z.string().cuid(),
   customerId: z.string().cuid('Invalid customer ID').optional(),
   orderDate: z.date().optional(),
-  deliveryDate: z.date().nullable().optional(),
+  deliveryDate: z.coerce.date().nullable().optional(), // Made consistent
   status: z.nativeEnum(OrderStatus).optional(),
   orderType: z.nativeEnum(OrderType).optional(),
   notes: z.string().nullable().optional(),
