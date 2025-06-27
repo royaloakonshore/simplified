@@ -2,7 +2,7 @@
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { api } from "@/lib/trpc/react";
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
+import { DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider } from '@/components/ui/kanban';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderStatus, OrderType, ItemType } from '@prisma/client';
@@ -39,7 +39,7 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PackageSearch, X, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { PackageSearch, X, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -195,7 +195,10 @@ function ProductionPageContent() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
+      activationConstraint: { 
+        distance: 12, // Increased from 8 to require more intentional movement
+        delay: 100,   // Add small delay to prevent accidental drags
+      },
     })
   );
 
@@ -326,19 +329,20 @@ function ProductionPageContent() {
   };
 
   const renderKanbanCardContent = (order: KanbanOrder) => (
-    <div className="space-y-1 text-sm">
+    <div className="space-y-1 text-sm pr-8">
       <div className="flex justify-between items-start">
-        <div>
+        <div className="flex-1 min-w-0">
             <p className="font-semibold text-base truncate">{order.orderNumber}</p>
             <p className="text-muted-foreground truncate">{order.customer?.name || 'N/A'}</p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 ml-2">
           {/* Remove from board button */}
           <Button 
             variant="ghost" 
             size="icon" 
             className="h-6 w-6 shrink-0 hover:bg-destructive/10 hover:text-destructive"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               handleRemoveFromBoard(order);
             }}
@@ -350,8 +354,16 @@ function ProductionPageContent() {
           {order.items.some(item => item.inventoryItem.itemType === ItemType.MANUFACTURED_GOOD && item.inventoryItem.bom) && (
             <Dialog>
                 <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:bg-primary/10">
-                        <PackageSearch className="h-4 w-4" />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 shrink-0 hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                        <PackageSearch className="h-3 w-3" />
                         <span className="sr-only">View BOMs</span>
                     </Button>
                 </DialogTrigger>
@@ -388,7 +400,7 @@ function ProductionPageContent() {
                         </div>
                         <div className="flex gap-2">
                             <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline">
-                              {order.orderNumber}
+                              View Full Order
                             </Link>
                             <DialogClose asChild>
                                 <Button type="button" variant="default" size="sm">
@@ -627,31 +639,35 @@ function ProductionPageContent() {
         <TabsTrigger value="archived">Archived Orders ({archivedOrdersQuery.data?.items.length || 0})</TabsTrigger>
       </TabsList>
       <TabsContent value="kanban" className="flex-grow overflow-auto">
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={rectIntersection}>
-          <KanbanProvider className="min-h-[600px]" onDragEnd={handleDragEnd}>
-            {KANBAN_COLUMNS.map((column) => (
-              <KanbanBoard key={column.id} id={column.id} className="min-w-[280px]">
-                <KanbanHeader name={column.name} color={column.color} />
-                <KanbanCards>
-                  {orders
-                    .filter((order) => order.status === column.id)
-                    .map((order, index) => (
-                      <KanbanCard key={order.id} id={order.id} name={order.orderNumber} index={index} parent={column.id}>
-                        {renderKanbanCardContent(order)}
-                      </KanbanCard>
-                    ))}
-                </KanbanCards>
-              </KanbanBoard>
-            ))}
-          </KanbanProvider>
-          <DragOverlay>
-            {activeOrder ? (
+        <KanbanProvider 
+          className="min-h-[600px]" 
+          onDragEnd={handleDragEnd}
+          onDragStart={handleDragStart}
+          sensors={sensors}
+          activeId={activeOrder?.id || null}
+          renderActiveCard={() => 
+            activeOrder ? (
               <KanbanCard id={activeOrder.id} name={activeOrder.orderNumber} index={0} parent={activeOrder.status}>
                 {renderKanbanCardContent(activeOrder)}
               </KanbanCard>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            ) : null
+          }
+        >
+          {KANBAN_COLUMNS.map((column) => (
+            <KanbanBoard key={column.id} id={column.id} className="min-w-[280px]">
+              <KanbanHeader name={column.name} color={column.color} />
+              <KanbanCards>
+                {orders
+                  .filter((order) => order.status === column.id)
+                  .map((order, index) => (
+                    <KanbanCard key={order.id} id={order.id} name={order.orderNumber} index={index} parent={column.id}>
+                      {renderKanbanCardContent(order)}
+                    </KanbanCard>
+                  ))}
+              </KanbanCards>
+            </KanbanBoard>
+          ))}
+        </KanbanProvider>
       </TabsContent>
       <TabsContent value="table" className="flex-grow">
          {/* Enhanced Toolbar for Table View */}

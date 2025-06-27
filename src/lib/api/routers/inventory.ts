@@ -690,19 +690,14 @@ export const inventoryRouter = createTRPCRouter({
       });
     }),
 
-  getReplenishmentAlerts: protectedProcedure
+  getReplenishmentAlerts: companyProtectedProcedure
     .query(async ({ ctx }) => {
-      const items = await prisma.inventoryItem.findMany({
+      const { companyId } = ctx;
+      
+      // Get all inventory items for the company
+      const allItems = await prisma.inventoryItem.findMany({
         where: {
-          OR: [
-            {
-              quantityOnHand: { lt: prisma.inventoryItem.fields.reorderLevel },
-              reorderLevel: { not: null },
-            },
-            {
-              quantityOnHand: { lt: prisma.inventoryItem.fields.minimumStockLevel },
-            },
-          ],
+          companyId,
         },
         orderBy: [
           { itemType: 'asc' }, 
@@ -710,19 +705,40 @@ export const inventoryRouter = createTRPCRouter({
         ],
       });
 
+      // Filter items that need replenishment using JavaScript logic
+      const alertItems = allItems.filter(item => {
+        const qoh = item.quantityOnHand;
+        const minStock = item.minimumStockLevel;
+        const reorderLevel = item.reorderLevel;
+        
+        // Check if below minimum stock level
+        const belowMinStock = qoh.lte(minStock);
+        
+        // Check if below reorder level (if set)
+        const belowReorderLevel = reorderLevel && qoh.lte(reorderLevel);
+        
+        return belowMinStock || belowReorderLevel;
+      });
+
       // Convert Decimal fields to strings for client
-      return items.map(item => ({
+      return alertItems.map(item => ({
         ...item,
         quantityOnHand: item.quantityOnHand.toString(),
         reorderLevel: item.reorderLevel?.toString() ?? null,
         minimumStockLevel: item.minimumStockLevel.toString(),
-        // leadTimeDays, vendorSku, vendorItemName, unitOfMeasure will be on item directly
+        costPrice: item.costPrice.toString(),
+        salesPrice: item.salesPrice.toString(),
       }));
     }),
 
-  getLowStockItems: protectedProcedure
-    .query(async () => {
+  getLowStockItems: companyProtectedProcedure
+    .query(async ({ ctx }) => {
+      const { companyId } = ctx;
+      
       const items = await prisma.inventoryItem.findMany({
+        where: {
+          companyId,
+        },
         include: {
           inventoryTransactions: {
             select: {

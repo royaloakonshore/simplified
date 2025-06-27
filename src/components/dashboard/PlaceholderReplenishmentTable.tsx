@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function PlaceholderReplenishmentTable() {
+export function ReplenishmentAlertsTable() {
   const { data: alerts, isLoading, error } = api.inventory.getReplenishmentAlerts.useQuery();
 
   if (isLoading) {
@@ -147,4 +147,9 @@ export function PlaceholderReplenishmentTable() {
       </Table>
     </div>
   );
+}
+
+// Keep old export for backward compatibility
+export function PlaceholderReplenishmentTable() {
+  return <ReplenishmentAlertsTable />;
 } 

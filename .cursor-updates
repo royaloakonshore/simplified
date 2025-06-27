@@ -1,5 +1,56 @@
 # .cursor-updates
 
+## 2025-01-31: Dashboard Backend Issues Fixed - Critical Data & Multi-tenancy Improvements
+
+**Goal:** Resolve backend TODOs and issues in dashboard router and related systems to ensure proper data fetching and multi-tenant compliance.
+
+**Summary:**
+Fixed critical backend issues in the dashboard system including broken inventory alert queries, missing company scoping in multi-tenant procedures, and incorrect Prisma field comparisons that were causing runtime errors.
+
+**✅ DASHBOARD BACKEND FIXES:**
+
+### **1. Critical Inventory Alerts Fix ✅**
+- **✅ Fixed Broken getReplenishmentAlerts**: Completely rewrote the procedure to fix invalid Prisma query syntax
+- **✅ Proper Prisma Comparisons**: Replaced invalid `prisma.inventoryItem.fields.reorderLevel` comparisons with JavaScript logic
+- **✅ Company Scoping**: Added proper `companyId` filtering using `companyProtectedProcedure`
+- **✅ Decimal Conversion**: Added proper Decimal to string conversion for client-side consumption
+
+### **2. Multi-tenancy Compliance ✅**
+- **✅ getLowStockItems Fix**: Added missing company scoping to prevent cross-tenant data leakage
+- **✅ Consistent Procedure Types**: Updated all dashboard-related procedures to use `companyProtectedProcedure`
+- **✅ Data Isolation**: Ensured all inventory queries properly filter by company context
+
+### **3. Component Naming Cleanup ✅**
+- **✅ ReplenishmentAlertsTable**: Renamed from "Placeholder" since it's actually functional
+- **✅ Backward Compatibility**: Maintained old export names to prevent breaking changes
+- **✅ Deprecated Components**: Properly marked unused placeholder components as deprecated
+
+### **4. Technical Improvements ✅**
+- **✅ Database Query Optimization**: Replaced invalid field-to-field comparisons with efficient JavaScript filtering
+- **✅ Error Prevention**: Fixed queries that would have caused runtime errors in production
+- **✅ Type Safety**: Maintained proper TypeScript types throughout the refactoring
+
+## **Technical Details:**
+
+### **Before (Broken):**
+```typescript
+// ❌ Invalid Prisma syntax that would cause runtime errors
+where: {
+  quantityOnHand: { lt: prisma.inventoryItem.fields.reorderLevel },
+  reorderLevel: { not: null },
+}
+```
+
+### **After (Fixed):**
+```typescript
+// ✅ Proper implementation with JavaScript filtering
+const alertItems = allItems.filter(item => {
+  const qoh = item.quantityOnHand;
+  const reorderLevel = item.reorderLevel;
+  return reorderLevel && qoh.lte(reorderLevel);
+});
+```
+
 ## 2025-01-31: Sales Funnel Date Picker UX Improvement
 
 **Goal:** Fix immediate API refresh when selecting first date in sales funnel date range picker, implementing proper debouncing to wait for complete date range selection.
@@ -2228,3 +2279,47 @@ The ERP system demonstrates production-ready stability with all core business pr
 - **✅ Zero Production Runtime Errors**: All critical workflows now operate without JavaScript errors
 - **✅ Business Logic Integrity**: Order creation, conversion, and tracking processes work as designed
 - **✅ Manufacturing Workflow**: Complete stability in production planning and BOM management features
+
+## 2025-01-31: Production Kanban UX Fixes - Drag Sensitivity & Button Functionality
+
+**Goal:** Fix overly sensitive drag behavior and non-functional buttons (X archive and PackageSearch inspect) in the production Kanban board.
+
+**Summary:**
+Resolved critical UX issues in the production Kanban where cards were triggering status updates on slight touches and buttons were not working due to drag event conflicts. Implemented proper drag handle approach and fixed button event handling.
+
+**✅ KANBAN DRAG & INTERACTION FIXES:**
+
+### **1. Drag Sensitivity Resolution ✅**
+- **✅ Improved Activation Constraints**: Increased drag distance requirement from 8px to 12px and added 100ms delay
+- **✅ Dedicated Drag Handle**: Replaced full-card drag with a specific drag handle (GripVertical icon) in top-right corner
+- **✅ Sensor Configuration**: Enhanced PointerSensor with proper activation constraints to prevent accidental drags
+- **✅ Double DndContext Fix**: Removed redundant DndContext wrapper causing conflicts between KanbanProvider and production page
+
+### **2. Button Functionality Restoration ✅** 
+- **✅ Archive Button (X)**: Fixed click handler with proper event prevention and stopPropagation
+- **✅ Inspect Work Order Button**: Fixed PackageSearch button with proper event handling to prevent drag conflicts
+- **✅ Event Isolation**: Added preventDefault() and stopPropagation() to all interactive buttons within cards
+- **✅ Layout Improvements**: Added proper spacing and padding to accommodate drag handle without layout conflicts
+
+### **3. Kanban UI Component Enhancements ✅**
+- **✅ KanbanCard Redesign**: Modified to use dedicated drag handle instead of full-card drag listeners
+- **✅ KanbanProvider Enhancement**: Added support for sensors, dragStart handler, and DragOverlay rendering
+- **✅ Visual Feedback**: Improved drag state styling with opacity changes and proper cursor states
+- **✅ Accessibility**: Added proper ARIA labels and semantic button roles for drag handles
+
+### **4. Code Quality & Performance ✅**
+- **✅ Import Cleanup**: Removed unused imports (DndContext, DragOverlay, rectIntersection, ChevronDown)
+- **✅ Type Safety**: Maintained full TypeScript support with proper typing for drag events and sensors
+- **✅ Build Verification**: Confirmed zero TypeScript errors and successful production build
+
+**Technical Details:**
+- **Drag Activation**: Now requires 12px movement + 100ms delay before drag starts
+- **Event Handling**: Buttons use preventDefault() + stopPropagation() to avoid drag conflicts  
+- **Component Architecture**: Single DndContext in KanbanProvider with proper sensor delegation
+- **Visual Design**: Drag handle positioned in top-right corner with hover states and proper spacing
+
+**Impact:**
+- **✅ User Experience**: Cards no longer accidentally trigger status updates on light touches
+- **✅ Functionality**: All buttons (archive, inspect work order) now work reliably
+- **✅ Workflow Efficiency**: Production staff can interact with cards naturally without fear of accidental actions
+- **✅ Visual Clarity**: Clear drag affordance with dedicated handle promotes intended interaction patterns

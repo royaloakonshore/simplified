@@ -7,9 +7,15 @@ import {
   rectIntersection,
   useDraggable,
   useDroppable,
+  DragOverlay,
+  PointerSensor,
+  useSensors,
+  useSensor,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent, SensorDescriptor } from '@dnd-kit/core';
 import type { ReactNode } from 'react';
+import { GripVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export type Status = {
   id: string;
@@ -72,8 +78,8 @@ export const KanbanCard = ({
   return (
     <Card
       className={cn(
-        'rounded-md p-3 shadow-sm',
-        isDragging && 'cursor-grabbing',
+        'rounded-md p-3 shadow-sm relative',
+        isDragging && 'opacity-50',
         className
       )}
       style={{
@@ -81,11 +87,21 @@ export const KanbanCard = ({
           ? `translateX(${transform.x}px) translateY(${transform.y}px)`
           : 'none',
       }}
-      {...listeners}
-      {...attributes}
       ref={setNodeRef}
     >
-      {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
+      {/* Drag Handle */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-1 right-1 h-6 w-6 p-0 cursor-grab hover:bg-muted/50"
+        {...listeners}
+        {...attributes}
+        aria-label="Drag to move card"
+      >
+        <GripVertical className="h-3 w-3" />
+      </Button>
+      
+      {children ?? <p className="m-0 font-medium text-sm pr-8">{name}</p>}
     </Card>
   );
 };
@@ -125,19 +141,46 @@ export const KanbanHeader = (props: KanbanHeaderProps) =>
 export type KanbanProviderProps = {
   children: ReactNode;
   onDragEnd: (event: DragEndEvent) => void;
+  onDragStart?: (event: DragStartEvent) => void;
+  sensors?: SensorDescriptor<any>[];
+  activeId?: string | null;
+  renderActiveCard?: () => ReactNode;
   className?: string;
 };
 
 export const KanbanProvider = ({
   children,
   onDragEnd,
+  onDragStart,
+  sensors,
+  activeId,
+  renderActiveCard,
   className,
-}: KanbanProviderProps) => (
-  <DndContext collisionDetection={rectIntersection} onDragEnd={onDragEnd}>
-    <div
-      className={cn('grid w-full auto-cols-fr grid-flow-col gap-4', className)}
+}: KanbanProviderProps) => {
+  const defaultSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { 
+        distance: 12,
+        delay: 100,
+      },
+    })
+  );
+
+  return (
+    <DndContext 
+      collisionDetection={rectIntersection} 
+      onDragEnd={onDragEnd}
+      onDragStart={onDragStart}
+      sensors={sensors || defaultSensors}
     >
-      {children}
-    </div>
-  </DndContext>
-);
+      <div
+        className={cn('grid w-full auto-cols-fr grid-flow-col gap-4', className)}
+      >
+        {children}
+      </div>
+      <DragOverlay>
+        {activeId && renderActiveCard ? renderActiveCard() : null}
+      </DragOverlay>
+    </DndContext>
+  );
+};
