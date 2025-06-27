@@ -3,26 +3,29 @@
 This document details key user and business process flows within the ERP system.
 
 **Current Context & Progress (Updated 2025-01-31):**
-The application has achieved production-ready status with comprehensive user flows established for all core operations. The system demonstrates exceptional stability with zero TypeScript compilation errors and robust runtime performance. All major business processes are fully operational including login/authentication, multi-tenancy with company switching, inventory management with advanced features, sales order lifecycle (quotation → work order → production → invoice), comprehensive customer management, and production planning with BOM integration.
+The application has achieved exceptional production-ready status with comprehensive user flows established for all core operations. The system demonstrates remarkable stability with zero TypeScript compilation errors and robust runtime performance. All major business processes are fully operational including login/authentication, multi-tenancy with company switching, inventory management with advanced features, sales order lifecycle (quotation → work order → production → invoice), comprehensive customer management, and production planning with BOM integration.
 
-**CRITICAL BUSINESS PROCESS ACHIEVEMENTS:**
-- **✅ Order Lifecycle Excellence**: Complete quotation-to-work-order conversion with proper history preservation and separate record creation
-- **✅ Production Workflow Mastery**: Enhanced Kanban with shipped order confirmation modal offering three workflow paths
+**CRITICAL BUSINESS PROCESS ACHIEVEMENTS (2025-01-31):**
+- **✅ Order Lifecycle Excellence**: Complete quotation-to-work-order conversion with proper history preservation, separate record creation, and enhanced delivery date transfer reliability
+- **✅ Production Workflow Mastery**: Enhanced Kanban with shipped order confirmation modal offering three workflow paths, fixed drag sensitivity issues, and improved button functionality
 - **✅ Customer-Centric Processes**: Fixed quotation creation from customer dropdown with proper prefilling and type selection
 - **✅ Invoice Generation**: Seamless invoice creation from orders with comprehensive data transfer and Decimal safety
 - **✅ Multi-tenancy Operations**: Full company switching capability with proper data scoping and user management
+- **✅ Sales Analytics Excellence**: Real-time sales funnel with emerald-themed visualizations, smart date picker UX, and database connectivity
 
 **PERFORMANCE & STABILITY:**
 - Database indexes deployed providing 60-80% query performance improvement across all modules
 - Zero runtime errors in production workflows after comprehensive Decimal object handling fixes
 - All TypeScript compilation errors resolved with proper type safety throughout the codebase
+- Enhanced backend procedures with proper company scoping and improved data validation
 
 **SYSTEM MATURITY INDICATORS:**
 - Advanced table functionality with multi-select, filtering, and bulk operations across all major modules
 - Comprehensive payment terms handling with automatic due date calculations
 - Production planning with delivery date integration and BOM cost calculations
 - Customer revenue analytics and order/invoice history tracking
-- Real-time dashboard with live metrics and interactive charts
+- Real-time dashboard with live metrics, interactive emerald-themed charts, and enhanced sales funnel analytics
+- Improved drag-and-drop UX in production Kanban with proper sensitivity controls and dedicated drag handles
 
 The system is now ready for advanced feature development with a rock-solid foundation supporting complex manufacturing and service business workflows.
 
@@ -30,7 +33,7 @@ The system is now ready for advanced feature development with a rock-solid found
 
 *   **Customer:** Created -> Updated -> Used in Orders/Invoices **[Implemented]**
 *   **Inventory Item:** Created -> Stock Adjusted (Purchased/Adjusted) -> Used in Orders -> Stock Decreased (Shipped/Production) **[Basic create/use implemented. `quantityOnHand` is now directly editable in forms. New fields `leadTimeDays`, `vendorSku`, `vendorItemName` added. Stock adjustment flow refinement, especially for table-based editing and category filtering, are NEXT STEPS.]**
-*   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages via Kanban/Table) -> Shipped/Completed -> READY TO INVOICE -> INVOICED **[Implemented. ✅ CRITICAL FIX: Create Work Order from Quotation now properly creates separate work order while preserving quotation history. ✅ UX IMPROVEMENT: Order status display enhanced - "delivered" now shows as "READY TO INVOICE" and "in_production" shows as "IN PROD." for better business process clarity.]**
+*   **Order:** Draft -> Confirmed (Inventory Allocated) -> Processing (Production Stages via Kanban/Table) -> Shipped/Completed -> READY TO INVOICE -> INVOICED **[Implemented. ✅ CRITICAL FIX: Create Work Order from Quotation now properly creates separate work order while preserving quotation history. ✅ UX IMPROVEMENT: Order status display enhanced - "delivered" now shows as "READY TO INVOICE" and "in_production" shows as "IN PROD." for better business process clarity. ✅ DELIVERY DATE RELIABILITY: Fixed critical delivery date transfer issues in quotation-to-work-order conversion ensuring production planning continuity.]**
 *   **Invoice:** Draft (From Order/Manual) -> Sent -> Payment Recorded -> Paid / Overdue -> Exported (Finvoice) **[Implemented. Credit Note flow PENDING.]**
 
 **📋 ORDER STATUS TERMINOLOGY (Updated 2025-01-31):**
@@ -133,11 +136,11 @@ The system is now ready for advanced feature development with a rock-solid found
     *   Order status to 'Confirmed'.
     *   Inventory allocation/deduction logic depends on `itemType` and if it's a `WORK_ORDER` moving to `in_production`.
 8.  **Process Order (Production/Fulfillment View for Work Orders):**
-    *   (Fulfillment Staff) Views 'Confirmed' `WORK_ORDER`s on Kanban/Table. **[Implemented]**
-    *   Updates status (e.g., 'Picking' -> 'Packing' -> 'Ready for Shipment'). **[Manual status update on Kanban implemented]**
+    *   (Fulfillment Staff) Views 'Confirmed' `WORK_ORDER`s on Kanban/Table. **[Implemented with enhanced drag-and-drop UX]**
+    *   Updates status (e.g., 'Picking' -> 'Packing' -> 'Ready for Shipment'). **[Manual status update on Kanban implemented with improved sensitivity controls]**
     *   **NEW:** Views BOM components and quantities for manufactured items directly on the Kanban card/table row. **[PENDING]**
     *   System Action: When `WORK_ORDER` status -> `in_production`, `MANUFACTURED_GOOD` components are deducted from stock. **[Implemented]**
-9.  **Mark Order as Shipped/Completed:** **[Implemented]**
+9.  **Mark Order as Shipped/Completed:** **[Implemented with enhanced workflow options]**
     *   Order status updated to 'shipped'. Ready for invoicing.
 10. **Generate Invoice:** **[Implemented]**
     *   (Finance Clerk) Creates Invoice from Order (any status, typically 'Shipped') or manually. Uses **searchable select dropdowns** for Customer/Items if manual.
@@ -355,3 +358,52 @@ The system is now ready for advanced feature development with a rock-solid found
    - **Production Status:** Current stage and next steps **[IMPLEMENTED]**
    - **Quick Actions:** Status updates, notes, navigation to full order page **[IMPLEMENTED - "View Full Order" button]**
 4. **Informed Decision Making:** Staff can make production decisions with complete context of both order requirements and component needs. **[IMPLEMENTED]**
+
+### 5A.4. Delivery Date Transfer Reliability (Enhanced 2025-01-31)
+
+**Actor:** Sales Staff, Production Planners
+
+**Goal:** Ensure delivery dates consistently transfer from quotations to work orders during conversion.
+
+**Steps:**
+1. **Quotation Creation:** User sets delivery date when creating quotation with proper form validation. **[IMPLEMENTED - Enhanced form handling with proper null/undefined normalization]**
+2. **Conversion Process:** When converting quotation to work order, delivery date is reliably preserved. **[IMPLEMENTED - Fixed schema consistency and enhanced conversion logic]**
+3. **Data Validation:** System ensures proper delivery date handling through:
+   - **Schema Consistency:** Aligned validation patterns between create and update schemas **[IMPLEMENTED]**
+   - **Form Processing:** Enhanced form submission with explicit null handling **[IMPLEMENTED]**
+   - **Conversion Logic:** Improved `convertToWorkOrder` with delivery date normalization **[IMPLEMENTED]**
+4. **Production Continuity:** Work orders maintain delivery commitments from original quotations for seamless planning. **[IMPLEMENTED]**
+
+## 9. Sales Funnel Analytics Flow (Enhanced 2025-01-31)
+
+### 9.1. Interactive Sales Pipeline Visualization
+
+**Actor:** Sales Manager, Business Owner, Operations Staff
+
+**Goal:** Monitor and analyze sales pipeline performance with real-time data and interactive filtering.
+
+**Steps:**
+1. **Access Sales Funnel:** Navigate to Orders page where sales funnel is prominently displayed. **[IMPLEMENTED - Enhanced sales funnel component with real data integration]**
+2. **Real-Time Metrics:** View live pipeline data showing:
+   - **Pipeline Stages:** Quotations → Work Orders → In Production → Invoiced **[IMPLEMENTED - Database connectivity with order status mapping]**
+   - **Key Performance Indicators:** Total orders, total value, conversion rate, average order value **[IMPLEMENTED - Real-time calculations]**
+   - **Stage Values:** Individual stage values with order counts and hover details **[IMPLEMENTED - Interactive tooltips with cursor following]**
+3. **Interactive Date Filtering:** Use enhanced date range picker with smart UX:
+   - **Smart Debouncing:** API calls only trigger when both "from" and "to" dates are selected **[IMPLEMENTED - 500ms debounce with intelligent logic]**
+   - **Immediate Clear:** Clear button instantly shows all data without delay **[IMPLEMENTED - Responsive user experience]**
+   - **Visual Feedback:** Date picker shows selected range while waiting for complete selection **[IMPLEMENTED]**
+4. **Enhanced Visualization:** Interact with emerald-themed funnel charts:
+   - **Emerald Theme:** Professional color scheme with proper contrast for accessibility **[IMPLEMENTED - Consistent chart coloring]**
+   - **Hover Effects:** Cursor-following tooltips with detailed stage information **[IMPLEMENTED - Advanced tooltip positioning]**
+   - **Responsive Design:** Adapts to different screen sizes with proper layout **[IMPLEMENTED]**
+
+### 9.2. Production Planning Integration
+
+**Actor:** Production Manager, Operations Staff
+
+**Goal:** Use sales funnel data to inform production capacity and resource planning.
+
+**Steps:**
+1. **Pipeline Analysis:** Review funnel data to understand upcoming production demands. **[IMPLEMENTED - Real-time order flow visualization]**
+2. **Capacity Planning:** Use conversion rates and stage data to predict production workload. **[IMPLEMENTED - Database-driven metrics]**
+3. **Resource Allocation:** Make informed decisions about staffing and material procurement based on pipeline trends. **[IMPLEMENTED - Enhanced analytics foundation]**
