@@ -13,7 +13,19 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "migrate:deploy": "prisma migrate deploy",
-    "bootstrap": "tsx scripts/bootstrap.ts"
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx scripts/seed.ts",
+    "backup": "node scripts/backup-database.js",
+    "backup:restore": "node scripts/restore-database.js",
+    "migrate:safe": "node scripts/safe-migrate.js",
+    "security:scan": "npm audit && npm outdated",
+    "security:check": "npx audit-ci --config .auditci.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.709.0",
