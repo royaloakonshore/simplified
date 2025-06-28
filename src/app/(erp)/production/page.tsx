@@ -192,6 +192,10 @@ function ProductionPageContent() {
   const [activeOrder, setActiveOrder] = useState<KanbanOrder | null>(null);
   const [shippedModalOpen, setShippedModalOpen] = useState(false);
   const [pendingShippedOrder, setPendingShippedOrder] = useState<KanbanOrder | null>(null);
+  // New state for UI-only hidden orders
+  const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(new Set());
+  const [removeConfirmModalOpen, setRemoveConfirmModalOpen] = useState(false);
+  const [pendingRemoveOrder, setPendingRemoveOrder] = useState<KanbanOrder | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -219,17 +223,19 @@ function ProductionPageContent() {
 
   useEffect(() => {
     if (productionOrdersQuery.data) {
-      const transformedOrders = productionOrdersQuery.data.map(order => ({
-        ...order,
-        totalQuantity: order.items.reduce((acc, item) => acc.plus(item.quantity), new PrismaTypes.Decimal(0)),
-      }));
+      const transformedOrders = productionOrdersQuery.data
+        .map(order => ({
+          ...order,
+          totalQuantity: order.items.reduce((acc, item) => acc.plus(item.quantity), new PrismaTypes.Decimal(0)),
+        }))
+        .filter(order => !hiddenOrderIds.has(order.id)); // Filter out UI-hidden orders
       setOrders(transformedOrders as KanbanOrder[]);
     } else if (productionOrdersQuery.error) {
       const error = productionOrdersQuery.error as TRPCClientErrorLike<AppRouter>;
       toast.error("Failed to fetch production orders: " + error.message);
       setOrders([]);
     }
-  }, [productionOrdersQuery.data, productionOrdersQuery.error]);
+  }, [productionOrdersQuery.data, productionOrdersQuery.error, hiddenOrderIds]); // Add hiddenOrderIds to dependencies
 
   const updateOrderStatusMutation = api.order.updateStatus.useMutation({
     onSuccess: () => {
@@ -312,8 +318,33 @@ function ProductionPageContent() {
   };
 
   const handleRemoveFromBoard = (order: KanbanOrder) => {
-    // Remove from board by setting status to delivered (archived)
-    updateOrderStatusMutation.mutate({ id: order.id, status: OrderStatus.delivered });
+    // Show confirmation modal instead of immediately removing
+    setPendingRemoveOrder(order);
+    setRemoveConfirmModalOpen(true);
+  };
+
+  const handleConfirmRemove = () => {
+    if (!pendingRemoveOrder) return;
+    
+    // Add to hidden orders (UI-only hiding)
+    setHiddenOrderIds(prev => new Set([...prev, pendingRemoveOrder.id]));
+    
+    // Close modal and reset state
+    setRemoveConfirmModalOpen(false);
+    setPendingRemoveOrder(null);
+    
+    toast.success("Order moved to archive without status change");
+  };
+
+  const handleRestoreFromHidden = (orderId: string) => {
+    // Remove from hidden orders (restore to kanban)
+    setHiddenOrderIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(orderId);
+      return newSet;
+    });
+    
+    toast.success("Order restored to production board");
   };
 
   const handleSendBackToProduction = (orderId: string) => {
@@ -633,10 +664,10 @@ function ProductionPageContent() {
       
       <div className="p-4 md:p-6">
         <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
-      <TabsList className="mb-4 w-full sm:w-auto self-start">
-        <TabsTrigger value="kanban">Kanban View</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
         <TabsTrigger value="table">Table View</TabsTrigger>
-        <TabsTrigger value="archived">Archived Orders ({archivedOrdersQuery.data?.items.length || 0})</TabsTrigger>
+        <TabsTrigger value="archived">Archived Orders ({(archivedOrdersQuery.data?.items.length || 0) + hiddenOrderIds.size})</TabsTrigger>
       </TabsList>
       <TabsContent value="kanban" className="flex-grow overflow-auto">
         <KanbanProvider 
@@ -762,67 +793,118 @@ function ProductionPageContent() {
             </p>
           </div>
           
-          {archivedOrdersQuery.isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-muted animate-pulse rounded-md"></div>
-              ))}
-            </div>
-          ) : archivedOrdersQuery.data?.items.length === 0 ? (
-            <Card className="p-6">
-              <div className="text-center">
-                <p className="text-muted-foreground">No archived orders found.</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Orders that are removed from the production board will appear here.
-                </p>
-              </div>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {archivedOrdersQuery.data?.items.map((order) => (
-                <Card key={order.id} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <Link 
-                            href={`/orders/${order.id}`} 
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {order.orderNumber}
-                          </Link>
-                          <p className="text-sm text-muted-foreground">
-                            Customer: {order.customer?.name || 'N/A'}
-                          </p>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <p>Status: {order.status.replace('_', ' ').toUpperCase()}</p>
-                          <p>
-                            Delivery: {order.deliveryDate 
-                              ? new Date(order.deliveryDate).toLocaleDateString() 
-                              : 'Not Set'
-                            }
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSendBackToProduction(order.id)}
-                      className="ml-4"
-                    >
-                      Send Back to Production
-                    </Button>
+          {(() => {
+            // Combine status-archived orders and UI-hidden orders
+            const statusArchivedOrders = archivedOrdersQuery.data?.items || [];
+            const hiddenOrders = productionOrdersQuery.data?.filter(order => hiddenOrderIds.has(order.id)) || [];
+            const allArchivedOrders = [...statusArchivedOrders, ...hiddenOrders];
+            const totalCount = statusArchivedOrders.length + hiddenOrderIds.size;
+
+            if (archivedOrdersQuery.isLoading || productionOrdersQuery.isLoading) {
+              return (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded-md"></div>
+                  ))}
+                </div>
+              );
+            }
+
+            if (totalCount === 0) {
+              return (
+                <Card className="p-6">
+                  <div className="text-center">
+                    <p className="text-muted-foreground">No archived orders found.</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Orders that are removed from the production board will appear here.
+                    </p>
                   </div>
                 </Card>
-              ))}
-            </div>
-          )}
+              );
+            }
+
+            return (
+              <div className="space-y-2">
+                {allArchivedOrders.map((order) => {
+                  const isUIHidden = hiddenOrderIds.has(order.id);
+                  return (
+                    <Card key={order.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <Link 
+                                href={`/orders/${order.id}`} 
+                                className="font-medium text-primary hover:underline"
+                              >
+                                {order.orderNumber}
+                              </Link>
+                              <p className="text-sm text-muted-foreground">
+                                Customer: {order.customer?.name || 'N/A'}
+                              </p>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              <p>Status: {order.status.replace('_', ' ').toUpperCase()}</p>
+                              <p>
+                                Delivery: {order.deliveryDate 
+                                  ? new Date(order.deliveryDate).toLocaleDateString() 
+                                  : 'Not Set'
+                                }
+                              </p>
+                              {isUIHidden && (
+                                <p className="text-xs text-blue-600 font-medium">UI Hidden (no status change)</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => isUIHidden ? handleRestoreFromHidden(order.id) : handleSendBackToProduction(order.id)}
+                          className="ml-4"
+                        >
+                          {isUIHidden ? 'Restore to Board' : 'Send Back to Production'}
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </TabsContent>
     </Tabs>
     
+    {/* Remove Confirmation Modal */}
+    <Dialog open={removeConfirmModalOpen} onOpenChange={setRemoveConfirmModalOpen}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Remove Order from Board</DialogTitle>
+          <DialogDescription>
+            Order {pendingRemoveOrder?.orderNumber} will be moved to the archive tab without changing its status.
+            You can restore it to the production board at any time.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>Note:</strong> This is a UI-only action. The order status will remain "{pendingRemoveOrder?.status.replace('_', ' ').toUpperCase()}" 
+              and can be restored to the board at any time from the archive tab.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setRemoveConfirmModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmRemove}>
+            Move to Archive
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     {/* Shipped Confirmation Modal */}
     <Dialog open={shippedModalOpen} onOpenChange={setShippedModalOpen}>
       <DialogContent className="sm:max-w-[600px]">

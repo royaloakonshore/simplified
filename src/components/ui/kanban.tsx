@@ -15,7 +15,6 @@ import {
 import type { DragEndEvent, DragStartEvent, SensorDescriptor } from '@dnd-kit/core';
 import type { ReactNode } from 'react';
 import { GripVertical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 export type Status = {
   id: string;
@@ -78,7 +77,7 @@ export const KanbanCard = ({
   return (
     <Card
       className={cn(
-        'rounded-md p-3 shadow-sm relative',
+        'rounded-md p-3 shadow-sm relative cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-50',
         className
       )}
@@ -88,18 +87,13 @@ export const KanbanCard = ({
           : 'none',
       }}
       ref={setNodeRef}
+      {...listeners}
+      {...attributes}
     >
-      {/* Drag Handle */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-1 right-1 h-6 w-6 p-0 cursor-grab hover:bg-muted/50"
-        {...listeners}
-        {...attributes}
-        aria-label="Drag to move card"
-      >
+      {/* Visual Drag Indicator (no longer functional, just visual) */}
+      <div className="absolute top-1 right-1 h-6 w-6 p-0 opacity-40 pointer-events-none">
         <GripVertical className="h-3 w-3" />
-      </Button>
+      </div>
       
       {children ?? <p className="m-0 font-medium text-sm pr-8">{name}</p>}
     </Card>

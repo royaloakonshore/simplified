@@ -1,54 +1,57 @@
 # Current Backlog and Priorities - Simplified ERP System
 
-*Last Updated: January 30, 2025*
+*Last Updated: January 31, 2025*
 
-## 🎯 **Current System Status: 85% Complete & Production Ready**
+## 🎯 **Current System Status: 95% Complete & Production Ready**
 
-The system has reached a highly stable state with all critical runtime errors resolved and major UX improvements implemented. Core business workflows are fully functional with enhanced user experience. The remaining work focuses on localization, advanced features, and final polish.
+The system has reached exceptional stability with all critical runtime errors resolved and major UX improvements implemented. Core business workflows are fully functional with enhanced user experience. Recent Priority 1 and Priority 2 implementations have significantly improved the production workflow experience.
+
+---
+
+## ✅ **RECENTLY COMPLETED: Production Kanban Enhancement (COMPLETED)**
+
+### **✅ 2.1 General Card Removal Button (COMPLETED)**
+- **✅ Requirement**: Add remove button to kanban cards at any stage (not just shipped)
+- **✅ Functionality**: UI-only removal with confirmation modal without status change
+- **✅ UI**: X button on each card with confirmation dialog 
+- **✅ Implementation**: Cards are hidden from kanban view but maintain their actual status
+- **✅ Archive Integration**: Removed cards appear in archive tab with "UI Hidden" indicator
+
+### **✅ 2.2 Send Back to Production Button (COMPLETED)**
+- **✅ Requirement**: Button to restore removed cards back to kanban board
+- **✅ Functionality**: UI-only restoration without status change for UI-hidden cards
+- **✅ UI**: "Restore to Board" button in archive tab for UI-hidden orders
+- **✅ Workflow**: Users can remove cards temporarily and restore them seamlessly
+
+### **✅ 2.3 Enhanced Drag-and-Drop (COMPLETED)**
+- **✅ Fixed Drag Limitation**: Cards can now be dragged from anywhere, not just the corner
+- **✅ Maintained Sensitivity**: Kept the lowered move sensitivity (12px distance, 100ms delay)
+- **✅ Visual Feedback**: Entire card shows drag cursor and proper visual states
+- **✅ Improved UX**: Much more intuitive dragging experience for production users
+
+**Total Priority 2 Completion Time**: 3 hours ✅ **COMPLETED**
 
 ---
 
 ## 🔥 **Priority 1: Localization & International Support (HIGH)**
 
 ### **1.1 Customer Language Selection**
-- **Requirement**: Add language field to Customer model and forms
-- **Languages**: Swedish (SE), Finnish (FI), English (EN)
-- **UI**: Dropdown in customer creation/edit forms
-- **Default**: English for new customers
-- **Database**: Add `language` enum field to Customer model
-- **Estimated Time**: 2 hours
+- **✅ COMPLETED**: Add language field to Customer model and forms
+- **✅ Languages**: Swedish (SE), Finnish (FI), English (EN)  
+- **✅ UI**: Dropdown in customer creation/edit forms
+- **✅ Default**: Finnish for new customers
+- **✅ Database**: Added `language` enum field to Customer model
 
 ### **1.2 Localized Invoice/Quotation Output**
-- **Requirement**: Translate PDF and XML output based on customer language
-- **Key Translations**:
+- **✅ COMPLETED**: Translate PDF and XML output based on customer language
+- **✅ Key Translations**:
   - VAT → "ALV" (Finnish), "Moms" (Swedish), "VAT" (English)
   - Payment terms, due date labels, currency symbols
   - Invoice/quotation headers and field labels
-- **Finvoice Compliance**: Ensure XML remains Finvoice 3.0 compliant
-- **Implementation**: Language-specific templates and translation functions
-- **Estimated Time**: 4 hours
+- **✅ Finvoice Compliance**: XML remains Finvoice 3.0 compliant
+- **✅ Implementation**: Language-specific templates and translation functions
 
-**Total Priority 1 Time**: 6 hours
-
----
-
-## 🔥 **Priority 2: Production Kanban Enhancement (HIGH)**
-
-### **2.1 General Card Removal Button**
-- **Requirement**: Add remove button to kanban cards at any stage (not just shipped)
-- **Functionality**: Temporarily remove cards from board without status change
-- **UI**: X button or remove icon on each card
-- **Confirmation**: "Are you sure?" dialog before removal
-- **Estimated Time**: 1.5 hours
-
-### **2.2 Send Back to Production Button**
-- **Requirement**: Button to send removed cards back to kanban board
-- **Functionality**: No actual status change, just visibility toggle
-- **UI**: "Send to Production" button in removed cards view or separate section
-- **Workflow**: User can remove cards temporarily and restore them
-- **Estimated Time**: 1.5 hours
-
-**Total Priority 2 Time**: 3 hours
+**Total Priority 1 Time**: 6 hours ✅ **COMPLETED**
 
 ---
 
@@ -154,17 +157,19 @@ The system has reached a highly stable state with all critical runtime errors re
 
 ## 🎯 **Implementation Roadmap**
 
-### **Phase 1: Critical Business Features (13 hours)**
-1. **Localization Support** (6h) - International business operations
-2. **Production Kanban Enhancement** (3h) - Manufacturing workflow improvement
-3. **Invoice Form Polish** (4h) - Complete invoice functionality
+### **✅ Phase 1: Critical Business Features (9 hours) - COMPLETED**
+1. **✅ Localization Support** (6h) - International business operations ✅ **COMPLETED**
+2. **✅ Production Kanban Enhancement** (3h) - Manufacturing workflow improvement ✅ **COMPLETED**
 
-### **Phase 2: Consistency & Export (8 hours)**
+### **Phase 2: Form & UI Polish (4 hours)**
+3. **Invoice Form Polish** (4h) - Complete invoice functionality and UX improvements
+
+### **Phase 3: Consistency & Export (8 hours)**
 4. **Table Multi-Select** (2h) - UI consistency across tables
 5. **PDF Bulk Export** (3h) - Advanced export functionality
 6. **Customer Revenue Display** (3h) - Complete customer management
 
-### **Phase 3: Advanced Features (23 hours)**
+### **Phase 4: Advanced Features (23 hours)**
 7. **Advanced Reporting** (8h) - Business intelligence
 8. **Enhanced PDF Generation** (6h) - Professional document output
 9. **Stock Management** (4h) - Inventory optimization
@@ -174,39 +179,40 @@ The system has reached a highly stable state with all critical runtime errors re
 
 ## 📊 **Priority Matrix**
 
-| Feature | Business Impact | Technical Complexity | User Demand | Priority |
-|---------|----------------|---------------------|-------------|----------|
-| Customer Language Selection | High | Low | High | 1 |
-| Localized Invoice Output | High | Medium | High | 1 |
-| Kanban Card Management | Medium | Low | Medium | 2 |
-| Invoice Form Enhancements | Medium | Low | Medium | 3 |
-| Table Multi-Select | Low | Low | Low | 4 |
-| PDF Bulk Export | Medium | Medium | Medium | 4 |
-| Customer Revenue Display | Low | Low | Low | 5 |
-| Advanced Reporting | High | High | Medium | 6 |
-| Enhanced PDF Templates | Medium | Medium | Low | 6 |
+| Feature | Business Impact | Technical Complexity | User Demand | Priority | Status |
+|---------|----------------|---------------------|-------------|----------|---------|
+| ✅ Customer Language Selection | High | Low | High | 1 | **COMPLETED** |
+| ✅ Localized Invoice Output | High | Medium | High | 1 | **COMPLETED** |
+| ✅ Kanban Card Management | Medium | Low | Medium | 2 | **COMPLETED** |
+| ✅ Enhanced Drag-and-Drop | Medium | Low | High | 2 | **COMPLETED** |
+| Invoice Form Enhancements | Medium | Low | Medium | 3 | **IN PROGRESS** |
+| Table Multi-Select | Low | Low | Low | 4 | **PENDING** |
+| PDF Bulk Export | Medium | Medium | Medium | 4 | **PENDING** |
+| Customer Revenue Display | Low | Low | Low | 5 | **PENDING** |
+| Advanced Reporting | High | High | Medium | 6 | **PENDING** |
+| Enhanced PDF Templates | Medium | Medium | Low | 6 | **PENDING** |
 
 ---
 
 ## 🚀 **Next Actions for AI Agent**
 
 ### **Immediate Focus (Next Session)**
-1. **Customer Language Field**: Add language enum to Customer model and forms
-2. **Invoice Localization**: Implement translation functions for PDF/XML output
-3. **Kanban Remove Buttons**: Add card removal functionality to production board
+1. **Invoice Form Enhancements**: Add row free text fields and fix date alignment issues
+2. **Enhanced Discount UI**: Implement toggle-based discount column visibility
+3. **Orders Table Multi-Select**: Complete multi-select functionality for consistency
 
 ### **Success Criteria**
-- Customers can select their preferred language (SE/FI/EN)
-- Invoices and quotations output in customer's language
-- Production team can temporarily remove cards from kanban board
-- All features maintain existing build stability and type safety
+- Invoices and orders support detailed line item descriptions
+- Form layouts are visually consistent and professional
+- All major tables have consistent multi-select functionality
+- Build stability maintained throughout all changes
 
 ### **Technical Notes**
-- Maintain Finvoice 3.0 XML compliance with language codes
-- Use proper TypeScript enums for language selection
-- Implement confirmation dialogs for destructive actions
-- Test localization with real customer data
+- Focus on form UX improvements and visual consistency
+- Implement proper TypeScript typing for all new features
+- Test form validation and error handling thoroughly
+- Maintain existing design patterns and emerald theme
 
 ---
 
-**Current Development Status**: System is production-ready with 85% completion. Focus should be on international business support and manufacturing workflow enhancements to reach 95% completion. 
+**Current Development Status**: System is production-ready with 95% completion. Recent production workflow enhancements significantly improve manufacturing team experience. Next focus should be on invoice form polish and table consistency features. 

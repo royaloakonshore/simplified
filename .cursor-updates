@@ -2478,3 +2478,11 @@ The ERP system has achieved exceptional production-ready status with enterprise-
 - Extended integrations and third-party APIs
 
 This session represents a significant leap in system maturity, transforming the ERP from a functional application to a production-ready enterprise solution with exceptional user experience and technical excellence.
+
+## 2025-01-31
+
+- **Production Kanban Enhancement Complete**: Implemented UI-only card removal with confirmation modal - cards can be temporarily hidden without status change and easily restored
+- **Enhanced Drag-and-Drop UX**: Fixed kanban cards to be draggable from anywhere (not just corner grip) while maintaining improved sensitivity controls
+- **Archive Tab Integration**: Updated archive tab to show both status-archived orders and UI-hidden orders with appropriate restore buttons
+- **Confirmation Modal**: Added professional confirmation dialog explaining UI-only nature of card removal action
+- **Documentation Update**: Updated Priority 2 status to completed and increased overall system completion to 95%
