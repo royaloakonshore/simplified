@@ -10,7 +10,7 @@ interface PageBannerProps {
 export function PageBanner({ 
   children, 
   className,
-  backgroundImage = '/Fluid_7.jpeg' // Updated to use the beautiful fluid design
+  backgroundImage = '/GYKQBFeXIAAvHRU.jpeg' // Updated to use the new consistent banner image
 }: PageBannerProps) {
   return (
     <div 

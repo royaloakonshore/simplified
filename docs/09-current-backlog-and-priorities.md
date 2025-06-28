@@ -55,103 +55,143 @@ The system has reached exceptional stability with all critical runtime errors re
 
 ---
 
-## 🔥 **Priority 3: Invoice Form Final Enhancements (MEDIUM)**
+## 🔥 **Priority 3: PDF Generation with Giroblankett Payment Slip (MEDIUM-HIGH)**
 
-### **3.1 Row Free Text Fields**
+### **3.1 Professional Invoice PDF Generation**
+- **Requirement**: Implement server-side PDF generation for invoices using professional templates
+- **Technology**: Server-side generation using Puppeteer or similar library
+- **Template Structure**: HTML/CSS templates designed for PDF output
+- **Company Branding**: Include company logos and customizable layouts
+- **Estimated Time**: 4 hours
+
+### **3.2 Giroblankett Payment Slip Integration (NEW REQUIREMENT)**
+- **✅ CRITICAL**: Always include giroblankett payment slip at bottom of all invoice PDFs
+- **Layout Requirements**: 
+  - Exact positioning from Finnish LaTeX template reference
+  - Bottom section of invoice with precise field layout
+  - Reference: Finnish invoice template and Avoin Systems addon for formatting details
+- **Text Labels**: Use flat Finnish/Swedish text without translation to English
+  - "Tilisiirto" / "Bankgiro" / "IBAN" / "BIC" / "Viite" / "Summa" / "Eräpv."
+  - Copy exact text from LaTeX template for consistent appearance
+- **Payment Barcode**: Generate payment reference barcode if technically feasible
+- **Field Population**:
+  - Company IBAN from settings (`settings.bankAccountIBAN`)
+  - Invoice reference number and amount
+  - Due date and payment terms
+- **Implementation Priority**: Include as default part of PDF layout (not optional)
+- **Reference Materials**: 
+  - Finnish LaTeX invoice template for exact layout
+  - Avoin Systems l10n_fi_invoice addon for additional formatting guidance
+- **Estimated Time**: 3 hours
+
+### **3.3 Multi-Document PDF Support**
+- **Requirement**: Extend PDF generation to orders, quotations, and credit notes
+- **Consistency**: Apply giroblankett to all financial documents where applicable
+- **Bulk Export**: Support for generating multiple PDFs simultaneously
+- **Estimated Time**: 2 hours
+
+**Total Priority 3 Time**: 9 hours
+
+---
+
+## 🔥 **Priority 4: Invoice Form Final Enhancements (MEDIUM)**
+
+### **4.1 Row Free Text Fields**
 - **Requirement**: Add free text field for each invoice/order item row
 - **Purpose**: Additional descriptions, specifications, or notes per line item
 - **Finvoice Compatibility**: Verify field inclusion in XML export format
 - **UI**: Optional text area that expands when needed
 - **Estimated Time**: 2 hours
 
-### **3.2 Invoice Date Alignment Fix**
+### **4.2 Invoice Date Alignment Fix**
 - **Requirement**: Fix vertical alignment of invoice date input with customer field
 - **Issue**: Misaligned form inputs causing visual inconsistency
 - **Solution**: Adjust CSS/Tailwind classes for proper alignment
 - **Estimated Time**: 0.5 hours
 
-### **3.3 Enhanced Discount UI**
+### **4.3 Enhanced Discount UI**
 - **Requirement**: Add "Add Discount" button for each row to show/hide discount columns
 - **Current State**: Discount columns always visible, making form cramped
 - **New Behavior**: Show discount columns only when needed per row
 - **UI**: Toggle button to reveal discount percentage/amount fields
 - **Estimated Time**: 1.5 hours
 
-**Total Priority 3 Time**: 4 hours
+**Total Priority 4 Time**: 4 hours
 
 ---
 
-## 🔥 **Priority 4: Table Consistency & Export Features (MEDIUM)**
+## 📋 **Priority 5: Table Consistency & Export Features (LOW)**
 
-### **4.1 Orders Table Multi-Select**
+### **5.1 Orders Table Multi-Select**
 - **Requirement**: Add multi-select checkboxes to Orders table
 - **Consistency**: Match Invoice and BOM table functionality
 - **Bulk Actions**: Prepare for PDF export and other bulk operations
 - **Estimated Time**: 1 hour
 
-### **4.2 BOM Table Multi-Select**
+### **5.2 BOM Table Multi-Select**
 - **Requirement**: Add multi-select checkboxes to BOM table
 - **Consistency**: Match other advanced tables in the system
 - **Future**: Enable bulk operations for BOMs
 - **Estimated Time**: 1 hour
 
-### **4.3 PDF Bulk Export**
+### **5.3 PDF Bulk Export**
 - **Requirement**: Implement PDF export for selected orders/invoices
 - **Functionality**: Generate and download multiple PDFs as ZIP file
 - **UI**: "Export Selected as PDF" button when items are selected
 - **Technical**: Batch PDF generation with progress indicator
+- **Dependencies**: Requires Priority 3 PDF generation infrastructure
 - **Estimated Time**: 3 hours
 
-**Total Priority 4 Time**: 5 hours
+**Total Priority 5 Time**: 5 hours
 
 ---
 
-## 📋 **Priority 5: Customer Revenue & History Enhancement (LOW)**
+## 📋 **Priority 6: Customer Revenue & History Enhancement (LOW)**
 
-### **5.1 Customer Total Revenue Display**
+### **6.1 Customer Total Revenue Display**
 - **Requirement**: Show lifetime value on customer detail pages
 - **Calculation**: Sum of all paid invoices (VAT-exclusive)
 - **UI**: Prominent display on customer detail page
 - **Performance**: Cached calculation for large datasets
 - **Estimated Time**: 1.5 hours
 
-### **5.2 Enhanced Order/Invoice History**
+### **6.2 Enhanced Order/Invoice History**
 - **Requirement**: Improve existing history tables with totals
 - **Features**: Summary statistics, filtering, better formatting
 - **UI**: Enhanced tables with proper styling and information
 - **Estimated Time**: 1.5 hours
 
-**Total Priority 5 Time**: 3 hours
+**Total Priority 6 Time**: 3 hours
 
 ---
 
-## 📋 **Priority 6: Advanced Features & Polish (LOW)**
+## 📋 **Priority 7: Advanced Features & Polish (FUTURE)**
 
-### **6.1 Advanced Reporting Dashboard**
+### **7.1 Advanced Reporting Dashboard**
 - **Features**: Profit margins, sales trends, inventory turnover
 - **Charts**: Interactive charts with filtering and date ranges
 - **Export**: Report export to Excel/PDF
 - **Estimated Time**: 8 hours
 
-### **6.2 Enhanced PDF Generation**
-- **Requirements**: Professional templates for all document types
-- **Features**: Company branding, customizable layouts
-- **Documents**: Orders, quotations, credit notes, pricelists
+### **7.2 Enhanced PDF Generation Advanced Features**
+- **Requirements**: Advanced PDF features beyond basic giroblankett
+- **Features**: Custom templates, advanced branding, multi-language support
+- **Documents**: Enhanced layouts and formatting options
 - **Estimated Time**: 6 hours
 
-### **6.3 Stock Alerts & Replenishment**
+### **7.3 Stock Alerts & Replenishment**
 - **Features**: Low stock alerts, reorder point notifications
 - **UI**: Alert dashboard, notification system
 - **Automation**: Automated reorder suggestions
 - **Estimated Time**: 4 hours
 
-### **6.4 Credit Note Full Workflow**
+### **7.4 Credit Note Full Workflow**
 - **Features**: Complete credit note creation and management
 - **Integration**: Link to original invoices, proper accounting
 - **UI**: Credit note forms, approval workflow
 - **Estimated Time**: 5 hours
 
-**Total Priority 6 Time**: 23 hours
+**Total Priority 7 Time**: 23 hours
 
 ---
 
@@ -161,18 +201,22 @@ The system has reached exceptional stability with all critical runtime errors re
 1. **✅ Localization Support** (6h) - International business operations ✅ **COMPLETED**
 2. **✅ Production Kanban Enhancement** (3h) - Manufacturing workflow improvement ✅ **COMPLETED**
 
-### **Phase 2: Form & UI Polish (4 hours)**
-3. **Invoice Form Polish** (4h) - Complete invoice functionality and UX improvements
+### **Phase 2: PDF Generation with Payment Infrastructure (9 hours)**
+3. **PDF Generation with Giroblankett** (9h) - Professional invoice output with Finnish payment slips
 
-### **Phase 3: Consistency & Export (8 hours)**
-4. **Table Multi-Select** (2h) - UI consistency across tables
-5. **PDF Bulk Export** (3h) - Advanced export functionality
-6. **Customer Revenue Display** (3h) - Complete customer management
+### **Phase 3: Form & UI Polish (4 hours)**
+4. **Invoice Form Enhancements** (4h) - Complete invoice functionality and UX improvements
 
-### **Phase 4: Advanced Features (23 hours)**
-7. **Advanced Reporting** (8h) - Business intelligence
-8. **Enhanced PDF Generation** (6h) - Professional document output
-9. **Stock Management** (4h) - Inventory optimization
+### **Phase 4: Table Consistency & Export (5 hours)**
+5. **Table Multi-Select & Bulk Operations** (5h) - UI consistency and advanced export functionality
+
+### **Phase 5: Customer Management Enhancement (3 hours)**
+6. **Customer Revenue & History** (3h) - Complete customer management features
+
+### **Phase 6: Advanced Features (23 hours)**
+7. **Advanced Reporting & Analytics** (8h) - Business intelligence
+8. **Enhanced PDF Features** (6h) - Advanced document customization
+9. **Stock Management & Alerts** (4h) - Inventory optimization
 10. **Credit Note Workflow** (5h) - Complete financial workflow
 
 ---
@@ -185,33 +229,42 @@ The system has reached exceptional stability with all critical runtime errors re
 | ✅ Localized Invoice Output | High | Medium | High | 1 | **COMPLETED** |
 | ✅ Kanban Card Management | Medium | Low | Medium | 2 | **COMPLETED** |
 | ✅ Enhanced Drag-and-Drop | Medium | Low | High | 2 | **COMPLETED** |
-| Invoice Form Enhancements | Medium | Low | Medium | 3 | **IN PROGRESS** |
-| Table Multi-Select | Low | Low | Low | 4 | **PENDING** |
-| PDF Bulk Export | Medium | Medium | Medium | 4 | **PENDING** |
-| Customer Revenue Display | Low | Low | Low | 5 | **PENDING** |
-| Advanced Reporting | High | High | Medium | 6 | **PENDING** |
-| Enhanced PDF Templates | Medium | Medium | Low | 6 | **PENDING** |
+| PDF Generation with Giroblankett | High | Medium | High | 3 | **PENDING** |
+| Invoice Form Enhancements | Medium | Low | Medium | 4 | **PENDING** |
+| Table Multi-Select & Export | Low | Low | Low | 5 | **PENDING** |
+| Customer Revenue Display | Low | Low | Low | 6 | **PENDING** |
+| Advanced Reporting | High | High | Medium | 7 | **PENDING** |
+| Enhanced PDF Features | Medium | Medium | Low | 7 | **PENDING** |
 
 ---
 
 ## 🚀 **Next Actions for AI Agent**
 
-### **Immediate Focus (Next Session)**
-1. **Invoice Form Enhancements**: Add row free text fields and fix date alignment issues
-2. **Enhanced Discount UI**: Implement toggle-based discount column visibility
-3. **Orders Table Multi-Select**: Complete multi-select functionality for consistency
+### **Immediate Focus (Current Session)**
+1. **✅ Banner Image Updates**: Updated universal banner to GYKQBFeXIAAvHRU.jpeg and production page consistency ✅ **COMPLETED**
+
+### **Next Priority (Priority 3: PDF Generation)**
+1. **PDF Infrastructure Setup**: Implement server-side PDF generation using Puppeteer
+2. **Giroblankett Payment Slip**: Add Finnish payment slip layout to bottom of all invoice PDFs
+3. **Reference Integration**: Use exact positioning from LaTeX template and Avoin Systems addon
+4. **Field Population**: Connect IBAN, reference numbers, and payment terms from company settings
+
+### **Following Priorities (Priority 4+)**
+1. **Invoice Form Polish**: Row free text fields, date alignment, enhanced discount UI
+2. **Table Consistency**: Multi-select functionality across all major tables
+3. **Customer Revenue Analytics**: Lifetime value calculations and enhanced history displays
 
 ### **Success Criteria**
-- Invoices and orders support detailed line item descriptions
-- Form layouts are visually consistent and professional
-- All major tables have consistent multi-select functionality
-- Build stability maintained throughout all changes
+- Professional invoice PDFs with authentic Finnish giroblankett payment slips
+- Exact layout matching traditional Finnish invoice standards
+- All required payment information populated from company settings
+- Build stability maintained throughout all PDF implementations
 
 ### **Technical Notes**
-- Focus on form UX improvements and visual consistency
-- Implement proper TypeScript typing for all new features
-- Test form validation and error handling thoroughly
-- Maintain existing design patterns and emerald theme
+- Follow established patterns for tRPC API design
+- Implement proper TypeScript typing for PDF generation
+- Test PDF output across different browsers and devices
+- Reference Finnish LaTeX template for exact field positioning and text labels
 
 ---
 

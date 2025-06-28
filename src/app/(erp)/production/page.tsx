@@ -60,7 +60,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { TRPCClientErrorLike } from "@trpc/client";
 import type { AppRouter } from "@/lib/api/root";
-import { PageBanner } from '@/components/common/PageBanner';
+import { PageBanner, BannerTitle } from '@/components/ui/page-banner';
 
 // Define the structure of an order for the Kanban board more specifically
 interface KanbanOrder {
@@ -657,10 +657,9 @@ function ProductionPageContent() {
 
   return (
     <div className="w-full">
-      <PageBanner 
-        title="Production" 
-        description="Manage work orders and production workflows"
-      />
+      <PageBanner>
+        <BannerTitle>Production</BannerTitle>
+      </PageBanner>
       
       <div className="p-4 md:p-6">
         <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
