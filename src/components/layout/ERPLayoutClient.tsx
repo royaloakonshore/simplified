@@ -41,11 +41,9 @@ function LayoutContent({ children, user }: ERPLayoutClientProps) {
               System Online
             </div>
             <ModeToggle />
-            <Link href="/auth/logout" passHref legacyBehavior>
-              <Button asChild variant="outline" size="sm" className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20">
-                <a>Sign Out</a>
-              </Button>
-            </Link>
+            <Button asChild variant="outline" size="sm" className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20">
+              <Link href="/auth/logout">Sign Out</Link>
+            </Button>
           </div>
         </header>
         <div className="w-full max-w-none flex-1 overflow-auto p-4 md:p-6">

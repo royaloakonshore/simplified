@@ -10,7 +10,7 @@ export default function VerifyRequest() {
       <Link
         href="/"
         className="group absolute left-4 top-4 flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
-        legacyBehavior>
+      >
         <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
         Back
       </Link>

@@ -247,7 +247,7 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
               <Link
                 href={`/customers/${invoice.customer.id}`}
                 className="hover:underline"
-                legacyBehavior>
+              >
                 {invoice.customer.name}
               </Link>
             </p>

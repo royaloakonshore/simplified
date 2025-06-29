@@ -83,7 +83,7 @@ export function Breadcrumbs({ segments: manualSegments, className }: Breadcrumbs
             <BreadcrumbItem>
               {segment.href ? (
                 <BreadcrumbLink asChild>
-                  <Link href={segment.href} legacyBehavior>{segment.label}</Link>
+                  <Link href={segment.href}>{segment.label}</Link>
                 </BreadcrumbLink>
               ) : (
                 <BreadcrumbPage>{segment.label}</BreadcrumbPage>
