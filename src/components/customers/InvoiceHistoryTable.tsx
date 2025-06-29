@@ -45,7 +45,7 @@ export function InvoiceHistoryTable({ invoices }: InvoiceHistoryTableProps) {
             </TableCell>
             <TableCell className="text-right">
               {invoice.totalAmount && typeof invoice.totalAmount === 'object' && invoice.totalAmount !== null && 'toNumber' in invoice.totalAmount ? 
-                new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.totalAmount.toNumber()) : 
+                new Intl.NumberFormat('fi-FI', { style: 'currency', currency: 'EUR' }).format(invoice.totalAmount.toNumber()) : 
                 'N/A'}
             </TableCell>
           </TableRow>

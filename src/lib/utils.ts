@@ -6,7 +6,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Basic currency formatter (assumes EUR for now)
+import { parseNordicNumber, formatNordicCurrency } from './utils/number-parsing';
+
+// Basic currency formatter (Nordic-compatible EUR formatting)
 export function formatCurrency(amount: number | string | Decimal | null | undefined): string {
   let numericAmount: number;
 
@@ -14,7 +16,7 @@ export function formatCurrency(amount: number | string | Decimal | null | undefi
     // Structurally duck-type for Decimal or similar objects with a toNumber method
     numericAmount = (amount as { toNumber: () => number }).toNumber(); // Use a structural type for the cast
   } else if (typeof amount === 'string') {
-    numericAmount = parseFloat(amount);
+    numericAmount = parseNordicNumber(amount); // Use Nordic-compatible parsing
   } else if (typeof amount === 'number') {
     numericAmount = amount;
   } else {
@@ -25,10 +27,7 @@ export function formatCurrency(amount: number | string | Decimal | null | undefi
     return "-";
   }
 
-  return new Intl.NumberFormat('fi-FI', { // Finnish locale for formatting
-    style: 'currency',
-    currency: 'EUR',
-  }).format(numericAmount);
+  return formatNordicCurrency(numericAmount); // Use Nordic formatting helper
 }
 
 // Basic date formatter

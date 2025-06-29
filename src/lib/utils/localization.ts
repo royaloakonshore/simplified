@@ -3,6 +3,8 @@
  * Provides translations for Finnish, Swedish, and English languages
  */
 
+import { parseNordicNumber } from './number-parsing';
+
 export type SupportedLanguage = 'FI' | 'SE' | 'EN';
 
 interface InvoiceTranslations {
@@ -192,10 +194,10 @@ export function formatVatReverseChargeNotice(language: SupportedLanguage): strin
 }
 
 /**
- * Format currency amount based on language preferences
+ * Format currency amount based on language preferences with Nordic number parsing
  */
 export function formatCurrency(amount: number | string, language: SupportedLanguage): string {
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  const numericAmount = typeof amount === 'string' ? parseNordicNumber(amount) : amount;
   
   if (language === 'FI') {
     return new Intl.NumberFormat('fi-FI', {

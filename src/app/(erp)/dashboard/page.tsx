@@ -281,7 +281,7 @@ export default function DashboardPage() {
 
   // Format currency values
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('fi-FI', {
       style: 'currency',
       currency: 'EUR',
     }).format(amount);
