@@ -370,6 +370,112 @@ export const customerRouter = createTRPCRouter({
       return invoices.map(invoice => ({ ...invoice, itemCount: invoice.items.length }));
     }),
 
+  getMarginData: companyProtectedProcedure
+    .input(z.object({
+      customerId: z.string().cuid(),
+      months: z.number().default(12),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { customerId, months } = input;
+      
+      // Calculate date range (last X months)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+      
+      // Get all SENT invoices (not credited) for this customer in the date range
+      const invoices = await prisma.invoice.findMany({
+        where: {
+          customerId: customerId,
+          companyId: ctx.companyId,
+          status: 'sent', // Only include sent invoices as specified
+          invoiceDate: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        include: {
+          items: {
+            include: {
+              inventoryItem: {
+                include: {
+                  bom: {
+                    include: {
+                      items: {
+                        include: {
+                          componentItem: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (invoices.length === 0) {
+        return {
+          customerId,
+          totalRevenue: 0,
+          totalMargin: 0,
+          marginPercentage: 0,
+          invoiceCount: 0,
+          period: `Last ${months} months`,
+        };
+      }
+
+      let totalRevenue = 0;
+      let totalCost = 0;
+
+      // Calculate margin for each invoice
+      for (const invoice of invoices) {
+        // Add invoice total (after all discounts) to revenue
+        const invoiceRevenue = invoice.totalAmount ? Number(invoice.totalAmount.toString()) : 0;
+        totalRevenue += invoiceRevenue;
+
+        // Calculate cost for each line item
+        for (const item of invoice.items) {
+          const quantity = Number(item.quantity.toString());
+          let unitCost = 0;
+
+          if (item.inventoryItem.itemType === 'RAW_MATERIAL') {
+            unitCost = Number(item.inventoryItem.costPrice.toString());
+          } else if (item.inventoryItem.itemType === 'MANUFACTURED_GOOD' && item.inventoryItem.bom) {
+            // Add manual labor cost
+            if (item.inventoryItem.bom.manualLaborCost) {
+              unitCost += Number(item.inventoryItem.bom.manualLaborCost.toString());
+            }
+            
+            // Add BOM component costs
+            for (const bomItem of item.inventoryItem.bom.items) {
+              const componentCost = Number(bomItem.componentItem.costPrice.toString());
+              const componentQuantity = Number(bomItem.quantity.toString());
+              unitCost += componentCost * componentQuantity;
+            }
+          } else {
+            // Fallback to cost price
+            unitCost = Number(item.inventoryItem.costPrice.toString());
+          }
+
+          totalCost += unitCost * quantity;
+        }
+      }
+
+      const totalMargin = totalRevenue - totalCost;
+      const marginPercentage = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
+
+      return {
+        customerId,
+        totalRevenue,
+        totalMargin,
+        marginPercentage,
+        invoiceCount: invoices.length,
+        period: `Last ${months} months`,
+      };
+    }),
+
   getRevenue: companyProtectedProcedure
     .input(z.object({
       customerId: z.string().cuid(),

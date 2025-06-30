@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { type RouterOutputs } from "@/lib/api/root";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { getInvoiceStatusDisplayText, getInvoiceStatusBadgeVariant } from "@/lib/utils/status-display";
 
 type Invoice = RouterOutputs["invoice"]["list"]["data"][number];
 
@@ -41,7 +42,9 @@ export function InvoiceHistoryTable({ invoices }: InvoiceHistoryTableProps) {
             <TableCell>{new Date(invoice.invoiceDate).toLocaleDateString()}</TableCell>
             <TableCell>{new Date(invoice.dueDate).toLocaleDateString()}</TableCell>
             <TableCell>
-              <Badge>{invoice.status}</Badge>
+              <Badge variant={getInvoiceStatusBadgeVariant(invoice.status)}>
+                {getInvoiceStatusDisplayText(invoice.status)}
+              </Badge>
             </TableCell>
             <TableCell className="text-right">
               {invoice.totalAmount && typeof invoice.totalAmount === 'object' && invoice.totalAmount !== null && 'toNumber' in invoice.totalAmount ? 

@@ -3,13 +3,15 @@
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/trpc/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, TrendingUp, Receipt, Calendar } from 'lucide-react';
+import { Terminal, TrendingUp, Receipt, Calendar, TrendingDown } from 'lucide-react';
 import { OrderHistoryTable } from '@/components/customers/OrderHistoryTable';
 import { InvoiceHistoryTable } from '@/components/customers/InvoiceHistoryTable';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/utils';
+import { formatMarginPercentage, getMarginStatusColor } from '@/lib/utils/margin-calculation';
 import React from 'react';
 
 export default function CustomerDetailPage() {
@@ -35,9 +37,14 @@ export default function CustomerDetailPage() {
     { customerId },
     { enabled: !!customerId }
   );
+
+  const { data: marginData, isLoading: isLoadingMargin, error: marginError } = api.customer.getMarginData.useQuery(
+    { customerId, months: 12 },
+    { enabled: !!customerId }
+  );
   
-  const isLoading = isLoadingCustomer || isLoadingOrders || isLoadingInvoices || isLoadingRevenue;
-  const error = customerError || ordersError || invoicesError || revenueError;
+  const isLoading = isLoadingCustomer || isLoadingOrders || isLoadingInvoices || isLoadingRevenue || isLoadingMargin;
+  const error = customerError || ordersError || invoicesError || revenueError || marginError;
 
   if (isLoading) {
     return (
@@ -45,7 +52,8 @@ export default function CustomerDetailPage() {
         <Skeleton className="h-8 w-1/3" />
         <Skeleton className="h-6 w-1/4" />
         <Separator />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -102,8 +110,8 @@ export default function CustomerDetailPage() {
       </div>
       <Separator />
 
-      {/* Revenue Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Revenue & Margin Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -151,6 +159,26 @@ export default function CustomerDetailPage() {
                 ? `Status: ${revenueData.lastInvoiceStatus}`
                 : 'No invoices found'
               }
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Margin (12m)</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold">
+                {formatMarginPercentage(marginData?.marginPercentage || 0)}
+              </div>
+              <Badge variant={getMarginStatusColor(marginData?.marginPercentage || 0)}>
+                {marginData?.marginPercentage && marginData.marginPercentage >= 0 ? 'Positive' : 'Negative'}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              From {marginData?.invoiceCount || 0} sent invoices
             </p>
           </CardContent>
         </Card>

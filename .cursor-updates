@@ -1467,6 +1467,51 @@ Successfully implemented delivery date column in the orders table as requested. 
 
 ### **Build Health Verification:**
 - TypeScript compilation: 0 errors (verified with `npx tsc --noEmit`)
+
+## 2025-01-31: Status Display Enhancement & Comprehensive Margin Calculation System
+
+**Major Session Accomplishments:**
+
+### **1. Status Display Enhancement ✅**
+- **Fixed customer history status display**: Customer OrderHistoryTable and InvoiceHistoryTable now show user-friendly status names instead of raw backend values
+- **Examples**: "in_production" → "IN PROD.", "delivered" → "READY TO INVOICE", "sent" → "SENT"
+- **Implementation**: Created shared `status-display.ts` utility with consistent status text mapping and badge styling
+- **Coverage**: Enhanced both OrderHistoryTable and InvoiceHistoryTable components with proper status display and badge variants
+- **Type Safety**: Implemented flexible typing to handle both Prisma enum types and custom TypeScript enum types
+
+### **2. Comprehensive Margin Calculation System ✅**
+- **Margin Calculation Logic**: Implemented complete margin analysis with formula: (invoiced sales price - manufactured item labor cost - purchase price)
+- **Cost Components**: 
+  - Raw materials: Direct `InventoryItem.costPrice`
+  - Manufactured goods: BOM component costs + `BillOfMaterial.manualLaborCost`
+- **Revenue Recognition**: Only SENT invoices included (not credited), uses after-discount amounts
+- **Customer Analysis**: Added `customer.getMarginData` tRPC procedure for 12-month historical analysis
+- **Database Integration**: Proper company scoping with comprehensive BOM and component cost calculations
+
+### **3. Customer Detail Page Enhancement ✅**
+- **Added margin stats card**: New card showing 12-month average margin percentage with status indicators
+- **Visual Design**: Emerald-themed status badges (Excellent/Good/Low/Negative) with TrendingDown icon
+- **Grid Layout**: Enhanced from 3-column to 4-column responsive grid (1→2→4 columns)
+- **Data Display**: Shows margin percentage, positive/negative status, and count of sent invoices
+- **Loading States**: Updated skeleton loading to accommodate 4-card layout
+
+### **4. Real-time Margin Card Component ✅**
+- **MarginCalculationCard Component**: Reusable component for real-time margin analysis below forms
+- **300ms Debouncing**: Smart debounced calculation with configurable on-demand button trigger
+- **Customer Comparison**: Real-time comparison to customer 12-month average with difference indicators
+- **Rich Analytics**: Shows percentage, revenue/cost/profit breakdown, and customer performance comparison
+- **Performance Optimized**: Conditional tRPC queries and efficient React.useMemo for comparison calculations
+
+### **Technical Implementation Details:**
+- **Utility Functions**: Comprehensive margin calculation utilities with Nordic number parsing integration
+- **Type Safety**: Full TypeScript support with branded types and safe Decimal conversion patterns
+- **Database Performance**: Optimized queries with proper includes for BOM cost calculations
+- **Component Architecture**: Flexible, reusable components for integration across order/invoice forms
+
+### **Build Health Verification:**
+- TypeScript compilation: 0 errors (verified with `npx tsc --noEmit`)
+- Production build: ✅ Successful (verified with `npm run build`)
+- All margin calculation features operational and ready for production use
 - Next.js build: Successful with only minor ESLint warnings (no blockers)
 - All production workflows functional without JavaScript runtime errors
 - System remains stable and deployable throughout enhancements

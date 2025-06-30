@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { type RouterOutputs } from "@/lib/api/root";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { getOrderStatusDisplayText, getOrderStatusBadgeVariant } from "@/lib/utils/status-display";
 
 type Order = RouterOutputs["order"]["list"]["items"][number];
 
@@ -39,7 +40,9 @@ export function OrderHistoryTable({ orders }: OrderHistoryTableProps) {
             </TableCell>
             <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
             <TableCell>
-              <Badge>{order.status}</Badge>
+              <Badge variant={getOrderStatusBadgeVariant(order.status)}>
+                {getOrderStatusDisplayText(order.status)}
+              </Badge>
             </TableCell>
             <TableCell className="text-right">
               {order.totalAmount && typeof order.totalAmount === 'object' && order.totalAmount !== null && 'toNumber' in order.totalAmount ? 
