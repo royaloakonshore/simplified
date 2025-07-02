@@ -2,83 +2,115 @@
 
 All changes made by the AI assistant are documented here.
 
-## 2025-01-31: Critical Runtime Error Fixes - Customer & Quotation Workflows
+## 2025-02-01: Dashboard Analytics Enhancement & UI Polish (Part 2)
 
-**Goal:** Resolve two critical Decimal runtime errors blocking customer management and quotation creation workflows.
+**Goal:** Implement additional dashboard improvements including proper toggle group separation, KPI card layout fixes, UI polish, and PDF export functionality.
 
 **Summary:**
-Fixed critical runtime errors that were preventing users from viewing customer order/invoice history and creating quotations from customer dropdown actions.
+Enhanced dashboard with separate toggle controls, improved KPI card layouts, removed visual clutter, and added PDF export capability for better usability and aesthetics.
 
-**✅ DECIMAL CONVERSION RUNTIME ERRORS FIXED:**
+**✅ DASHBOARD IMPROVEMENTS COMPLETED:**
 
-### **1. OrderHistoryTable Decimal Error ✅**
-- **✅ Error Fixed**: Resolved `order.totalAmount.toNumber is not a function` in customer order history display
-- **✅ Safe Validation**: Implemented proper Decimal object validation before calling `.toNumber()`
-- **✅ Fallback Handling**: Added 'N/A' display for invalid or null totalAmount values
-- **✅ Location**: `src/components/customers/OrderHistoryTable.tsx:44`
+### **1. Toggle Group Separation ✅**
+- **✅ Separated Chart View Controls**: Created distinct toggle groups for chart view selection (Revenue Chart vs Top Customers) and chart period controls (Weekly vs Monthly)
+- **✅ Improved UX**: Chart period controls (Weekly/Monthly) now only appear when Revenue Chart is selected, reducing visual clutter
+- **✅ Better Logic**: Switching to "Top Customers" automatically defaults back to "Monthly" when returning to revenue chart
 
-### **2. InvoiceHistoryTable Decimal Error ✅**
-- **✅ Error Fixed**: Resolved `invoice.totalAmount.toNumber is not a function` when creating quotations from customer dropdown
-- **✅ Consistent Pattern**: Applied same safe Decimal conversion pattern as order history
-- **✅ User Experience**: Prevented runtime crashes during quotation creation workflow
-- **✅ Location**: `src/components/customers/InvoiceHistoryTable.tsx:46`
+### **2. KPI Card Layout Fixes ✅**
+- **✅ Delta Tag Positioning**: Fixed overlapping delta tags that were covering text by moving from absolute positioning to flexbox layout
+- **✅ Improved Card Layout**: Changed from relative positioning to flex layout with proper spacing between title/value and trend indicators
+- **✅ Responsive Design**: Added proper flex-shrink and minimum width controls to prevent layout collapse
 
-### **3. Legacy Behavior Cleanup ✅**
-- **✅ Complete Removal**: Eliminated all remaining `legacyBehavior` props from Link components
-- **✅ Files Updated**: Fixed 5 components (FulfillmentBoard, InvoiceDetail, Breadcrumbs, ERPLayoutClient, auth/verify)
-- **✅ Next.js Compliance**: Updated to modern Next.js Link component usage
-- **✅ Build Warnings**: Eliminated all legacyBehavior-related warnings
+### **3. UI Polish ✅**
+- **✅ Greeting Section**: Removed border separator below the greeting section for cleaner visual flow
+- **✅ Clean Layout**: Improved overall visual hierarchy without unnecessary dividers
 
-### **4. System Stability Verification ✅**
-- **✅ TypeScript Clean**: Zero compilation errors with `npx tsc --noEmit`
-- **✅ Production Build**: Successful build completion in 29.0s
-- **✅ Runtime Safety**: Comprehensive safe Decimal handling prevents future similar errors
-- **✅ User Workflows**: Customer management and quotation creation workflows fully operational
+### **4. PDF Export Feature ✅**
+- **✅ Export Button**: Added "Export PDF" button next to the date selector with FileText icon
+- **✅ Dashboard Export**: Button triggers window.print() to export the entire dashboard as it appears
+- **✅ User Experience**: Easy access to PDF export functionality for dashboard sharing and reporting
 
-**🎯 TECHNICAL PATTERN IMPLEMENTED:**
+### **5. Code Quality ✅**
+- **✅ Clean Imports**: Removed unused imports (subMonths, subDays, subYears) and variables (comparisonPeriod)
+- **✅ Build Success**: Project builds cleanly without errors after all improvements
+- **✅ TypeScript Safety**: All changes maintain strict TypeScript compliance
 
-### **Safe Decimal Conversion Pattern**
-```typescript
-// ✅ Safe pattern now used throughout customer components
-{invoice.totalAmount && typeof invoice.totalAmount === 'object' && invoice.totalAmount !== null && 'toNumber' in invoice.totalAmount ? 
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.totalAmount.toNumber()) : 
-  'N/A'}
-```
+**TECHNICAL IMPLEMENTATION:**
+- Modified StatsCard component to use flexbox layout instead of absolute positioning for delta tags
+- Implemented separate ToggleGroup components for different control purposes
+- Added FileText icon import and PDF export button with print functionality
+- Cleaned up unused date manipulation imports and comparison period logic
+- Removed visual separator from greeting section for better design flow
 
-**📈 IMPACT:**
-- **Before**: Users experienced crashes when viewing customer order history or creating quotations
-- **After**: Smooth customer management workflows with proper error handling
-- **Reliability**: System now handles Decimal objects safely across all customer-related components
-- **Future-Proof**: Pattern established prevents similar runtime errors in other components
+**USER IMPACT:**
+- **Better Navigation**: Clearer separation between chart view selection and period controls
+- **Improved Readability**: KPI cards no longer have overlapping text and trend indicators
+- **Cleaner Interface**: Removed unnecessary visual separators for better design flow
+- **Enhanced Functionality**: Easy PDF export for dashboard sharing and documentation
 
-**🔧 FILES MODIFIED:**
-- `src/components/customers/OrderHistoryTable.tsx` - Safe Decimal conversion for order totals
-- `src/components/customers/InvoiceHistoryTable.tsx` - Safe Decimal conversion for invoice totals
-- `src/components/fulfillment/FulfillmentBoard.tsx` - Removed legacyBehavior prop
-- `src/components/invoices/InvoiceDetail.tsx` - Removed legacyBehavior prop
-- `src/components/layout/Breadcrumbs.tsx` - Removed legacyBehavior prop
-- `src/components/layout/ERPLayoutClient.tsx` - Removed legacyBehavior prop
-- `src/app/auth/verify/page.tsx` - Removed legacyBehavior prop
+---
 
-**✅ PRODUCTION READY:** All critical runtime errors resolved, customer management workflows fully operational, system building successfully.
+## 2025-02-01: Dashboard Analytics Enhancement & UI Polish
 
-## 2025-01-31: Major Documentation Consolidation (~60% Reduction)
+**Goal:** Implement comprehensive dashboard improvements including KPI card fixes, period comparison functionality, weekly chart formatting fixes, and customer revenue analysis.
 
-- **Documentation Cleanup**: Consolidated docs folder from 23 files to 16 files, reducing redundancy while preserving all critical information
-- **New Consolidated Documents**:
-  - `current-roadmap.md` - Consolidated 9 planning/development documents into comprehensive roadmap
-  - `development-history.md` - Condensed 62KB development journal into concise milestone summary
-  - `production-deployment.md` - Combined deployment plan, backup strategy, and data protection guides
-  - `security-guide.md` - Unified all security documents into comprehensive security framework
-  - `README.md` - Updated as clean documentation index with proper navigation
-- **Removed Redundant Files**: 
-  - `04-agent-implementation-plan.md`, `09-current-backlog-and-priorities.md` → `current-roadmap.md`
-  - `development-journal.md` (62KB) → `development-history.md` (7.8KB)
-  - `deployment-plan.md`, `data-backup-strategy.md`, `data-protection-guide.md` → `production-deployment.md`
-  - `production-security-guide.md`, `security-checklist.md` → `security-guide.md`
-  - `remaining-todos-and-placeholders.md`, `09-ui-enhancement-plan-2025.md`, `BOOTSTRAP.md` (outdated)
-- **Information Preservation**: All critical information maintained, no loss of important technical details or business requirements
-- **Improved Navigation**: Clean documentation structure with clear hierarchy and cross-references
+**Summary:**
+Enhanced dashboard with intelligent period comparison, fixed UI layout issues, improved chart formatting, and added comprehensive customer revenue analytics table inspired by invoice margin analysis styling.
+
+**✅ DASHBOARD IMPROVEMENTS COMPLETED:**
+
+### **1. KPI Card Layout & Spacing Fixes ✅**
+- **✅ Layout Consistency**: Fixed uneven vertical spacing and sizing across KPI cards  
+- **✅ Grid Optimization**: Improved grid from `xl:grid-cols-3` to `sm:grid-cols-2` for better proportions
+- **✅ Delta Tag Positioning**: Resolved text overlap issues with trend indicators
+- **✅ Responsive Design**: Enhanced card layouts for consistent heights and professional appearance
+
+### **2. Period Comparison System ✅**
+- **✅ Toggle Implementation**: Added Previous Period vs Year-over-Year comparison toggle using new ToggleGroup component
+- **✅ Intelligent Date Logic**: Implemented automatic calculation of comparison periods based on selected date range length
+- **✅ Dynamic Descriptions**: KPI card descriptions now update automatically based on comparison type and date range
+- **✅ Default Behavior**: System defaults to month-to-date with previous period comparison as requested
+
+### **3. Revenue Chart Enhancements ✅**
+- **✅ Weekly Format Fix**: Changed weekly x-axis from "Week of..." to "w. X" format for better readability
+- **✅ Top Customers Tab**: Added third tab option for customer revenue and margin analysis
+- **✅ Customer Analytics**: Implemented comprehensive customer table with revenue, margin, and period comparison
+- **✅ Conditional Loading**: Customer data only loads when tab is selected for performance optimization
+
+### **4. Customer Revenue Analysis ✅**
+- **✅ Professional Styling**: Implemented table styling inspired by invoice margin analysis component
+- **✅ Revenue Metrics**: Shows customer revenue for selected date interval with period comparison
+- **✅ Margin Analysis**: Displays profit margins and financial performance per customer
+- **✅ Sorting & Filtering**: Top 10 customers based on invoiced revenue from paid invoices
+
+### **5. Backend Infrastructure ✅**
+- **✅ New tRPC Endpoint**: Added `getTopCustomers` procedure to dashboard router
+- **✅ Performance Optimization**: Efficient query with proper company scoping and date filtering
+- **✅ Data Accuracy**: Includes only paid invoices for reliable revenue and margin calculations
+- **✅ Enhanced Chart Data**: Improved week number calculation for accurate weekly displays
+
+### **6. UI/UX Improvements ✅**
+- **✅ No Decimal Formatting**: Average order value and total value numbers now display without decimals as requested
+- **✅ Compact Metrics**: Sales funnel metrics use smaller typography when `disableControls` is true for dashboard view
+- **✅ Dashboard Integration**: Sales funnel maintains proper appearance on both dashboard and orders page
+- **✅ Professional Layout**: Improved overall dashboard aesthetics with better component integration
+
+**TECHNICAL IMPLEMENTATION:**
+- Created new ToggleGroup UI component using Radix primitives
+- Enhanced dashboard router with `getTopCustomers` procedure for customer analytics
+- Implemented conditional chart rendering with separate data fetching for customer view
+- Added intelligent period comparison calculations with proper date range handling
+- Fixed chart formatting with improved week number calculation logic
+- Maintained consistent company scoping across all dashboard procedures
+
+**USER IMPACT:**
+- **Better Analytics**: Comprehensive period comparison with intelligent date calculations
+- **Improved Charts**: Cleaner weekly chart format and valuable customer insights
+- **Enhanced Decision Making**: Customer revenue and margin analysis for strategic planning
+- **Professional Interface**: Consistent layouts and spacing across dashboard components
+- **Flexible Reporting**: Easy switching between chart types with relevant data for each view
+
+---
 
 ## 2025-01-31: Dashboard Backend Issues Fixed - Critical Data & Multi-tenancy Improvements
 
@@ -2720,3 +2752,8 @@ This session represents a significant leap in system maturity, transforming the 
 - Build successful with zero TypeScript compilation errors
 - All existing form functionality preserved including item change handlers and validation
 - Consistent styling with existing BOM form implementation
+
+## 2025-02-01 - Dashboard layout refactor & documentation sync
+- Moved `SalesFunnel` to dashboard and created two-column grid (funnel left, stats right) above revenue chart
+- Removed redundant shipped/pending order cards and consolidated KPIs
+- Updated `docs/01-architecture-layout.md` and `docs/06-ui-and-feature-roadmap.md` to reflect new layout and searchable dropdown standardisation

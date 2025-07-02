@@ -22,9 +22,11 @@ import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, FileText } from "lucide-react";
+import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { useSession } from "next-auth/react";
+import SalesFunnel from "@/components/orders/SalesFunnel";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 // StatsCard component (can be moved to its own file later if preferred)
 function StatsCard({
@@ -44,13 +46,15 @@ function StatsCard({
 }) {
   const cardContent = (
     <Card className="@container/card shadow-xs bg-card dark:bg-card">
-      <CardHeader className="relative pb-2">
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-          {value}
-        </CardTitle>
-        <div className="absolute right-4 top-4">
-          <div className="flex items-center gap-1 rounded-lg border bg-background px-2 py-1 text-xs">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <CardDescription>{title}</CardDescription>
+            <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
+              {value}
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border bg-background px-2 py-1 text-xs ml-2 flex-shrink-0">
             {trendDirection === "up" ? (
               <TrendingUpIcon className="size-3 text-green-500" />
             ) : (
@@ -252,14 +256,17 @@ export default function DashboardPage() {
   const { data: session } = useSession();
 
   // Chart controls state
-  const [chartType, setChartType] = React.useState<"weekly" | "monthly">("monthly");
+  const [chartType, setChartType] = React.useState<"weekly" | "monthly" | "customers">("monthly");
+  const [comparisonType, setComparisonType] = React.useState<"previous" | "yearOverYear">("previous");
   const [dateRange, setDateRange] = React.useState<{
     from: Date | undefined;
     to: Date | undefined;
   }>({
-    from: undefined,
-    to: undefined,
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
   });
+
+
 
   // Fetch dashboard statistics with date filter
   const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({
@@ -294,7 +301,10 @@ export default function DashboardPage() {
   };
 
   const resetDateRange = () => {
-    setDateRange({ from: undefined, to: undefined });
+    setDateRange({ 
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    });
     setIsDatePickerOpen(false);
   };
 
@@ -305,6 +315,22 @@ export default function DashboardPage() {
     return "Select Date Range";
   };
 
+  // Get comparison period description
+  const getComparisonDescription = () => {
+    if (!dateRange.from || !dateRange.to) return "";
+    
+    if (comparisonType === "yearOverYear") {
+      return "vs. same period last year";
+    } else {
+      const daysDiff = differenceInDays(dateRange.to, dateRange.from);
+      if (daysDiff <= 31) {
+        return "vs. previous period";
+      } else {
+        return "vs. previous period";
+      }
+    }
+  };
+
   return (
     <div className="w-full flex-1 flex flex-col">
       <PageBanner>
@@ -313,7 +339,7 @@ export default function DashboardPage() {
       
       {/* Greeting Section */}
       {session?.user && (
-        <div className="px-4 py-3 border-b bg-gradient-to-r from-background to-muted/30">
+        <div className="px-4 py-3 bg-gradient-to-r from-background to-muted/30">
           <div className="max-w-none">
             <h2 className="text-xl font-semibold text-foreground">
               Hello, {session.user.firstName || session.user.name?.split(' ')[0]}! 👋
@@ -328,125 +354,178 @@ export default function DashboardPage() {
       )}
       
       <div className="w-full max-w-none flex flex-1 flex-col gap-4 @container/main">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {formatDateRange()}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={(range) => {
-                  setDateRange({
-                    from: range?.from,
-                    to: range?.to,
-                  });
-                }}
-                numberOfMonths={2}
-                initialFocus
-              />
-              <div className="flex gap-2 p-3 border-t">
-                <Button size="sm" onClick={resetDateRange}>
-                  Clear
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+          {/* Period Comparison Toggle */}
+          <ToggleGroup type="single" value={comparisonType} onValueChange={(value) => value && setComparisonType(value as "previous" | "yearOverYear")}>
+            <ToggleGroupItem value="previous" aria-label="Previous Period">
+              Previous Period
+            </ToggleGroupItem>
+            <ToggleGroupItem value="yearOverYear" aria-label="Year over Year">
+              Year over Year
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          {/* Date Range Picker and Export */}
+          <div className="flex items-center gap-2">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {formatDateRange()}
                 </Button>
-                <Button size="sm" onClick={() => setIsDatePickerOpen(false)}>
-                  Close
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <span className="text-xs text-muted-foreground">
-            {dateRange.from && dateRange.to 
-              ? "Custom range selected" 
-              : "Current Month vs Previous Month"
-            }
-          </span>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange({
+                      from: range?.from,
+                      to: range?.to,
+                    });
+                  }}
+                  numberOfMonths={2}
+                  initialFocus
+                />
+                <div className="flex gap-2 p-3 border-t">
+                  <Button size="sm" onClick={resetDateRange}>
+                    Current Month
+                  </Button>
+                  <Button size="sm" onClick={() => setIsDatePickerOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            {/* Export to PDF Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => {
+                // Export dashboard as PDF
+                window.print();
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 @5xl/main:grid-cols-4 md:gap-6">
-          <StatsCard 
-            title="Shipped Orders (Month)" 
-            value={statsLoading ? "..." : stats?.shippedOrders.current.toString() || "0"} 
-            description="vs. previous month" 
-            trend={statsLoading ? "..." : formatTrend(stats?.shippedOrders.trend || 0)} 
-            trendDirection={(stats?.shippedOrders.trend ?? 0) >= 0 ? "up" : "down"} 
-            href="/orders?status=shipped"
+        {/* Top analytics row: Sales funnel (left) + key stats (right) */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
+          {/* Funnel on the left */}
+          <SalesFunnel
+            startDate={dateRange.from}
+            endDate={dateRange.to}
+            disableControls
           />
-          <StatsCard 
-            title="Pending Production" 
-            value={statsLoading ? "..." : stats?.pendingProduction.count.toString() || "0"} 
-            description="Currently in queue" 
-            trend="Active" 
-            trendDirection="up" 
-            href="/production"
-          />
-          <StatsCard 
-            title="Late Orders" 
-            value={statsLoading ? "..." : stats?.lateOrders.count.toString() || "0"} 
-            description="Past due date" 
-            trend={(stats?.lateOrders.count ?? 0) > 0 ? "Action needed" : "On track"} 
-            trendDirection={(stats?.lateOrders.count ?? 0) > 0 ? "down" : "up"} 
-            href="/orders?filter=late"
-          />
-          <StatsCard 
-            title="Total Revenue (Month)" 
-            value={statsLoading ? "..." : formatCurrency(stats?.revenue.current || 0)} 
-            description="vs. previous month" 
-            trend={statsLoading ? "..." : formatTrend(stats?.revenue.trend || 0)} 
-            trendDirection={(stats?.revenue.trend ?? 0) >= 0 ? "up" : "down"} 
-            href="/invoices"
-          />
-        </div>
 
-        {/* Performance Indicators Row */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6">
-          <StatsCard 
-            title="Order Fulfillment Rate" 
-            value={statsLoading ? "..." : `${(stats?.orderFulfillmentRate.percentage || 0).toFixed(1)}%`} 
-            description={`${stats?.orderFulfillmentRate.onTime || 0} of ${stats?.orderFulfillmentRate.total || 0} on time`} 
-            trend={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "Excellent" : (stats?.orderFulfillmentRate.percentage ?? 0) >= 80 ? "Good" : "Needs Improvement"} 
-            trendDirection={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "up" : "down"} 
-            href="/orders"
-          />
-          <StatsCard 
-            title="Inventory Turnover" 
-            value={statsLoading ? "..." : `${Math.abs(stats?.inventoryTurnover.percentage || 0).toFixed(1)}%`} 
-            description="Inventory value change" 
-            trend={`${(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "↓" : "↑"} Stock movement`} 
-            trendDirection={(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "up" : "down"} 
-            href="/inventory"
-          />
-          <StatsCard 
-            title="Customer Growth" 
-            value={statsLoading ? "..." : `+${stats?.customerGrowth.current || 0}`} 
-            description="New customers this month" 
-            trend={statsLoading ? "..." : formatTrend(stats?.customerGrowth.trend || 0)} 
-            trendDirection={(stats?.customerGrowth.trend ?? 0) >= 0 ? "up" : "down"} 
-            href="/customers"
-          />
+          {/* Remaining KPI cards on the right */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-fit">
+            {/* Late Orders */}
+            <StatsCard 
+              title="Late Orders" 
+              value={statsLoading ? "..." : stats?.lateOrders.count.toString() || "0"} 
+              description="Past due date" 
+              trend={(stats?.lateOrders.count ?? 0) > 0 ? "Action needed" : "On track"} 
+              trendDirection={(stats?.lateOrders.count ?? 0) > 0 ? "down" : "up"} 
+              href="/orders?filter=late"
+            />
+
+            {/* Total Revenue */}
+            <StatsCard 
+              title="Total Revenue" 
+              value={statsLoading ? "..." : formatCurrency(stats?.revenue.current || 0)} 
+              description={getComparisonDescription()} 
+              trend={statsLoading ? "..." : formatTrend(stats?.revenue.trend || 0)} 
+              trendDirection={(stats?.revenue.trend ?? 0) >= 0 ? "up" : "down"} 
+              href="/invoices"
+            />
+
+            {/* Order Fulfillment Rate */}
+            <StatsCard 
+              title="Order Fulfillment Rate" 
+              value={statsLoading ? "..." : `${(stats?.orderFulfillmentRate.percentage || 0).toFixed(1)}%`} 
+              description={`${stats?.orderFulfillmentRate.onTime || 0} of ${stats?.orderFulfillmentRate.total || 0} on time`} 
+              trend={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "Excellent" : (stats?.orderFulfillmentRate.percentage ?? 0) >= 80 ? "Good" : "Needs Improvement"} 
+              trendDirection={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "up" : "down"} 
+              href="/orders"
+            />
+
+            {/* Inventory Turnover */}
+            <StatsCard 
+              title="Inventory Turnover" 
+              value={statsLoading ? "..." : `${Math.abs(stats?.inventoryTurnover.percentage || 0).toFixed(1)}%`} 
+              description="Inventory value change" 
+              trend={`${(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "↓" : "↑"} Stock movement`} 
+              trendDirection={(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "up" : "down"} 
+              href="/inventory"
+            />
+
+            {/* Customer Growth */}
+            <StatsCard 
+              title="Customer Growth" 
+              value={statsLoading ? "..." : `+${stats?.customerGrowth.current || 0}`} 
+              description={`New customers ${getComparisonDescription()}`} 
+              trend={statsLoading ? "..." : formatTrend(stats?.customerGrowth.trend || 0)} 
+              trendDirection={(stats?.customerGrowth.trend ?? 0) >= 0 ? "up" : "down"} 
+              href="/customers"
+            />
+          </div>
         </div>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Revenue Trend</CardTitle>
+              <CardTitle>{chartType === "customers" ? "Top Customers" : "Revenue Trend"}</CardTitle>
               <CardDescription>
-                {chartType === "monthly" ? "Monthly" : "Weekly"} revenue comparison
+                {chartType === "customers" 
+                  ? "Revenue and margin by customer (from paid invoices)" 
+                  : chartType === "monthly" 
+                    ? "Monthly revenue comparison" 
+                    : "Weekly revenue comparison"
+                }
               </CardDescription>
             </div>
-            <Tabs value={chartType} onValueChange={(value) => setChartType(value as "weekly" | "monthly")} className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-3">
+              {/* Chart View Toggle */}
+              <ToggleGroup type="single" value={chartType === "customers" ? "customers" : "revenue"} onValueChange={(value) => {
+                if (value === "customers") {
+                  setChartType("customers");
+                } else if (value === "revenue") {
+                  // Default back to monthly when switching from customers
+                  setChartType("monthly");
+                }
+              }}>
+                <ToggleGroupItem value="revenue" aria-label="Revenue Chart">
+                  Revenue Chart
+                </ToggleGroupItem>
+                <ToggleGroupItem value="customers" aria-label="Top Customers">
+                  Top Customers
+                </ToggleGroupItem>
+              </ToggleGroup>
+              
+              {/* Revenue Chart Period Controls - only show when not on customers view */}
+              {chartType !== "customers" && (
+                <Tabs value={chartType} onValueChange={(value) => setChartType(value as "weekly" | "monthly")} className="space-y-4">
+                  <TabsList>
+                    <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                    <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <RevenueChart type={chartType} periods={chartType === "monthly" ? 6 : 8} />
+            <RevenueChart 
+              type={chartType} 
+              periods={chartType === "monthly" ? 6 : 8} 
+              startDate={dateRange.from}
+              endDate={dateRange.to}
+            />
           </CardContent>
         </Card>
 

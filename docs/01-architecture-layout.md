@@ -1,6 +1,12 @@
 # Architecture & System Layout - Simplified ERP
 
-**Last Updated: 2025-01-31** - Post-comprehensive UX enhancement and stability improvements
+**Last Updated: 2025-02-01** - Post-dashboard layout refactor, searchable dropdown standardisation
+
+**RECENT UX ENHANCEMENTS (2025-02-01):**
+- **Dashboard Layout Refactor**: `SalesFunnel` component moved from Orders page to main dashboard and positioned in a two-column grid (left), with existing statistic cards grouped on the right, all stacked above the unchanged `RevenueTrendChart`.
+- **Searchable Dropdown Standardisation**: Introduced `ComboboxResponsive` as the common search/select component for Inventory Item selection across BOM, Order, and Invoice forms.
+- **Stats Cards Consolidation**: Obsolete "Shipped Orders" and "Pending Orders" cards removed and replaced by sales-funnel KPIs.
+- **Consistent Component Imports**: `SalesFunnel` now imported in `src/app/(erp)/dashboard/page.tsx`; removed from Orders page.
 
 **Current System Status:**
 The architecture has achieved exceptional maturity and production-readiness. All core modules are fully functional with enterprise-grade stability, zero TypeScript compilation errors, and comprehensive runtime safety. The system demonstrates excellent performance with database optimizations, advanced UI components, and sophisticated business logic integration.

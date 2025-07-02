@@ -14,17 +14,34 @@ import { api } from '@/lib/trpc/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { CHART_COLORS } from '@/lib/utils/chart-colors';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface RevenueChartProps {
-  type?: "weekly" | "monthly";
+  type?: "weekly" | "monthly" | "customers";
   periods?: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
-export function RevenueChart({ type = "monthly", periods = 6 }: RevenueChartProps) {
-  const { data: chartData, isLoading, error } = api.dashboard.getRevenueChartData.useQuery({
-    type,
+export function RevenueChart({ type = "monthly", periods = 6, startDate, endDate }: RevenueChartProps) {
+  const { data: chartData, isLoading: isLoadingChart, error: chartError } = api.dashboard.getRevenueChartData.useQuery({
+    type: type === "customers" ? "monthly" : type,
     periods,
+  }, {
+    enabled: type !== "customers"
   });
+
+  const { data: customersData, isLoading: isLoadingCustomers, error: customersError } = api.dashboard.getTopCustomers.useQuery({
+    startDate,
+    endDate,
+    limit: 10,
+  }, {
+    enabled: type === "customers"
+  });
+
+  const isLoading = type === "customers" ? isLoadingCustomers : isLoadingChart;
+  const error = type === "customers" ? customersError : chartError;
 
   if (isLoading) {
     return (
@@ -34,12 +51,64 @@ export function RevenueChart({ type = "monthly", periods = 6 }: RevenueChartProp
     );
   }
 
-  if (error || !chartData) {
+  if (error || (type !== "customers" && !chartData) || (type === "customers" && !customersData)) {
     return (
       <div className="aspect-[16/5] w-full rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-6 flex items-center justify-center">
         <p className="text-sm text-muted-foreground">
-          {error ? `Error loading chart data: ${error.message}` : 'No chart data available'}
+          {error ? `Error loading data: ${error.message}` : 'No data available'}
         </p>
+      </div>
+    );
+  }
+
+  // Render customers table
+  if (type === "customers" && customersData) {
+    return (
+      <div className="w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Customer</TableHead>
+              <TableHead className="text-right">Revenue</TableHead>
+              <TableHead className="text-right">Margin</TableHead>
+              <TableHead className="text-right">Margin %</TableHead>
+              <TableHead className="text-center">Invoices</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {customersData.map((customer) => (
+              <TableRow key={customer.customerId}>
+                <TableCell className="font-medium">
+                  {customer.customerName}
+                </TableCell>
+                <TableCell className="text-right">
+                  {formatCurrency(customer.totalRevenue)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className={customer.totalMargin >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {formatCurrency(customer.totalMargin)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Badge 
+                    variant={customer.marginPercentage >= 0 ? "default" : "destructive"}
+                    className="font-mono"
+                  >
+                    {customer.marginPercentage.toFixed(1)}%
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  {customer.invoiceCount}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {customersData.length === 0 && (
+          <div className="text-center text-muted-foreground py-8">
+            No customer data available for the selected period
+          </div>
+        )}
       </div>
     );
   }

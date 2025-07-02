@@ -306,7 +306,9 @@ export const dashboardRouter = createTRPCRouter({
           periodEnd.setDate(weekStart.getDate() + 6);
           periodEnd.setHours(23, 59, 59, 999);
           
-          periodLabel = `Week of ${periodStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+          // Get week number from start date
+          const weekNumber = Math.ceil((periodStart.getTime() - new Date(periodStart.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+          periodLabel = `w. ${weekNumber}`;
         }
 
         const revenueAggregate = await prisma.invoice.aggregate({
@@ -330,6 +332,135 @@ export const dashboardRouter = createTRPCRouter({
       }
 
       return data;
+    }),
+
+  getTopCustomers: companyProtectedProcedure
+    .input(
+      z.object({
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        limit: z.number().min(1).max(50).default(10),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { companyId } = ctx;
+      const { startDate, endDate, limit } = input;
+      
+      // Build where clause for date filtering
+      const whereClause: any = {
+        companyId,
+        status: "paid", // Only include paid invoices
+      };
+      
+      if (startDate || endDate) {
+        whereClause.invoiceDate = {};
+        if (startDate) whereClause.invoiceDate.gte = startDate;
+        if (endDate) whereClause.invoiceDate.lte = endDate;
+      }
+
+      // Get invoices with customer data and items for margin calculation
+      const invoices = await prisma.invoice.findMany({
+        where: whereClause,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          items: {
+            include: {
+              inventoryItem: {
+                include: {
+                  bom: {
+                    include: {
+                      items: {
+                        include: {
+                          componentItem: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Calculate customer metrics
+      const customerMetrics = new Map<string, {
+        customerId: string;
+        customerName: string;
+        totalRevenue: number;
+        totalCost: number;
+        invoiceCount: number;
+      }>();
+
+      for (const invoice of invoices) {
+        const customerId = invoice.customer.id;
+        const customerName = invoice.customer.name;
+        
+        if (!customerMetrics.has(customerId)) {
+          customerMetrics.set(customerId, {
+            customerId,
+            customerName,
+            totalRevenue: 0,
+            totalCost: 0,
+            invoiceCount: 0,
+          });
+        }
+
+        const metric = customerMetrics.get(customerId)!;
+        
+        // Add invoice revenue
+        metric.totalRevenue += invoice.totalAmount ? Number(invoice.totalAmount.toString()) : 0;
+        metric.invoiceCount += 1;
+
+        // Calculate cost for each line item
+        for (const item of invoice.items) {
+          const quantity = Number(item.quantity.toString());
+          let unitCost = 0;
+
+          if (item.inventoryItem.itemType === 'RAW_MATERIAL') {
+            unitCost = Number(item.inventoryItem.costPrice.toString());
+          } else if (item.inventoryItem.itemType === 'MANUFACTURED_GOOD' && item.inventoryItem.bom) {
+            // Add manual labor cost
+            if (item.inventoryItem.bom.manualLaborCost) {
+              unitCost += Number(item.inventoryItem.bom.manualLaborCost.toString());
+            }
+            
+            // Add BOM component costs
+            for (const bomItem of item.inventoryItem.bom.items) {
+              const componentCost = Number(bomItem.componentItem.costPrice.toString());
+              const componentQuantity = Number(bomItem.quantity.toString());
+              unitCost += componentCost * componentQuantity;
+            }
+          } else {
+            // Fallback to cost price
+            unitCost = Number(item.inventoryItem.costPrice.toString());
+          }
+
+          metric.totalCost += unitCost * quantity;
+        }
+      }
+
+      // Convert to array and calculate margins
+      const customers = Array.from(customerMetrics.values()).map(metric => {
+        const totalMargin = metric.totalRevenue - metric.totalCost;
+        const marginPercentage = metric.totalRevenue > 0 ? (totalMargin / metric.totalRevenue) * 100 : 0;
+        
+        return {
+          ...metric,
+          totalMargin,
+          marginPercentage,
+        };
+      });
+
+      // Sort by revenue (highest first) and limit
+      return customers
+        .sort((a, b) => b.totalRevenue - a.totalRevenue)
+        .slice(0, limit);
     }),
 
   getSalesFunnelData: companyProtectedProcedure
