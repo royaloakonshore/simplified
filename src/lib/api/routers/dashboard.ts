@@ -10,6 +10,7 @@ export const dashboardRouter = createTRPCRouter({
         periodType: z.enum(["month", "quarter", "year"]).default("month"),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
+        comparisonType: z.enum(["previous", "yearOverYear"]).default("previous"),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -25,15 +26,29 @@ export const dashboardRouter = createTRPCRouter({
       if (input.startDate && input.endDate) {
         currentPeriodStart = input.startDate;
         currentPeriodEnd = input.endDate;
-        const periodDiff = currentPeriodEnd.getTime() - currentPeriodStart.getTime();
-        previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
-        previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodDiff);
+        
+        if (input.comparisonType === "yearOverYear") {
+          // Year over year comparison
+          previousPeriodStart = new Date(currentPeriodStart.getFullYear() - 1, currentPeriodStart.getMonth(), currentPeriodStart.getDate());
+          previousPeriodEnd = new Date(currentPeriodEnd.getFullYear() - 1, currentPeriodEnd.getMonth(), currentPeriodEnd.getDate());
+        } else {
+          // Previous period with same length
+          const periodDiff = currentPeriodEnd.getTime() - currentPeriodStart.getTime();
+          previousPeriodEnd = new Date(currentPeriodStart.getTime() - 1);
+          previousPeriodStart = new Date(previousPeriodEnd.getTime() - periodDiff);
+        }
       } else {
         // Default to current month
         currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1);
         currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-        previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        
+        if (input.comparisonType === "yearOverYear") {
+          previousPeriodStart = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+          previousPeriodEnd = new Date(now.getFullYear() - 1, now.getMonth() + 1, 0, 23, 59, 59, 999);
+        } else {
+          previousPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          previousPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        }
       }
 
       // 1. Shipped Orders Count

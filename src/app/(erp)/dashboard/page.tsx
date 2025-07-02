@@ -24,6 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, FileText } from "lucide-react";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
+import { subDays, subYears } from "date-fns";
 import { useSession } from "next-auth/react";
 import SalesFunnel from "@/components/orders/SalesFunnel";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -268,11 +269,12 @@ export default function DashboardPage() {
 
 
 
-  // Fetch dashboard statistics with date filter
+  // Fetch dashboard statistics with date filter and comparison type
   const { data: stats, isLoading: statsLoading } = api.dashboard.getStats.useQuery({
     periodType: "month",
     startDate: dateRange.from,
     endDate: dateRange.to,
+    comparisonType: comparisonType,
   });
   
   // Fetch user's member companies to get the active company name
@@ -299,6 +301,28 @@ export default function DashboardPage() {
     const sign = trend >= 0 ? '+' : '';
     return `${sign}${trend.toFixed(1)}%`;
   };
+
+  // Calculate comparison period for backend
+  const getComparisonPeriod = React.useCallback(() => {
+    if (!dateRange.from || !dateRange.to) return { from: undefined, to: undefined };
+
+    const daysDiff = differenceInDays(dateRange.to, dateRange.from);
+    
+    if (comparisonType === "yearOverYear") {
+      return {
+        from: subYears(dateRange.from, 1),
+        to: subYears(dateRange.to, 1),
+      };
+    } else {
+      // Previous period with same length
+      const comparisonEnd = subDays(dateRange.from, 1);
+      const comparisonStart = subDays(comparisonEnd, daysDiff);
+      return {
+        from: comparisonStart,
+        to: comparisonEnd,
+      };
+    }
+  }, [dateRange, comparisonType]);
 
   const resetDateRange = () => {
     setDateRange({ 
@@ -353,7 +377,7 @@ export default function DashboardPage() {
         </div>
       )}
       
-      <div className="w-full max-w-none flex flex-1 flex-col gap-4 @container/main">
+      <div className="w-full max-w-none flex flex-1 flex-col gap-4 @container/main" id="dashboard-content">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
           {/* Period Comparison Toggle */}
           <ToggleGroup type="single" value={comparisonType} onValueChange={(value) => value && setComparisonType(value as "previous" | "yearOverYear")}>
@@ -403,9 +427,105 @@ export default function DashboardPage() {
               variant="outline" 
               size="sm" 
               className="flex items-center gap-2"
-              onClick={() => {
-                // Export dashboard as PDF
-                window.print();
+              onClick={async () => {
+                // Create a dedicated print-friendly view
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) return;
+                
+                // Get the dashboard content (excluding sidebar)
+                const dashboardContent = document.getElementById('dashboard-content');
+                if (!dashboardContent) return;
+                
+                const clonedContent = dashboardContent.cloneNode(true) as HTMLElement;
+                
+                // Create a complete HTML document for printing
+                printWindow.document.write(`
+                  <!DOCTYPE html>
+                  <html>
+                    <head>
+                      <title>Dashboard - ${formatDateRange()}</title>
+                      <meta charset="utf-8">
+                      <style>
+                        * { box-sizing: border-box; margin: 0; padding: 0; }
+                        body { 
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                          line-height: 1.5;
+                          color: #333;
+                          background: white;
+                          padding: 20px;
+                        }
+                        @media print {
+                          body { padding: 10px; }
+                          @page { 
+                            size: landscape;
+                            margin: 0.5in; 
+                          }
+                        }
+                        .w-full { width: 100% !important; }
+                        .grid { display: grid; }
+                        .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+                        .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                        .gap-4 { gap: 1rem; }
+                        .gap-6 { gap: 1.5rem; }
+                        .xl\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                        .sm\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                        .p-4 { padding: 1rem; }
+                        .p-6 { padding: 1.5rem; }
+                        .rounded-lg { border-radius: 0.5rem; }
+                        .border { border: 1px solid #e5e7eb; }
+                        .bg-card { background-color: #ffffff; }
+                        .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+                        .text-sm { font-size: 0.875rem; }
+                        .text-lg { font-size: 1.125rem; }
+                        .text-xl { font-size: 1.25rem; }
+                        .text-2xl { font-size: 1.5rem; }
+                        .text-3xl { font-size: 1.875rem; }
+                        .font-medium { font-weight: 500; }
+                        .font-semibold { font-weight: 600; }
+                        .font-bold { font-weight: 700; }
+                        .text-foreground { color: #0f172a; }
+                        .text-muted-foreground { color: #64748b; }
+                        .text-green-600 { color: #16a34a; }
+                        .text-red-600 { color: #dc2626; }
+                        .h-fit { height: fit-content; }
+                        .mb-2 { margin-bottom: 0.5rem; }
+                        .mb-4 { margin-bottom: 1rem; }
+                        .mt-2 { margin-top: 0.5rem; }
+                        .flex { display: flex; }
+                        .items-center { align-items: center; }
+                        .justify-between { justify-content: space-between; }
+                        .space-y-2 > * + * { margin-top: 0.5rem; }
+                        h1, h2, h3 { margin-bottom: 0.5rem; }
+                        .chart-container { 
+                          width: 100%; 
+                          height: 300px; 
+                          display: flex; 
+                          align-items: center; 
+                          justify-content: center; 
+                          border: 2px dashed #e5e7eb; 
+                          border-radius: 0.5rem;
+                          background-color: #f9fafb;
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div style="margin-bottom: 2rem;">
+                        <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">Dashboard</h1>
+                        <p style="color: #64748b;">Period: ${formatDateRange()} (${getComparisonDescription()})</p>
+                      </div>
+                      ${clonedContent.innerHTML}
+                    </body>
+                  </html>
+                `);
+                
+                printWindow.document.close();
+                
+                // Wait for content to load, then print
+                setTimeout(() => {
+                  printWindow.focus();
+                  printWindow.print();
+                  printWindow.close();
+                }, 500);
               }}
             >
               <FileText className="h-4 w-4" />
