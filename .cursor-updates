@@ -1468,6 +1468,60 @@ Successfully implemented delivery date column in the orders table as requested. 
 ### **Build Health Verification:**
 - TypeScript compilation: 0 errors (verified with `npx tsc --noEmit`)
 
+## 2025-01-31: Complete Issue Resolution - Status Display, Welcome Modal, Margin Components & VAT Enhancement
+
+**Session Objective:** Address four specific UX/functionality issues identified by user
+
+### **Issue Resolution Summary:**
+
+**1. ✅ Sales Funnel Conversion Rate Status:** 
+- **Finding**: Conversion rate card is ACTIVE and functioning correctly with real data calculation
+- **No Action Required**: Formula `(invoicedCount / quotationsCount) * 100` working properly
+
+**2. ✅ Welcome Modal Implementation:**
+- **Created**: `src/components/auth/WelcomeModal.tsx` with beautiful animated design
+- **Features**: Company logo support, personalized greeting, 3-second auto-redirect
+- **Integration**: Added to `src/app/auth/signin/signin-client.tsx` after successful login
+- **UX**: Smooth Framer Motion animations with loading progress bar
+
+**3. ✅ Margin Component Integration in Forms:**
+- **Added**: MarginCalculationCard to OrderForm.tsx (quotations only)  
+- **Added**: MarginCalculationCard to InvoiceForm.tsx (all invoices)
+- **Location**: Below totals section, above notes field
+- **Functionality**: 300ms debounced calculations, customer comparison, on-demand calculation button
+- **Type Safety**: Fixed inventory item mapping for proper cost estimation
+
+**4. ✅ VAT Display Enhancement in Quotation Details:**
+- **Enhanced**: OrderDetail.tsx quotation totals section with proper VAT breakdown
+- **Display**: Subtotal (excl. VAT), VAT amount, Total (incl. VAT) 
+- **Calculation**: Line-by-line VAT computation with discount support
+- **Formatting**: Consistent with invoice design patterns
+
+### **Technical Implementation Details:**
+
+**Welcome Modal Features:**
+- Animated logo with subtle rotation/scale effects
+- Personalized user greeting extracted from email
+- Company branding placeholder
+- Auto-dismiss after 3 seconds with smooth redirect
+- Backdrop blur and modern card design
+
+**Margin Integration:**
+- Smart conditional rendering (quotations for orders, all invoices)
+- Proper TypeScript type mapping for inventory items
+- Customer-specific margin comparison when available
+- Cost estimation fallback (70% of sales price) for missing cost data
+
+**VAT Calculation Logic:**
+- Supports both discount amounts and percentages
+- Line-by-line VAT computation respecting item-specific VAT rates
+- Proper Decimal.js handling for precision
+- Consistent Nordic currency formatting
+
+### **Build Health Verification:**
+- TypeScript compilation: 0 errors (verified with `npx tsc --noEmit`)
+- Next.js build: ✅ Successful (warnings only, no errors)
+
 ## 2025-01-31: Status Display Enhancement & Comprehensive Margin Calculation System
 
 **Major Session Accomplishments:**

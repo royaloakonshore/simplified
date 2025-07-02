@@ -379,9 +379,53 @@ export default function OrderDetail({ order }: OrderDetailProps) {
       {order.orderType === OrderType.quotation && (
         <div className="px-6 py-4 border-t border-border">
           <div className="flex justify-end">
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Subtotal: {formatCurrency(order.totalAmount ?? 0)}</p>
-              <p className="text-lg font-semibold">Total: {formatCurrency(order.totalAmount ?? 0)}</p>
+            <div className="w-full max-w-xs space-y-2">
+              {(() => {
+                // Calculate subtotal (excluding VAT), VAT, and grand total
+                let subtotal = new Prisma.Decimal(0);
+                let totalVat = new Prisma.Decimal(0);
+                
+                order.items.forEach((orderItem) => {
+                  const quantity = new Prisma.Decimal(orderItem.quantity);
+                  const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
+                  const discountAmount = orderItem.discountAmount ? new Prisma.Decimal(orderItem.discountAmount) : new Prisma.Decimal(0);
+                  const vatRate = new Prisma.Decimal(orderItem.vatRatePercent || 25.5);
+                  
+                  // Calculate line total before VAT
+                  let lineSubtotal = quantity.mul(unitPrice).sub(discountAmount);
+                  
+                  // Apply discount percentage if exists
+                  if (orderItem.discountPercentage) {
+                    const discountPercent = new Prisma.Decimal(orderItem.discountPercentage);
+                    lineSubtotal = lineSubtotal.mul(new Prisma.Decimal(1).sub(discountPercent.div(100)));
+                  }
+                  
+                  // Calculate VAT for this line
+                  const lineVat = lineSubtotal.mul(vatRate.div(100));
+                  
+                  subtotal = subtotal.add(lineSubtotal);
+                  totalVat = totalVat.add(lineVat);
+                });
+                
+                const grandTotal = subtotal.add(totalVat);
+                
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Subtotal (excl. VAT)</span>
+                      <span className="text-sm">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">VAT</span>
+                      <span className="text-sm">{formatCurrency(totalVat)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                      <span>Total (incl. VAT)</span>
+                      <span>{formatCurrency(grandTotal)}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

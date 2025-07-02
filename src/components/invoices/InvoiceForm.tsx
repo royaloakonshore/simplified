@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/customers/CustomerForm";
 import InvoiceSubmissionModal from "./InvoiceSubmissionModal";
+import { MarginCalculationCard } from "@/components/common/MarginCalculationCard";
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -686,6 +687,26 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                     </div>
                 </div>
               </div>
+
+              {/* Margin Calculation Card */}
+              <MarginCalculationCard
+                items={form.watch("items")?.map(item => {
+                  const invItem = inventoryItems.find(inv => inv.id === item.itemId);
+                  return {
+                    quantity: item.quantity || 0,
+                    unitPrice: item.unitPrice || 0,
+                    discountAmount: item.discountAmount || null,
+                    discountPercentage: item.discountPercent || null,
+                    inventoryItem: {
+                      itemType: 'RAW_MATERIAL', // Default, will be enhanced later
+                      costPrice: invItem?.salesPrice ? invItem.salesPrice * 0.7 : 0 // Estimated cost as 70% of sales price
+                    }
+                  };
+                }) || []}
+                customerId={form.watch("customerId")}
+                showCalculateButton={true}
+                className="mt-6"
+              />
 
               <FormField
                 control={form.control}

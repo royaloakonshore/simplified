@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Building, Info } from "lucide-react";
 import Link from "next/link";
+import { WelcomeModal } from "@/components/auth/WelcomeModal";
 
 // This component contains the actual sign-in logic and state
 function SignInPageClientContent() {
@@ -27,6 +28,8 @@ function SignInPageClientContent() {
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
   const [showBootstrapHint, setShowBootstrapHint] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeUserName, setWelcomeUserName] = useState<string>();
 
   // Combine URL error with any potential direct error messages for display
   // This ensures errors passed via URL (e.g. OAuth errors) are shown
@@ -92,8 +95,17 @@ function SignInPageClientContent() {
                toast.error(`Login Error: ${res.error}`);
             }
         } else if (res?.ok) {
-             router.push(callbackUrl);
-             router.refresh(); 
+             // Extract user name from email for personalized welcome
+             const userName = email.split('@')[0];
+             setWelcomeUserName(userName);
+             setShowWelcomeModal(true);
+             
+             // Auto-hide welcome modal and redirect after 3 seconds
+             setTimeout(() => {
+               setShowWelcomeModal(false);
+               router.push(callbackUrl);
+               router.refresh();
+             }, 3000); 
         } else {
            toast.error("An unknown error occurred during login.");
         }
@@ -148,6 +160,13 @@ function SignInPageClientContent() {
           )}
         </div>
       </BackgroundPaths>
+      
+      {/* Welcome Modal */}
+      <WelcomeModal
+        isVisible={showWelcomeModal}
+        userName={welcomeUserName}
+        companyName="Simplified ERP"
+      />
     </div>
   );
 }

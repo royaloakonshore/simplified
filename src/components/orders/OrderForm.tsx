@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/customers/CustomerForm";
 import OrderSubmissionModal from "./OrderSubmissionModal";
+import { MarginCalculationCard } from "@/components/common/MarginCalculationCard";
 
 // Define form value types from Zod schemas
 type CreateFormValues = z.infer<typeof createOrderSchema>;
@@ -825,6 +826,28 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                     </div>
                   </div>
                 </div>
+
+                {/* Margin Calculation Card - Only show for quotations */}
+                {createForm.watch("orderType") === OrderType.quotation && (
+                  <MarginCalculationCard
+                    items={createForm.watch("items")?.map(item => {
+                      const invItem = inventoryItems.find(inv => inv.id === item.inventoryItemId);
+                      return {
+                        quantity: item.quantity || 0,
+                        unitPrice: item.unitPrice || 0,
+                        discountAmount: item.discountAmount || null,
+                        discountPercentage: item.discountPercent || null,
+                        inventoryItem: {
+                          itemType: 'RAW_MATERIAL', // Default, will be enhanced later
+                          costPrice: invItem?.salesPrice ? invItem.salesPrice * 0.7 : 0 // Estimated cost as 70% of sales price
+                        }
+                      };
+                    }) || []}
+                    customerId={createForm.watch("customerId")}
+                    showCalculateButton={true}
+                    className="mt-6"
+                  />
+                )}
 
                 <FormField
                   control={createForm.control}
