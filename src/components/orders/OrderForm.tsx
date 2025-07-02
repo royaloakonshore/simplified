@@ -29,6 +29,7 @@ import { formatCurrency } from '@/lib/utils';
 import { z } from 'zod';
 import { PlusCircle as PlusCircleIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 
 // Dialog and CustomerForm imports
 import {
@@ -458,10 +459,17 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="sr-only">Item</FormLabel>
-                                  <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, updateForm); }} value={field.value} disabled={updateOrderMutation.isPending}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
-                                    <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
-                                  </Select>
+                                                                     <ComboboxResponsive
+                                     onSelectedValueChange={(value) => { field.onChange(value); handleItemChange(index, value, updateForm); }}
+                                     selectedValue={field.value}
+                                     options={inventoryItems.map(i => ({
+                                       value: i.id,
+                                       label: `${i.name} (${i.sku})`
+                                     }))}
+                                     placeholder="Select item..."
+                                     searchPlaceholder="Search items..."
+                                     disabled={updateOrderMutation.isPending}
+                                   />
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -693,10 +701,18 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                   render={({ field }) => (
                                     <FormItem>
                                       <FormLabel className="sr-only">Item</FormLabel>
-                                      <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }} value={field.value} disabled={createOrderMutation.isPending}>
-                                        <FormControl><SelectTrigger className="min-w-[200px]"><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
-                                        <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
-                                      </Select>
+                                                                             <ComboboxResponsive
+                                         onSelectedValueChange={(value) => { field.onChange(value); handleItemChange(index, value, createForm); }}
+                                         selectedValue={field.value}
+                                         options={inventoryItems.map(i => ({
+                                           value: i.id,
+                                           label: `${i.name} (${i.sku})`
+                                         }))}
+                                         placeholder="Select item..."
+                                         searchPlaceholder="Search items..."
+                                         disabled={createOrderMutation.isPending}
+                                         className="min-w-[200px]"
+                                       />
                                       <FormMessage />
                                     </FormItem>
                                   )}

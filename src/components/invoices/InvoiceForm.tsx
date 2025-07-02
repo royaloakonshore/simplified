@@ -7,7 +7,7 @@ import { type Customer, type InventoryItem } from "@prisma/client";
 import Decimal from 'decimal.js';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { 
   CreateInvoiceSchema, 
@@ -54,6 +54,7 @@ import {
 import { CustomerForm } from "@/components/customers/CustomerForm";
 import InvoiceSubmissionModal from "./InvoiceSubmissionModal";
 import { MarginCalculationCard } from "@/components/common/MarginCalculationCard";
+import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -524,10 +525,20 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               name={`items.${index}.itemId`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <Select onValueChange={(value) => { field.onChange(value); handleItemChange(index, value); }} defaultValue={field.value} disabled={createInvoiceMutation.isPending}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select item..." /></SelectTrigger></FormControl>
-                                    <SelectContent>{inventoryItems.map(i => <SelectItem key={i.id} value={i.id}>{i.name} ({i.sku})</SelectItem>)}</SelectContent>
-                                  </Select>
+                                                                     <ComboboxResponsive
+                                     onSelectedValueChange={(value) => {
+                                       field.onChange(value);
+                                       handleItemChange(index, value);
+                                     }}
+                                     selectedValue={field.value}
+                                     disabled={createInvoiceMutation.isPending}
+                                     options={inventoryItems.map(i => ({
+                                       value: i.id,
+                                       label: `${i.name} (${i.sku})`,
+                                     }))}
+                                     placeholder="Select item..."
+                                     searchPlaceholder="Search items..."
+                                   />
                                   <FormMessage />
                                 </FormItem>
                               )}

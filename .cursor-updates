@@ -753,7 +753,7 @@ Successfully implemented a complete bootstrap system with both web interface and
 - **Phase 2B**: UI Enhancements (95% Complete) ✅
 - **Phase 2C**: Table Standardization (100% Complete) ✅
 - **Phase 3**: Bootstrap System (100% Complete) ✅
-- **Overall Progress**: 85% → 90%+ (production deployment ready)
+- **Overall Progress**: 85% → 90% (production deployment ready)
 
 **🚀 DEPLOYMENT BENEFITS:**
 1. **Zero Configuration Setup**: New deployments work out-of-the-box
@@ -2697,18 +2697,26 @@ This session represents a significant leap in system maturity, transforming the 
 - Fixed margin calculation to use actual BOM component costs instead of fallback values
 - Added comprehensive cost data validation with warning alerts
 - Updated OrderForm and InvoiceForm to pass complete inventory data with BOM information
-- Fixed TypeScript type definitions to include BOM data structure
+- Enhanced invoice and order edit pages to include necessary margin calculation data
+- Added TypeScript safety improvements with proper null handling and type filtering
 
-### Data Integrity Warnings
-- Added MarginCalculationCard warnings when cost data is incomplete
-- Alerts users when manufactured goods are missing BOM data
-- Warns about missing component cost prices to prevent false confidence
-- Shows specific issues for each problematic inventory item
+## 2024-01-XX - Implemented Search/Select Dropdowns for Line Items
 
-### Technical Improvements  
-- Updated EditOrderFormLoader and invoice add/edit pages to include BOM data
-- Fixed TypeScript compilation errors related to null value handling
-- Enhanced inventory router to include BOM data in list queries
-- Corrected margin calculation interface to use 'bom' instead of 'billOfMaterial'
+### Enhanced User Experience for Line Item Selection
+- **OrderForm Enhancement**: Replaced basic Select components with searchable ComboboxResponsive dropdowns for inventory item selection
+- **InvoiceForm Enhancement**: Implemented the same searchable dropdown pattern for invoice line items
+- **Consistent UX Pattern**: Now all forms (BOM, Order, Invoice) use the same searchable interface for selecting inventory items
+- **Improved Search Functionality**: Users can now search by item name or SKU when adding line items to orders and invoices
+- **Better Usability**: Particularly beneficial for companies with large inventory catalogs, reducing time to find specific items
 
-These changes ensure accurate margin calculations by using real cost data from BOMs and raw material costs, while providing clear warnings when data is incomplete.
+### Technical Implementation
+- Added ComboboxResponsive import to both OrderForm and InvoiceForm components
+- Replaced Select components with ComboboxResponsive using proper prop names (selectedValue, onSelectedValueChange)
+- Maintained all existing functionality while adding search capabilities
+- Added appropriate placeholders and search text for better user guidance
+- Preserved disabled states and form validation patterns
+
+### Quality Assurance
+- Build successful with zero TypeScript compilation errors
+- All existing form functionality preserved including item change handlers and validation
+- Consistent styling with existing BOM form implementation
