@@ -58,6 +58,21 @@ export const inventoryRouter = createTRPCRouter({
           where: whereClause,
           include: { 
             inventoryCategory: { select: { name: true, id: true} },
+            bom: {
+              select: {
+                manualLaborCost: true,
+                items: {
+                  select: {
+                    quantity: true,
+                    componentItem: {
+                      select: {
+                        costPrice: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           }
         }),
         prisma.inventoryItem.count({ where: whereClause })

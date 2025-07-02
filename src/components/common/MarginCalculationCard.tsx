@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calculator, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Calculator, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
 import { 
   calculateMargin, 
   formatMarginPercentage, 
@@ -14,6 +14,7 @@ import {
   type MarginCalculationItem 
 } from '@/lib/utils/margin-calculation';
 import { api } from '@/lib/trpc/react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface MarginCalculationCardProps {
   /** Items to calculate margin for */
@@ -72,6 +73,44 @@ export function MarginCalculationCard({
       calculateMarginDebounced();
     }
   }, [items, showCalculateButton, calculateMarginDebounced]);
+
+  // Check for cost data quality issues
+  const costDataIssues = React.useMemo(() => {
+    if (!items || items.length === 0) return [];
+    
+    const issues: string[] = [];
+    
+    items.forEach((item, index) => {
+      const itemType = item.inventoryItem.itemType;
+      const costPrice = item.inventoryItem.costPrice;
+      
+      // Check for missing cost price
+      if (!costPrice || costPrice === 0) {
+        issues.push(`Item ${index + 1}: Missing cost price`);
+      }
+      
+      // Check for manufactured goods without BOM data
+      if (itemType === 'MANUFACTURED_GOOD') {
+        if (!item.inventoryItem.bom) {
+          issues.push(`Item ${index + 1}: Manufactured good missing BOM data`);
+        } else if (!item.inventoryItem.bom.items || item.inventoryItem.bom.items.length === 0) {
+          issues.push(`Item ${index + 1}: BOM has no component items`);
+        } else {
+          // Check for missing component costs
+          const missingComponentCosts = item.inventoryItem.bom.items.some(bomItem => 
+            !bomItem.componentItem.costPrice || bomItem.componentItem.costPrice === 0
+          );
+          if (missingComponentCosts) {
+            issues.push(`Item ${index + 1}: BOM components missing cost prices`);
+          }
+        }
+      }
+    });
+    
+    return issues;
+  }, [items]);
+
+  const hasDataIssues = costDataIssues.length > 0;
 
   // Calculate comparison data
   const comparisonData = React.useMemo(() => {
@@ -137,6 +176,26 @@ export function MarginCalculationCard({
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Cost Data Quality Warning */}
+            {hasDataIssues && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium">Cost data incomplete - margin calculation may be inaccurate:</p>
+                    <ul className="text-xs space-y-1 ml-2">
+                      {costDataIssues.slice(0, 3).map((issue, index) => (
+                        <li key={index}>• {issue}</li>
+                      ))}
+                      {costDataIssues.length > 3 && (
+                        <li>• ... and {costDataIssues.length - 3} more issues</li>
+                      )}
+                    </ul>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {/* Main Margin Display */}
             <div className="flex items-center justify-between">
               <div>

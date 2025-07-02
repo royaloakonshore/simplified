@@ -58,6 +58,16 @@ type ProcessedInventoryItemForOrder = Omit<InventoryItem, 'costPrice' | 'salesPr
   minimumStockLevel: number;
   reorderLevel: number;
   defaultVatRatePercent: number | null;
+  // Include BOM data for manufactured goods
+  bom?: {
+    manualLaborCost: number;
+    items: {
+      quantity: number;
+      componentItem: {
+        costPrice: number;
+      };
+    }[];
+  };
 };
 
 // Based on OrderItem, but Decimals are numbers, and inventoryItem is ProcessedInventoryItemForOrder
@@ -832,17 +842,32 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   <MarginCalculationCard
                     items={createForm.watch("items")?.map(item => {
                       const invItem = inventoryItems.find(inv => inv.id === item.inventoryItemId);
+                      if (!invItem) {
+                        console.warn(`Inventory item not found for ID: ${item.inventoryItemId}`);
+                        return null;
+                      }
+                      
                       return {
                         quantity: item.quantity || 0,
                         unitPrice: item.unitPrice || 0,
                         discountAmount: item.discountAmount || null,
                         discountPercentage: item.discountPercent || null,
                         inventoryItem: {
-                          itemType: 'RAW_MATERIAL', // Default, will be enhanced later
-                          costPrice: invItem?.salesPrice ? invItem.salesPrice * 0.7 : 0 // Estimated cost as 70% of sales price
-                        }
+                          itemType: invItem.itemType, // Use actual item type
+                          costPrice: invItem.costPrice, // Use actual cost price
+                          // Include BOM data for manufactured goods
+                          bom: invItem.itemType === 'MANUFACTURED_GOOD' && invItem.bom ? {
+                            manualLaborCost: invItem.bom.manualLaborCost,
+                            items: invItem.bom.items?.map(bomItem => ({
+                              quantity: bomItem.quantity,
+                              componentItem: {
+                                costPrice: bomItem.componentItem.costPrice
+                              }
+                            }))
+                          } : null
+                        },
                       };
-                    }) || []}
+                    }).filter((item): item is NonNullable<typeof item> => item !== null) || []}
                     customerId={createForm.watch("customerId")}
                     showCalculateButton={true}
                     className="mt-6"

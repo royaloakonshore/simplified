@@ -24,8 +24,26 @@ async function getFormData(orderId?: string) {
           id: true,
           name: true,
           salesPrice: true, // Use salesPrice for invoices
+          costPrice: true, // Add costPrice for margin calculations
+          itemType: true, // Add itemType for proper margin calculation
           unitOfMeasure: true,
           sku: true, // Added sku field
+          // Include BOM data for manufactured goods
+          bom: {
+            select: {
+              manualLaborCost: true,
+              items: {
+                select: {
+                  quantity: true,
+                  componentItem: {
+                    select: {
+                      costPrice: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
       },
       orderBy: { name: 'asc' },
     });
@@ -35,8 +53,20 @@ async function getFormData(orderId?: string) {
     id: item.id,
     name: item.name,
     salesPrice: item.salesPrice.toNumber(), // Convert Decimal to number
+    costPrice: item.costPrice.toNumber(), // Convert Decimal to number for margin calculations
+    itemType: item.itemType, // Include item type
     unitOfMeasure: item.unitOfMeasure ?? '', // Provide default for null unitOfMeasure
-    sku: item.sku ?? '' // Provide default empty string for null SKU
+    sku: item.sku ?? '', // Provide default empty string for null SKU
+    // Process BOM data if present
+    bom: item.bom ? {
+      manualLaborCost: item.bom.manualLaborCost.toNumber(),
+      items: item.bom.items.map(bomItem => ({
+        quantity: bomItem.quantity.toNumber(),
+        componentItem: {
+          costPrice: bomItem.componentItem.costPrice.toNumber(),
+        },
+      })),
+    } : undefined,
   }));
 
   // If orderId is provided, fetch the order for prefilling

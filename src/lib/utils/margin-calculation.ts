@@ -16,16 +16,16 @@ export interface MarginCalculationItem {
   inventoryItem: {
     itemType: string;
     costPrice: number | Decimal;
+    bom?: {
+      manualLaborCost?: number | Decimal | null;
+      items?: Array<{
+        quantity: number | Decimal;
+        componentItem: {
+          costPrice: number | Decimal;
+        };
+      }>;
+    } | null;
   };
-  billOfMaterial?: {
-    manualLaborCost?: number | Decimal | null;
-    items?: Array<{
-      quantity: number | Decimal;
-      inventoryItem: {
-        costPrice: number | Decimal;
-      };
-    }>;
-  } | null;
 }
 
 export interface MarginCalculationResult {
@@ -78,18 +78,18 @@ export function calculateItemCost(item: MarginCalculationItem): number {
     return toSafeNumber(item.inventoryItem.costPrice);
   }
   
-  if (itemType === 'MANUFACTURED_GOOD' && item.billOfMaterial) {
+  if (itemType === 'MANUFACTURED_GOOD' && item.inventoryItem.bom) {
     let totalCost = 0;
     
     // Add manual labor cost
-    if (item.billOfMaterial.manualLaborCost) {
-      totalCost += toSafeNumber(item.billOfMaterial.manualLaborCost);
+    if (item.inventoryItem.bom.manualLaborCost) {
+      totalCost += toSafeNumber(item.inventoryItem.bom.manualLaborCost);
     }
     
     // Add BOM component costs
-    if (item.billOfMaterial.items) {
-      for (const bomItem of item.billOfMaterial.items) {
-        const componentCost = toSafeNumber(bomItem.inventoryItem.costPrice);
+    if (item.inventoryItem.bom.items) {
+      for (const bomItem of item.inventoryItem.bom.items) {
+        const componentCost = toSafeNumber(bomItem.componentItem.costPrice);
         const componentQuantity = toSafeNumber(bomItem.quantity);
         totalCost += componentCost * componentQuantity;
       }

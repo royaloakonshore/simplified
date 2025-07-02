@@ -53,8 +53,19 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
             id: item.id,
             name: item.name,
             salesPrice: parseFloat(item.salesPrice.toString()),
+            costPrice: parseFloat(item.costPrice.toString()),
+            itemType: item.itemType,
             unitOfMeasure: item.unitOfMeasure || '',
-            sku: item.sku || ''
+            sku: item.sku || '',
+            bom: item.bom ? {
+              manualLaborCost: parseFloat(item.bom.manualLaborCost.toString()),
+              items: item.bom.items.map(bomItem => ({
+                quantity: parseFloat(bomItem.quantity.toString()),
+                componentItem: {
+                  costPrice: parseFloat(bomItem.componentItem.costPrice.toString()),
+                },
+              })),
+            } : undefined,
           }))}
           isEditMode={true}
           editInvoiceData={{

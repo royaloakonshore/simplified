@@ -100,12 +100,7 @@ function SignInPageClientContent() {
              setWelcomeUserName(userName);
              setShowWelcomeModal(true);
              
-             // Auto-hide welcome modal and redirect after 3 seconds
-             setTimeout(() => {
-               setShowWelcomeModal(false);
-               router.push(callbackUrl);
-               router.refresh();
-             }, 3000); 
+             // Don't auto-redirect anymore - let the modal handle it
         } else {
            toast.error("An unknown error occurred during login.");
         }
@@ -166,6 +161,11 @@ function SignInPageClientContent() {
         isVisible={showWelcomeModal}
         userName={welcomeUserName}
         companyName="Simplified ERP"
+        onPreloadComplete={() => {
+          setShowWelcomeModal(false);
+          router.push(callbackUrl);
+          router.refresh();
+        }}
       />
     </div>
   );

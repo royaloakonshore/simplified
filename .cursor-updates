@@ -2682,3 +2682,33 @@ This session represents a significant leap in system maturity, transforming the 
 - **Currency Standardization Complete**: Fixed all currency displays to use EUR with fi-FI locale - updated OrderHistoryTable, InvoiceHistoryTable, and Dashboard from mixed USD/EUR with en-US to consistent "12,50 €" Nordic formatting
 - **Enhanced Localization Framework**: Upgraded `src/lib/utils/localization.ts` and `src/lib/utils.ts` formatCurrency to use Nordic number parsing, establishing foundation for future form input validation with comma decimal support
 - **Production Build Verified**: All Nordic formatting changes pass TypeScript compilation and production build successfully with zero errors, system ready for Nordic users who input numbers with comma decimal separators
+
+## 2024-01-XX - Enhanced Welcome Modal and Fixed Margin Calculation Cost Data
+
+### Welcome Modal Improvements
+- Enhanced welcome modal with proper backdrop blur and timing-based preloading simulation
+- Modified modal to hold on top of dashboard with visual progress indicators
+- Added auto-redirect after completion with better UX timing
+- Removed problematic data preloading to prevent tRPC query errors
+
+### Margin Calculation Data Accuracy
+- **CRITICAL FIX**: Updated inventory data fetching to include itemType, costPrice, and BOM data
+- Enhanced inventory.list tRPC query to include BOM relations for manufactured goods
+- Fixed margin calculation to use actual BOM component costs instead of fallback values
+- Added comprehensive cost data validation with warning alerts
+- Updated OrderForm and InvoiceForm to pass complete inventory data with BOM information
+- Fixed TypeScript type definitions to include BOM data structure
+
+### Data Integrity Warnings
+- Added MarginCalculationCard warnings when cost data is incomplete
+- Alerts users when manufactured goods are missing BOM data
+- Warns about missing component cost prices to prevent false confidence
+- Shows specific issues for each problematic inventory item
+
+### Technical Improvements  
+- Updated EditOrderFormLoader and invoice add/edit pages to include BOM data
+- Fixed TypeScript compilation errors related to null value handling
+- Enhanced inventory router to include BOM data in list queries
+- Corrected margin calculation interface to use 'bom' instead of 'billOfMaterial'
+
+These changes ensure accurate margin calculations by using real cost data from BOMs and raw material costs, while providing clear warnings when data is incomplete.

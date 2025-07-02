@@ -66,8 +66,26 @@ async function getEditFormData(orderId: string) {
             id: true,
             name: true,
             salesPrice: true,
+            costPrice: true, // Add costPrice for margin calculations
+            itemType: true, // Add itemType for proper margin calculation
             unitOfMeasure: true,
-            sku: true // Added sku to selection
+            sku: true, // Added sku to selection
+            // Include BOM data for manufactured goods
+            bom: {
+              select: {
+                manualLaborCost: true,
+                items: {
+                  select: {
+                    quantity: true,
+                    componentItem: {
+                      select: {
+                        costPrice: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
         },
         orderBy: { name: 'asc' },
     });
