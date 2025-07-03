@@ -50,10 +50,10 @@ function StatsCard({
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <CardDescription>{title}</CardDescription>
-            <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {value}
-            </CardTitle>
+        <CardDescription>{title}</CardDescription>
+        <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
+          {value}
+        </CardTitle>
           </div>
           <div className="flex items-center gap-1 rounded-lg border bg-background px-2 py-1 text-xs ml-2 flex-shrink-0">
             {trendDirection === "up" ? (
@@ -391,36 +391,36 @@ export default function DashboardPage() {
 
           {/* Date Range Picker and Export */}
           <div className="flex items-center gap-2">
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4" />
-                  {formatDateRange()}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={(range) => {
-                    setDateRange({
-                      from: range?.from,
-                      to: range?.to,
-                    });
-                  }}
-                  numberOfMonths={2}
-                  initialFocus
-                />
-                <div className="flex gap-2 p-3 border-t">
-                  <Button size="sm" onClick={resetDateRange}>
+          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {formatDateRange()}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => {
+                  setDateRange({
+                    from: range?.from,
+                    to: range?.to,
+                  });
+                }}
+                numberOfMonths={2}
+                initialFocus
+              />
+              <div className="flex gap-2 p-3 border-t">
+                <Button size="sm" onClick={resetDateRange}>
                     Current Month
-                  </Button>
-                  <Button size="sm" onClick={() => setIsDatePickerOpen(false)}>
-                    Close
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+                </Button>
+                <Button size="sm" onClick={() => setIsDatePickerOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
             
             {/* Export to PDF Button */}
             <Button 
@@ -566,34 +566,34 @@ export default function DashboardPage() {
             />
 
             {/* Order Fulfillment Rate */}
-            <StatsCard 
-              title="Order Fulfillment Rate" 
-              value={statsLoading ? "..." : `${(stats?.orderFulfillmentRate.percentage || 0).toFixed(1)}%`} 
-              description={`${stats?.orderFulfillmentRate.onTime || 0} of ${stats?.orderFulfillmentRate.total || 0} on time`} 
-              trend={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "Excellent" : (stats?.orderFulfillmentRate.percentage ?? 0) >= 80 ? "Good" : "Needs Improvement"} 
-              trendDirection={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "up" : "down"} 
-              href="/orders"
-            />
+          <StatsCard 
+            title="Order Fulfillment Rate" 
+            value={statsLoading ? "..." : `${(stats?.orderFulfillmentRate.percentage || 0).toFixed(1)}%`} 
+            description={`${stats?.orderFulfillmentRate.onTime || 0} of ${stats?.orderFulfillmentRate.total || 0} on time`} 
+            trend={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "Excellent" : (stats?.orderFulfillmentRate.percentage ?? 0) >= 80 ? "Good" : "Needs Improvement"} 
+            trendDirection={(stats?.orderFulfillmentRate.percentage ?? 0) >= 95 ? "up" : "down"} 
+            href="/orders"
+          />
 
             {/* Inventory Turnover */}
-            <StatsCard 
-              title="Inventory Turnover" 
-              value={statsLoading ? "..." : `${Math.abs(stats?.inventoryTurnover.percentage || 0).toFixed(1)}%`} 
-              description="Inventory value change" 
-              trend={`${(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "↓" : "↑"} Stock movement`} 
-              trendDirection={(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "up" : "down"} 
-              href="/inventory"
-            />
+          <StatsCard 
+            title="Inventory Turnover" 
+            value={statsLoading ? "..." : `${Math.abs(stats?.inventoryTurnover.percentage || 0).toFixed(1)}%`} 
+            description="Inventory value change" 
+            trend={`${(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "↓" : "↑"} Stock movement`} 
+            trendDirection={(stats?.inventoryTurnover.percentage ?? 0) > 0 ? "up" : "down"} 
+            href="/inventory"
+          />
 
             {/* Customer Growth */}
-            <StatsCard 
-              title="Customer Growth" 
-              value={statsLoading ? "..." : `+${stats?.customerGrowth.current || 0}`} 
+          <StatsCard 
+            title="Customer Growth" 
+            value={statsLoading ? "..." : `+${stats?.customerGrowth.current || 0}`} 
               description={`New customers ${getComparisonDescription()}`} 
-              trend={statsLoading ? "..." : formatTrend(stats?.customerGrowth.trend || 0)} 
-              trendDirection={(stats?.customerGrowth.trend ?? 0) >= 0 ? "up" : "down"} 
-              href="/customers"
-            />
+            trend={statsLoading ? "..." : formatTrend(stats?.customerGrowth.trend || 0)} 
+            trendDirection={(stats?.customerGrowth.trend ?? 0) >= 0 ? "up" : "down"} 
+            href="/customers"
+          />
           </div>
         </div>
 
@@ -630,12 +630,12 @@ export default function DashboardPage() {
               
               {/* Revenue Chart Period Controls - only show when not on customers view */}
               {chartType !== "customers" && (
-                <Tabs value={chartType} onValueChange={(value) => setChartType(value as "weekly" | "monthly")} className="space-y-4">
-                  <TabsList>
-                    <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                    <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+            <Tabs value={chartType} onValueChange={(value) => setChartType(value as "weekly" | "monthly")} className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+              </TabsList>
+            </Tabs>
               )}
             </div>
           </CardHeader>

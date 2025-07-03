@@ -22,7 +22,7 @@ import {
     DropdownMenuItem, 
     DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, FileText, CreditCard } from 'lucide-react';
+import { MoreHorizontal, FileText, CreditCard, Send, Download } from 'lucide-react';
 import { 
   Table, 
   TableHeader, 
@@ -32,6 +32,7 @@ import {
   TableRow,
   TableFooter
 } from "@/components/ui/table";
+import { SendConfirmationModal, type SendMethod } from "@/components/common/SendConfirmationModal";
 
 // --- Start: New types inferred from tRPC router ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -48,6 +49,7 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const [error, setError] = useState<string | null>(null);
   const [isCrediting, setIsCrediting] = useState(false);
   const [creditError, setCreditError] = useState<string | null>(null);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const formatDate = (date: Date | null | undefined): string => {
     if (!date) return '-';
@@ -143,6 +145,42 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     }
   };
 
+  const handleSendInvoice = async (method: SendMethod) => {
+    try {
+      if (method === "email-pdf") {
+        // Check if customer has email
+        if (!invoice.customer.email) {
+          toast.error("Customer email is required to send invoice");
+          return;
+        }
+        // Use the existing send service
+        const { sendInvoiceEmail } = await import("@/lib/services/send.service");
+        await sendInvoiceEmail({
+          invoiceId: invoice.id,
+          method: "email-pdf",
+        });
+        toast.success("Invoice sent successfully!");
+      } else if (method === "download-pdf") {
+        // Placeholder for PDF download
+        toast.info("PDF download functionality will be implemented soon");
+      } else if (method === "download-xml") {
+        // Use existing Finvoice export
+        await handleFinvoiceExport();
+      }
+    } catch (error) {
+      console.error("Send invoice error:", error);
+      toast.error("Failed to send invoice. Please try again.");
+    }
+  };
+
+  const canSendInvoice = () => {
+    // Allow sending for draft and sent invoices if customer has email
+    return (invoice.status === PrismaInvoiceStatus.draft || 
+            invoice.status === PrismaInvoiceStatus.sent) &&
+           invoice.customer.email &&
+           invoice.status !== PrismaInvoiceStatus.cancelled;
+  };
+
   const canExportFinvoice = invoice.status === PrismaInvoiceStatus.sent || invoice.status === PrismaInvoiceStatus.paid || invoice.status === PrismaInvoiceStatus.overdue;
   const canBeCredited = ([PrismaInvoiceStatus.sent, PrismaInvoiceStatus.paid, PrismaInvoiceStatus.overdue] as PrismaInvoiceStatus[]).includes(invoice.status);
 
@@ -166,170 +204,328 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 
   return (
     <div className="bg-card text-card-foreground rounded-md shadow overflow-hidden">
+      {/* Header with Invoice Number and Actions */}
       <div className="px-6 py-4 border-b border-border">
         <div className="flex flex-wrap items-center justify-between gap-4">
-           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-semibold truncate" title={`Invoice ${invoice.invoiceNumber}`}>Invoice {invoice.invoiceNumber}</h2>
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(invoice.status)}`}>
-              {invoice.status.replace('_', ' ').toUpperCase()}
-            </span>
-            <div className="mt-2 text-sm text-muted-foreground">
-                <p>Invoice Date: {formatDate(invoice.invoiceDate)}</p>
-                <p>Due Date: {formatDate(invoice.dueDate)}</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-semibold truncate" title={`Invoice ${invoice.invoiceNumber}`}>
+              Invoice {invoice.invoiceNumber}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(invoice.status)}`}>
+                {invoice.status.replace('_', ' ').toUpperCase()}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Created {new Date(invoice.createdAt).toLocaleDateString()}
+              </span>
             </div>
-           </div>
-           <div className="flex items-center space-x-2">
-             {/* The following block related to availableStatusTransitions and the Update Status button is removed
-             {availableStatusTransitions.length > 0 && (
-               <Button variant="outline" onClick={() => setShowStatusModal(true)}>Update Status</Button>
-             )}
-             */}
-             {canExportFinvoice && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <span className="sr-only">Open menu</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {canExportFinvoice && (
-                      <DropdownMenuItem onClick={handleFinvoiceExport} disabled={isExporting}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        {isExporting ? 'Exporting Finvoice...' : 'Export Finvoice'}
-                      </DropdownMenuItem>
-                    )}
-                    {canBeCredited && (
-                      <DropdownMenuItem onClick={handleCreateCreditNote} disabled={isCrediting}>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        {isCrediting ? 'Crediting...' : 'Create Credit Note'}
-                      </DropdownMenuItem>
-                    )}
-                    {/* Placeholder for future actions */}
-                    {/* <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <FileText className="mr-2 h-4 w-4" /> Export PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Copy className="mr-2 h-4 w-4" /> Copy Invoice
-                    </DropdownMenuItem> */}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-             )}
-           </div>
-        </div>
-        {/* Original Invoice Link */}
-        {invoice.originalInvoiceId && (
-          <p className="text-sm text-muted-foreground">
-            <strong>Original Invoice:</strong> <Link href={`/invoices/${invoice.originalInvoiceId}`} className="text-primary hover:underline">{invoice.originalInvoiceId}</Link>
-          </p>
-        )}
-        
-        {/* Credit Note Link */}
-        {invoice.creditNoteId && (
-          <p className="text-sm text-muted-foreground">
-            <strong>Credit Note:</strong> <Link href={`/invoices/${invoice.creditNoteId}`} className="text-primary hover:underline">{invoice.creditNoteId}</Link>
-          </p>
-        )}
-
-        {/* Link to Order if available */}
-        {invoice.order && (
-          <p className="text-sm text-muted-foreground">
-            <strong>Based on Order:</strong> <Link href={`/orders/${invoice.order.id}`} className="text-primary hover:underline">{invoice.order.orderNumber}</Link>
-          </p>
-        )}
-      </div>
-      <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-        <div>
-          <h3 className="text-lg font-medium mb-2">Customer</h3>
-          <div className="text-sm space-y-1 text-muted-foreground">
-            <p className="font-medium text-primary">
-              <Link
-                href={`/customers/${invoice.customer.id}`}
-                className="hover:underline"
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Send Button */}
+            {(invoice.status === 'DRAFT' || invoice.status === 'SENT' || invoice.status === 'OVERDUE') && 
+             invoice.customer.email && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSendModal(true)}
+                className="gap-2"
               >
-                {invoice.customer.name}
-              </Link>
-            </p>
-            {/* Display primary contact info if no separate addresses or only one type */}
-            {(!billingAddress && !shippingAddress && invoice.customer.addresses && invoice.customer.addresses.length > 0) && (
-                 <>
-                    <p>{invoice.customer.addresses[0].streetAddress}</p>
-                    <p>{invoice.customer.addresses[0].postalCode} {invoice.customer.addresses[0].city}</p>
-                    <p>{invoice.customer.addresses[0].countryCode}</p>
-                 </>
+                <Send className="h-4 w-4" />
+                Send
+              </Button>
             )}
-            <p>{invoice.customer.email}</p>
-            <p>{invoice.customer.phone}</p>
-          </div>
-        </div>
-        
-        <AddressBlock address={billingAddress} title="Billing Address" />
-        {/* Spacer div or conditional rendering for layout if only one of billing/shipping exists could be added here */}
-        <AddressBlock address={shippingAddress} title="Shipping Address" />
-        
-        <div>
-          <h3 className="text-lg font-medium mb-2">Invoice Summary</h3>
-          <div className="text-sm space-y-1 text-muted-foreground">
-            <p>Subtotal: {formatCurrency(invoice.totalAmount)}</p>
-            <p>VAT Amount: {formatCurrency(invoice.totalVatAmount)}</p>
-            <p>Total: {formatCurrency(Number(invoice.totalAmount) + Number(invoice.totalVatAmount))}</p>
-          </div>
-        </div>
-      </div>
-      {invoice.notes && (
-        <div className="px-6 py-4 border-t border-border">
-          <h3 className="text-lg font-medium mb-2">Notes</h3>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
-        </div>
-      )}
-      <div className="px-6 py-4 border-t border-border">
-        <h3 className="text-lg font-medium mb-4">Invoice Items</h3>
-        <div className="overflow-x-auto">
-          <div className="bg-background p-4 rounded-lg">
-            <h4 className="font-semibold mb-2">Invoice Items</h4>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoice.items.map((item: InvoiceDetailData['items'][number]) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div className="font-medium">{item.inventoryItem?.name ?? 'N/A'}</div>
-                      <div className="text-sm text-muted-foreground">{item.description}</div>
-                    </TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(Number(item.quantity) * Number(item.unitPrice))}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right font-bold">Subtotal</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(invoice.totalAmount)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right font-bold">VAT</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(invoice.totalVatAmount)}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell colSpan={3} className="text-right font-bold">TOTAL</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(Number(invoice.totalAmount) + Number(invoice.totalVatAmount))}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href={`/invoices/${invoice.id}/edit`} className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Edit Invoice
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleFinvoiceExport()} 
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Finvoice XML
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleCreateCreditNote()} 
+                  className="flex items-center gap-2"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Create Credit Note
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
-      {error && <div className="p-4 text-red-500">Error: {error}</div>}
-      {creditError && <div className="p-4 text-red-500">Error: {creditError}</div>}
+
+      {/* Finnish Bill Layout - Addresses and Invoice Info */}
+      <div className="px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Billing Address (Prominent like Finnish bills) */}
+          <div className="lg:col-span-1">
+            <div className="space-y-6">
+              {/* Billing Address */}
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Laskutusosoite / Billing Address
+                </h3>
+                <div className="text-sm space-y-1">
+                  <div className="font-semibold">{invoice.customer.name}</div>
+                  {invoice.customer.contactPerson && (
+                    <div className="text-muted-foreground">{invoice.customer.contactPerson}</div>
+                  )}
+                  <div>{invoice.customer.address}</div>
+                  <div>{invoice.customer.postalCode} {invoice.customer.city}</div>
+                  {invoice.customer.country && invoice.customer.country !== 'Finland' && (
+                    <div>{invoice.customer.country}</div>
+                  )}
+                  {invoice.customer.vatNumber && (
+                    <div className="text-muted-foreground">VAT: {invoice.customer.vatNumber}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Shipping Address (if different) */}
+              {(invoice.customer.shippingAddress || 
+                invoice.customer.shippingCity || 
+                invoice.customer.shippingPostalCode) && (
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                    Toimitusosoite / Shipping Address
+                  </h3>
+                  <div className="text-sm space-y-1">
+                    <div className="font-semibold">{invoice.customer.name}</div>
+                    <div>{invoice.customer.shippingAddress || invoice.customer.address}</div>
+                    <div>
+                      {invoice.customer.shippingPostalCode || invoice.customer.postalCode}{' '}
+                      {invoice.customer.shippingCity || invoice.customer.city}
+                    </div>
+                    {invoice.customer.shippingCountry && (
+                      <div>{invoice.customer.shippingCountry}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Columns - Invoice Details */}
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Invoice Information */}
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Laskun tiedot / Invoice Details
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Invoice Number:</span>
+                    <span className="font-mono">{invoice.invoiceNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Invoice Date:</span>
+                    <span>{new Date(invoice.invoiceDate).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Due Date:</span>
+                    <span>{new Date(invoice.dueDate).toLocaleDateString()}</span>
+                  </div>
+                  {invoice.referenceNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Reference:</span>
+                      <span className="font-mono">{invoice.referenceNumber}</span>
+                    </div>
+                  )}
+                  {invoice.orderNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Order Number:</span>
+                      <span>{invoice.orderNumber}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Maksutiedot / Payment Details
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payment Terms:</span>
+                    <span>{invoice.paymentTerms || 'Net 14'}</span>
+                  </div>
+                  {invoice.customer.language && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Language:</span>
+                      <span>{invoice.customer.language}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold">
+                    <span>Total Amount:</span>
+                    <span>€{Number(invoice.totalAmount).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Invoice Items - Enhanced with all data */}
+      <div className="px-6 pb-6">
+        <h3 className="text-lg font-semibold mb-4">Laskurivit / Invoice Items</h3>
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr className="text-left">
+                  <th className="px-4 py-3 text-sm font-medium">Description</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">Qty</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">Unit Price</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">Discount</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">VAT %</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">Net Amount</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">VAT Amount</th>
+                  <th className="px-4 py-3 text-sm font-medium text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {invoice.items.map((item: any, index: number) => {
+                  const unitPrice = Number(item.unitPrice);
+                  const quantity = Number(item.quantity);
+                  const discountAmount = Number(item.discountAmount || 0);
+                  const discountPercentage = Number(item.discountPercentage || 0);
+                  const vatRate = Number(item.vatRate);
+                  
+                  // Calculate net amount after discount
+                  const grossAmount = unitPrice * quantity;
+                  const totalDiscount = discountAmount + (grossAmount * discountPercentage / 100);
+                  const netAmount = grossAmount - totalDiscount;
+                  const vatAmount = netAmount * (vatRate / 100);
+                  const totalAmount = netAmount + vatAmount;
+
+                  return (
+                    <tr key={index} className="hover:bg-muted/25">
+                      <td className="px-4 py-3">
+                        <div>
+                          <div className="font-medium">{item.description}</div>
+                          {item.rowFreeText && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {item.rowFreeText}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {quantity.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        €{unitPrice.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {totalDiscount > 0 ? (
+                          <div className="text-red-600">
+                            {discountAmount > 0 && `-€${discountAmount.toFixed(2)}`}
+                            {discountAmount > 0 && discountPercentage > 0 && <br />}
+                            {discountPercentage > 0 && `-${discountPercentage.toFixed(1)}%`}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {vatRate.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        €{netAmount.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        €{vatAmount.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold">
+                        €{totalAmount.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Totals Summary */}
+        <div className="mt-6 flex justify-end">
+          <div className="w-full max-w-md space-y-2">
+            {/* VAT Summary by Rate */}
+            {(() => {
+              const vatSummary = invoice.items.reduce((acc: Record<number, { netAmount: number; vatAmount: number }>, item: any) => {
+                const vatRate = Number(item.vatRate);
+                const quantity = Number(item.quantity);
+                const unitPrice = Number(item.unitPrice);
+                const discountAmount = Number(item.discountAmount || 0);
+                const discountPercentage = Number(item.discountPercentage || 0);
+                
+                const grossAmount = unitPrice * quantity;
+                const totalDiscount = discountAmount + (grossAmount * discountPercentage / 100);
+                const netAmount = grossAmount - totalDiscount;
+                const vatAmount = netAmount * (vatRate / 100);
+                
+                if (!acc[vatRate]) {
+                  acc[vatRate] = { netAmount: 0, vatAmount: 0 };
+                }
+                acc[vatRate].netAmount += netAmount;
+                acc[vatRate].vatAmount += vatAmount;
+                
+                return acc;
+              }, {} as Record<number, { netAmount: number; vatAmount: number }>);
+
+              return Object.entries(vatSummary).map(([rate, amounts]) => {
+                const amountsTyped = amounts as { netAmount: number; vatAmount: number };
+                return (
+                  <div key={rate} className="flex justify-between text-sm">
+                    <span>VAT {Number(rate).toFixed(1)}% on €{amountsTyped.netAmount.toFixed(2)}:</span>
+                    <span className="font-mono">€{amountsTyped.vatAmount.toFixed(2)}</span>
+                  </div>
+                );
+              });
+            })()}
+            
+            <div className="border-t pt-2">
+              <div className="flex justify-between text-lg font-semibold">
+                <span>Total Amount:</span>
+                <span className="font-mono">€{Number(invoice.totalAmount).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        {invoice.notes && (
+          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+            <h4 className="text-sm font-semibold mb-2">Huomautukset / Notes</h4>
+            <p className="text-sm whitespace-pre-wrap">{invoice.notes}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Send Modal */}
+      <SendConfirmationModal
+        target="invoice"
+        open={showSendModal}
+        onOpenChange={setShowSendModal}
+        onConfirm={handleSendInvoice}
+      />
     </div>
   );
 } 

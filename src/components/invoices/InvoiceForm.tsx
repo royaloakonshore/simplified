@@ -55,6 +55,7 @@ import { CustomerForm } from "@/components/customers/CustomerForm";
 import InvoiceSubmissionModal from "./InvoiceSubmissionModal";
 import { MarginCalculationCard } from "@/components/common/MarginCalculationCard";
 import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
+import { SendConfirmationModal } from "@/components/common/SendConfirmationModal";
 
 type InvoiceFormProps = {
   customers: Pick<Customer, 'id' | 'name'>[];
@@ -184,6 +185,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
   });
 
   const [showSubmissionModal, setShowSubmissionModal] = React.useState(false);
+  const [showSendModal, setShowSendModal] = React.useState(false);
   const [createdInvoice, setCreatedInvoice] = React.useState<{ id: string; invoiceNumber: string } | null>(null);
 
   const createInvoiceMutation = api.invoice.create.useMutation({
@@ -807,21 +809,32 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={createInvoiceMutation.isPending} className="mr-2">
                 Cancel
               </Button>
+              {isEditMode && (
+                <Button type="button" className="mr-2" onClick={() => setShowSendModal(true)}>
+                  Send Invoice
+                </Button>
+              )}
               <Button 
                 type="submit" 
+                variant="secondary"
                 disabled={
-                  (isEditMode && false) || // Placeholder for updateInvoiceMutation.isLoading
                   (!isEditMode && createInvoiceMutation.isPending) || 
-                  (!form.formState.isValid && form.formState.isSubmitted) 
+                  (!form.formState.isValid && form.formState.isSubmitted)
                 }
               >
-                {
-                  isEditMode 
-                    ? (false ? "Updating..." : "Update Invoice") // Placeholder for updateInvoiceMutation.isLoading
-                    : (createInvoiceMutation.isPending ? "Creating..." : "Create Invoice")
-                }
+                {isEditMode ? "Save Draft" : (createInvoiceMutation.isPending ? "Creating..." : "Create Invoice")}
               </Button>
             </CardFooter>
+            {/* Send Confirmation Modal */}
+            <SendConfirmationModal
+              target="invoice"
+              open={showSendModal}
+              onOpenChange={setShowSendModal}
+              onConfirm={async (method) => {
+                // Placeholder implementation
+                toast.info(`Would send invoice via ${method}`);
+              }}
+            />
           </Card>
         </form>
       </Form>

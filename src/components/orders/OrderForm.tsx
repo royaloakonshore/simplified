@@ -16,7 +16,7 @@ import {
   UpdateOrderInput,
   FINNISH_VAT_RATES,
 } from "@/lib/schemas/order.schema";
-import { toast } from "sonner";
+import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ import {
 import { CustomerForm } from "@/components/customers/CustomerForm";
 import OrderSubmissionModal from "./OrderSubmissionModal";
 import { MarginCalculationCard } from "@/components/common/MarginCalculationCard";
+import { SendConfirmationModal } from "@/components/common/SendConfirmationModal";
 
 // Define form value types from Zod schemas
 type CreateFormValues = z.infer<typeof createOrderSchema>;
@@ -362,6 +363,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     return lineTotal.toDP(2).toNumber();
   };
 
+  const [showSendModal, setShowSendModal] = React.useState(false);
+
   if (isEditMode) {
     if (!order && !updateForm.formState.isDirty) {
         return <div>Loading order data...</div>;
@@ -556,7 +559,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                     ))}
                   </TableBody>
                 </Table>
-                <Button type="button" variant="outline" size="sm" onClick={() => updateAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} >Add Item</Button> 
+                <Button type="button" variant="outline" onClick={() => updateAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} >Add Item</Button> 
                  {updateForm.formState.errors.items && typeof updateForm.formState.errors.items === 'object' && 'message' in updateForm.formState.errors.items && (
                     <p className="text-sm font-medium text-destructive">{updateForm.formState.errors.items.message as string}</p>
                  )}
@@ -576,16 +579,30 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             <CardFooter className="flex justify-end space-x-2">
               <span className="text-lg font-semibold mr-auto">Total: {formatCurrency(calculateTotal(updateForm))}</span>
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending} className="mr-2">Cancel</Button>
+              <Button type="button" className="mr-2" onClick={() => setShowSendModal(true)} disabled={updateOrderMutation.isPending}>Send Order</Button>
+              <Button 
+                  type="submit" 
+                  variant="secondary"
+                  disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending || (updateForm.formState.isSubmitted && !updateForm.formState.isValid)}
+              >
+                  Save Draft
+              </Button>
               <Button 
                   type="button" 
                   variant="secondary"
                   onClick={() => handleCreateInvoice(order?.id)}
                   disabled={!order || updateOrderMutation.isPending || createInvoiceMutation.isPending || order.status === OrderStatus.invoiced || order.status === OrderStatus.cancelled}
-                  className="mr-2"
               >
                   {createInvoiceMutation.isPending ? "Creating Invoice..." : "Create Invoice"}
               </Button>
-              <Button type="submit" disabled={updateOrderMutation.isPending || createInvoiceMutation.isPending || (updateForm.formState.isSubmitted && !updateForm.formState.isValid)}>{updateOrderMutation.isPending ? 'Saving...' : 'Save Changes'}</Button>
+              <SendConfirmationModal
+                target="order"
+                open={showSendModal}
+                onOpenChange={setShowSendModal}
+                onConfirm={async (method) => {
+                  toast.info(`Would send order via ${method}`);
+                }}
+              />
             </CardFooter>
           </Card>
         </form>

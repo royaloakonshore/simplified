@@ -187,60 +187,50 @@ const renderBomDetails = (bom: NonNullable<KanbanOrder['items'][number]['invento
 };
 
 function ProductionPageContent() {
-  const [activeView, setActiveView] = useState<string>("kanban");
+  const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [orders, setOrders] = useState<KanbanOrder[]>([]);
   const [activeOrder, setActiveOrder] = useState<KanbanOrder | null>(null);
-  const [shippedModalOpen, setShippedModalOpen] = useState(false);
   const [pendingShippedOrder, setPendingShippedOrder] = useState<KanbanOrder | null>(null);
-  // New state for UI-only hidden orders
-  const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(new Set());
-  const [removeConfirmModalOpen, setRemoveConfirmModalOpen] = useState(false);
+  const [shippedModalOpen, setShippedModalOpen] = useState(false);
   const [pendingRemoveOrder, setPendingRemoveOrder] = useState<KanbanOrder | null>(null);
+  const [removeConfirmModalOpen, setRemoveConfirmModalOpen] = useState(false);
+  const [hiddenOrderIds, setHiddenOrderIds] = useState<Set<string>>(new Set());
+  const [showGoToInvoiceModal, setShowGoToInvoiceModal] = useState(false);
+  const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
+  const [createdInvoiceNumber, setCreatedInvoiceNumber] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { 
-        distance: 12, // Increased from 8 to require more intentional movement
-        delay: 100,   // Add small delay to prevent accidental drags
-      },
+      activationConstraint: { distance: 12, delay: 100 },
     })
   );
 
-  const productionOrdersQuery = api.order.listProductionView.useQuery(
-    {},
-    {
-      refetchOnWindowFocus: true,
-    }
-  );
-
-  // Query for archived (removed) orders  
+  // Fetch production orders
+  const { data: productionOrders, isLoading } = api.order.listProductionView.useQuery({});
+  
+  // Fetch archived orders for the archived tab
   const archivedOrdersQuery = api.order.list.useQuery({
     orderType: 'work_order',
-    status: OrderStatus.delivered, // Orders that were archived/removed from board
-  }, {
-    refetchOnWindowFocus: false,
+    status: OrderStatus.delivered,
   });
 
-  useEffect(() => {
-    if (productionOrdersQuery.data) {
-      const transformedOrders = productionOrdersQuery.data
-        .map(order => ({
-          ...order,
-          totalQuantity: order.items.reduce((acc, item) => acc.plus(item.quantity), new PrismaTypes.Decimal(0)),
-        }))
-        .filter(order => !hiddenOrderIds.has(order.id)); // Filter out UI-hidden orders
+  // Transform orders when data changes
+  React.useEffect(() => {
+    if (productionOrders) {
+      const transformedOrders = productionOrders.map((order: any) => ({
+        ...order,
+        totalQuantity: order.items?.reduce((sum: any, item: any) => sum.plus(item.quantity), new Decimal(0)) || new Decimal(0),
+      }));
       setOrders(transformedOrders as KanbanOrder[]);
-    } else if (productionOrdersQuery.error) {
-      const error = productionOrdersQuery.error as TRPCClientErrorLike<AppRouter>;
-      toast.error("Failed to fetch production orders: " + error.message);
+    } else {
       setOrders([]);
     }
-  }, [productionOrdersQuery.data, productionOrdersQuery.error, hiddenOrderIds]); // Add hiddenOrderIds to dependencies
+  }, [productionOrders]);
 
+  // Mutations
   const updateOrderStatusMutation = api.order.updateStatus.useMutation({
     onSuccess: () => {
-      toast.success("Order status updated!");
-      productionOrdersQuery.refetch();
+      toast.success("Order status updated successfully!");
     },
     onError: (error) => {
       const trpcError = error as TRPCClientErrorLike<AppRouter>;
@@ -250,6 +240,9 @@ function ProductionPageContent() {
 
   const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
     onSuccess: (newInvoice) => {
+      setCreatedInvoiceId(newInvoice.id);
+      setCreatedInvoiceNumber(newInvoice.invoiceNumber);
+      setShowGoToInvoiceModal(true);
       toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
     },
     onError: (error) => {
@@ -357,6 +350,19 @@ function ProductionPageContent() {
         archivedOrdersQuery.refetch(); // Refresh archived orders
       }
     });
+  };
+
+  const handleGoToInvoice = () => {
+    if (createdInvoiceId) {
+      window.open(`/invoices/${createdInvoiceId}`, '_blank');
+    }
+    setShowGoToInvoiceModal(false);
+  };
+
+  const handleStayOnProduction = () => {
+    setShowGoToInvoiceModal(false);
+    setCreatedInvoiceId(null);
+    setCreatedInvoiceNumber(null);
   };
 
   const renderKanbanCardContent = (order: KanbanOrder) => (
@@ -634,22 +640,12 @@ function ProductionPageContent() {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
-  if (productionOrdersQuery.isLoading) {
+  if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
-            <div className="flex space-x-2">
-              <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
-              <div className="h-10 w-24 bg-muted animate-pulse rounded-md"></div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="border rounded-md h-64 bg-muted/5 animate-pulse"></div>
-            ))}
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading production orders...</p>
         </div>
       </div>
     );
@@ -662,11 +658,11 @@ function ProductionPageContent() {
       </PageBanner>
       
       <div className="p-4 md:p-6">
-        <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
+        <Tabs value={view} onValueChange={(value) => setView(value as 'kanban' | 'table')} className="h-full flex flex-col">
       <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
         <TabsTrigger value="table">Table View</TabsTrigger>
-        <TabsTrigger value="archived">Archived Orders ({(archivedOrdersQuery.data?.items.length || 0) + hiddenOrderIds.size})</TabsTrigger>
+        <TabsTrigger value="archived">Archived Orders ({(archivedOrdersQuery.data?.items?.length || 0) + hiddenOrderIds.size})</TabsTrigger>
       </TabsList>
       <TabsContent value="kanban" className="flex-grow overflow-auto">
         <KanbanProvider 
@@ -793,17 +789,16 @@ function ProductionPageContent() {
           </div>
           
           {(() => {
-            // Combine status-archived orders and UI-hidden orders
-            const statusArchivedOrders = archivedOrdersQuery.data?.items || [];
-            const hiddenOrders = productionOrdersQuery.data?.filter(order => hiddenOrderIds.has(order.id)) || [];
-            const allArchivedOrders = [...statusArchivedOrders, ...hiddenOrders];
-            const totalCount = statusArchivedOrders.length + hiddenOrderIds.size;
+            const hiddenOrders = productionOrders?.filter((order: any) => hiddenOrderIds.has(order.id)) || [];
+            const totalCount = (archivedOrdersQuery.data?.items?.length || 0) + hiddenOrders.length;
 
-            if (archivedOrdersQuery.isLoading || productionOrdersQuery.isLoading) {
+            if (archivedOrdersQuery.isLoading || isLoading) {
               return (
                 <div className="space-y-2">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded-md"></div>
+                    <Card key={i} className="p-4">
+                      <div className="h-16 bg-muted animate-pulse rounded-md"></div>
+                    </Card>
                   ))}
                 </div>
               );
@@ -824,50 +819,55 @@ function ProductionPageContent() {
 
             return (
               <div className="space-y-2">
-                {allArchivedOrders.map((order) => {
-                  const isUIHidden = hiddenOrderIds.has(order.id);
-                  return (
-                    <Card key={order.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <Link 
-                                href={`/orders/${order.id}`} 
-                                className="font-medium text-primary hover:underline"
-                              >
-                                {order.orderNumber}
-                              </Link>
-                              <p className="text-sm text-muted-foreground">
-                                Customer: {order.customer?.name || 'N/A'}
-                              </p>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              <p>Status: {order.status.replace('_', ' ').toUpperCase()}</p>
-                              <p>
-                                Delivery: {order.deliveryDate 
-                                  ? new Date(order.deliveryDate).toLocaleDateString() 
-                                  : 'Not Set'
-                                }
-                              </p>
-                              {isUIHidden && (
-                                <p className="text-xs text-blue-600 font-medium">UI Hidden (no status change)</p>
-                              )}
+                {(() => {
+                  const statusArchivedOrders = archivedOrdersQuery.data?.items || [];
+                  const allArchivedOrders = [...statusArchivedOrders, ...hiddenOrders];
+
+                  return allArchivedOrders.map((order) => {
+                    const isUIHidden = hiddenOrderIds.has(order.id);
+                    return (
+                      <Card key={order.id} className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <Link 
+                                  href={`/orders/${order.id}`} 
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  {order.orderNumber}
+                                </Link>
+                                <p className="text-sm text-muted-foreground">
+                                  Customer: {order.customer?.name || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                <p>Status: {order.status.replace('_', ' ').toUpperCase()}</p>
+                                <p>
+                                  Delivery: {order.deliveryDate 
+                                    ? new Date(order.deliveryDate).toLocaleDateString() 
+                                    : 'Not Set'
+                                  }
+                                </p>
+                                {isUIHidden && (
+                                  <p className="text-xs text-blue-600 font-medium">UI Hidden (no status change)</p>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => isUIHidden ? handleRestoreFromHidden(order.id) : handleSendBackToProduction(order.id)}
+                            className="ml-4"
+                          >
+                            {isUIHidden ? 'Restore to Board' : 'Send Back to Production'}
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => isUIHidden ? handleRestoreFromHidden(order.id) : handleSendBackToProduction(order.id)}
-                          className="ml-4"
-                        >
-                          {isUIHidden ? 'Restore to Board' : 'Send Back to Production'}
-                        </Button>
-                      </div>
-                    </Card>
-                  );
-                })}
+                      </Card>
+                    );
+                  });
+                })()}
               </div>
             );
           })()}
@@ -948,6 +948,46 @@ function ProductionPageContent() {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setShippedModalOpen(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Invoice Confirmation Modal */}
+    <Dialog open={showGoToInvoiceModal} onOpenChange={setShowGoToInvoiceModal}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Invoice Created</DialogTitle>
+          <DialogDescription>
+            Invoice {createdInvoiceNumber} has been created successfully.
+            What would you like to do next?
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={handleGoToInvoice}
+          >
+            Go to Invoice
+            <span className="ml-auto text-sm text-muted-foreground">
+              View the invoice in a new tab
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={handleStayOnProduction}
+          >
+            Stay on Production Page
+            <span className="ml-auto text-sm text-muted-foreground">
+              Continue working on other orders
+            </span>
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setShowGoToInvoiceModal(false)}>
             Cancel
           </Button>
         </DialogFooter>

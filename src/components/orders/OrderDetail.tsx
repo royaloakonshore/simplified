@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ClientOnly from "@/components/ClientOnly";
-import { FileText, Loader, Factory, Download, MoreHorizontal } from 'lucide-react';
+import { FileText, Loader, Factory, Download, MoreHorizontal, Send } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import OrderStatusUpdateModal from "./OrderStatusUpdateModal";
+import { SendConfirmationModal, type SendMethod } from "@/components/common/SendConfirmationModal";
 
 // Types
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -102,13 +103,16 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   const router = useRouter();
   const [showGoToInvoiceModal, setShowGoToInvoiceModal] = useState(false);
   const [createdInvoiceId, setCreatedInvoiceId] = useState<string | null>(null);
+  const [createdInvoiceNumber, setCreatedInvoiceNumber] = useState<string | null>(null);
   const [isStatusUpdateModalOpen, setIsStatusUpdateModalOpen] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   // Mutations
   const createInvoiceMutation = api.invoice.createFromOrder.useMutation({
     onSuccess: (newInvoice) => {
       setCreatedInvoiceId(newInvoice.id);
-      router.push(`/invoices/${newInvoice.id}`);
+      setCreatedInvoiceNumber(newInvoice.invoiceNumber);
+      setShowGoToInvoiceModal(true);
       toast.success(`Invoice ${newInvoice.invoiceNumber} created successfully!`);
     },
     onError: (error) => {
@@ -176,6 +180,51 @@ export default function OrderDetail({ order }: OrderDetailProps) {
     return (validTransitions[order.status] ?? []).length > 0;
   };
 
+  const handleSendOrder = async (method: SendMethod) => {
+    try {
+      if (method === "email-pdf") {
+        // Check if customer has email
+        if (!order.customer.email) {
+          toast.error("Customer email is required to send order");
+          return;
+        }
+        // Use the existing send service
+        const { sendOrderEmail } = await import("@/lib/services/send.service");
+        await sendOrderEmail({
+          orderId: order.id,
+          method: "email-pdf",
+        });
+        toast.success("Order sent successfully!");
+      } else if (method === "download-pdf") {
+        // Use existing PDF export
+        await handleExportPDF();
+      }
+    } catch (error) {
+      console.error("Send order error:", error);
+      toast.error("Failed to send order. Please try again.");
+    }
+  };
+
+  const canSendOrder = () => {
+    // Only allow sending quotations and confirmed orders
+    return (order.orderType === OrderType.quotation || order.status === OrderStatus.confirmed) &&
+           order.customer.email &&
+           order.status !== OrderStatus.cancelled;
+  };
+
+  const handleGoToInvoice = () => {
+    if (createdInvoiceId) {
+      router.push(`/invoices/${createdInvoiceId}`);
+    }
+    setShowGoToInvoiceModal(false);
+  };
+
+  const handleStayOnOrder = () => {
+    setShowGoToInvoiceModal(false);
+    setCreatedInvoiceId(null);
+    setCreatedInvoiceNumber(null);
+  };
+
   return (
     <div className="bg-card text-card-foreground rounded-md shadow overflow-hidden">
       {/* Order Header */}
@@ -216,6 +265,18 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Send Button */}
+            {canSendOrder() && (
+              <Button 
+                onClick={() => setShowSendModal(true)}
+                variant="default"
+                size="sm"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Send
+              </Button>
+            )}
 
             {/* Primary Action Buttons */}
             {order.status !== OrderStatus.cancelled &&
@@ -430,7 +491,54 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           </div>
         </div>
       )}
-      {/* OrderStatusUpdateModal */}
+      {/* Send Modal */}
+      <SendConfirmationModal
+        target="order"
+        open={showSendModal}
+        onOpenChange={setShowSendModal}
+        onConfirm={handleSendOrder}
+      />
+
+      {/* Go to Invoice Modal */}
+      <Dialog open={showGoToInvoiceModal} onOpenChange={setShowGoToInvoiceModal}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Invoice Created Successfully</DialogTitle>
+            <DialogDescription>
+              Invoice {createdInvoiceNumber} has been created from order {order.orderNumber}.
+              What would you like to do next?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleGoToInvoice}
+            >
+              Go to Invoice
+              <span className="ml-auto text-sm text-muted-foreground">
+                View the new invoice
+              </span>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleStayOnOrder}
+            >
+              Stay on Order
+              <span className="ml-auto text-sm text-muted-foreground">
+                Continue working with this order
+              </span>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowGoToInvoiceModal(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Status Update Modal */}
       <OrderStatusUpdateModal
         orderId={order.id}
         isOpen={isStatusUpdateModalOpen}
@@ -440,25 +548,6 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           window.location.reload();
         }}
       />
-      {/* Modal for navigating to created invoice */}
-      <Dialog open={showGoToInvoiceModal} onOpenChange={setShowGoToInvoiceModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invoice Created</DialogTitle>
-            <DialogDescription>
-              The invoice has been created successfully. Would you like to view it now?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGoToInvoiceModal(false)}>
-              Stay Here
-            </Button>
-            <Button onClick={() => createdInvoiceId && router.push(`/invoices/${createdInvoiceId}`)}>
-              View Invoice
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 } 
