@@ -2978,3 +2978,14 @@ This session represents a significant leap in system maturity, transforming the 
 - Implemented comprehensive ERP system with customers, inventory, orders, invoices, BOMs, and production management.
 - Added multi-tenant architecture support with company-scoped data access and user role management.
 - Integrated NextAuth for authentication, Inngest for background jobs, and proper error handling throughout.
+
+## Simplified ERP - Change Log
+
+### December 23, 2024 - Customer & Invoice Fixes
+
+Fixed multiple customer profile and invoice detail issues:
+- **Customer Edit Modal**: Fixed dropdown trigger issue that prevented edit dialog from opening
+- **Customer Profile**: Added comprehensive customer details display including contact info, business data, addresses, and e-invoicing details
+- **Invoice VAT Values**: Fixed null VAT values issue by correcting field name from `vatRate` to `vatRatePercent`
+- **Customer KPI Cards**: Fixed null revenue values by correcting Decimal conversion from `.toNumber()` to `.toString()` method
+- **Multi-tenancy**: Added missing `companyId` filters to customer order and invoice queries and switched to `companyProtectedProcedure`

@@ -325,19 +325,17 @@ export const customerRouter = createTRPCRouter({
       }
     }),
 
-  getOrders: protectedProcedure
+  getOrders: companyProtectedProcedure
     .input(z.object({
       customerId: z.string().cuid(),
       // Optional: Add pagination/filtering params here if needed later
-      // limit: z.number().min(1).max(100).optional().default(10),
-      // cursor: z.string().cuid().optional(), 
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { customerId } = input;
-      // TODO: Add companyId filter: companyId: ctx.companyId
       const orders = await prisma.order.findMany({
         where: {
           customerId: customerId,
+          companyId: ctx.companyId,
         },
         orderBy: { orderDate: 'desc' }, 
         // Minimal include for order history list
@@ -349,17 +347,17 @@ export const customerRouter = createTRPCRouter({
       return orders.map(order => ({ ...order, itemCount: order.items.length }));
     }),
 
-  getInvoices: protectedProcedure
+  getInvoices: companyProtectedProcedure
     .input(z.object({
       customerId: z.string().cuid(),
       // Optional: Add pagination/filtering params here if needed later
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const { customerId } = input;
-      // TODO: Add companyId filter: companyId: ctx.companyId
       const invoices = await prisma.invoice.findMany({
         where: {
           customerId: customerId,
+          companyId: ctx.companyId,
         },
         orderBy: { invoiceDate: 'desc' },
         // Minimal include for invoice history list
@@ -515,7 +513,7 @@ export const customerRouter = createTRPCRouter({
       });
 
       return {
-        totalRevenue: revenueAggregate._sum.totalAmount?.toNumber() || 0,
+        totalRevenue: revenueAggregate._sum.totalAmount ? Number(revenueAggregate._sum.totalAmount.toString()) : 0,
         paidInvoiceCount: revenueAggregate._count.id || 0,
         lastInvoiceDate: latestInvoice?.invoiceDate || null,
         lastInvoiceStatus: latestInvoice?.status || null,

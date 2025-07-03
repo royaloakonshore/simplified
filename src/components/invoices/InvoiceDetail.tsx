@@ -406,7 +406,7 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                   const quantity = Number(item.quantity);
                   const discountAmount = Number(item.discountAmount || 0);
                   const discountPercentage = Number(item.discountPercentage || 0);
-                  const vatRate = Number(item.vatRate);
+                  const vatRate = Number(item.vatRatePercent || 0);
                   
                   // Calculate net amount after discount
                   const grossAmount = unitPrice * quantity;
@@ -470,7 +470,7 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             {/* VAT Summary by Rate */}
             {(() => {
               const vatSummary = invoice.items.reduce((acc: Record<number, { netAmount: number; vatAmount: number }>, item: any) => {
-                const vatRate = Number(item.vatRate);
+                const vatRate = Number(item.vatRatePercent || 0);
                 const quantity = Number(item.quantity);
                 const unitPrice = Number(item.unitPrice);
                 const discountAmount = Number(item.discountAmount || 0);

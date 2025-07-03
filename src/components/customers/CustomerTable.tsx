@@ -108,9 +108,11 @@ const CustomerTableRowActions = ({ customer, onEditSuccess }: { customer: Custom
             customerId={customer.id}
             onSuccess={onEditSuccess}
             trigger={
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit Customer</span>
+              <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
+                <button className="flex items-center gap-2 w-full">
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Edit Customer</span>
+                </button>
               </DropdownMenuItem>
             }
           />

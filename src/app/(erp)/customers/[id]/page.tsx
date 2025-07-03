@@ -106,9 +106,117 @@ export default function CustomerDetailPage() {
     <div className="w-full space-y-6">
       <div>
         <h1 className="text-2xl font-bold">{customer.name}</h1>
-        <p className="text-muted-foreground">{customer.email}</p>
+        <p className="text-muted-foreground">{customer.email || 'No email provided'}</p>
       </div>
       <Separator />
+
+      {/* Customer Profile Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer Profile</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Contact Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Contact Information
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Name:</span>
+                  <span className="font-medium">{customer.name}</span>
+                </div>
+                {customer.email && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Email:</span>
+                    <span>{customer.email}</span>
+                  </div>
+                )}
+                {customer.phone && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Phone:</span>
+                    <span>{customer.phone}</span>
+                  </div>
+                )}
+                {customer.language && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Language:</span>
+                    <span>{customer.language}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Business Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Business Information
+              </h3>
+              <div className="space-y-2 text-sm">
+                {customer.vatId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">VAT ID:</span>
+                    <span className="font-mono">{customer.vatId}</span>
+                  </div>
+                )}
+                {customer.buyerReference && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Buyer Reference:</span>
+                    <span>{customer.buyerReference}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Finvoice Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                E-Invoicing
+              </h3>
+              <div className="space-y-2 text-sm">
+                {customer.ovtIdentifier && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">OVT ID:</span>
+                    <span className="font-mono">{customer.ovtIdentifier}</span>
+                  </div>
+                )}
+                {customer.intermediatorAddress && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Intermediator:</span>
+                    <span>{customer.intermediatorAddress}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Addresses */}
+          {customer.addresses && customer.addresses.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+                Addresses
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {customer.addresses.map((address: any, index: number) => (
+                  <div key={address.id || index} className="p-4 border rounded-lg bg-muted/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant="outline" className="capitalize">
+                        {address.type}
+                      </Badge>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <div>{address.streetAddress}</div>
+                      <div>{address.postalCode} {address.city}</div>
+                      <div className="text-muted-foreground">{address.countryCode}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Revenue & Margin Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
