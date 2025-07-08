@@ -2993,3 +2993,5 @@ Fixed multiple customer profile and invoice detail issues:
 - Fix: Corrected Decimal handling and calculations in the dashboard router to prevent runtime errors.
 - Feat: Replaced the inaccurate "Inventory Turnover" metric with a correct "Total Inventory Value" on the main dashboard.
 - Fix: Aligned frontend components (`SalesFunnel`, `DashboardPage`) with the updated API response from the dashboard router.
+
+- Fixed critical "Too many database connections" error by implementing a singleton pattern for the Prisma client, ensuring connection stability.
