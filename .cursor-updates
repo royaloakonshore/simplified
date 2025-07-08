@@ -2989,3 +2989,7 @@ Fixed multiple customer profile and invoice detail issues:
 - **Invoice VAT Values**: Fixed null VAT values issue by correcting field name from `vatRate` to `vatRatePercent`
 - **Customer KPI Cards**: Fixed null revenue values by correcting Decimal conversion from `.toNumber()` to `.toString()` method
 - **Multi-tenancy**: Added missing `companyId` filters to customer order and invoice queries and switched to `companyProtectedProcedure`
+
+- Fix: Corrected Decimal handling and calculations in the dashboard router to prevent runtime errors.
+- Feat: Replaced the inaccurate "Inventory Turnover" metric with a correct "Total Inventory Value" on the main dashboard.
+- Fix: Aligned frontend components (`SalesFunnel`, `DashboardPage`) with the updated API response from the dashboard router.

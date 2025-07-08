@@ -48,6 +48,8 @@ export const createOrderSchema = z.object({
   orderType: z.nativeEnum(OrderType).default(OrderType.work_order),
   notes: z.string().nullable().optional(),
   items: z.array(orderItemBaseSchema).min(1, 'Order must have at least one item'),
+  ourReference: z.string().nullable().optional(),
+  customerNumber: z.string().nullable().optional(),
 });
 
 /**
@@ -61,6 +63,8 @@ export const updateOrderSchema = z.object({
   status: z.nativeEnum(OrderStatus).optional(),
   orderType: z.nativeEnum(OrderType).optional(),
   notes: z.string().nullable().optional(),
+  ourReference: z.string().nullable().optional(),
+  customerNumber: z.string().nullable().optional(),
   // Items are optional for update; if provided, they might replace existing items
   items: z.array(orderItemBaseSchema).min(1, 'Order must have at least one item').optional(),
 });

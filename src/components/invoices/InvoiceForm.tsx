@@ -104,6 +104,11 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         dueDate: editInvoiceData.dueDate ? new Date(editInvoiceData.dueDate) : new Date(new Date().setDate(new Date().getDate() + 14)),
         paymentTerms: '14', // Default to 14 days
         notes: editInvoiceData.notes || '',
+        ourReference: editInvoiceData.ourReference || '',
+        customerNumber: editInvoiceData.customerNumber || '',
+        deliveryMethod: editInvoiceData.deliveryMethod || '',
+        complaintPeriod: editInvoiceData.complaintPeriod || '7 vrk',
+        penaltyInterest: editInvoiceData.penaltyInterest || 11.5,
         vatReverseCharge: editInvoiceData.vatReverseCharge || false,
         items: editInvoiceData.items?.map((item: any) => ({
           itemId: item.inventoryItemId || '',
@@ -133,6 +138,11 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
         paymentTerms: '14', // Default to 14 days
         notes: order.notes || '',
+        ourReference: order.ourReference || '',
+        customerNumber: order.customerNumber || '',
+        deliveryMethod: '',
+        complaintPeriod: '7 vrk',
+        penaltyInterest: 11.5,
         vatReverseCharge: false,
         items: order.items?.map((item: any) => ({
           itemId: item.inventoryItemId || '',
@@ -161,6 +171,11 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       dueDate: new Date(new Date().setDate(new Date().getDate() + 14)),
       paymentTerms: '14', // Default to 14 days
       notes: '',
+      ourReference: '',
+      customerNumber: '',
+      deliveryMethod: '',
+      complaintPeriod: '7 vrk',
+      penaltyInterest: 11.5,
       vatReverseCharge: false,
       items: [{
         itemId: '',
@@ -177,6 +192,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormValidationSchema),
     defaultValues: getDefaultValues(),
+    mode: "onBlur"
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -187,6 +203,22 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
   const [showSubmissionModal, setShowSubmissionModal] = React.useState(false);
   const [showSendModal, setShowSendModal] = React.useState(false);
   const [createdInvoice, setCreatedInvoice] = React.useState<{ id: string; invoiceNumber: string } | null>(null);
+
+  const selectedCustomerId = form.watch("customerId");
+
+  const { data: selectedCustomer } = api.customer.getById.useQuery(
+    { id: selectedCustomerId },
+    {
+      enabled: !!selectedCustomerId,
+      staleTime: Infinity,
+    }
+  );
+
+  React.useEffect(() => {
+    if (selectedCustomer) {
+      form.setValue("customerNumber", selectedCustomer.customerNumber ?? "");
+    }
+  }, [selectedCustomer, form]);
 
   const createInvoiceMutation = api.invoice.create.useMutation({
     onSuccess: (data) => {
@@ -214,7 +246,12 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       customerId: values.customerId,
       invoiceDate: values.invoiceDate,
       dueDate: values.dueDate,
-      notes: values.notes ?? undefined,
+      notes: values.notes ?? null,
+      ourReference: values.ourReference ?? null,
+      customerNumber: values.customerNumber ?? null,
+      deliveryMethod: values.deliveryMethod ?? null,
+      complaintPeriod: values.complaintPeriod ?? null,
+      penaltyInterest: values.penaltyInterest ?? null,
       items: values.items.map(item => ({
         ...(item.id && { id: item.id }),
         itemId: item.itemId,
@@ -835,6 +872,80 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                 toast.info(`Would send invoice via ${method}`);
               }}
             />
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Details</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="ourReference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Our Reference</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your reference for this invoice" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="customerNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Customer's number" {...field} value={field.value ?? ''} readOnly />
+                    </FormControl>
+                     <FormDescription>Auto-filled when customer is selected.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="deliveryMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Delivery Method</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Postipaketti" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="complaintPeriod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Complaint Period</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 7 vrk" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="penaltyInterest"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Penalty Interest (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g., 11.5" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
           </Card>
         </form>
       </Form>

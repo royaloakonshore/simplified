@@ -38,9 +38,14 @@ export const CreateInvoiceSchema = z.object({
   customerId: z.string().cuid({ message: 'Valid Customer ID is required' }),
   invoiceDate: z.coerce.date({ required_error: 'Invoice date is required' }),
   dueDate: z.coerce.date({ required_error: 'Due date is required' }),
-  notes: z.string().optional(),
-  referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
-  sellerReference: z.string().optional(), // Free text field for seller reference
+  notes: z.string().nullable().optional(),
+  referenceNumber: z.string().nullable().optional(), // Finnish viitenumero - will be auto-generated if not provided
+  sellerReference: z.string().nullable().optional(), // Free text field for seller reference
+  ourReference: z.string().nullable().optional(),
+  customerNumber: z.string().nullable().optional(),
+  deliveryMethod: z.string().nullable().optional(),
+  complaintPeriod: z.string().nullable().optional().default("7 vrk"),
+  penaltyInterest: z.coerce.number().nullable().optional().default(11.5),
   items: z
     .array(InvoiceItemSchema)
     .min(1, { message: 'Invoice must have at least one item' }),
@@ -60,6 +65,11 @@ export const createInvoiceFromOrderSchema = z.object({
   notes: z.string().optional(),
   referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
   sellerReference: z.string().optional(), // Free text field for seller reference
+  ourReference: z.string().optional(),
+  customerNumber: z.string().optional(),
+  deliveryMethod: z.string().optional(),
+  complaintPeriod: z.string().optional().default("7 vrk"),
+  penaltyInterest: z.coerce.number().optional().default(11.5),
   vatReverseCharge: z.boolean().default(false),
 });
 
@@ -156,6 +166,11 @@ export const invoiceFormValidationSchema = z.object({
   notes: z.string().optional(),
   referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
   sellerReference: z.string().optional(), // Free text field for seller reference
+  ourReference: z.string().optional(),
+  customerNumber: z.string().optional(),
+  deliveryMethod: z.string().optional(),
+  complaintPeriod: z.string().optional(),
+  penaltyInterest: z.coerce.number().optional(),
   items: z.array(invoiceFormItemSchema).min(1, "Invoice must have at least one item."),
   orderId: z.string().cuid().optional(),
   vatReverseCharge: z.boolean().optional(),

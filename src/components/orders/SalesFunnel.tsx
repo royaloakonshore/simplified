@@ -41,7 +41,7 @@ export default function SalesFunnel({ startDate, endDate, disableControls = fals
   })
 
   const [hoveredStage, setHoveredStage] = useState<{
-    stage: string
+    name: string
     value: number
     count: number
     x: number
@@ -99,8 +99,8 @@ export default function SalesFunnel({ startDate, endDate, disableControls = fals
 
     const totalOrders = funnelData.reduce((sum, stage) => sum + stage.count, 0)
     const totalValue = funnelData.reduce((sum, stage) => sum + stage.value, 0)
-    const quotationsCount = funnelData.find(stage => stage.stage === "Quotations")?.count || 0
-    const invoicedCount = funnelData.find(stage => stage.stage === "Invoiced")?.count || 0
+    const quotationsCount = funnelData.find(stage => stage.name.startsWith("Quotations"))?.count || 0
+    const invoicedCount = funnelData.find(stage => stage.name === "Invoiced")?.count || 0
     const conversionRate = quotationsCount > 0 ? (invoicedCount / quotationsCount) * 100 : 0
     const avgOrderValue = totalOrders > 0 ? totalValue / totalOrders : 0
 
@@ -249,61 +249,44 @@ export default function SalesFunnel({ startDate, endDate, disableControls = fals
               
               return (
                 <div
-                  key={stage.stage}
-                  className="group relative"
+                  key={stage.name}
+                  className="group relative flex items-center justify-between p-2 rounded-lg transition-all duration-300 ease-in-out"
+                  style={{
+                    backgroundColor: `${stage.color}1A`, // 10% opacity
+                    width: `${displayWidth}%`,
+                  }}
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setHoveredStage({
+                      name: stage.name,
+                      value: stage.value,
+                      count: stage.count,
+                      x: e.clientX - rect.left,
+                      y: e.clientY - rect.top,
+                    })
+                  }}
+                  onMouseLeave={() => setHoveredStage(null)}
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Stage Label */}
-                    <div className="w-32 text-sm font-medium text-foreground">
-                      {stage.stage}
-                    </div>
-                    
-                    {/* Funnel Bar */}
-                    <div className="flex-1 relative">
-                      <div className="h-12 bg-muted/30 dark:bg-muted/10 rounded-lg overflow-hidden relative">
-                        <div
-                          className="h-full rounded-lg transition-all duration-700 ease-out relative group-hover:brightness-110 cursor-pointer"
-                          style={{
-                            backgroundColor: stage.color,
-                            width: `${displayWidth}%`,
-                            background: `linear-gradient(135deg, ${stage.color}, ${stage.color}dd)`
-                          }}
-                          onMouseMove={(e) => {
-                            setHoveredStage({
-                              stage: stage.stage,
-                              value: stage.value,
-                              count: stage.count,
-                              x: e.clientX,
-                              y: e.clientY
-                            })
-                          }}
-                          onMouseLeave={() => setHoveredStage(null)}
-                        >
-                          {/* Hover tooltip content */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="text-white text-sm font-semibold drop-shadow-sm">
-                              {stage.count} orders
-                            </div>
-                          </div>
-                          
-                          {/* Shimmer effect */}
-                          <div className="absolute inset-0 opacity-0 group-hover:opacity-30 transition-opacity duration-300">
-                            <div className="h-full w-full bg-gradient-to-r from-transparent via-white to-transparent transform -skew-x-12 animate-shimmer"></div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Value Label */}
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                        <Badge 
-                          variant="secondary" 
-                          className="bg-background/90 text-foreground border font-semibold"
-                        >
-                          €{stage.value.toLocaleString()}
-                        </Badge>
-                      </div>
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className="w-2 h-8 rounded-full"
+                      style={{ backgroundColor: stage.color }}
+                    ></div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-foreground text-sm">
+                        {stage.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {stage.count} orders
+                      </span>
                     </div>
                   </div>
+                  <Badge
+                    variant="secondary"
+                    className="font-mono text-sm group-hover:bg-background"
+                  >
+                    {formatCurrencyNoDecimals(stage.value)}
+                  </Badge>
                 </div>
               )
             })}
@@ -323,35 +306,21 @@ export default function SalesFunnel({ startDate, endDate, disableControls = fals
             </div>
           )}
         </CardContent>
-
-        <style jsx>{`
-          @keyframes shimmer {
-            0% { transform: translateX(-100%) skewX(-12deg); }
-            100% { transform: translateX(200%) skewX(-12deg); }
-          }
-          .animate-shimmer {
-            animation: shimmer 2s infinite;
-          }
-        `}</style>
       </Card>
 
-      {/* Cursor-following Tooltip */}
+      {/* Custom Tooltip */}
       {hoveredStage && (
-        <div 
-          className="fixed bg-popover border border-border rounded-lg shadow-lg p-3 min-w-48 pointer-events-none z-50"
+        <div
+          className="absolute z-10 p-2 text-xs rounded-md shadow-lg pointer-events-none bg-background text-foreground border"
           style={{
-            left: `${hoveredStage.x + 15}px`,
-            top: `${hoveredStage.y - 60}px`,
+            transform: `translate(${hoveredStage.x + 15}px, ${
+              hoveredStage.y + 15
+            }px)`,
           }}
         >
-          <div className="text-sm font-medium text-popover-foreground mb-1">
-            {hoveredStage.stage}
-          </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div>Orders: {hoveredStage.count}</div>
-            <div>Total Value: €{hoveredStage.value.toLocaleString()}</div>
-            <div>Avg Value: €{hoveredStage.count > 0 ? (hoveredStage.value / hoveredStage.count).toLocaleString() : '0'}</div>
-          </div>
+          <div className="font-bold">{hoveredStage.name}</div>
+          <div>Value: {formatCurrencyNoDecimals(hoveredStage.value)}</div>
+          <div>Orders: {hoveredStage.count}</div>
         </div>
       )}
     </div>

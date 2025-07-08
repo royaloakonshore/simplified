@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from 'react-toastify'; // Assuming react-toastify is set up
 import { api } from "@/lib/trpc/react";
-import { customerBaseSchema, yTunnusSchema } from "@/lib/schemas/customer.schema";
+import { customerBaseSchema, yTunnusSchema, addressSchema } from "@/lib/schemas/customer.schema";
 import { Trash2, Plus, Search, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,8 +30,8 @@ import { Separator } from "@/components/ui/separator"; // For visual separation
 type CustomerFormData = z.infer<typeof customerBaseSchema>;
 
 interface CustomerFormProps {
-  initialData?: Customer & { addresses: Address[] }; // Optional initial data for editing
-  onSuccessCallback?: (createdCustomerId?: string) => void; // Modified to accept optional customer ID
+  initialData?: CustomerFormData & { id?: string, addresses: (z.infer<typeof addressSchema> & { id?: string})[] };
+  onSuccessCallback?: (createdCustomerId?: string) => void;
 }
 
 export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormProps) {
@@ -39,19 +39,24 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
   const utils = api.useUtils();
   const [yTunnusSearch, setYTunnusSearch] = React.useState("");
 
+  // Fetch the next customer number only when creating a new customer
+  const { data: nextCustomerNumber } = api.customer.getNextCustomerNumber.useQuery(
+    undefined, 
+    {
+      enabled: !initialData, // Only fetch if there is no initialData (i.e., we are creating)
+      staleTime: Infinity, // This number is unlikely to change during the form session
+    }
+  );
+
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerBaseSchema),
     defaultValues: initialData
       ? {
-          name: initialData.name,
-          email: initialData.email ?? '',
-          phone: initialData.phone ?? '',
-          vatId: initialData.vatId ?? '',
-          ovtIdentifier: initialData.ovtIdentifier ?? '',
-          intermediatorAddress: initialData.intermediatorAddress ?? '',
-          language: (initialData as any).language ?? 'FI',
-          buyerReference: (initialData as any).buyerReference ?? '',
-          addresses: initialData.addresses ?? [],
+          ...initialData,
+          language: initialData.language ?? "FI",
+          addresses: initialData.addresses?.map(a => ({ ...a })) || [
+            { type: AddressType.billing, streetAddress: "", city: "", postalCode: "", countryCode: "FI" },
+          ],
         }
       : {
           name: '',
@@ -62,6 +67,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
           intermediatorAddress: '',
           language: 'FI',
           buyerReference: '',
+          customerNumber: '', // Will be updated by useEffect
           addresses: [{ type: AddressType.billing, streetAddress: '', city: '', postalCode: '', countryCode: 'FI' }], // Default with one billing address
         },
   });
@@ -81,6 +87,13 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
       retry: false, // Don't retry on error for this manual call
     }
   );
+
+  // When nextCustomerNumber is fetched, update the form's default value
+  React.useEffect(() => {
+    if (nextCustomerNumber && !initialData) {
+      form.setValue("customerNumber", nextCustomerNumber);
+    }
+  }, [nextCustomerNumber, initialData, form]);
 
   const handleYTunnusSearch = async () => {
     try {
@@ -157,7 +170,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
   });
 
   function onSubmit(values: CustomerFormData) {
-    if (initialData) {
+    if (initialData && initialData.id) {
       updateCustomer.mutate({ ...values, id: initialData.id });
     } else {
       createCustomer.mutate(values);
@@ -226,7 +239,12 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                     <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                        <Input type="email" placeholder="contact@customer.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="contact@customer.com"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -239,7 +257,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                     <FormItem>
                     <FormLabel>Phone</FormLabel>
                     <FormControl>
-                        <Input placeholder="+358 40 1234567" {...field} />
+                        <Input placeholder="+358 12 345 6789" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -252,7 +270,7 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                     <FormItem>
                     <FormLabel>VAT ID (Y-tunnus)</FormLabel>
                     <FormControl>
-                        <Input placeholder="1234567-8" {...field} />
+                        <Input placeholder="1234567-8" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -263,11 +281,10 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                 name="ovtIdentifier"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>OVT/EDI Identifier</FormLabel>
+                    <FormLabel>OVT Identifier</FormLabel>
                     <FormControl>
-                        <Input placeholder="003712345678" {...field} />
+                        <Input placeholder="E-invoicing address" {...field} value={field.value ?? ""} />
                     </FormControl>
-                    <FormDescription>Needed for Finvoice e-invoicing.</FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -279,9 +296,21 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                     <FormItem>
                     <FormLabel>Intermediator Address</FormLabel>
                     <FormControl>
-                        <Input placeholder="E.g., BANK" {...field} />
+                        <Input placeholder="E-invoicing operator" {...field} value={field.value ?? ""} />
                     </FormControl>
-                    <FormDescription>E-invoice intermediator (optional).</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="buyerReference"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Buyer Reference</FormLabel>
+                    <FormControl>
+                        <Input placeholder="Your reference at customer" {...field} value={field.value ?? ""} />
+                    </FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -310,18 +339,20 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                 )}
                 />
                 <FormField
-                control={form.control}
-                name="buyerReference"
-                render={({ field }) => (
+                  control={form.control}
+                  name="customerNumber"
+                  render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Buyer Reference</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Contact person, project code, etc." {...field} />
-                    </FormControl>
-                    <FormDescription>Reference person or code for invoices (optional).</FormDescription>
-                    <FormMessage />
+                      <FormLabel>Customer Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Auto-generated" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormDescription>
+                        Internal customer number.
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
             </CardContent>
         </Card>

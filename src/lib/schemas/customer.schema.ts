@@ -11,7 +11,7 @@ export const CustomerLanguage = {
 export type CustomerLanguageType = typeof CustomerLanguage[keyof typeof CustomerLanguage];
 
 // Schema for a single address
-const addressSchema = z.object({
+export const addressSchema = z.object({
   id: z.string().optional(), // Optional for creation
   type: z.nativeEnum(AddressType), // Use the imported enum
   streetAddress: z.string().min(1, 'Street address is required'),
@@ -22,15 +22,16 @@ const addressSchema = z.object({
 
 // Base schema for customer fields
 export const customerBaseSchema = z.object({
-  name: z.string().min(1, 'Customer name is required'),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')), // Allow empty string or valid email
-  phone: z.string().optional(),
-  vatId: z.string().optional(), // Y-tunnus
-  ovtIdentifier: z.string().optional(),
-  intermediatorAddress: z.string().optional(),
-  language: z.enum(['EN', 'FI', 'SE']).optional(),
-  buyerReference: z.string().optional(),
-  addresses: z.array(addressSchema).min(1, "At least one address is required."), // Ensure at least one address
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  vatId: z.string().nullable().optional(),
+  language: z.nativeEnum(CustomerLanguage).nullable().optional(),
+  ovtIdentifier: z.string().nullable().optional(),
+  intermediatorAddress: z.string().nullable().optional(),
+  buyerReference: z.string().nullable().optional(),
+  customerNumber: z.string().nullable().optional(),
+  addresses: z.array(addressSchema),
 });
 
 // Schema for creating a customer
@@ -38,7 +39,7 @@ export const createCustomerSchema = customerBaseSchema;
 
 // Schema for updating a customer (requires ID)
 export const updateCustomerSchema = customerBaseSchema.extend({
-  id: z.string(),
+  id: z.string().cuid(),
 });
 
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;

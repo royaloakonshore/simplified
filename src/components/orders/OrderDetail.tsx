@@ -319,6 +319,40 @@ export default function OrderDetail({ order }: OrderDetailProps) {
           </div>
         </div>
       </div>
+
+      {/* NEW ORDER DETAILS GRID */}
+      <div className="px-6 py-6 border-b border-border">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Customer Info */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Customer</h3>
+              <div className="text-sm">
+                <p className="font-semibold">{order.customer.name}</p>
+                <p className="text-muted-foreground">{order.customer.email}</p>
+              </div>
+            </div>
+
+            {/* Order Specifics */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Details</h3>
+              <div className="text-sm grid grid-cols-2 gap-x-4 gap-y-1">
+                <span className="text-muted-foreground">Order Date:</span>
+                <span>{new Date(order.orderDate).toLocaleDateString('fi-FI')}</span>
+
+                <span className="text-muted-foreground">Delivery Date:</span>
+                <span>{order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString('fi-FI') : '-'}</span>
+
+                <span className="text-muted-foreground">Our Reference:</span>
+                <span>{order.ourReference || '-'}</span>
+
+                <span className="text-muted-foreground">Customer Number:</span>
+                <span>{order.customerNumber || '-'}</span>
+              </div>
+            </div>
+        </div>
+      </div>
+      {/* END NEW ORDER DETAILS GRID */}
+
       {/* Order Details Grid - Restored half-width design */}
       <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Customer Column */}

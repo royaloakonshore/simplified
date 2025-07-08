@@ -11,6 +11,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { getServerAuthSession } from "../auth";
+import { prisma } from "../db";
 // No direct import from './root' here to avoid potential circular dependencies at init time.
 
 /**
@@ -28,6 +29,7 @@ import { getServerAuthSession } from "../auth";
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const session = await getServerAuthSession();
   return {
+    db: prisma,
     session,
     ...opts,
   };
@@ -119,6 +121,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
       // Provide the session and user to the procedure context
       session: { ...ctx.session, user: ctx.session.user },
       headers: ctx.headers, // Pass along headers if needed
+      db: ctx.db,
     },
   });
 });
@@ -167,6 +170,7 @@ export const companyProtectedProcedure = t.procedure.use(({ ctx, next }) => {
       userId,
       user: ctx.session.user,
       companyId,
+      db: ctx.db,
     },
   });
 });

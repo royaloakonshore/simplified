@@ -1,7 +1,15 @@
 import { z } from "zod";
 import { createTRPCRouter, companyProtectedProcedure } from "@/lib/api/trpc";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import Decimal from "decimal.js";
+
+// Utility function for safe Prisma.Decimal to number conversion
+const toSafeNumber = (value: Prisma.Decimal | null | undefined): number => {
+  if (value === null || value === undefined) return 0;
+  const num = new Decimal(value.toString()).toNumber();
+  return isFinite(num) ? num : 0;
+};
 
 export const dashboardRouter = createTRPCRouter({
   getStats: companyProtectedProcedure
@@ -133,8 +141,8 @@ export const dashboardRouter = createTRPCRouter({
         ? ((currentShippedOrders - previousShippedOrders) / previousShippedOrders) * 100 
         : currentShippedOrders > 0 ? 100 : 0;
 
-      const currentRevenueValue = currentRevenue._sum?.totalAmount?.toNumber() || 0;
-      const previousRevenueValue = previousRevenue._sum?.totalAmount?.toNumber() || 0;
+      const currentRevenueValue = toSafeNumber(currentRevenue._sum?.totalAmount);
+      const previousRevenueValue = toSafeNumber(previousRevenue._sum?.totalAmount);
       const revenueTrend = previousRevenueValue > 0 
         ? ((currentRevenueValue - previousRevenueValue) / previousRevenueValue) * 100 
         : currentRevenueValue > 0 ? 100 : 0;
@@ -169,37 +177,23 @@ export const dashboardRouter = createTRPCRouter({
 
       const fulfillmentRate = currentOrdersTotal > 0 ? (currentOrdersOnTime / currentOrdersTotal) * 100 : 0;
 
-      // 6. Inventory Turnover (simplified version - inventory value change)
-      const [currentInventoryValue, previousInventoryValue] = await Promise.all([
-        prisma.inventoryItem.aggregate({
-          where: {
-            companyId,
-            updatedAt: {
-              lte: currentPeriodEnd,
-            },
-          },
-          _sum: {
-            costPrice: true,
-          },
-        }),
-        prisma.inventoryItem.aggregate({
-          where: {
-            companyId,
-            updatedAt: {
-              lte: previousPeriodEnd,
-            },
-          },
-          _sum: {
-            costPrice: true,
-          },
-        }),
-      ]);
+      // 6. Inventory Turnover & Value (Corrected Calculation)
+      const allInventoryItems = await prisma.inventoryItem.findMany({
+        where: {
+          companyId,
+        },
+        select: {
+          costPrice: true,
+          quantityOnHand: true,
+        },
+      });
 
-      const currentInventoryVal = currentInventoryValue._sum?.costPrice?.toNumber() || 0;
-      const previousInventoryVal = previousInventoryValue._sum?.costPrice?.toNumber() || 0;
-      const inventoryTurnover = previousInventoryVal > 0 
-        ? ((previousInventoryVal - currentInventoryVal) / previousInventoryVal) * 100 
-        : 0;
+      const totalInventoryValue = allInventoryItems.reduce((acc, item) => {
+        const itemValue = new Decimal(item.costPrice.toString()).times(new Decimal(item.quantityOnHand.toString()));
+        return acc.plus(itemValue);
+      }, new Decimal(0));
+      
+      const inventoryTurnover = 0; // Placeholder, as simple value change is not representative.
 
       // 7. Customer Growth (new customers this period vs previous period)
       const [currentNewCustomers, previousNewCustomers] = await Promise.all([
@@ -249,10 +243,9 @@ export const dashboardRouter = createTRPCRouter({
           onTime: currentOrdersOnTime,
           total: currentOrdersTotal,
         },
-        inventoryTurnover: {
-          percentage: inventoryTurnover,
-          current: currentInventoryVal,
-          previous: previousInventoryVal,
+        inventory: {
+          turnover: inventoryTurnover,
+          totalValue: totalInventoryValue.toNumber(),
         },
         customerGrowth: {
           current: currentNewCustomers,
@@ -487,114 +480,74 @@ export const dashboardRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { companyId } = ctx;
-      // Base where clause
-      const baseWhere = { companyId };
-      
-      // Add date filtering if provided
-      const whereClause = input.startDate && input.endDate 
-        ? {
-            ...baseWhere,
-            createdAt: {
-              gte: input.startDate,
-              lte: input.endDate,
-            }
-          }
-        : baseWhere;
+      const { startDate, endDate } = input;
 
-      // Get orders by status and type
-      const [quotations, workOrders, inProduction, shipped, invoiced] = await Promise.all([
-        // Quotations
-        prisma.order.findMany({
-          where: {
-            ...whereClause,
-            orderType: "quotation",
-            status: {
-              in: ["draft", "confirmed"]
-            }
-          },
-          select: {
-            totalAmount: true,
-            createdAt: true,
-          },
-        }),
-        
-        // Work Orders (confirmed, not yet in production)
-        prisma.order.findMany({
-          where: {
-            ...whereClause,
-            orderType: "work_order",
-            status: "confirmed"
-          },
-          select: {
-            totalAmount: true,
-            createdAt: true,
-          },
-        }),
-        
-        // In Production
-        prisma.order.findMany({
-          where: {
-            ...whereClause,
-            orderType: "work_order",
-            status: "in_production"
-          },
-          select: {
-            totalAmount: true,
-            createdAt: true,
-          },
-        }),
-        
-        // Shipped (ready to invoice)
-        prisma.order.findMany({
-          where: {
-            ...whereClause,
-            orderType: "work_order",
-            status: {
-              in: ["shipped", "delivered"]
-            }
-          },
-          select: {
-            totalAmount: true,
-            createdAt: true,
-          },
-        }),
-        
-        // Invoiced
-        prisma.order.findMany({
-          where: {
-            ...whereClause,
-            orderType: "work_order",
-            status: "invoiced"
-          },
-          select: {
-            totalAmount: true,
-            createdAt: true,
-          },
-        }),
-      ]);
+      const whereClause: Prisma.OrderWhereInput = {
+        companyId,
+        orderType: "work_order", // Funnel for work orders
+      };
 
-      // Calculate totals and format for funnel
-      const calculateStageData = (orders: any[], stage: string, color: string) => {
-        const totalValue = orders.reduce((sum, order) => sum + (order.totalAmount?.toNumber() || 0), 0);
-        const count = orders.length;
+      if (startDate && endDate) {
+        whereClause.createdAt = {
+          gte: startDate,
+          lte: endDate,
+        };
+      }
+
+      const orders = await prisma.order.findMany({
+        where: whereClause,
+        select: {
+          status: true,
+          totalAmount: true,
+        },
+      });
+
+      const calculateStageData = (filteredOrders: typeof orders, stage: string, color: string) => {
+        const totalValue = filteredOrders.reduce((sum, order) => {
+            const orderTotal = new Decimal(order.totalAmount?.toString() || "0");
+            return sum.plus(orderTotal);
+        }, new Decimal(0));
+
         return {
-          stage,
-          value: totalValue,
-          count,
-          color,
-          orders: orders.map(order => ({
-            value: order.totalAmount?.toNumber() || 0,
-            date: order.createdAt.toISOString().split('T')[0]
-          }))
+          name: stage,
+          value: totalValue.toNumber(),
+          count: filteredOrders.length,
+          color: color,
         };
       };
 
-      return [
-        calculateStageData(quotations, "Quotations", "#10b981"), // emerald-500
-        calculateStageData(workOrders, "Work Orders", "#059669"), // emerald-600
-        calculateStageData(inProduction, "In Production", "#047857"), // emerald-700
-        calculateStageData(shipped, "Ready to Invoice", "#065f46"), // emerald-800
-        calculateStageData(invoiced, "Invoiced", "#064e3b"), // emerald-900
+      const quotationOrders = await prisma.order.findMany({
+        where: {
+          companyId,
+          orderType: 'quotation',
+          createdAt: startDate && endDate ? { gte: startDate, lte: endDate } : undefined
+        },
+        select: { totalAmount: true, status: true }
+      });
+
+      const confirmedQuotations = quotationOrders.filter(o => o.status === 'confirmed');
+      const draftQuotations = quotationOrders.filter(o => o.status === 'draft');
+
+      const funnelData = [
+        calculateStageData(draftQuotations, 'Quotations (Draft)', '#84cc16'), // lime-500
+        calculateStageData(confirmedQuotations, 'Quotations (Confirmed)', '#22c55e'), // green-500
+        calculateStageData(
+          orders.filter((o) => o.status === OrderStatus.in_production),
+          'In Production',
+          '#10b981' // emerald-500
+        ),
+        calculateStageData(
+          orders.filter((o) => o.status === OrderStatus.shipped),
+          'Shipped',
+          '#06b6d4' // cyan-500
+        ),
+        calculateStageData(
+          orders.filter((o) => o.status === OrderStatus.invoiced),
+          'Invoiced',
+          '#3b82f6' // blue-500
+        ),
       ];
+      
+      return funnelData;
     }),
 }); 

@@ -120,19 +120,40 @@ export const customerRouter = createTRPCRouter({
       };
     }),
 
-  getById: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ input }) => {
-      return await prisma.customer.findUnique({
-        where: { id: input.id },
-        include: { addresses: true }, // Include addresses by default
+  getById: companyProtectedProcedure
+    .input(z.object({ id: z.string().cuid() }))
+    .query(async ({ ctx, input }) => {
+      const customer = await ctx.db.customer.findUnique({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          vatId: true,
+          language: true,
+          ovtIdentifier: true,
+          intermediatorAddress: true,
+          buyerReference: true,
+          customerNumber: true,
+          addresses: true,
+        },
       });
+      if (!customer) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Customer not found." });
+      }
+      return customer;
     }),
 
   create: protectedProcedure
     .input(createCustomerSchema)
     .mutation(async ({ input }) => {
-      const { addresses, ...customerData } = input;
+      const { addresses, ...customerInput } = input;
+
+      const customerData = {
+        ...customerInput,
+        language: customerInput.language === null ? undefined : customerInput.language,
+      };
 
       // Use Prisma transaction to create customer and addresses together
       return await prisma.$transaction(async (tx) => {
@@ -156,7 +177,12 @@ export const customerRouter = createTRPCRouter({
   update: protectedProcedure
     .input(updateCustomerSchema)
     .mutation(async ({ input }) => {
-      const { id, addresses, ...customerData } = input;
+      const { id, addresses, ...customerInput } = input;
+
+      const customerData = {
+        ...customerInput,
+        language: customerInput.language === null ? undefined : customerInput.language,
+      };
 
       // Use Prisma transaction for update
       return await prisma.$transaction(async (tx) => {
@@ -520,17 +546,52 @@ export const customerRouter = createTRPCRouter({
       };
     }),
 
-  updateFinvoiceDetails: protectedProcedure
+  getNextCustomerNumber: companyProtectedProcedure
+    .query(async ({ ctx }) => {
+      const lastCustomer = await ctx.db.customer.findFirst({
+        where: {
+          companyId: ctx.companyId,
+          customerNumber: {
+            not: null,
+          },
+        },
+        orderBy: {
+          customerNumber: 'desc',
+        },
+        select: {
+          customerNumber: true,
+        },
+      });
+
+      if (!lastCustomer || !lastCustomer.customerNumber) {
+        return "010";
+      }
+
+      try {
+        const lastNumber = parseInt(lastCustomer.customerNumber, 10);
+        if (isNaN(lastNumber)) {
+          // Handle cases where an existing customerNumber is not a valid number
+          return "010"; 
+        }
+        const nextNumber = lastNumber + 1;
+        return nextNumber.toString().padStart(3, '0');
+      } catch (e) {
+        // Fallback in case of parsing errors
+        return "010";
+      }
+    }),
+
+  updateFinvoiceDetails: companyProtectedProcedure
     .input(z.object({
       customerId: z.string().cuid(),
       ovt: z.string(),
       intermediator: z.string(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { customerId, ovt, intermediator } = input;
 
-      await prisma.customer.update({
-        where: { id: customerId },
+      await ctx.db.customer.update({
+        where: { id: customerId, companyId: ctx.companyId },
         data: {
           ovtIdentifier: ovt,
           intermediatorAddress: intermediator,

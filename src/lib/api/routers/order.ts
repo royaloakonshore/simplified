@@ -420,20 +420,46 @@ export const orderRouter = createTRPCRouter({
     }),
 
   getById: companyProtectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().cuid() }))
     .query(async ({ ctx, input }) => {
-      const order = await prisma.order.findUnique({
-        where: { 
-          id: input.id,
-          companyId: ctx.companyId,
+      const order = await ctx.db.order.findUnique({
+        where: { id: input.id, companyId: ctx.companyId },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          orderDate: true,
+          orderType: true,
+          deliveryDate: true,
+          totalAmount: true,
+          ourReference: true,
+          customerNumber: true,
+          qrIdentifier: true, // Add this line
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              buyerReference: true,
+              phone: true, // Add this line
+              vatId: true, // Add this line
+            }
+          },
+          items: {
+            include: {
+              inventoryItem: true,
+            },
+          },
         },
-        include: orderDetailIncludeArgs,
       });
 
       if (!order) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
       }
-      return processOrderDecimals(order);
+      return order;
     }),
 
   listProductionView: protectedProcedure

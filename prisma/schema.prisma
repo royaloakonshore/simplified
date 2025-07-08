@@ -99,6 +99,7 @@ model Customer {
   email                String?
   phone                String?
   vatId                String?
+  customerNumber       String?          @unique
   ovtIdentifier        String?
   intermediatorAddress String?
   createdAt            DateTime         @default(now())
@@ -196,6 +197,8 @@ model Order {
   companyId           String?
   qrIdentifier        String?     @unique
   originalQuotationId String?
+  ourReference        String?
+  customerNumber      String?
   invoices            Invoice[]   @relation("OrderToInvoices")
   Company             Company?    @relation(fields: [companyId], references: [id])
   customer            Customer    @relation(fields: [customerId], references: [id])
@@ -248,16 +251,24 @@ model Invoice {
   totalVatAmount    Decimal       @default(0) @db.Decimal(12, 2)
   userId            String?
   companyId         String?
-  referenceNumber   String?       @unique
+  referenceNumber   String?
+  deliveryMethod    String?
+  complaintPeriod   String?
+  penaltyInterest   Decimal?
+  ourReference      String?
+  customerNumber    String?
+  paymentTermsDays  Int?
   sellerReference   String?
+  deliveryDate      DateTime?
+  orderNumber       String?
+  originalInvoice   Invoice?      @relation("CreditNote", fields: [originalInvoiceId], references: [id])
+  creditNote        Invoice?      @relation("CreditNote")
+  payments          Payment[]
+  items             InvoiceItem[]
   Company           Company?      @relation(fields: [companyId], references: [id])
   customer          Customer      @relation(fields: [customerId], references: [id])
   order             Order?        @relation("OrderToInvoices", fields: [orderId], references: [id])
-  originalInvoice   Invoice?      @relation("CreditNoteToOriginal", fields: [originalInvoiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  creditNote        Invoice?      @relation("CreditNoteToOriginal")
   user              User?         @relation(fields: [userId], references: [id])
-  payments          Payment[]
-  items             InvoiceItem[]
 
   @@index([customerId])
   @@index([orderId])

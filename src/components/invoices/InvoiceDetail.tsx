@@ -184,42 +184,26 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const canExportFinvoice = invoice.status === PrismaInvoiceStatus.sent || invoice.status === PrismaInvoiceStatus.paid || invoice.status === PrismaInvoiceStatus.overdue;
   const canBeCredited = ([PrismaInvoiceStatus.sent, PrismaInvoiceStatus.paid, PrismaInvoiceStatus.overdue] as PrismaInvoiceStatus[]).includes(invoice.status);
 
-  // Helper to render an address block
-  const AddressBlock = ({ address, title }: { address?: InvoiceDetailData['customer']['addresses'][number] | null, title: string }) => {
-    if (!address) return null;
-    return (
-      <div>
-        <h3 className="text-lg font-medium mb-2">{title}</h3>
-        <div className="text-sm space-y-1 text-muted-foreground">
-          <p>{address.streetAddress}</p>
-          <p>{address.postalCode} {address.city}</p>
-          <p>{address.countryCode}</p>
-        </div>
-      </div>
-    );
-  };
-
-  const billingAddress = invoice.customer.addresses?.find((addr: InvoiceDetailData['customer']['addresses'][number]) => addr.type === 'billing');
-  const shippingAddress = invoice.customer.addresses?.find((addr: InvoiceDetailData['customer']['addresses'][number]) => addr.type === 'shipping');
+  const billingAddress = invoice.customer.addresses?.find((addr: any) => addr.type === 'billing');
 
   return (
     <div className="bg-card text-card-foreground rounded-md shadow overflow-hidden">
       {/* Header with Invoice Number and Actions */}
       <div className="px-6 py-4 border-b border-border">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
+           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-semibold truncate" title={`Invoice ${invoice.invoiceNumber}`}>
               Invoice {invoice.invoiceNumber}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(invoice.status)}`}>
-                {invoice.status.replace('_', ' ').toUpperCase()}
-              </span>
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(invoice.status)}`}>
+              {invoice.status.replace('_', ' ').toUpperCase()}
+            </span>
               <span className="text-sm text-muted-foreground">
                 Created {new Date(invoice.createdAt).toLocaleDateString()}
               </span>
             </div>
-          </div>
+           </div>
           <div className="flex items-center gap-2">
             {/* Send Button */}
             {(invoice.status === 'DRAFT' || invoice.status === 'SENT' || invoice.status === 'OVERDUE') && 
@@ -235,152 +219,90 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
               </Button>
             )}
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
                   <Link href={`/invoices/${invoice.id}/edit`} className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Edit Invoice
                   </Link>
-                </DropdownMenuItem>
+                      </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleFinvoiceExport()} 
                   className="flex items-center gap-2"
                 >
                   <Download className="h-4 w-4" />
                   Download Finvoice XML
-                </DropdownMenuItem>
+                      </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleCreateCreditNote()} 
                   className="flex items-center gap-2"
                 >
                   <CreditCard className="h-4 w-4" />
                   Create Credit Note
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+           </div>
         </div>
       </div>
 
-      {/* Finnish Bill Layout - Addresses and Invoice Info */}
-      <div className="px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Billing Address (Prominent like Finnish bills) */}
-          <div className="lg:col-span-1">
-            <div className="space-y-6">
-              {/* Billing Address */}
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Laskutusosoite / Billing Address
-                </h3>
-                <div className="text-sm space-y-1">
-                  <div className="font-semibold">{invoice.customer.name}</div>
-                  {invoice.customer.contactPerson && (
-                    <div className="text-muted-foreground">{invoice.customer.contactPerson}</div>
-                  )}
-                  <div>{invoice.customer.address}</div>
-                  <div>{invoice.customer.postalCode} {invoice.customer.city}</div>
-                  {invoice.customer.country && invoice.customer.country !== 'Finland' && (
-                    <div>{invoice.customer.country}</div>
-                  )}
-                  {invoice.customer.vatNumber && (
-                    <div className="text-muted-foreground">VAT: {invoice.customer.vatNumber}</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Shipping Address (if different) */}
-              {(invoice.customer.shippingAddress || 
-                invoice.customer.shippingCity || 
-                invoice.customer.shippingPostalCode) && (
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                    Toimitusosoite / Shipping Address
-                  </h3>
-                  <div className="text-sm space-y-1">
-                    <div className="font-semibold">{invoice.customer.name}</div>
-                    <div>{invoice.customer.shippingAddress || invoice.customer.address}</div>
-                    <div>
-                      {invoice.customer.shippingPostalCode || invoice.customer.postalCode}{' '}
-                      {invoice.customer.shippingCity || invoice.customer.city}
-                    </div>
-                    {invoice.customer.shippingCountry && (
-                      <div>{invoice.customer.shippingCountry}</div>
-                    )}
-                  </div>
-                </div>
-              )}
+      {/* NEW FINNISH LAYOUT START */}
+      <div className="px-6 py-8 grid grid-cols-2 gap-x-12 gap-y-8">
+        {/* Left Column: Customer Address */}
+        <div>
+          <p className="font-semibold">{invoice.customer.name}</p>
+          {billingAddress && (
+            <div className="text-sm text-muted-foreground">
+              <p>{billingAddress.streetAddress}</p>
+              <p>{billingAddress.postalCode} {billingAddress.city}</p>
+              <p>{billingAddress.countryCode}</p>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Right Columns - Invoice Details */}
-          <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Invoice Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Laskun tiedot / Invoice Details
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Invoice Number:</span>
-                    <span className="font-mono">{invoice.invoiceNumber}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Invoice Date:</span>
-                    <span>{new Date(invoice.invoiceDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Due Date:</span>
-                    <span>{new Date(invoice.dueDate).toLocaleDateString()}</span>
-                  </div>
-                  {invoice.referenceNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Reference:</span>
-                      <span className="font-mono">{invoice.referenceNumber}</span>
-                    </div>
-                  )}
-                  {invoice.orderNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Order Number:</span>
-                      <span>{invoice.orderNumber}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+        {/* Right Column: Invoice Details Grid */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+          <div className="font-semibold">Päivämäärä</div>
+          <div>{new Date(invoice.invoiceDate).toLocaleDateString('fi-FI')}</div>
+          
+          <div className="font-semibold">Laskun numero</div>
+          <div>{invoice.invoiceNumber}</div>
 
-              {/* Payment Information */}
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Maksutiedot / Payment Details
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Payment Terms:</span>
-                    <span>{invoice.paymentTerms || 'Net 14'}</span>
-                  </div>
-                  {invoice.customer.language && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Language:</span>
-                      <span>{invoice.customer.language}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-semibold">
-                    <span>Total Amount:</span>
-                    <span>€{Number(invoice.totalAmount).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className="font-semibold">Viitteenne</div>
+          <div>{invoice.customer.buyerReference || '-'}</div>
+
+          <div className="font-semibold">Asiakasnumero</div>
+          <div>{invoice.customerNumber || '-'}</div>
+
+          <div className="font-semibold">Viitteemme</div>
+          <div>{invoice.ourReference || '-'}</div>
+
+          <div className="font-semibold">Toimituspäivä</div>
+          <div>{invoice.deliveryDate ? new Date(invoice.deliveryDate).toLocaleDateString('fi-FI') : '-'}</div>
+
+          <div className="font-semibold">Toimitustapa</div>
+          <div>{invoice.deliveryMethod || '-'}</div>
+
+          <div className="font-semibold">Maksuehdot</div>
+          <div>{invoice.paymentTermsDays ? `${invoice.paymentTermsDays} pv netto` : '-'}</div>
+          
+          <div className="font-semibold">Eräpäivä</div>
+          <div>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fi-FI') : '-'}</div>
+
+          <div className="font-semibold">Huomautusaika</div>
+          <div>{invoice.complaintPeriod || '-'}</div>
+          
+          <div className="font-semibold">Viivästyskorko</div>
+          <div>{invoice.penaltyInterest ? `${invoice.penaltyInterest}%` : '-'}</div>
         </div>
       </div>
+      {/* NEW FINNISH LAYOUT END */}
 
       {/* Invoice Items - Enhanced with all data */}
       <div className="px-6 pb-6">
