@@ -2998,3 +2998,6 @@ Fixed multiple customer profile and invoice detail issues:
 
 - fix(db): use prisma singleton in bootstrap script to prevent connection leak
 - Fixed critical "Too many database connections" error by implementing a singleton pattern for the Prisma client, ensuring connection stability.
+
+- fix(dashboard): revert dashboard stats card to 'Inventory Turnover' and implement correct backend calculation
+- fix(db): Correctly implement Prisma singleton pattern and apply to bootstrap script, resolving critical database connection leaks.

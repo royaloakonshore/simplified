@@ -317,9 +317,9 @@ export default function DashboardPage() {
               href="/orders"
             />
             <StatsCard
-              title="Total Inventory Value"
-              value={statsLoading ? "..." : formatCurrency(stats?.inventory.totalValue || 0)}
-              description="Sum of cost price for all items on hand."
+              title="Inventory Turnover"
+              value={statsLoading ? "..." : (stats?.inventory.turnover || 0).toFixed(2)}
+              description="Cost of goods sold / average inventory"
               href="/inventory"
             />
             <StatsCard
