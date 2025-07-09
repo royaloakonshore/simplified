@@ -228,10 +228,15 @@ function ProductionPageContent() {
     }
   }, [productionOrders]);
 
+  // Get utils for cache invalidation
+  const utils = api.useUtils();
+
   // Mutations
   const updateOrderStatusMutation = api.order.updateStatus.useMutation({
     onSuccess: () => {
       toast.success("Order status updated successfully!");
+      // Invalidate the production view cache to refresh the data
+      utils.order.listProductionView.invalidate();
     },
     onError: (error) => {
       const trpcError = error as TRPCClientErrorLike<AppRouter>;
@@ -349,6 +354,7 @@ function ProductionPageContent() {
     }, {
       onSuccess: () => {
         archivedOrdersQuery.refetch(); // Refresh archived orders
+        utils.order.listProductionView.invalidate(); // Also refresh production view
       }
     });
   };
@@ -595,7 +601,14 @@ function ProductionPageContent() {
                     {availableStatuses.map((status) => (
                       <DropdownMenuItem 
                         key={status.value}
-                        onClick={() => updateOrderStatusMutation.mutate({ id: order.id, status: status.value })}
+                        onClick={() => updateOrderStatusMutation.mutate({ 
+                          id: order.id, 
+                          status: status.value 
+                        }, {
+                          onSuccess: () => {
+                            utils.order.listProductionView.invalidate();
+                          }
+                        })}
                       >
                         {status.label}
                       </DropdownMenuItem>
@@ -715,8 +728,15 @@ function ProductionPageContent() {
                 </span>
                 <Select onValueChange={(status) => {
                   const selectedOrders = table.getFilteredSelectedRowModel().rows.map(row => row.original);
-                  selectedOrders.forEach(order => {
-                    updateOrderStatusMutation.mutate({ id: order.id, status: status as OrderStatus });
+                  selectedOrders.forEach((order, index) => {
+                    updateOrderStatusMutation.mutate({ id: order.id, status: status as OrderStatus }, {
+                      onSuccess: () => {
+                        // Only invalidate once for the last mutation to avoid multiple refreshes
+                        if (index === selectedOrders.length - 1) {
+                          utils.order.listProductionView.invalidate();
+                        }
+                      }
+                    });
                   });
                   table.resetRowSelection();
                 }}>

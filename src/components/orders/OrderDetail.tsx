@@ -410,7 +410,13 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                   const quantity = new Prisma.Decimal(orderItem.quantity);
                   const unitPrice = new Prisma.Decimal(orderItem.unitPrice);
                   const discountAmount = orderItem.discountAmount ? new Prisma.Decimal(orderItem.discountAmount) : new Prisma.Decimal(0);
-                  const lineItemTotal = quantity.mul(unitPrice).sub(discountAmount);
+                  let lineItemTotal = quantity.mul(unitPrice).sub(discountAmount);
+                  
+                  // Apply discount percentage if exists
+                  if (orderItem.discountPercentage) {
+                    const discountPercent = new Prisma.Decimal(orderItem.discountPercentage);
+                    lineItemTotal = lineItemTotal.mul(new Prisma.Decimal(1).sub(discountPercent.div(100)));
+                  }
 
                   return (
                     <tr key={orderItem.id}>
@@ -428,8 +434,12 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                           <td className="px-4 py-2 text-right text-sm">{formatCurrency(unitPrice)}</td>
                           <td className="px-4 py-2 text-right text-sm">
                             {formatCurrency(lineItemTotal)}
-                            {discountAmount.gt(0) && (
-                              <div className="text-xs text-red-500">(-{formatCurrency(discountAmount)})</div>
+                            {(discountAmount.gt(0) || orderItem.discountPercentage) && (
+                              <div className="text-xs text-red-500">
+                                {discountAmount.gt(0) && `-${formatCurrency(discountAmount)}`}
+                                {discountAmount.gt(0) && orderItem.discountPercentage && <br />}
+                                {orderItem.discountPercentage && `-${Number(orderItem.discountPercentage).toFixed(1)}%`}
+                              </div>
                             )}
                           </td>
                         </>

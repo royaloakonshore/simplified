@@ -108,7 +108,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         customerNumber: editInvoiceData.customerNumber || '',
         deliveryMethod: editInvoiceData.deliveryMethod || '',
         complaintPeriod: editInvoiceData.complaintPeriod || '7 vrk',
-        penaltyInterest: editInvoiceData.penaltyInterest || 11.5,
+                    penaltyInterest: editInvoiceData.penaltyInterest || 10.5,
         vatReverseCharge: editInvoiceData.vatReverseCharge || false,
         items: editInvoiceData.items?.map((item: any) => ({
           itemId: item.inventoryItemId || '',
@@ -142,7 +142,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         customerNumber: order.customerNumber || '',
         deliveryMethod: '',
         complaintPeriod: '7 vrk',
-        penaltyInterest: 11.5,
+        penaltyInterest: 10.5,
         vatReverseCharge: false,
         items: order.items?.map((item: any) => ({
           itemId: item.inventoryItemId || '',
@@ -175,7 +175,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       customerNumber: '',
       deliveryMethod: '',
       complaintPeriod: '7 vrk',
-      penaltyInterest: 11.5,
+      penaltyInterest: 10.5,
       vatReverseCharge: false,
       items: [{
         itemId: '',

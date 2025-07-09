@@ -2,6 +2,55 @@
 
 All changes made by the AI assistant are documented here.
 
+## 2025-02-01: Critical Business Logic Fixes - Order Status, Discount Transfer & Invoice Defaults
+
+**Goal:** Fix critical business logic issues including order status confusion, missing discount transfers, invoice defaults, and discount display consistency.
+
+**Summary:**
+Resolved multiple critical business workflow issues that were affecting order processing, invoice creation, and discount handling throughout the system.
+
+**✅ INVOICE DEFAULTS FIXED:**
+- **✅ Penalty Interest Rate**: Changed default from 11.5% to 10.5% across all invoice creation flows in `InvoiceForm.tsx`
+- **✅ Complaint Period**: Confirmed "7 vrk" (7 days) default is correct as per Finnish standards
+- **✅ Auto-fill Consistency**: Invoice defaults now consistently use 10.5% penalty rate regardless of customer
+
+**✅ CRITICAL DISCOUNT TRANSFER BUG FIXED:**
+- **✅ Order → Invoice Transfer**: Fixed critical bug in `invoice.ts` `createFromOrder` where discounts were hardcoded as `null`
+- **✅ Data Integrity**: Discount amounts and percentages now properly transfer from orders to invoices
+- **✅ Business Continuity**: Quotation → Work Order → Invoice now maintains exact same discount values throughout workflow
+- **✅ Financial Accuracy**: Invoice totals now accurately reflect discounts applied at order stage
+
+**✅ DISCOUNT DISPLAY CONSISTENCY:**
+- **✅ OrderDetail Enhancement**: Enhanced discount display to show both discount amount AND percentage in red text below line items
+- **✅ Calculation Accuracy**: Fixed OrderDetail line total calculations to properly apply both discount amount and percentage
+- **✅ Visual Consistency**: Order discount display now matches InvoiceDetail formatting (amount + percentage with line breaks)
+- **✅ Complete Coverage**: All detail views (Order, Invoice) now show discounts consistently below each item row
+
+**✅ WORKFLOW INTEGRITY:**
+- **✅ Value Preservation**: Confirmed that Quotation → Work Order conversion in `order.ts` properly preserves all discount values
+- **✅ Order Status Logic**: Investigated OrderSubmissionModal - "Mark as Sent" correctly uses `OrderStatus.confirmed` (no separate "sent" status exists)
+- **✅ Calculate Margin**: Confirmed MarginCalculationCard is isolated and only calculates margins without affecting order status
+
+**ROOT CAUSES IDENTIFIED:**
+1. **Discount Transfer**: `createFromOrder` procedure was explicitly setting discounts to `null` instead of copying from order items
+2. **Display Inconsistency**: OrderDetail only showed discount amount but not percentage, unlike InvoiceDetail which showed both
+3. **Calculation Logic**: OrderDetail line totals weren't applying discount percentage, only discount amount
+4. **Default Values**: Invoice penalty interest was set to 11.5% instead of Finnish standard 10.5%
+
+**IMPACT:**
+- **Financial Accuracy**: Discounts now flow correctly through entire quotation → work order → invoice workflow
+- **Business Compliance**: Invoice defaults align with Finnish penalty interest standards (10.5%)
+- **User Experience**: Consistent discount display across all detail views improves clarity
+- **Data Integrity**: All order values and calculations now maintain consistency throughout business process
+- **Revenue Protection**: Prevents discount loss during invoice creation from orders
+
+**FILES MODIFIED:**
+- `src/components/invoices/InvoiceForm.tsx` - Updated penalty interest defaults to 10.5%
+- `src/lib/api/routers/invoice.ts` - Fixed discount transfer in createFromOrder procedure
+- `src/components/orders/OrderDetail.tsx` - Enhanced discount display and calculation logic
+
+---
+
 ## 2025-02-01: Critical Production Page Runtime Error Fix
 
 **Goal:** Fix critical runtime error preventing Production page from loading when work orders are active.
@@ -3011,13 +3060,35 @@ This session represents a significant leap in system maturity, transforming the 
 - Added multi-tenant architecture support with company-scoped data access and user role management.
 - Integrated NextAuth for authentication, Inngest for background jobs, and proper error handling throughout.
 
-## Simplified ERP - Change Log
+## 2025-02-01: Production Kanban Cache Invalidation Fix
 
-### December 23, 2024 - Customer & Invoice Fixes
+**Goal:** Fix critical Kanban card jumping issue where cards revert to original position after successful status updates.
 
-Fixed multiple customer profile and invoice detail issues:
-- **Customer Edit Modal**: Fixed dropdown trigger issue that prevented edit dialog from opening
-- **Customer Profile**: Added comprehensive customer details display including contact info, business data, addresses, and e-invoicing details
-- **Invoice VAT Values**: Fixed null VAT values issue by correcting field name from `vatRate` to `vatRatePercent`
-- **Customer KPI Cards**: Fixed null revenue values by correcting Decimal conversion from `.toNumber()` to `.toString()` method
-- **Multi-tenancy**: Added missing `companyId` filters to customer order and invoice queries and switched to `companyProtectedProcedure`
+**Summary:**
+Resolved cache invalidation problem in Production Kanban where drag-and-drop status updates succeeded on backend but UI reverted due to stale React Query cache. Added proper cache invalidation to all status update mutations.
+
+**✅ KANBAN DRAG-AND-DROP FIX:**
+- **✅ Root Cause Identified**: Backend status updates succeeded (showing success toast) but React Query cache wasn't invalidated, causing UI to revert to stale data
+- **✅ Main Drag Handler**: Fixed `handleDragEnd` by adding `utils.order.listProductionView.invalidate()` to `updateOrderStatusMutation` success callback
+- **✅ Table Dropdown Actions**: Enhanced table view dropdown menu status updates with proper cache invalidation
+- **✅ Bulk Operations**: Fixed bulk status updates in table view with optimized cache invalidation (only once after final mutation)
+- **✅ Archive Operations**: Enhanced "Send Back to Production" functionality with dual cache invalidation for both archived and production views
+- **✅ Build Verification**: Confirmed TypeScript compilation passes with `npx tsc --noEmit`
+
+**TECHNICAL IMPLEMENTATION:**
+- Added `const utils = api.useUtils();` to Production page component for accessing tRPC cache invalidation utilities
+- Enhanced all `updateOrderStatusMutation.mutate()` calls with `onSuccess` callbacks that call `utils.order.listProductionView.invalidate()`
+- Optimized bulk operations to invalidate cache only once after the final mutation to prevent excessive API calls
+- Maintained existing success toast notifications while adding proper cache refresh
+
+**USER IMPACT:**
+- **Drag-and-Drop Reliability**: Kanban cards now stay in their new columns after successful drag operations
+- **Consistent UI State**: All status updates (drag, dropdown, bulk) now properly reflect in the UI immediately
+- **Production Workflow**: Manufacturing staff can now reliably move orders through production stages without cards jumping back
+- **Real-time Updates**: Production board accurately reflects current order statuses across all interaction methods
+
+**Business Context:** This fix is critical for Finnish manufacturing businesses using complex BOMs with 100+ components, as production planning reliability is essential for delivery date management and inventory control.
+
+---
+
+// ... existing code ...
