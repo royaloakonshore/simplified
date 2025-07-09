@@ -169,3 +169,175 @@
 **Current State**: System is highly stable and production-ready with 85% completion. Recent session resolved all critical runtime errors and significantly improved user experience. Remaining work focuses on localization, final polish, and advanced workflow features.
 
 **Next Action**: Implement customer language selection and localized invoice output to support international business operations. 
+
+## 🚀 **Updated Next Steps Guide - 2025-02-01**
+
+### **🔥 CRITICAL: User Clarifications Required**
+
+**Before proceeding with development, the following questions need answers:**
+
+#### **1. Language Switcher Scope (Priority 1A)**
+- **UI Only**: Should language switching only affect interface labels and navigation?
+- **Document Generation**: Should invoices, orders, BOMs be generated in customer's preferred language?
+- **Email Communication**: Should system emails (notifications, etc.) be localized?
+- **Customer Language**: Should customers have a stored language preference for their documents?
+
+#### **2. Credit Note Enhancement Strategy**
+- **Partial Credit UI**: Should users select individual line items and quantities to credit?
+- **Multiple Credits**: Should the system allow multiple partial credits per invoice?
+- **Business Rules**: Any restrictions on partial credit amounts or timing?
+
+#### **3. PDF Generation Architecture**
+- **Background Jobs**: Should we implement Midday's async approach with Inngest for PDF generation?
+- **File Storage**: Should generated PDFs be stored in cloud storage or served directly?
+- **Template Priority**: Which document types need PDF generation first (invoices, orders, BOMs)?
+
+---
+
+## 📋 **Updated Development Priorities**
+
+### **Phase 1: Multi-Language Foundation (6h)**
+
+#### **1.1 User Settings Language Switcher (2h)**
+- Add language preference field to User model (`preferredLanguage: 'FI' | 'SE' | 'EN'`)
+- Implement language dropdown in user settings page
+- Store user preference and apply to session
+
+#### **1.2 Customer Language Preference (2h)**
+- Add language field to Customer model (`language: CustomerLanguage`)
+- Update customer creation/edit forms with language selection
+- Default to user's language for new customers
+
+#### **1.3 Basic UI Localization Setup (2h)**
+- Install and configure i18n framework (next-i18next or similar)
+- Create translation files for FI, SE, EN
+- Implement language context provider
+
+### **Phase 2: Enhanced Credit Note System (6h)**
+
+#### **2.1 Partial Credit Note Backend (3h)**
+- **Current Issue**: `createCreditNote` function copies entire invoice (line 484-485)
+- **Enhancement**: Add partial credit logic with item/quantity selection
+- **Schema**: Add `partialCreditItems` parameter to credit note creation
+- **Validation**: Ensure partial quantities don't exceed original amounts
+
+#### **2.2 Credit Note Selection UI (3h)**
+- Replace simple "Create Credit Note" button with modal
+- Add item selection table with quantity inputs
+- Implement validation for partial quantities
+- Show remaining uncredited amounts per item
+
+### **Phase 3: Background PDF Generation (8h)**
+
+#### **3.1 Inngest PDF Job Setup (4h) - MIDDAY INSPIRED**
+- Configure Inngest background job for PDF generation
+- Implement PDF generation queue with status tracking
+- Add progress indicators for PDF generation
+- Store generated PDFs with expiration handling
+
+#### **3.2 Finnish Invoice PDF Template (4h)**
+- Create professional invoice template matching provided example
+- Implement authentic Finnish giroblankett payment slip
+- Add company logo integration
+- Support multi-page content with proper page breaks
+
+### **Phase 4: Advanced Excel Operations (8h)**
+
+#### **4.1 Enhanced Inventory Excel Import (6h)**
+- **Current Status**: ✅ Basic export exists in `replenishment.ts` (line 230)
+- **Enhancement**: Full CRUD import with validation framework
+- **Preview System**: Show changes before applying
+- **Error Handling**: Comprehensive validation with row-level errors
+
+#### **4.2 Excel Template System (2h)**
+- Create downloadable templates for different data types
+- Add validation rules and examples to templates
+- Implement template versioning for compatibility
+
+---
+
+## 🔧 **Technical Implementation Notes**
+
+### **Language Switcher Architecture**
+- **i18n Framework**: Use `next-i18next` or React i18n
+- **File Structure**: 
+  ```
+  public/locales/
+    ├── fi/common.json
+    ├── se/common.json
+    └── en/common.json
+  ```
+- **Context Management**: Language preference stored in user session
+
+### **Credit Note Enhancement**
+- **Current Logic Issue**: Lines 484-485 in `invoice.actions.ts` negate ALL quantities
+- **Required Change**: Add selective item/quantity mapping
+- **UI Pattern**: Modal with table similar to invoice item selection
+
+### **PDF Generation Strategy (Midday-Inspired)**
+- **Background Processing**: Use existing Inngest setup for async generation
+- **Status Tracking**: Real-time updates via tRPC subscriptions
+- **Performance**: Store generated PDFs to avoid regeneration
+- **Scalability**: Queue management for high-volume PDF generation
+
+### **Excel Import Architecture**
+- **Library**: Use `xlsx` library for Excel parsing
+- **Validation**: Zod schemas for imported data validation
+- **Transaction Safety**: Database transactions for bulk operations
+- **Preview UI**: Table showing all changes before confirmation
+
+---
+
+## 📊 **Success Metrics & Validation**
+
+### **Language Support Metrics**
+- **Adoption Rate**: >80% of Finnish users switch to FI locale
+- **Customer Documents**: 90% of invoices generated in customer's preferred language
+- **UI Translation**: 100% of core interface elements localized
+
+### **Credit Note Enhancement Metrics**
+- **Efficiency**: 50% reduction in credit note creation time
+- **Accuracy**: 95% reduction in incorrect credit amounts
+- **Usage**: 30% of credit notes are partial rather than full
+
+### **PDF Generation Performance**
+- **Generation Time**: <5 seconds for standard invoices with background jobs
+- **Storage Efficiency**: 90% cache hit rate for repeated PDF requests
+- **User Experience**: Real-time progress indicators for all PDF operations
+
+### **Excel Import Success**
+- **Data Accuracy**: 99% successful import rate with validation
+- **Time Savings**: 90% reduction in manual inventory data entry
+- **Error Prevention**: <1% data corruption through validation framework
+
+---
+
+## 🚨 **Risk Mitigation & Quality Assurance**
+
+### **Language Implementation Risks**
+- **Translation Quality**: Use professional translation services for business terms
+- **Cultural Adaptation**: Finnish/Swedish business terminology and formats
+- **PDF Layout**: Right-to-left text handling and character encoding
+
+### **Credit Note Business Logic Risks**
+- **Accounting Compliance**: Ensure partial credits meet accounting standards
+- **Audit Trail**: Maintain complete history of credit note modifications
+- **Business Rules**: Implement appropriate restrictions on credit timing
+
+### **PDF Generation Scalability**
+- **Memory Management**: Efficient PDF generation for large documents
+- **Queue Management**: Handle high-volume PDF requests without system impact
+- **Error Recovery**: Robust error handling for failed PDF generation
+
+---
+
+## 🎯 **Immediate Next Actions**
+
+1. **🔴 URGENT**: Get user clarification on language switcher scope and requirements
+2. **🟡 ANALYSIS**: Review current credit note implementation and plan partial functionality
+3. **🟢 RESEARCH**: Finalize PDF generation architecture based on Midday insights
+4. **🔵 PLANNING**: Create detailed technical specifications for each phase
+
+**Estimated Total Development Time**: 28 hours across all priorities
+
+**Next Review Point**: After user clarifications are received and technical approach is confirmed 

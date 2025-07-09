@@ -27,6 +27,8 @@ The application has achieved exceptional maturity with near-complete implementat
 - **✅ Invoice Process**: Seamless invoice creation from orders with proper Decimal conversion and comprehensive data prefilling.
 - **✅ Table Responsiveness**: Added horizontal scroll to inventory and invoice tables with optimized column layouts.
 - **✅ Sales Funnel Analytics**: Real-time sales pipeline with emerald-themed visualizations, interactive date filtering, and database connectivity.
+- **✅ Finvoice Integration**: Enhanced auto-fill customer details and penalty interest rate correction to 10.5% Finnish standard.
+- **✅ BOM Management UI**: Extended raw material table vertically for handling 100+ component manufacturing workflows.
 
 **COMPREHENSIVE FEATURE STATUS:**
 - **Orders & Quotations**: Full lifecycle management with searchable line-item entry, delivery dates, production integration, and invoice generation. **[Enhanced]**
@@ -37,8 +39,35 @@ The application has achieved exceptional maturity with near-complete implementat
 - **BOM Management**: Full backend implementation with UI scaffolding and cost calculation.
 - **Dashboard**: Real-time metrics with interactive emerald-themed charts and a new, more effective layout featuring the sales funnel. **[Enhanced]**
 
-**CURRENT COMPLETION STATUS: ~99%**
-The system is production-ready with exceptional polish and advanced features operational. Remaining work focuses on minor enhancements, PDF generation, and advanced reporting.
+**NEW REQUIREMENTS IDENTIFIED (2025-02-01):**
+
+### **Multi-Language Support System**
+- **Language Switcher**: User settings integration for FI (Finnish), SE (Swedish), EN (English)
+- **Customer Language Preference**: Stored per customer for document generation
+- **Localized Document Templates**: Multi-language PDF generation for invoices, orders, and BOMs
+- **Email Localization**: System notification emails in customer's preferred language
+- **UI Localization**: Complete interface translation using i18n framework
+
+### **Enhanced Credit Note System**
+- **Current Limitation**: ❌ Only full credit notes supported (entire invoice amounts)
+- **Required Enhancement**: Partial credit note functionality allowing selection of specific line items and quantities
+- **Business Logic**: Support for multiple partial credits per invoice
+- **UI Enhancement**: Credit note creation modal with item/quantity selection interface
+
+### **Advanced PDF Generation Architecture**
+- **Background Processing**: Implement async PDF generation using Inngest (inspired by Midday.ai architecture)
+- **Progress Indicators**: Real-time status updates for PDF generation
+- **Cloud Storage**: Store generated PDFs for reuse and performance optimization
+- **Template System**: Reusable PDF components for different document types
+
+### **Enhanced Excel Import/Export System**
+- **Current Status**: ✅ Basic replenishment Excel export exists
+- **Required Enhancement**: Full inventory CRUD operations via Excel import with comprehensive validation
+- **Template System**: Downloadable Excel templates for bulk data operations
+- **Validation Framework**: Preview and error handling system for data imports
+
+**CURRENT COMPLETION STATUS: ~80%** (Revised down from 99% - significant features identified)
+The system is production-ready for core workflows but requires language support, advanced credit note functionality, and professional PDF generation to achieve full business readiness for Finnish/Swedish markets.
 
 ## 2. Goals
 
@@ -82,9 +111,9 @@ The system is production-ready with exceptional polish and advanced features ope
         *   Sequential Invoice Numbering (e.g., INV-00001). **[Implemented]** Default status `draft`. **[Implemented]**
         *   Track invoice status (Draft, Sent, Paid, Overdue, Cancelled, Credited). **[Implemented]**
         *   Record Payments against invoices. **[Implemented, UI may need review/enhancement]**
-        *   Credit Note generation from existing invoices. **[Backend/Schema prepped, UI/Full Flow PENDING]**
+        *   Credit Note generation from existing invoices. **[Backend/Schema prepped, ❌ ONLY FULL CREDIT NOTES - Partial credit functionality REQUIRED]**
         *   Finvoice 3.0 XML export (Netvisor compatible). **[Implemented, requires full company settings integration]**
-        *   PDF generation for invoices and credit notes. **[PENDING]**
+        *   PDF generation for invoices and credit notes. **[PENDING - Background job architecture required]**
     *   **Profitability Tracking (NEW):**
         *   The system calculates and stores profit for each invoiced item in `InvoiceItem` fields (`calculatedUnitCost`, `calculatedUnitProfit`, `calculatedLineProfit`). **[Implemented in backend mutations]**
         *   Profit is defined as (Net Sales Price per unit - Net Unit Cost per unit). **[Implemented]**
@@ -176,9 +205,15 @@ The system is production-ready with exceptional polish and advanced features ope
 ### 5. User Management & Settings
     *   **Authentication:** User login with email/password. **[Implemented]**
     *   **User Profile:** Users can update their Name, First Name, and Password. **[Implemented]**
+    *   **Multi-Language Support (NEW):**
+        *   User language preference setting (FI, SE, EN). **[REQUIRED]**
+        *   Customer language preference for document generation. **[REQUIRED]**
+        *   Localized UI elements and PDF templates. **[REQUIRED]**
+        *   Multi-language email notifications. **[REQUIRED]**
     *   **Company Settings:**
         *   Configure company details for invoicing/Finvoice. **[Implemented, full integration into Finvoice service needs verification/completion for all fields. Settings page now robustly handles cases where settings may not yet exist, guiding user appropriately.]**
         *   Includes company-level default VAT rate. **[Implemented]**
+        *   Company logo upload for multi-tenant branding. **[REQUIRED]**
 
 ### 6. Reporting & Dashboards
     *   **Dashboard:**

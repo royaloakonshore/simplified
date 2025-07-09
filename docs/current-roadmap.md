@@ -28,52 +28,56 @@ The system has reached exceptional stability with all critical runtime errors re
 
 ---
 
-## 🔥 **CURRENT PRIORITIES**
+## 📋 **Current Development Priorities - Updated 2025-02-01**
 
-### **Priority 3: PDF Generation with Giroblankett Payment Slip (HIGH)**
+**System Status**: Production-ready ERP with 85% completion. Core business workflows fully operational with advanced features.
 
-**Estimated Time: 13 hours**
+### **NEW: Priority 1A: Multi-Language Support (HIGH) - NEW REQUIREMENT**
 
-#### **3.1 Professional Invoice PDF Generation (4h)**
-- **Technology**: Server-side generation using Puppeteer
-- **Template Structure**: HTML/CSS templates designed for PDF output
-- **Company Branding**: Include company logos and customizable layouts
+#### **1A.1 Language Switcher Implementation (6h)**
+- **User Settings Integration**: Add language preference to user settings (FI, SE, EN)
+- **UI Localization**: Implement i18n for all interface elements
+- **Customer Language Preference**: Add language field to customer records for document generation
+- **Document Templates**: Localize invoice, order, and BOM PDF templates
+- **Email Localization**: Localize system notification emails
+- **Dependencies**: Affects all PDF generation and customer communication
 
-#### **3.2 Company Logo Upload & Integration (3h)**
-- **✅ Infrastructure**: AWS S3 storage and upload API already implemented
-- **Database Enhancement**: Add `logoUrl` and `logoKey` fields to Settings model
-- **Settings Form**: Add file upload component for company logo management
-- **PDF Integration**: Display logo in top-left corner of all invoice/order pages
+### **Priority 1: Finvoice Integration Enhancement (HIGH) - ✅ COMPLETED**
 
-#### **3.3 Giroblankett Payment Slip Integration (4h)**
-- **✅ Critical**: Always include giroblankett at bottom of all invoice PDFs
-- **Multi-Page Support**: Header repetition, content overflow handling
-- **Layout Requirements**: Exact positioning from Finnish LaTeX template
-- **Text Labels**: Use flat Finnish/Swedish text ("Tilisiirto" / "Bankgiro" / "IBAN")
-- **Field Population**: Company IBAN, invoice reference, amount, due date
+✅ **Auto-fill customer details in invoice forms**
+✅ **Enhanced delivery method and buyer reference integration**
+✅ **Penalty interest rate corrected to 10.5% Finnish standard**
 
-#### **3.4 Multi-Document PDF Support (2h)**
-- **Requirement**: Extend to orders, quotations, and credit notes
-- **Consistency**: Apply company logo and professional layout to all documents
-- **Bulk Export**: Support for generating multiple PDFs simultaneously
+### **Priority 2: PDF Generation with Midday Architecture (HIGH) - ENHANCED SCOPE**
 
-### **Priority 4: Invoice Form Final Enhancements (MEDIUM)**
+#### **2.1 Background Job PDF Generation (8h) - INSPIRED BY MIDDAY**
+- **Inngest Integration**: Implement async PDF generation using existing Inngest setup
+- **Progress Indicators**: Real-time PDF generation status updates
+- **Cloud Storage**: Store generated PDFs for reuse and performance
+- **Template System**: Reusable PDF components for different document types
 
-**Estimated Time: 4 hours**
+#### **2.2 Finnish Giroblankett Integration (4h)**
+- **Payment Slip Format**: Authentic Finnish payment slip at bottom of invoices
+- **Company Logo Upload**: Multi-tenant logo management in settings
+- **Professional Layout**: Match provided Finnish invoice example styling
 
-#### **4.1 Row Free Text Fields (2h)**
-- **Requirement**: Add free text field for each invoice/order item row
-- **Purpose**: Additional descriptions, specifications, or notes per line item
-- **Finvoice Compatibility**: Verify field inclusion in XML export format
+### **Priority 3: Enhanced Credit Note System (MEDIUM)**
 
-#### **4.2 Invoice Date Alignment Fix (0.5h)**
-- **Issue**: Misaligned form inputs causing visual inconsistency
-- **Solution**: Adjust CSS/Tailwind classes for proper alignment
+#### **3.1 Partial Credit Note Support (6h)**
+- **Current Status**: ❌ Only full credit notes supported
+- **Enhancement**: Allow selection of specific line items and quantities for partial credits
+- **UI Enhancement**: Credit note creation modal with item selection
+- **Business Logic**: Support multiple partial credits per invoice
+- **Dependencies**: Requires UI/UX design for item selection interface
 
-#### **4.3 Enhanced Discount UI (1.5h)**
-- **Requirement**: Add "Add Discount" button for each row
-- **Current Issue**: Discount columns always visible, making form cramped
-- **New Behavior**: Show discount columns only when needed per row
+### **Priority 4: Advanced Excel Import/Export (MEDIUM)**
+
+#### **4.1 Enhanced Inventory Excel Capabilities (8h)**
+- **Current Status**: ✅ Basic replenishment export exists
+- **Enhancement**: Full inventory CRUD via Excel import with validation
+- **Template System**: Downloadable Excel templates for different data types
+- **Validation Framework**: Comprehensive error handling and preview system
+- **Dependencies**: Excel parsing library (xlsx) and validation UI
 
 ### **Priority 5: Table Consistency & Export Features (LOW)**
 
@@ -107,63 +111,39 @@ The system has reached exceptional stability with all critical runtime errors re
 
 ---
 
-## 🎯 **Implementation Roadmap**
+## 🎯 **Implementation Timeline - Updated**
 
-### **✅ Phase 1: Critical Business Features (9h) - COMPLETED**
-1. ✅ Localization Support (6h) - International business operations
-2. ✅ Production Kanban Enhancement (3h) - Manufacturing workflow improvement
+### **Phase 1: Multi-Language Foundation (6h)**
+1. **User Settings Language Switcher** - Add FI, SE, EN support
+2. **Basic UI Localization** - Translate core interface elements
+3. **Customer Language Preference** - Add to customer model and forms
 
-### **Phase 2: PDF Generation with Payment Infrastructure (13h) - CURRENT**
-3. **PDF Generation with Giroblankett & Logo Upload** - Professional invoice output
+### **Phase 2: Advanced PDF & Credit Notes (18h)**
+1. **Background PDF Generation** - Implement Midday-inspired async approach
+2. **Finnish Giroblankett Integration** - Professional invoice layout
+3. **Partial Credit Note System** - Enhanced credit functionality
 
-### **Phase 3: Form & UI Polish (4h)**
-4. **Invoice Form Enhancements** - Complete invoice functionality and UX
+### **Phase 3: Data Management Excellence (8h)**
+1. **Advanced Excel Import/Export** - Complete inventory data management
+2. **PDF Template Localization** - Multi-language document support
 
-### **Phase 4: Table Consistency & Export (5h)**
-5. **Table Multi-Select & Bulk Operations** - UI consistency and advanced export
+## 📊 **Priority Matrix - Updated**
 
-### **Phase 5: Customer Management Enhancement (3h)**
-6. **Customer Revenue & History** - Complete customer management features
+| Feature | Business Impact | Technical Complexity | User Demand | Effort (Hours) | Status |
+|---------|----------------|---------------------|-------------|---------------|---------|
+| **Multi-Language Support** | High | Medium | High | 6 | **NEW** |
+| PDF Generation (Async) | High | High | High | 8 | **ENHANCED** |
+| Partial Credit Notes | Medium | Medium | Medium | 6 | **NEW** |
+| Excel Import/Export | Medium | Medium | High | 8 | **PENDING** |
 
-### **Phase 6: Advanced Features (23h)**
-7. **Advanced Reporting & Analytics** - Business intelligence and optimization
+## 📈 **Success Metrics - Updated**
 
----
+- **Language Adoption**: >80% of Finnish users switch to FI locale
+- **PDF Performance**: <5 second generation time with background jobs
+- **Credit Note Usage**: 30% reduction in manual credit note creation time
+- **Excel Efficiency**: 90% reduction in manual inventory data entry
 
-## 📊 **Priority Matrix**
-
-| Feature | Business Impact | Technical Complexity | User Demand | Priority | Status |
-|---------|----------------|---------------------|-------------|----------|---------|
-| ✅ Customer Language Selection | High | Low | High | 1 | **COMPLETED** |
-| ✅ Localized Invoice Output | High | Medium | High | 1 | **COMPLETED** |
-| ✅ Kanban Card Management | Medium | Low | Medium | 2 | **COMPLETED** |
-| PDF Generation with Giroblankett | High | Medium | High | 3 | **PENDING** |
-| Invoice Form Enhancements | Medium | Low | Medium | 4 | **PENDING** |
-| Table Multi-Select & Export | Low | Low | Low | 5 | **PENDING** |
-| Customer Revenue Display | Low | Low | Low | 6 | **PENDING** |
-| Advanced Reporting | High | High | Medium | 7 | **PENDING** |
-
----
-
-## 🚀 **Next Actions for AI Agent**
-
-### **Immediate Focus (Priority 3)**
-1. **PDF Infrastructure Setup**: Implement server-side PDF generation using Puppeteer
-2. **Giroblankett Payment Slip**: Add Finnish payment slip layout to bottom of all invoice PDFs
-3. **Reference Integration**: Use exact positioning from LaTeX template and Avoin Systems addon
-4. **Field Population**: Connect IBAN, reference numbers, and payment terms from company settings
-
-### **Success Criteria**
-- Professional invoice PDFs with authentic Finnish giroblankett payment slips
-- Exact layout matching traditional Finnish invoice standards
-- All required payment information populated from company settings
-- Build stability maintained throughout all PDF implementations
-
-### **Technical Notes**
-- Follow established patterns for tRPC API design
-- Implement proper TypeScript typing for PDF generation
-- Test PDF output across different browsers and devices
-- Reference Finnish LaTeX template for exact field positioning and text labels
+**Total Development Estimate**: 28 hours for complete feature set
 
 ---
 

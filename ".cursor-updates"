@@ -1,0 +1,65 @@
+# Cursor Updates - Simplified ERP System
+
+All changes made by the AI assistant are documented here.
+
+## 2025-02-01: Language Switcher Requirements & System Enhancement Analysis
+
+**Goal:** Analyze new requirements for multi-language support, credit note partial functionality, and PDF generation strategy based on Midday.ai insights.
+
+**Summary:**
+Comprehensive analysis of new system requirements including language switcher (FI, SE, EN), enhanced credit note system for partial credits, and advanced PDF generation architecture inspired by Midday.ai's background job approach.
+
+**🔍 ANALYSIS FINDINGS:**
+
+**✅ LANGUAGE SWITCHER REQUIREMENTS:**
+- **Scope Identified**: FI (Finnish), SE (Swedish), EN (English) support in user settings
+- **Implementation Areas**: UI localization, customer language preference, document templates, email notifications
+- **Architecture**: i18n framework with translation files and language context provider
+- **Business Impact**: Critical for Finnish/Swedish market penetration
+
+**❌ CREDIT NOTE LIMITATION DISCOVERED:**
+- **Current Issue**: Only full credit notes supported (entire invoice negation)
+- **Code Location**: `createCreditNote` function in `invoice.actions.ts` lines 484-485 negates ALL quantities
+- **Required Enhancement**: Partial credit note functionality with item/quantity selection
+- **Business Need**: Allow selective crediting of specific line items and quantities
+
+**🚀 PDF GENERATION STRATEGY REFINEMENT:**
+- **Midday Insights**: Background job architecture using Trigger.dev for async PDF generation
+- **Current Status**: Placeholder implementations exist across orders, invoices, BOMs
+- **Required Enhancement**: Implement async PDF generation with Inngest, progress indicators, and cloud storage
+- **Architecture**: Queue management, status tracking, and template system
+
+**📊 EXCEL IMPORT/EXPORT STATUS:**
+- **Current Implementation**: ✅ Basic replenishment Excel export exists (`replenishment.ts` line 230)
+- **Required Enhancement**: Full inventory CRUD via Excel import with validation framework
+- **Template System**: Downloadable Excel templates with comprehensive validation
+
+**📋 DOCUMENTATION UPDATES:**
+- **✅ Updated**: `docs/current-roadmap.md` with new priorities and implementation timeline
+- **✅ Updated**: `docs/00-product-requirements.md` with revised completion status (80% vs 99%) and new requirements
+- **✅ Updated**: `docs/next-steps-guide.md` with clarification questions and technical implementation notes
+
+**🤔 CLARIFICATION QUESTIONS IDENTIFIED:**
+1. **Language Switcher Scope**: UI only vs full document/email localization?
+2. **Customer Language Preference**: Should customers have stored language preference for documents?
+3. **Credit Note Business Rules**: Restrictions on partial credit amounts or timing?
+4. **PDF Generation Priority**: Which document types need PDF generation first?
+
+**📈 REVISED COMPLETION STATUS:**
+- **Previous**: 99% completion claimed
+- **Realistic Assessment**: 80% completion (core workflows complete, major features identified)
+- **Remaining Work**: Language support, partial credit notes, professional PDF generation, advanced Excel operations
+
+**⏰ DEVELOPMENT ESTIMATES:**
+- Language Foundation: 6 hours
+- Enhanced Credit Notes: 6 hours  
+- Background PDF Generation: 8 hours
+- Advanced Excel Operations: 8 hours
+- **Total**: 28 hours for complete feature set
+
+**🎯 NEXT ACTIONS:**
+- Await user clarification on language switcher scope and business requirements
+- Plan technical implementation based on user feedback
+- Prioritize development phases based on business impact
+
+## 2025-02-01: Finvoice Integration Enhancement & BOM UI Extension 
