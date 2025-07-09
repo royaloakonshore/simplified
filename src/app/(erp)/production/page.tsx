@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { api } from "@/lib/trpc/react";
+import Decimal from 'decimal.js';
 import { DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { KanbanBoard, KanbanCard, KanbanCards, KanbanHeader, KanbanProvider } from '@/components/ui/kanban';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

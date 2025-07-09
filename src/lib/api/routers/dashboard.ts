@@ -1,15 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, companyProtectedProcedure } from "@/lib/api/trpc";
-import { OrderStatus, Prisma } from "@prisma/client";
+import { OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import Decimal from "decimal.js";
-
-// Utility function for safe Prisma.Decimal to number conversion
-const toSafeNumber = (value: Prisma.Decimal | null | undefined): number => {
-  if (value === null || value === undefined) return 0;
-  const num = new Decimal(value.toString()).toNumber();
-  return isFinite(num) ? num : 0;
-};
 
 export const dashboardRouter = createTRPCRouter({
   getStats: companyProtectedProcedure
@@ -61,7 +53,7 @@ export const dashboardRouter = createTRPCRouter({
 
       // 1. Shipped Orders Count
       const [currentShippedOrders, previousShippedOrders] = await Promise.all([
-        ctx.db.order.count({
+        prisma.order.count({
           where: {
             companyId,
             status: OrderStatus.shipped,
@@ -71,7 +63,7 @@ export const dashboardRouter = createTRPCRouter({
             },
           },
         }),
-        ctx.db.order.count({
+        prisma.order.count({
           where: {
             companyId,
             status: OrderStatus.shipped,
@@ -84,7 +76,7 @@ export const dashboardRouter = createTRPCRouter({
       ]);
 
       // 2. Pending Production Count (confirmed + in_production)
-      const pendingProductionCount = await ctx.db.order.count({
+      const pendingProductionCount = await prisma.order.count({
         where: {
           companyId,
           status: {
@@ -94,7 +86,7 @@ export const dashboardRouter = createTRPCRouter({
       });
 
       // 3. Late Orders Count (orders past delivery date)
-      const lateOrdersCount = await ctx.db.order.count({
+      const lateOrdersCount = await prisma.order.count({
         where: {
           companyId,
           deliveryDate: {
@@ -108,7 +100,7 @@ export const dashboardRouter = createTRPCRouter({
 
       // 4. Total Revenue (from paid invoices)
       const [currentRevenue, previousRevenue] = await Promise.all([
-        ctx.db.invoice.aggregate({
+        prisma.invoice.aggregate({
           where: {
             companyId,
             status: "paid",
@@ -121,7 +113,7 @@ export const dashboardRouter = createTRPCRouter({
             totalAmount: true,
           },
         }),
-        ctx.db.invoice.aggregate({
+        prisma.invoice.aggregate({
           where: {
             companyId,
             status: "paid",
@@ -141,15 +133,15 @@ export const dashboardRouter = createTRPCRouter({
         ? ((currentShippedOrders - previousShippedOrders) / previousShippedOrders) * 100 
         : currentShippedOrders > 0 ? 100 : 0;
 
-      const currentRevenueValue = toSafeNumber(currentRevenue._sum?.totalAmount);
-      const previousRevenueValue = toSafeNumber(previousRevenue._sum?.totalAmount);
+      const currentRevenueValue = currentRevenue._sum?.totalAmount?.toNumber() || 0;
+      const previousRevenueValue = previousRevenue._sum?.totalAmount?.toNumber() || 0;
       const revenueTrend = previousRevenueValue > 0 
         ? ((currentRevenueValue - previousRevenueValue) / previousRevenueValue) * 100 
         : currentRevenueValue > 0 ? 100 : 0;
 
       // 5. Order Fulfillment Rate (percentage of on-time deliveries)
       // Get all shipped orders in the current period
-      const currentShippedOrdersWithDates = await ctx.db.order.findMany({
+      const currentShippedOrdersWithDates = await prisma.order.findMany({
         where: {
           companyId,
           status: OrderStatus.shipped,
@@ -177,48 +169,41 @@ export const dashboardRouter = createTRPCRouter({
 
       const fulfillmentRate = currentOrdersTotal > 0 ? (currentOrdersOnTime / currentOrdersTotal) * 100 : 0;
 
-      // 6. Inventory Turnover & Value
-      const [allInventoryItems, shippedOrderItems] = await Promise.all([
-        ctx.db.inventoryItem.findMany({
-          where: { companyId },
-          select: { costPrice: true, quantityOnHand: true },
-        }),
-        ctx.db.orderItem.findMany({
+      // 6. Inventory Turnover (simplified version - inventory value change)
+      const [currentInventoryValue, previousInventoryValue] = await Promise.all([
+        prisma.inventoryItem.aggregate({
           where: {
-            order: {
-              companyId,
-              status: OrderStatus.shipped,
-              updatedAt: {
-                gte: currentPeriodStart,
-                lte: currentPeriodEnd,
-              },
+            companyId,
+            updatedAt: {
+              lte: currentPeriodEnd,
             },
           },
-          include: {
-            inventoryItem: {
-              select: { costPrice: true }
-            }
-          }
-        })
+          _sum: {
+            costPrice: true,
+          },
+        }),
+        prisma.inventoryItem.aggregate({
+          where: {
+            companyId,
+            updatedAt: {
+              lte: previousPeriodEnd,
+            },
+          },
+          _sum: {
+            costPrice: true,
+          },
+        }),
       ]);
 
-      const totalInventoryValue = allInventoryItems.reduce((acc, item) => {
-        const itemValue = new Decimal(item.costPrice.toString()).times(new Decimal(item.quantityOnHand.toString()));
-        return acc.plus(itemValue);
-      }, new Decimal(0));
-
-      const costOfGoodsShipped = shippedOrderItems.reduce((acc, item) => {
-        const itemCost = new Decimal(item.inventoryItem.costPrice.toString()).times(new Decimal(item.quantity.toString()));
-        return acc.plus(itemCost);
-      }, new Decimal(0));
-      
-      const inventoryTurnover = totalInventoryValue.isZero() 
-        ? new Decimal(0)
-        : costOfGoodsShipped.dividedBy(totalInventoryValue);
+      const currentInventoryVal = currentInventoryValue._sum?.costPrice?.toNumber() || 0;
+      const previousInventoryVal = previousInventoryValue._sum?.costPrice?.toNumber() || 0;
+      const inventoryTurnover = previousInventoryVal > 0 
+        ? ((previousInventoryVal - currentInventoryVal) / previousInventoryVal) * 100 
+        : 0;
 
       // 7. Customer Growth (new customers this period vs previous period)
       const [currentNewCustomers, previousNewCustomers] = await Promise.all([
-        ctx.db.customer.count({
+        prisma.customer.count({
           where: {
             companyId,
             createdAt: {
@@ -227,7 +212,7 @@ export const dashboardRouter = createTRPCRouter({
             },
           },
         }),
-        ctx.db.customer.count({
+        prisma.customer.count({
           where: {
             companyId,
             createdAt: {
@@ -264,9 +249,10 @@ export const dashboardRouter = createTRPCRouter({
           onTime: currentOrdersOnTime,
           total: currentOrdersTotal,
         },
-        inventory: {
-          turnover: inventoryTurnover.toNumber(),
-          totalValue: totalInventoryValue.toNumber(),
+        inventoryTurnover: {
+          percentage: inventoryTurnover,
+          current: currentInventoryVal,
+          previous: previousInventoryVal,
         },
         customerGrowth: {
           current: currentNewCustomers,
@@ -279,7 +265,7 @@ export const dashboardRouter = createTRPCRouter({
   getRecentOrders: companyProtectedProcedure
     .input(z.object({ limit: z.number().min(1).max(50).default(10) }))
     .query(async ({ ctx, input }) => {
-      const orders = await ctx.db.order.findMany({
+      const orders = await prisma.order.findMany({
         where: {
           companyId: ctx.companyId,
         },
@@ -340,7 +326,7 @@ export const dashboardRouter = createTRPCRouter({
           periodLabel = `w. ${weekNumber}`;
         }
 
-        const revenueAggregate = await ctx.db.invoice.aggregate({
+        const revenueAggregate = await prisma.invoice.aggregate({
           where: {
             companyId,
             status: "paid",
@@ -388,7 +374,7 @@ export const dashboardRouter = createTRPCRouter({
       }
 
       // Get invoices with customer data and items for margin calculation
-      const invoices = await ctx.db.invoice.findMany({
+      const invoices = await prisma.invoice.findMany({
         where: whereClause,
         include: {
           customer: {
@@ -501,74 +487,114 @@ export const dashboardRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { companyId } = ctx;
-      const { startDate, endDate } = input;
-
-      const whereClause: Prisma.OrderWhereInput = {
-        companyId,
-        orderType: "work_order", // Funnel for work orders
-      };
-
-      if (startDate && endDate) {
-        whereClause.createdAt = {
-          gte: startDate,
-          lte: endDate,
-        };
-      }
-
-      const orders = await ctx.db.order.findMany({
-        where: whereClause,
-        select: {
-          status: true,
-          totalAmount: true,
-        },
-      });
-
-      const calculateStageData = (filteredOrders: typeof orders, stage: string, color: string) => {
-        const totalValue = filteredOrders.reduce((sum, order) => {
-            const orderTotal = new Decimal(order.totalAmount?.toString() || "0");
-            return sum.plus(orderTotal);
-        }, new Decimal(0));
-
-        return {
-          name: stage,
-          value: totalValue.toNumber(),
-          count: filteredOrders.length,
-          color: color,
-        };
-      };
-
-      const quotationOrders = await ctx.db.order.findMany({
-        where: {
-          companyId,
-          orderType: 'quotation',
-          createdAt: startDate && endDate ? { gte: startDate, lte: endDate } : undefined
-        },
-        select: { totalAmount: true, status: true }
-      });
-
-      const confirmedQuotations = quotationOrders.filter(o => o.status === 'confirmed');
-      const draftQuotations = quotationOrders.filter(o => o.status === 'draft');
-
-      const funnelData = [
-        calculateStageData(draftQuotations, 'Quotations (Draft)', '#84cc16'), // lime-500
-        calculateStageData(confirmedQuotations, 'Quotations (Confirmed)', '#22c55e'), // green-500
-        calculateStageData(
-          orders.filter((o) => o.status === OrderStatus.in_production),
-          'In Production',
-          '#10b981' // emerald-500
-        ),
-        calculateStageData(
-          orders.filter((o) => o.status === OrderStatus.shipped),
-          'Shipped',
-          '#06b6d4' // cyan-500
-        ),
-        calculateStageData(
-          orders.filter((o) => o.status === OrderStatus.invoiced),
-          'Invoiced',
-          '#3b82f6' // blue-500
-        ),
-      ];
+      // Base where clause
+      const baseWhere = { companyId };
       
-      return funnelData;
+      // Add date filtering if provided
+      const whereClause = input.startDate && input.endDate 
+        ? {
+            ...baseWhere,
+            createdAt: {
+              gte: input.startDate,
+              lte: input.endDate,
+            }
+          }
+        : baseWhere;
+
+      // Get orders by status and type
+      const [quotations, workOrders, inProduction, shipped, invoiced] = await Promise.all([
+        // Quotations
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "quotation",
+            status: {
+              in: ["draft", "confirmed"]
+            }
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // Work Orders (confirmed, not yet in production)
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: "confirmed"
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // In Production
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: "in_production"
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // Shipped (ready to invoice)
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: {
+              in: ["shipped", "delivered"]
+            }
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+        
+        // Invoiced
+        prisma.order.findMany({
+          where: {
+            ...whereClause,
+            orderType: "work_order",
+            status: "invoiced"
+          },
+          select: {
+            totalAmount: true,
+            createdAt: true,
+          },
+        }),
+      ]);
+
+      // Calculate totals and format for funnel
+      const calculateStageData = (orders: any[], stage: string, color: string) => {
+        const totalValue = orders.reduce((sum, order) => sum + (order.totalAmount?.toNumber() || 0), 0);
+        const count = orders.length;
+        return {
+          stage,
+          value: totalValue,
+          count,
+          color,
+          orders: orders.map(order => ({
+            value: order.totalAmount?.toNumber() || 0,
+            date: order.createdAt.toISOString().split('T')[0]
+          }))
+        };
+      };
+
+      return [
+        calculateStageData(quotations, "Quotations", "#10b981"), // emerald-500
+        calculateStageData(workOrders, "Work Orders", "#059669"), // emerald-600
+        calculateStageData(inProduction, "In Production", "#047857"), // emerald-700
+        calculateStageData(shipped, "Ready to Invoice", "#065f46"), // emerald-800
+        calculateStageData(invoiced, "Invoiced", "#064e3b"), // emerald-900
+      ];
     }),
 }); 

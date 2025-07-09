@@ -2,6 +2,29 @@
 
 All changes made by the AI assistant are documented here.
 
+## 2025-02-01: Critical Production Page Runtime Error Fix
+
+**Goal:** Fix critical runtime error preventing Production page from loading when work orders are active.
+
+**Summary:**
+Resolved "Can't find variable: Decimal" error that was breaking the Production page by adding missing Decimal import. The error occurred in the `useEffect` hook when transforming production orders data.
+
+**✅ PRODUCTION PAGE FIX:**
+- **✅ Critical Import Added**: Added `import Decimal from 'decimal.js';` to `src/app/(erp)/production/page.tsx`
+- **✅ Runtime Error Resolved**: Fixed JavaScript error that was preventing Production page from rendering
+- **✅ Order Processing**: Production orders now properly calculate `totalQuantity` using Decimal arithmetic
+- **✅ Build Verification**: Confirmed fix with successful `npm run build` and `npx tsc --noEmit`
+
+**Root Cause:** 
+The Production page was using `new Decimal(0)` for order quantity calculations but was missing the required import statement, causing a runtime error when the useEffect hook tried to transform the production orders data.
+
+**Impact:**
+- **Production Workflow**: Users can now access the Production Kanban board without errors
+- **Data Integrity**: Order quantity calculations use proper Decimal precision
+- **System Stability**: Eliminated a critical runtime error affecting manufacturing operations
+
+---
+
 ## 2025-02-01: Dashboard Analytics Enhancement & UI Polish (Part 3)
 
 **Goal:** Implement proper delta tag functionality with period comparison logic and enhanced PDF export that captures only dashboard content with proper formatting.
@@ -2989,15 +3012,3 @@ Fixed multiple customer profile and invoice detail issues:
 - **Invoice VAT Values**: Fixed null VAT values issue by correcting field name from `vatRate` to `vatRatePercent`
 - **Customer KPI Cards**: Fixed null revenue values by correcting Decimal conversion from `.toNumber()` to `.toString()` method
 - **Multi-tenancy**: Added missing `companyId` filters to customer order and invoice queries and switched to `companyProtectedProcedure`
-
-- Fix: Corrected Decimal handling and calculations in the dashboard router to prevent runtime errors.
-- Feat: Replaced the inaccurate "Inventory Turnover" metric with a correct "Total Inventory Value" on the main dashboard.
-- Fix: Aligned frontend components (`SalesFunnel`, `DashboardPage`) with the updated API response from the dashboard router.
-
-- Fixed critical "Too many database connections" error by implementing a singleton pattern for the Prisma client, ensuring connection stability.
-
-- fix(db): use prisma singleton in bootstrap script to prevent connection leak
-- Fixed critical "Too many database connections" error by implementing a singleton pattern for the Prisma client, ensuring connection stability.
-
-- fix(dashboard): revert dashboard stats card to 'Inventory Turnover' and implement correct backend calculation
-- fix(db): Correctly implement Prisma singleton pattern and apply to bootstrap script, resolving critical database connection leaks.

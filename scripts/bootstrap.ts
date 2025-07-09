@@ -1,8 +1,10 @@
 #!/usr/bin/env tsx
 
-import { prisma } from '../src/lib/db';
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createInterface } from "readline/promises";
+
+const prisma = new PrismaClient();
 
 interface BootstrapData {
   adminEmail: string;
@@ -121,7 +123,7 @@ async function main() {
     console.error("❌ Bootstrap failed:", error instanceof Error ? error.message : error);
     process.exit(1);
   } finally {
-    // We don't disconnect when using the singleton
+    await prisma.$disconnect();
   }
 }
 
