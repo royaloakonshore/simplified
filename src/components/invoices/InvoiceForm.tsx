@@ -175,7 +175,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       customerNumber: '',
       deliveryMethod: '',
       complaintPeriod: '7 vrk',
-      penaltyInterest: 10.5,
+      penaltyInterest: 11.5,
       vatReverseCharge: false,
       items: [{
         itemId: '',
@@ -216,7 +216,29 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
 
   React.useEffect(() => {
     if (selectedCustomer) {
-      form.setValue("customerNumber", selectedCustomer.customerNumber ?? "");
+      // Auto-fill customer number if available
+      if ('customerNumber' in selectedCustomer && selectedCustomer.customerNumber) {
+        form.setValue("customerNumber", selectedCustomer.customerNumber);
+      }
+      
+      // Auto-fill billing address and customer details for Finvoice integration
+      if ('addresses' in selectedCustomer && selectedCustomer.addresses) {
+        const billingAddress = selectedCustomer.addresses?.find((addr: any) => addr.type === 'billing');
+        
+        // Set delivery method from customer's address if not already set
+        if (billingAddress && !form.getValues("deliveryMethod")) {
+          // Use customer's city as a basis for delivery method suggestion
+          const cityDelivery = billingAddress.city ? `Toimitus: ${billingAddress.city}` : "";
+          if (cityDelivery) {
+            form.setValue("deliveryMethod", cityDelivery);
+          }
+        }
+      }
+      
+      // Auto-fill buyer reference if available and not already set
+      if ('buyerReference' in selectedCustomer && selectedCustomer.buyerReference && !form.getValues("ourReference")) {
+        form.setValue("ourReference", selectedCustomer.buyerReference);
+      }
     }
   }, [selectedCustomer, form]);
 

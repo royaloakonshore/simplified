@@ -187,7 +187,7 @@ export function RawMaterialSelectionTable({
             onChange={(event) => setGlobalFilter(event.target.value)}
             className="max-w-sm"
         />
-        <div className="rounded-md border">
+        <div className="rounded-md border max-h-96 overflow-y-auto">
         <Table>
             <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

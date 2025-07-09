@@ -3091,4 +3091,32 @@ Resolved cache invalidation problem in Production Kanban where drag-and-drop sta
 
 ---
 
-// ... existing code ...
+## 2025-02-01: Finvoice Integration Enhancement & BOM UI Extension
+
+**Goal:** Enhance Finnish invoice integration by auto-filling customer details and extend BOM raw material table for better 100+ component handling.
+
+**Summary:**
+Enhanced invoice form to auto-populate more customer fields for better Finvoice integration and extended BOM raw material table vertically to handle large component lists efficiently.
+
+**✅ FINVOICE INTEGRATION ENHANCEMENTS:**
+- **✅ Customer Auto-Fill Logic**: Enhanced `InvoiceForm.tsx` to auto-populate customer fields when customer is selected
+- **✅ Billing Address Integration**: Auto-fills delivery method from customer's billing address city when available  
+- **✅ Buyer Reference Transfer**: Auto-populates "Our Reference" field from customer's buyer reference
+- **✅ Customer Number Population**: Ensures customer number is properly transferred to invoice form
+- **✅ Type Safety**: Used proper TypeScript checks (`'field' in object`) to safely access customer data without type errors
+
+**✅ BOM MANAGEMENT UI EXTENSION:**
+- **✅ Raw Material Table Height**: Extended `RawMaterialSelectionTable.tsx` with `max-h-96 overflow-y-auto` 
+- **✅ Scrollable Interface**: Table now shows 384px height with vertical scrolling for handling 100+ components
+- **✅ Maintained UX**: Preserved search functionality and selection logic while improving scalability
+
+**Files Modified:**
+- `src/components/invoices/InvoiceForm.tsx` - Enhanced customer field auto-population
+- `src/components/boms/RawMaterialSelectionTable.tsx` - Added vertical scrolling for large component lists
+
+**✅ Build Status**: All changes compile successfully with `npm run build` ✅
+
+**Next Priorities:**
+1. **PDF Generation** - Finnish invoice layout with giroblankett
+2. **Excel Import/Export** - Business data exchange functionality  
+3. **Logo Upload** - Multi-tenant company logo management
