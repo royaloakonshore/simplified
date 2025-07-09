@@ -15,13 +15,22 @@ Resolved "Can't find variable: Decimal" error that was breaking the Production p
 - **✅ Order Processing**: Production orders now properly calculate `totalQuantity` using Decimal arithmetic
 - **✅ Build Verification**: Confirmed fix with successful `npm run build` and `npx tsc --noEmit`
 
-**Root Cause:** 
-The Production page was using `new Decimal(0)` for order quantity calculations but was missing the required import statement, causing a runtime error when the useEffect hook tried to transform the production orders data.
+**✅ CUSTOMER CREATION BUG FIX:**
+- **✅ Unique Constraint Issue Resolved**: Fixed "Unique constraint failed on customerNumber" error during customer creation
+- **✅ Auto-Number Generation**: Enhanced `customer.create` procedure to automatically generate sequential customer numbers (010, 011, 012, etc.) when not provided
+- **✅ Company Scoping**: Updated customer procedures to use `companyProtectedProcedure` for proper multi-tenant data isolation
+- **✅ Database Consistency**: Ensured all customer operations are properly scoped to the active company
+- **✅ Prisma Client Updated**: Regenerated Prisma client to include latest schema changes
+
+**Root Causes:** 
+1. **Production Page**: The Production page was using `new Decimal(0)` for order quantity calculations but was missing the required import statement, causing a runtime error when the useEffect hook tried to transform the production orders data.
+2. **Customer Creation**: The `customerNumber` field has a unique constraint, but the creation logic wasn't generating unique numbers automatically, leading to null values that PostgreSQL treated as duplicates.
 
 **Impact:**
 - **Production Workflow**: Users can now access the Production Kanban board without errors
-- **Data Integrity**: Order quantity calculations use proper Decimal precision
-- **System Stability**: Eliminated a critical runtime error affecting manufacturing operations
+- **Customer Management**: Customer creation now works reliably with automatic number assignment
+- **Data Integrity**: Order quantity calculations use proper Decimal precision and customer data is properly scoped to companies
+- **System Stability**: Eliminated critical runtime errors affecting both manufacturing operations and customer management
 
 ---
 

@@ -79,12 +79,14 @@ interface PRHApiResponse {
 }
 
 export const customerRouter = createTRPCRouter({
-  list: protectedProcedure
+  list: companyProtectedProcedure
     .input(listCustomersSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const { page, perPage, search, sortBy, sortDirection } = input;
 
-      const whereClause: Prisma.CustomerWhereInput = {};
+      const whereClause: Prisma.CustomerWhereInput = {
+        companyId: ctx.companyId, // Ensure company scoping
+      };
       if (search) {
         whereClause.OR = [
           { name: { contains: search, mode: 'insensitive' } },
@@ -94,7 +96,7 @@ export const customerRouter = createTRPCRouter({
 
       const skip = (page - 1) * perPage;
 
-      const items = await prisma.customer.findMany({
+      const items = await ctx.db.customer.findMany({
         skip: skip,
         take: perPage,
         where: whereClause,
@@ -103,7 +105,7 @@ export const customerRouter = createTRPCRouter({
         },
       });
 
-      const totalCount = await prisma.customer.count({
+      const totalCount = await ctx.db.customer.count({
         where: whereClause,
       });
 
@@ -145,18 +147,56 @@ export const customerRouter = createTRPCRouter({
       return customer;
     }),
 
-  create: protectedProcedure
+  create: companyProtectedProcedure
     .input(createCustomerSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { addresses, ...customerInput } = input;
-
-      const customerData = {
-        ...customerInput,
-        language: customerInput.language === null ? undefined : customerInput.language,
-      };
 
       // Use Prisma transaction to create customer and addresses together
       return await prisma.$transaction(async (tx) => {
+        // Generate customer number if not provided
+        let customerNumber = customerInput.customerNumber;
+        if (!customerNumber) {
+          // Get the next customer number
+          const lastCustomer = await tx.customer.findFirst({
+            where: {
+              companyId: ctx.companyId,
+              customerNumber: {
+                not: null,
+              },
+            },
+            orderBy: {
+              customerNumber: 'desc',
+            },
+            select: {
+              customerNumber: true,
+            },
+          });
+
+          if (!lastCustomer || !lastCustomer.customerNumber) {
+            customerNumber = "010";
+          } else {
+            try {
+              const lastNumber = parseInt(lastCustomer.customerNumber, 10);
+              if (isNaN(lastNumber)) {
+                customerNumber = "010"; 
+              } else {
+                const nextNumber = lastNumber + 1;
+                customerNumber = nextNumber.toString().padStart(3, '0');
+              }
+            } catch (e) {
+              customerNumber = "010";
+            }
+          }
+        }
+
+        const customerData = {
+          ...customerInput,
+          customerNumber,
+          companyId: ctx.companyId,
+          language: customerInput.language === null ? undefined : customerInput.language,
+        };
+
         const customer = await tx.customer.create({
           data: customerData,
         });
@@ -174,9 +214,9 @@ export const customerRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: companyProtectedProcedure
     .input(updateCustomerSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, addresses, ...customerInput } = input;
 
       const customerData = {
@@ -187,7 +227,10 @@ export const customerRouter = createTRPCRouter({
       // Use Prisma transaction for update
       return await prisma.$transaction(async (tx) => {
         const customer = await tx.customer.update({
-          where: { id },
+          where: { 
+            id,
+            companyId: ctx.companyId // Ensure company scoping
+          },
           data: customerData,
         });
 
