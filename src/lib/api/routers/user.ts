@@ -4,11 +4,13 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { TRPCError } from '@trpc/server';
 import { UserRole } from "@/lib/auth";
+import { CustomerLanguage } from "@prisma/client";
 
 // Schemas from the frontend page (could be moved to a shared schema file)
 const profileUpdateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   firstName: z.string().min(1, "First name is required").optional(),
+  preferredLanguage: z.nativeEnum(CustomerLanguage).optional(),
 });
 
 const passwordChangeSchema = z.object({
@@ -28,7 +30,7 @@ const createUserSchema = z.object({
 });
 
 export const userRouter = createTRPCRouter({
-  // Procedure to update user profile (name, firstName)
+  // Procedure to update user profile (name, firstName, preferredLanguage)
   updateProfile: protectedProcedure
     .input(profileUpdateSchema)
     .mutation(async ({ ctx, input }) => {
@@ -39,11 +41,16 @@ export const userRouter = createTRPCRouter({
         data: {
           name: input.name,
           firstName: input.firstName,
+          preferredLanguage: input.preferredLanguage,
         },
-         select: { name: true, firstName: true },
+         select: { name: true, firstName: true, preferredLanguage: true },
       });
       
-      return { name: updatedUser.name, firstName: updatedUser.firstName };
+      return { 
+        name: updatedUser.name, 
+        firstName: updatedUser.firstName,
+        preferredLanguage: updatedUser.preferredLanguage,
+      };
     }),
 
   // Procedure to change/set user password

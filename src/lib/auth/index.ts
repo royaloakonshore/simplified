@@ -8,6 +8,7 @@ import {
 import EmailProvider from "next-auth/providers/email";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { CustomerLanguage } from "@prisma/client";
 
 export enum UserRole {
   user = "user",
@@ -44,6 +45,7 @@ declare module "next-auth" {
       expires?: string;
       isTeamAdmin?: boolean;
       activeCompanyId?: string | null;
+      preferredLanguage?: CustomerLanguage;
     };
     accessToken?: string;
   }
@@ -59,6 +61,7 @@ declare module "next-auth" {
     expires?: string;
     isTeamAdmin?: boolean;
     activeCompanyId?: string | null;
+    preferredLanguage?: CustomerLanguage;
   }
 }
 
@@ -120,6 +123,7 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           role: user.role as UserRole,
           activeCompanyId: user.activeCompanyId,
+          preferredLanguage: user.preferredLanguage,
         };
         return nextAuthUser;
       }
@@ -206,13 +210,15 @@ export const authOptions: NextAuthOptions = {
         if (user.id) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: user.id },
-                select: { activeCompanyId: true }
+                select: { activeCompanyId: true, preferredLanguage: true }
             });
             token.companyId = dbUser?.activeCompanyId; 
+            token.preferredLanguage = dbUser?.preferredLanguage;
         } else {
             // Fallback if user.id is not on the user object.
             // Only rely on activeCompanyId if it exists directly on the user object.
             token.companyId = user.activeCompanyId || null;
+            token.preferredLanguage = user.preferredLanguage;
         }
       }
       
@@ -223,12 +229,13 @@ export const authOptions: NextAuthOptions = {
         if (token.id) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: token.id as string },
-                select: { activeCompanyId: true, role: true, email: true }
+                select: { activeCompanyId: true, role: true, email: true, preferredLanguage: true }
             });
             if (dbUser) {
                 token.companyId = dbUser.activeCompanyId;
                 token.role = dbUser.role; 
                 token.email = dbUser.email;
+                token.preferredLanguage = dbUser.preferredLanguage;
             }
         }
       }
@@ -248,6 +255,7 @@ export const authOptions: NextAuthOptions = {
         if (token?.email) session.user.email = token.email as string;
         // Add activeCompanyId to session user, using the name from token (which should be companyId)
         session.user.activeCompanyId = token.companyId as string | null; 
+        session.user.preferredLanguage = token.preferredLanguage as CustomerLanguage | undefined;
       } else {
         debugLog("session:warning_cannot_enrich_session_user", { 
           tokenExists: !!token, 

@@ -24,11 +24,13 @@ import { settingsSchema, type SettingsInput } from "@/lib/schemas/settings.schem
 import { UserRole } from "@/lib/auth"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
+import { CustomerLanguage } from "@prisma/client";
 
-// Schema for profile update (excluding password initially)
+// Schema for profile update (including language preference)
 const profileUpdateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   firstName: z.string().min(1, "First name is required").optional(),
+  preferredLanguage: z.nativeEnum(CustomerLanguage).optional(),
 });
 type ProfileUpdateValues = z.infer<typeof profileUpdateSchema>;
 
@@ -157,6 +159,7 @@ function SettingsPageContent() {
      profileForm.reset({
        name: session.user.name ?? ' ',
        firstName: session.user.firstName ?? ' ',
+       preferredLanguage: session.user.preferredLanguage ?? CustomerLanguage.FI,
      });
     }
   }, [status, session, profileForm]);
@@ -174,8 +177,16 @@ function SettingsPageContent() {
   const updateProfileMutation = api.user.updateProfile.useMutation({
     onSuccess: async (updatedUser) => {
       sonnerToast.success('Profile updated successfully!');
-      await updateSession({ name: updatedUser.name, firstName: updatedUser.firstName }); 
-      profileForm.reset({ name: updatedUser.name ?? '', firstName: updatedUser.firstName ?? '' }); 
+      await updateSession({ 
+        name: updatedUser.name, 
+        firstName: updatedUser.firstName,
+        preferredLanguage: updatedUser.preferredLanguage,
+      }); 
+      profileForm.reset({ 
+        name: updatedUser.name ?? '', 
+        firstName: updatedUser.firstName ?? '',
+        preferredLanguage: updatedUser.preferredLanguage ?? CustomerLanguage.FI,
+      }); 
     },
     onError: (error) => {
       sonnerToast.error(`Profile update failed: ${error.message}`);
@@ -300,6 +311,26 @@ function SettingsPageContent() {
                    <p className="text-sm text-destructive">{profileForm.formState.errors.name.message}</p>
                  )}
              </div>
+             <div className="grid gap-2">
+                <Label htmlFor="preferredLanguage">Preferred Language</Label>
+                <Select 
+                  value={profileForm.watch('preferredLanguage') || CustomerLanguage.FI}
+                  onValueChange={(value) => profileForm.setValue('preferredLanguage', value as CustomerLanguage)}
+                  disabled={updateProfileMutation.isPending}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={CustomerLanguage.FI}>Finnish (Suomi)</SelectItem>
+                    <SelectItem value={CustomerLanguage.EN}>English</SelectItem>
+                    <SelectItem value={CustomerLanguage.SE}>Swedish (Svenska)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {profileForm.formState.errors.preferredLanguage && (
+                  <p className="text-sm text-destructive">{profileForm.formState.errors.preferredLanguage.message}</p>
+                )}
+              </div>
           </CardContent>
           <CardFooter>
              <Button type="submit" disabled={updateProfileMutation.isPending}>
