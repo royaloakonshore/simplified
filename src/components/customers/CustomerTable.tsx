@@ -150,6 +150,15 @@ export default function CustomerTable({ customers }: CustomerTableProps) {
       enableHiding: false,
     },
     {
+      accessorKey: 'customerNumber',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Customer #" />
+      ),
+      cell: ({ row }) => <div className="font-mono">{row.getValue("customerNumber") || '-'}</div>,
+      enableSorting: true,
+      enableHiding: true,
+    },
+    {
       accessorKey: 'name',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Name" />

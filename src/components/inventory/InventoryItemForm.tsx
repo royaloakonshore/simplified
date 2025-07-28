@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { inventoryItemBaseSchema, type InventoryItemFormValues } from "@/lib/schemas/inventory.schema";
+import { CreateCategoryDialog } from "./CreateCategoryDialog";
+import { Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Type for what the form receives as initialData.
 // This is data that has been processed from an API call to be ready for the form.
@@ -359,14 +362,35 @@ export function InventoryItemForm({
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Inventory Category</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value ?? undefined} defaultValue={field.value ?? undefined}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {inventoryCategories.map(category => (
-                                <SelectItem key={category.value} value={category.value}>{category.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                            <Select onValueChange={field.onChange} value={field.value ?? undefined} defaultValue={field.value ?? undefined}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {inventoryCategories.map(category => (
+                                    <SelectItem key={category.value} value={category.value}>{category.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <CreateCategoryDialog
+                                onSuccess={() => {
+                                    // The parent component should refresh the categories
+                                }}
+                                trigger={
+                                    <Button 
+                                        type="button" 
+                                        variant="outline" 
+                                        size="sm"
+                                        disabled={isLoading}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" /> Add
+                                    </Button>
+                                }
+                            />
+                        </div>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -510,6 +534,9 @@ export function InventoryItemForm({
             </Button>
         </div>
       </form>
+      
+      {/* Create Category Dialog */}
+      {/* This dialog is now managed by CreateCategoryDialog */}
     </Form>
   );
 } 

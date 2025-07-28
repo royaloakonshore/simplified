@@ -67,6 +67,12 @@ export function MarginCalculationCard({
     calculateMarginDebounced();
   };
 
+  const handleCalculateClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleCalculate();
+  };
+
   // Auto-calculate if showCalculateButton is false
   React.useEffect(() => {
     if (!showCalculateButton && items && items.length > 0) {
@@ -149,7 +155,7 @@ export function MarginCalculationCard({
             <Button 
               size="sm" 
               variant="outline" 
-              onClick={handleCalculate}
+              onClick={handleCalculateClick}
               disabled={!hasValidItems}
             >
               <Calculator className="h-3 w-3 mr-1" />
