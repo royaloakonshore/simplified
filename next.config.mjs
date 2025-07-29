@@ -8,14 +8,18 @@ const nextConfig = {
                 net: false,
                 dns: false,
                 tls: false,
-                child_process: false, // Be cautious with this one if not strictly needed
+                child_process: false,
+                puppeteer: false,
             };
+            
+            // Exclude Puppeteer from client-side bundle
+            config.externals = config.externals || [];
+            config.externals.push('puppeteer');
         }
         return config;
     },
-    // // Optional: Add other Next.js configurations here
-    // // images: { domains: ['...'] },
-    // // reactStrictMode: true,
+    // Server external packages for better server-side handling
+    serverExternalPackages: ['puppeteer'],
 };
 
 export default nextConfig; 

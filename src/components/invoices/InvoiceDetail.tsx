@@ -33,6 +33,7 @@ import {
   TableFooter
 } from "@/components/ui/table";
 import { SendConfirmationModal, type SendMethod } from "@/components/common/SendConfirmationModal";
+import { PartialCreditNoteDialog } from "@/components/invoices/PartialCreditNoteDialog";
 
 // --- Start: New types inferred from tRPC router ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -50,6 +51,7 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const [isCrediting, setIsCrediting] = useState(false);
   const [creditError, setCreditError] = useState<string | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showPartialCreditDialog, setShowPartialCreditDialog] = useState(false);
 
   const formatDate = (date: Date | null | undefined): string => {
     if (!date) return '-';
@@ -143,6 +145,11 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     } finally {
       setIsCrediting(false);
     }
+  };
+
+  const handlePartialCreditNoteSuccess = (creditNoteId: string) => {
+    router.push(`/invoices/${creditNoteId}`);
+    router.refresh();
   };
 
   const handleSendInvoice = async (method: SendMethod) => {
@@ -244,7 +251,14 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                   className="flex items-center gap-2"
                 >
                   <CreditCard className="h-4 w-4" />
-                  Create Credit Note
+                  Create Full Credit Note
+                    </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setShowPartialCreditDialog(true)} 
+                  className="flex items-center gap-2"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Create Partial Credit Note
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -447,6 +461,14 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         open={showSendModal}
         onOpenChange={setShowSendModal}
         onConfirm={handleSendInvoice}
+      />
+
+      {/* Partial Credit Note Dialog */}
+      <PartialCreditNoteDialog
+        open={showPartialCreditDialog}
+        onOpenChange={setShowPartialCreditDialog}
+        invoice={invoice}
+        onSuccess={handlePartialCreditNoteSuccess}
       />
     </div>
   );

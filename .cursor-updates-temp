@@ -1,0 +1,112 @@
+## 2025-07-28: Enhanced Credit Note System Implementation ✅ COMPLETED
+
+**Goal:** Implement partial credit note functionality allowing users to edit euro amounts for individual line items from original invoices.
+
+**Summary:**
+Successfully implemented comprehensive partial credit note system with user-friendly UI and robust backend logic, enabling businesses to create partial credits with precise euro amount control.
+
+**✅ BACKEND IMPLEMENTATION:**
+- **✅ Credit Note Schema**: Created `CreatePartialCreditNoteSchema` with validation for original item references and editable credit amounts
+- **✅ tRPC Procedure**: Added `createPartialCreditNote` procedure to invoice router with proper company scoping and transaction handling
+- **✅ Database Integration**: Proper Prisma integration with negative amounts for credit notes and automatic invoice number generation
+- **✅ Business Logic**: Credit quantity calculation based on euro amounts, proper VAT handling, and original invoice referencing
+
+**✅ FRONTEND IMPLEMENTATION:**
+- **✅ Partial Credit Dialog**: Created `PartialCreditNoteDialog` component with comprehensive form handling using React Hook Form and Zod validation
+- **✅ Euro Amount Editing**: User-friendly interface allowing direct euro amount editing for both credit amount and VAT amount per line item
+- **✅ Auto-calculation**: Automatic VAT amount calculation when credit amount is changed, with proper validation limits
+- **✅ UI Integration**: Seamlessly integrated into InvoiceDetail component with dropdown menu options for both full and partial credit notes
+
+**✅ KEY FEATURES IMPLEMENTED:**
+1. **Copy Original Invoice**: Partial credit note copies all original invoice data and inverts totals as negative amounts
+2. **Euro Amount Editing**: Users can edit credit amounts in euros directly, with automatic VAT calculations
+3. **Multiple Credits Support**: System allows multiple partial credit notes per original invoice
+4. **Original Invoice Reference**: Credit notes properly reference original invoice number in notes and database relations
+
+**✅ USER EXPERIENCE ENHANCEMENTS:**
+- **Intuitive Interface**: Clear display of original amounts vs. editable credit amounts
+- **Real-time Totals**: Live calculation of total credit amounts as user edits individual line items
+- **Validation**: Proper form validation ensuring credit amounts don't exceed original amounts
+- **Success Handling**: Automatic navigation to newly created credit note with success notifications
+
+**✅ TECHNICAL EXCELLENCE:**
+- **Type Safety**: Full TypeScript coverage with proper Decimal handling and type inference
+- **Error Handling**: Comprehensive error handling with user-friendly error messages
+- **Build Success**: ✅ Zero TypeScript compilation errors, successful `npm run build`
+- **Code Quality**: Clean architecture following established patterns and conventions
+
+**ROOT IMPLEMENTATION APPROACH:**
+1. **Schema-First Design**: Created comprehensive Zod schemas for validation and type safety
+2. **Backend-First Logic**: Implemented robust tRPC procedure with proper transaction handling
+3. **UI Component Design**: Built reusable dialog component with form state management
+4. **Integration Testing**: Ensured seamless integration with existing invoice detail workflow
+
+**IMPACT:**
+- **Business Flexibility**: Enables precise partial credit note creation for complex business scenarios
+- **User Efficiency**: Streamlined workflow for creating credits without manual calculations
+- **Data Integrity**: Proper audit trail with original invoice references and negative amount handling
+- **Compliance**: Maintains proper invoice numbering and VAT handling for Finnish business requirements
+
+**FILES CREATED:**
+- `src/lib/schemas/credit-note.schema.ts` - Zod schemas for partial credit note validation
+- `src/components/invoices/PartialCreditNoteDialog.tsx` - Main UI component for partial credit creation
+
+**FILES MODIFIED:**
+- `src/lib/api/routers/invoice.ts` - Added createPartialCreditNote tRPC procedure
+- `src/components/invoices/InvoiceDetail.tsx` - Integrated partial credit dialog and menu options
+
+Enhanced credit note system implementation complete and ready for production use.
+
+## 2025-07-29: Advanced PDF Generation System Implementation 🚧 IN PROGRESS
+
+**Goal:** Implement advanced PDF generation with Finnish Giroblankett payment slips using Puppeteer and Inngest background jobs.
+
+**Summary:**
+Implementing comprehensive PDF generation system with authentic Finnish Giroblankett formatting, server-side Puppeteer integration, and Inngest background job processing for scalable invoice PDF creation.
+
+**✅ BACKEND IMPLEMENTATION:**
+- **✅ PDF Service**: Created comprehensive `pdf.service.ts` with Puppeteer integration and Finnish Giroblankett formatting
+- **✅ Inngest Integration**: Added PDF generation background jobs with proper company scoping and error handling
+- **✅ API Routes**: Created server-side PDF generation API route at `/api/pdf/invoice/[id]`
+- **✅ tRPC Procedures**: Added `generatePdf` procedure to invoice router for triggering background PDF generation
+- **✅ Next.js Configuration**: Updated webpack config to properly handle Puppeteer server-side only
+
+**🚧 CURRENT ISSUES BEING RESOLVED:**
+- **TypeScript Errors**: Fixing Decimal import/export compatibility issues
+- **Customer Field Mapping**: Addressing missing address fields in customer schema (address, postalCode, city, vatNumber vs vatId)
+- **Buffer Serialization**: Resolving Buffer.toString() method calls in Inngest background jobs
+
+**✅ FINNISH GIROBLANKETT FEATURES:**
+- **Authentic Layout**: Professional Finnish payment slip with proper bilingual labels (Finnish/Swedish)
+- **Reference Number Generation**: Automatic Finnish reference number calculation with check digit
+- **Bank Account Formatting**: Proper IBAN formatting with spacing
+- **Payment Details**: Due date, amount, and customer information display
+- **Signature Lines**: Traditional payment slip signature areas
+
+**✅ PDF GENERATION FEATURES:**
+- **Professional Styling**: Clean, business-ready invoice layout with company branding
+- **Multi-language Support**: Finnish primary with English secondary labels
+- **Credit Note Support**: Proper handling of both invoices and credit notes
+- **VAT Calculations**: Accurate VAT display and totals
+- **Line Item Details**: Complete product/service information with pricing
+
+**🔧 TECHNICAL IMPLEMENTATION:**
+- **Server-Side Only**: Puppeteer runs exclusively on server to avoid Next.js bundling issues
+- **Background Processing**: Inngest handles PDF generation asynchronously for better performance
+- **Company Scoping**: All PDF generation respects multi-tenant architecture
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **Type Safety**: Full TypeScript coverage (pending final error resolution)
+
+**📋 REMAINING TASKS:**
+1. Fix remaining TypeScript errors in PDF generation logic
+2. Test PDF output quality and Finnish Giroblankett formatting
+3. Validate multi-tenant security and company scoping
+4. Performance testing with background job processing
+
+**IMPACT:**
+- **Professional Output**: High-quality PDF invoices with authentic Finnish payment slips
+- **Scalability**: Background job processing prevents UI blocking during PDF generation
+- **Compliance**: Proper Finnish business invoice formatting and payment slip standards
+- **User Experience**: Seamless PDF generation with progress feedback
+
+Advanced PDF generation system implementation in progress - resolving final TypeScript compatibility issues.

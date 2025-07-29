@@ -1,5 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/../inngest.config";
+import { generateInvoicePdfJob, generateOrderPdfJob } from "@/lib/inngest/pdf-generation";
 
 const sendFn = inngest.createFunction(
   { name: "inngest/send", id: "inngest/send" },
@@ -11,5 +12,5 @@ const sendFn = inngest.createFunction(
 
 export const { POST, GET } = serve({
   client: inngest,
-  functions: [sendFn],
+  functions: [sendFn, generateInvoicePdfJob, generateOrderPdfJob],
 });

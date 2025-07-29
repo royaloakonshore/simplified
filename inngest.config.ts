@@ -17,6 +17,18 @@ export type AppEvents = {
       metadata?: Record<string, any>;
     };
   };
+  "pdf/generate-invoice": {
+    data: {
+      invoiceId: string;
+      companyId: string;
+    };
+  };
+  "pdf/generate-order": {
+    data: {
+      orderId: string;
+      companyId: string;
+    };
+  };
 };
 
 // Initialize Inngest with typed events

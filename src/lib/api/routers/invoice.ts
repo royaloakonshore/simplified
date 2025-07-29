@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { createTRPCRouter, protectedProcedure, companyProtectedProcedure } from "@/lib/api/trpc";
 import { CreateInvoiceSchema, UpdateInvoiceSchema, invoiceFilterSchema, invoicePaginationSchema, createInvoiceFromOrderSchema, type CreateInvoiceItemSchema, type UpdateInvoiceItemSchema } from "@/lib/schemas/invoice.schema";
+import { CreatePartialCreditNoteSchema } from "@/lib/schemas/credit-note.schema";
 import { Prisma, PrismaClient, InvoiceStatus, OrderStatus, type OrderItem, type InventoryItem, type ItemType, type Address, type InvoiceItem as PrismaInvoiceItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library'; 
 import { prisma } from "@/lib/db"; 
@@ -9,9 +10,24 @@ import { generateFinvoiceXml, type SellerSettings } from "@/lib/services/finvoic
 import { createAppCaller } from "@/lib/api/root"; 
 import { createDecimal } from '../../types/branded'; // Added import for createDecimal
 import { generateInvoiceReferenceNumber } from '@/lib/utils/finnishReferenceNumber';
+import { triggerInvoicePdfGeneration } from "@/lib/inngest/pdf-generation";
 
 // Type alias for Prisma Transaction Client
 type PrismaTransactionClient = Omit<PrismaClient, '\$connect' | '\$disconnect' | '\$on' | '\$transaction' | '\$use' | '\$extends'>;
+
+// Helper function to generate a unique invoice number
+async function generateInvoiceNumber(tx: PrismaTransactionClient): Promise<string> {
+  const year = new Date().getFullYear().toString().substring(2);
+  const invoiceCount = await tx.invoice.count({
+    where: {
+      invoiceNumber: {
+        startsWith: `INV-${year}-`,
+      },
+    },
+  });
+  const sequenceNumber = (invoiceCount + 1).toString().padStart(5, '0');
+  return `INV-${year}-${sequenceNumber}`;
+}
 
 type OrderItemWithInventory = Prisma.OrderItemGetPayload<{
   include: { inventoryItem: true }
@@ -685,6 +701,128 @@ export const invoiceRouter = createTRPCRouter({
           message: error.message || "Failed to generate Finvoice XML.",
         });
       }
+    }),
+
+  createPartialCreditNote: companyProtectedProcedure
+    .input(CreatePartialCreditNoteSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { originalInvoiceId, notes, items } = input;
+      
+      return await prisma.$transaction(async (tx) => {
+        // Get the original invoice
+        const originalInvoice = await tx.invoice.findUnique({
+          where: { 
+            id: originalInvoiceId,
+            companyId: ctx.companyId,
+          },
+          include: {
+            items: { include: { inventoryItem: true } },
+            customer: true,
+          },
+        });
+
+        if (!originalInvoice) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Original invoice not found',
+          });
+        }
+
+        if (originalInvoice.isCreditNote) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Cannot create a credit note from another credit note',
+          });
+        }
+
+        // Generate credit note number
+        const creditNoteNumber = await generateInvoiceNumber(tx);
+        
+        // Calculate total credit amounts
+        const totalCreditAmount = items.reduce((sum, item) => sum + item.creditAmount, 0);
+        const totalCreditVatAmount = items.reduce((sum, item) => sum + item.creditVatAmount, 0);
+        
+        // Create the partial credit note
+        const creditNote = await tx.invoice.create({
+          data: {
+            companyId: ctx.companyId,
+            customerId: originalInvoice.customerId,
+            invoiceNumber: creditNoteNumber,
+            invoiceDate: new Date(),
+            dueDate: new Date(),
+            status: InvoiceStatus.draft,
+            notes: notes || `Partial credit note for invoice ${originalInvoice.invoiceNumber}`,
+            isCreditNote: true,
+            originalInvoiceId: originalInvoice.id,
+            totalAmount: new Decimal(-totalCreditAmount), // Negative for credit
+            totalVatAmount: new Decimal(-totalCreditVatAmount), // Negative for credit
+            items: {
+              create: items.map((item) => {
+                // Find the original item to get inventory details
+                const originalItem = originalInvoice.items.find(i => i.id === item.originalItemId);
+                if (!originalItem) {
+                  throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: `Original item ${item.originalItemId} not found`,
+                  });
+                }
+                
+                // Calculate credit quantity based on credit amount and original unit price
+                const creditQuantity = item.originalUnitPrice > 0 
+                  ? -(item.creditAmount / item.originalUnitPrice)
+                  : -1; // Default to -1 if unit price is 0
+                
+                return {
+                  inventoryItem: { connect: { id: originalItem.inventoryItemId } },
+                  description: item.description,
+                  quantity: new Decimal(creditQuantity),
+                  unitPrice: originalItem.unitPrice,
+                  vatRatePercent: originalItem.vatRatePercent,
+                  discountAmount: originalItem.discountAmount,
+                  discountPercentage: originalItem.discountPercentage,
+                };
+              }),
+            },
+          },
+          include: {
+            customer: true,
+            items: { include: { inventoryItem: true } },
+          },
+        });
+
+        return creditNote;
+      });
+    }),
+
+  generatePdf: companyProtectedProcedure
+    .input(z.object({ id: z.string().cuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { id } = input;
+      const { companyId } = ctx;
+
+      // Verify invoice exists and belongs to company
+      const invoice = await prisma.invoice.findUnique({
+        where: { 
+          id,
+          companyId 
+        }
+      });
+
+      if (!invoice) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invoice not found"
+        });
+      }
+
+      // Trigger PDF generation as background job
+      await triggerInvoicePdfGeneration(id, companyId);
+
+      return {
+        success: true,
+        message: "PDF generation started",
+        invoiceId: id
+      };
     }),
 
   update: protectedProcedure
