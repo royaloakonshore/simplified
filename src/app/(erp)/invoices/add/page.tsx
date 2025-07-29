@@ -28,6 +28,12 @@ async function getFormData(orderId?: string) {
           itemType: true, // Add itemType for proper margin calculation
           unitOfMeasure: true,
           sku: true, // Added sku field
+          // Add missing Decimal fields for proper serialization
+          minimumStockLevel: true,
+          reorderLevel: true,
+          quantityOnHand: true,
+          defaultVatRatePercent: true,
+          weight: true,
           // Include BOM data for manufactured goods
           bom: {
             select: {
@@ -57,6 +63,12 @@ async function getFormData(orderId?: string) {
     itemType: item.itemType, // Include item type
     unitOfMeasure: item.unitOfMeasure ?? '', // Provide default for null unitOfMeasure
     sku: item.sku ?? '', // Provide default empty string for null SKU
+    // Convert all Decimal fields to numbers
+    minimumStockLevel: item.minimumStockLevel?.toNumber() || 0,
+    reorderLevel: item.reorderLevel?.toNumber() || 0,
+    quantityOnHand: item.quantityOnHand?.toNumber() || 0,
+    defaultVatRatePercent: item.defaultVatRatePercent?.toNumber() || null,
+    weight: item.weight?.toNumber() || null,
     // Process BOM data if present
     bom: item.bom ? {
       manualLaborCost: item.bom.manualLaborCost.toNumber(),
@@ -104,6 +116,7 @@ async function getFormData(orderId?: string) {
             reorderLevel: item.inventoryItem.reorderLevel?.toNumber() || 0,
             quantityOnHand: item.inventoryItem.quantityOnHand?.toNumber() || 0,
             defaultVatRatePercent: item.inventoryItem.defaultVatRatePercent?.toNumber() || null,
+            weight: item.inventoryItem.weight?.toNumber() || null,
           }
         }))
       };

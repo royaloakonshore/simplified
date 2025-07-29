@@ -261,6 +261,17 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
     },
   });
 
+  const updateInvoiceMutation = api.invoice.update.useMutation({
+    onSuccess: (data) => {
+      toast.success("Invoice updated successfully!");
+      router.push(`/invoices/${data.id}`);
+    },
+    onError: (error) => {
+      console.error("Error updating invoice:", error);
+      toast.error(`Failed to update invoice: ${error.message}`);
+    },
+  });
+
   const onSubmit: SubmitHandler<InvoiceFormValues> = (values) => {
     console.log("Form submitted (InvoiceFormValues):", values);
 
@@ -295,7 +306,12 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       console.log("Validated API Input:", validatedApiInput);
 
       if (isEditMode) {
-        toast.info("Update functionality not yet implemented.");
+        // Update existing invoice
+        const updateData = {
+          id: editInvoiceData?.id,
+          ...validatedApiInput
+        };
+        updateInvoiceMutation.mutate(updateData);
       } else {
         createInvoiceMutation.mutate(validatedApiInput);
       }
@@ -890,8 +906,22 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
               open={showSendModal}
               onOpenChange={setShowSendModal}
               onConfirm={async (method) => {
-                // Placeholder implementation
-                toast.info(`Would send invoice via ${method}`);
+                try {
+                  if (method === 'email-pdf' && editInvoiceData) {
+                    const { sendInvoiceEmail } = await import("@/lib/services/send.service");
+                    await sendInvoiceEmail({
+                      invoiceId: editInvoiceData.id,
+                      method: method,
+                    });
+                    toast.success('Invoice sent successfully!');
+                  } else {
+                    toast.info(`Sending via ${method} - functionality coming soon`);
+                  }
+                } catch (error) {
+                  console.error('Error sending invoice:', error);
+                  toast.error('Failed to send invoice. Please try again.');
+                }
+                setShowSendModal(false);
               }}
             />
           </Card>
