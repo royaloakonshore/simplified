@@ -384,6 +384,11 @@ export const invoiceRouter = createTRPCRouter({
         // Prefill customer data fields (editable in invoice form)
         customerNumber: customer.customerNumber,
         ourReference: customer.buyerReference, // Map buyerReference to ourReference
+        // Prefill reasonable defaults (editable in invoice form)
+        paymentTermsDays: 14, // Default 14 days payment terms
+        deliveryMethod: null, // To be filled by user
+        complaintPeriod: null, // To be filled by user
+        penaltyInterest: null, // To be filled by user
         user: { connect: { id: userId } },
         Company: { connect: { id: ctx.companyId } },
         ...(orderId && { order: { connect: { id: orderId } } }),
@@ -925,7 +930,7 @@ export const invoiceRouter = createTRPCRouter({
                 unitPrice,
                 vatRatePercent: new Decimal(item.vatRatePercent),
                 discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
-                discountPercent: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
+                discountPercentage: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
                 calculatedUnitCost,
                 calculatedUnitProfit,
                 calculatedLineProfit,
