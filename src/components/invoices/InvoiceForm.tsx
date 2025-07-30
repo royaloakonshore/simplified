@@ -293,7 +293,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         unitPrice: Number(item.unitPrice),
         vatRatePercent: Number(item.vatRatePercent),
         discountAmount: item.discountAmount ? Number(item.discountAmount) : null,
-        discountPercent: item.discountPercent ? Number(item.discountPercent) : null,
+        discountPercentage: item.discountPercent ? Number(item.discountPercent) : null,
       })),
       orderId: values.orderId ?? undefined,
       vatReverseCharge: values.vatReverseCharge ?? false,

@@ -253,6 +253,20 @@ export const invoiceRouter = createTRPCRouter({
       const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge, referenceNumber, sellerReference } = input;
       const userId = ctx.userId;
 
+      // Fetch customer data to prefill invoice fields
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId, companyId: ctx.companyId },
+        select: {
+          id: true,
+          customerNumber: true,
+          buyerReference: true,
+        },
+      });
+
+      if (!customer) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Customer not found' });
+      }
+
       let subTotal = new Decimal(0); 
       let totalVatAmountValue = new Decimal(0);
 
@@ -366,7 +380,10 @@ export const invoiceRouter = createTRPCRouter({
             notes,
         vatReverseCharge,
         totalAmount: subTotal, 
-            totalVatAmount: totalVatAmountValue, 
+            totalVatAmount: totalVatAmountValue,
+        // Prefill customer data fields (editable in invoice form)
+        customerNumber: customer.customerNumber,
+        ourReference: customer.buyerReference, // Map buyerReference to ourReference
         user: { connect: { id: userId } },
         Company: { connect: { id: ctx.companyId } },
         ...(orderId && { order: { connect: { id: orderId } } }),
@@ -536,6 +553,9 @@ export const invoiceRouter = createTRPCRouter({
         vatReverseCharge: vatReverseCharge,
         totalAmount: subTotal,
         totalVatAmount: totalVatAmountValue,
+        // Copy missing fields from order
+        ourReference: order.ourReference,
+        customerNumber: order.customerNumber,
         user: { connect: { id: userId } },
         Company: { connect: { id: ctx.companyId } },
         order: { connect: { id: orderId } },
