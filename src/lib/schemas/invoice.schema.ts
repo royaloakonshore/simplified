@@ -162,15 +162,16 @@ export const invoiceFormValidationSchema = z.object({
   customerId: z.string({ required_error: "Customer is required." }).min(1, "Customer is required."), // Expecting a non-empty string (CUID)
   invoiceDate: z.date({ required_error: "Invoice date is required." }),
   dueDate: z.date({ required_error: "Due date is required." }),
-  paymentTerms: z.string().optional(), // Add payment terms field
+  paymentTermsDays: z.number().optional(), // Payment terms in days
   notes: z.string().optional(),
   referenceNumber: z.string().optional(), // Finnish viitenumero - will be auto-generated if not provided
   sellerReference: z.string().optional(), // Free text field for seller reference
   ourReference: z.string().optional(),
   customerNumber: z.string().optional(),
   deliveryMethod: z.string().optional(),
+  deliveryDate: z.date().optional().nullable(), // Delivery date
   complaintPeriod: z.string().optional(),
-  penaltyInterest: z.coerce.number().optional(),
+  penaltyInterest: z.number().optional().nullable(), // Penalty interest rate
   items: z.array(invoiceFormItemSchema).min(1, "Invoice must have at least one item."),
   orderId: z.string().cuid().optional(),
   vatReverseCharge: z.boolean().optional(),

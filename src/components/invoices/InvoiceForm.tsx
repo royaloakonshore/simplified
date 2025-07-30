@@ -107,8 +107,10 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         ourReference: editInvoiceData.ourReference || '',
         customerNumber: editInvoiceData.customerNumber || '',
         deliveryMethod: editInvoiceData.deliveryMethod || '',
-        complaintPeriod: editInvoiceData.complaintPeriod || '7 vrk',
-                    penaltyInterest: editInvoiceData.penaltyInterest || 10.5,
+        deliveryDate: editInvoiceData.deliveryDate ? new Date(editInvoiceData.deliveryDate) : null,
+        complaintPeriod: editInvoiceData.complaintPeriod || '',
+        penaltyInterest: editInvoiceData.penaltyInterest ? parseFloat(editInvoiceData.penaltyInterest.toString()) : null,
+        paymentTermsDays: editInvoiceData.paymentTermsDays || 14,
         vatReverseCharge: editInvoiceData.vatReverseCharge || false,
         items: editInvoiceData.items?.map((item: any) => ({
           itemId: item.inventoryItemId || '',
@@ -141,8 +143,10 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         ourReference: order.ourReference || '',
         customerNumber: order.customerNumber || '',
         deliveryMethod: '',
-        complaintPeriod: '7 vrk',
-        penaltyInterest: 10.5,
+        deliveryDate: null,
+        complaintPeriod: '',
+        penaltyInterest: null,
+        paymentTermsDays: 14,
         vatReverseCharge: false,
         items: order.items?.map((item: any) => ({
           itemId: item.inventoryItemId || '',
@@ -174,8 +178,10 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       ourReference: '',
       customerNumber: '',
       deliveryMethod: '',
+      deliveryDate: null,
       complaintPeriod: '7 vrk',
       penaltyInterest: 11.5,
+      paymentTermsDays: 14,
       vatReverseCharge: false,
       items: [{
         itemId: '',
@@ -536,13 +542,14 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                 {/* Payment Terms Dropdown */}
                 <FormField
                   control={form.control}
-                  name="paymentTerms"
+                  name="paymentTermsDays"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Payment Terms</FormLabel>
                       <Select 
                         onValueChange={(value) => {
-                          field.onChange(value);
+                          const numValue = parseInt(value);
+                          field.onChange(numValue);
                           // Auto-calculate due date based on payment terms
                           const invoiceDate = form.getValues("invoiceDate");
                           if (invoiceDate && value !== "custom") {
@@ -552,7 +559,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             form.setValue("dueDate", dueDate);
                           }
                         }} 
-                        value={field.value} 
+                        value={field.value?.toString()} 
                         disabled={createInvoiceMutation.isPending}
                       >
                         <FormControl>

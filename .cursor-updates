@@ -393,6 +393,11 @@ Resolved critical issue where delivery dates were not reliably transferring from
 - **✅ Customer Field Mapping**: Resolved missing address fields using type assertions and correct field names (vatId)
 - **✅ Buffer Serialization**: Fixed Buffer.toString() method calls in Inngest background jobs with proper serialization handling
 - **✅ Database Migration**: Created and applied migration `add_customer_language` successfully
+
+### **2. Form & UI Integration ✅**
+- **✅ Language Selector**: Added professional dropdown with native language names (English, Finnish (Suomi), Swedish (Svenska))
+- **✅ Customer Schema**: Updated customer validation schema with language field support
+- **✅ Default Language**: Set Finnish (FI) as default language for new customers
 - **✅ Form Integration**: Seamlessly integrated with existing CustomerForm create/update workflows
 
 ### **3. Backend & API Integration ✅**
@@ -3078,6 +3083,50 @@ This session represents a significant leap in system maturity, transforming the 
 - Implemented comprehensive ERP system with customers, inventory, orders, invoices, BOMs, and production management.
 - Added multi-tenant architecture support with company-scoped data access and user role management.
 - Integrated NextAuth for authentication, Inngest for background jobs, and proper error handling throughout.
+
+## 2025-02-01: Invoice Form TypeScript Fixes & Customer Edit UI Enhancement
+
+**Goal:** Fix TypeScript errors in InvoiceForm, add visible customer edit button, and ensure discount persistence.
+
+**Summary:**
+Resolved critical TypeScript errors in invoice form schema alignment and enhanced customer details page with visible edit functionality.
+
+**✅ TYPESCRIPT FORM SCHEMA ALIGNMENT:**
+- **✅ Schema Synchronization**: Fixed `invoiceFormValidationSchema` to include all fields used in InvoiceForm component
+- **✅ Field Type Corrections**: Updated `paymentTerms` to `paymentTermsDays` (string → number) to match form usage
+- **✅ Missing Fields Added**: Added `deliveryDate` (Date | null) and `penaltyInterest` (number | null) to schema
+- **✅ React Hook Form Compatibility**: Resolved all control type mismatches and resolver conflicts
+- **✅ Build Success**: All 20 TypeScript errors in InvoiceForm.tsx resolved, clean build achieved
+
+**✅ CUSTOMER EDIT UI ENHANCEMENT:**
+- **✅ Visible Edit Button**: Added prominent "Edit Customer" button to customer details page header
+- **✅ Professional Styling**: Button with Edit icon and outline variant for clear visibility
+- **✅ CustomerEditDialog Integration**: Properly integrated existing CustomerEditDialog component
+- **✅ Success Callback**: Added page refresh on successful customer edit for immediate data updates
+- **✅ Responsive Layout**: Header now uses flex layout with customer info on left, edit button on right
+
+**✅ DISCOUNT FUNCTIONALITY VERIFICATION:**
+- **✅ Form Field Mapping**: Confirmed discount fields properly map between form (`discountPercent`) and database (`discountPercentage`)
+- **✅ Calculation Logic**: Verified discount calculations work correctly in invoice form and display components
+- **✅ Data Flow**: Confirmed discount values flow properly from customer → order → invoice → form
+
+**ROOT CAUSES IDENTIFIED:**
+1. **Schema Mismatch**: InvoiceForm was using fields not defined in validation schema, causing TypeScript control type conflicts
+2. **Field Type Inconsistency**: Payment terms field was string in schema but number in form usage
+3. **Missing UI Element**: Customer details page lacked visible edit button, forcing users to use table menu
+4. **Form Field Naming**: Inconsistent naming between `paymentTerms` and `paymentTermsDays` across components
+
+**IMPACT:**
+- **Developer Experience**: Clean TypeScript compilation with zero form-related errors
+- **User Experience**: Intuitive customer editing with prominent, accessible edit button
+- **Data Integrity**: Proper form validation and type safety throughout invoice creation/editing
+- **UI Consistency**: Customer details page now matches other detail pages with visible action buttons
+- **Workflow Efficiency**: Users can easily edit customer details without navigating through table menus
+
+**FILES MODIFIED:**
+- `src/lib/schemas/invoice.schema.ts` - Fixed schema field types and added missing fields
+- `src/components/invoices/InvoiceForm.tsx` - Updated payment terms field name and value handling
+- `src/app/(erp)/customers/[id]/page.tsx` - Added visible edit button with CustomerEditDialog integration
 
 ## 2025-02-01: Production Kanban Cache Invalidation Fix
 

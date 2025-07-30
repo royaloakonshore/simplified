@@ -9,9 +9,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal, TrendingUp, Receipt, Calendar, TrendingDown } from 'lucide-react';
 import { OrderHistoryTable } from '@/components/customers/OrderHistoryTable';
 import { InvoiceHistoryTable } from '@/components/customers/InvoiceHistoryTable';
+import { CustomerEditDialog } from '@/components/customers/CustomerEditDialog';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 import { formatMarginPercentage, getMarginStatusColor } from '@/lib/utils/margin-calculation';
+import { Edit } from 'lucide-react';
 import React from 'react';
 
 export default function CustomerDetailPage() {
@@ -104,9 +107,24 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="w-full space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{customer.name}</h1>
-        <p className="text-muted-foreground">{customer.email || 'No email provided'}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{customer.name}</h1>
+          <p className="text-muted-foreground">{customer.email || 'No email provided'}</p>
+        </div>
+        <CustomerEditDialog 
+          customerId={customerId}
+          trigger={
+            <Button variant="outline" size="sm">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Customer
+            </Button>
+          }
+          onSuccess={() => {
+            // Refetch customer data after successful edit
+            window.location.reload();
+          }}
+        />
       </div>
       <Separator />
 
