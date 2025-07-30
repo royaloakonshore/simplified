@@ -42,6 +42,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
+import { parseNordicNumber, formatNordicNumber, isValidNordicNumber } from "@/lib/utils/nordic-numbers";
 import { CalendarIcon, PlusCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -144,8 +145,8 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
         customerNumber: order.customerNumber || '',
         deliveryMethod: '',
         deliveryDate: null,
-        complaintPeriod: '',
-        penaltyInterest: null,
+        complaintPeriod: '7 vrk',
+        penaltyInterest: 10.5,
         paymentTermsDays: 14,
         vatReverseCharge: false,
         items: order.items?.map((item: any) => ({
@@ -180,7 +181,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       deliveryMethod: '',
       deliveryDate: null,
       complaintPeriod: '7 vrk',
-      penaltyInterest: 11.5,
+      penaltyInterest: 10.5,
       paymentTermsDays: 14,
       vatReverseCharge: false,
       items: [{
@@ -646,7 +647,36 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                               name={`items.${index}.quantity`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createInvoiceMutation.isPending} className="text-right" /></FormControl>
+                                  <FormControl>
+                                    <Input 
+                                      type="text" 
+                                      placeholder="1,00"
+                                      value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (value === '') {
+                                          field.onChange(1);
+                                          return;
+                                        }
+                                        
+                                        if (isValidNordicNumber(value)) {
+                                          const numericValue = parseNordicNumber(value);
+                                          if (!isNaN(numericValue)) {
+                                            field.onChange(numericValue);
+                                          }
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value !== '' && !isValidNordicNumber(value)) {
+                                          field.onChange(1);
+                                        }
+                                        field.onBlur();
+                                      }}
+                                      disabled={createInvoiceMutation.isPending} 
+                                      className="text-right" 
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -660,10 +690,30 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                 <FormItem>
                                   <FormControl>
                                     <Input 
-                                      type="number" 
-                                      step="0.01" 
-                                      {...field} 
-                                      onChange={e => field.onChange(parseFloat(e.target.value))} 
+                                      type="text" 
+                                      placeholder="0,00"
+                                      value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (value === '') {
+                                          field.onChange(0);
+                                          return;
+                                        }
+                                        
+                                        if (isValidNordicNumber(value)) {
+                                          const numericValue = parseNordicNumber(value);
+                                          if (!isNaN(numericValue)) {
+                                            field.onChange(numericValue);
+                                          }
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value !== '' && !isValidNordicNumber(value)) {
+                                          field.onChange(0);
+                                        }
+                                        field.onBlur();
+                                      }}
                                       disabled={createInvoiceMutation.isPending}
                                       className="text-right"
                                     />
@@ -710,12 +760,30 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                 <FormItem>
                                   <FormControl>
                                     <Input
-                                      type="number"
-                                      step="0.01"
-                                      {...field}
-                                      value={field.value ?? ''}
-                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
-                                      placeholder="e.g. 10"
+                                      type="text"
+                                      value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 1) : ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (value === '') {
+                                          field.onChange(null);
+                                          return;
+                                        }
+                                        
+                                        if (isValidNordicNumber(value)) {
+                                          const numericValue = parseNordicNumber(value);
+                                          if (!isNaN(numericValue)) {
+                                            field.onChange(numericValue);
+                                          }
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value !== '' && !isValidNordicNumber(value)) {
+                                          field.onChange(null);
+                                        }
+                                        field.onBlur();
+                                      }}
+                                      placeholder="e.g. 10,0"
                                       disabled={createInvoiceMutation.isPending}
                                       className="w-full"
                                     />
@@ -733,12 +801,30 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                 <FormItem>
                                   <FormControl>
                                     <Input
-                                      type="number"
-                                      step="0.01"
-                                      {...field}
-                                      value={field.value ?? ''}
-                                      onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
-                                      placeholder="e.g. 5.00"
+                                      type="text"
+                                      value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (value === '') {
+                                          field.onChange(null);
+                                          return;
+                                        }
+                                        
+                                        if (isValidNordicNumber(value)) {
+                                          const numericValue = parseNordicNumber(value);
+                                          if (!isNaN(numericValue)) {
+                                            field.onChange(numericValue);
+                                          }
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value !== '' && !isValidNordicNumber(value)) {
+                                          field.onChange(null);
+                                        }
+                                        field.onBlur();
+                                      }}
+                                      placeholder="e.g. 5,00"
                                       disabled={createInvoiceMutation.isPending}
                                       className="w-full"
                                     />
@@ -994,11 +1080,41 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
               <FormField
                 control={form.control}
                 name="penaltyInterest"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>Penalty Interest (%)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 11.5" {...field} value={field.value ?? ''} />
+                      <Input 
+                        type="text" 
+                        placeholder="e.g., 10,5" 
+                        value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 1) : ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            field.onChange(null);
+                            return;
+                          }
+                          
+                          if (isValidNordicNumber(value)) {
+                            const numericValue = parseNordicNumber(value);
+                            if (!isNaN(numericValue)) {
+                              field.onChange(numericValue);
+                            }
+                          } else {
+                            // Allow typing but don't update the form value with invalid input
+                            // This allows the user to type intermediate states like "10," before "10,5"
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const value = e.target.value;
+                          if (value !== '' && !isValidNordicNumber(value)) {
+                            // Clear invalid value on blur
+                            field.onChange(null);
+                          }
+                          field.onBlur();
+                        }}
+                        disabled={createInvoiceMutation.isPending}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

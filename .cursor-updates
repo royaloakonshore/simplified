@@ -3142,6 +3142,15 @@ Resolved critical TypeScript errors in invoice form schema alignment and enhance
 - `src/components/invoices/InvoiceForm.tsx` - Updated payment terms field name and value handling
 - `src/app/(erp)/customers/[id]/page.tsx` - Added visible edit button with CustomerEditDialog integration
 
+**✅ NORDIC DECIMAL COMMA SUPPORT IMPLEMENTED:**
+- **✅ Nordic Number Utilities**: Created `src/lib/utils/nordic-numbers.ts` with comprehensive comma decimal parsing and formatting
+- **✅ Penalty Interest Field**: Fixed to accept comma decimals (e.g., "10,5") with proper validation and error clearing
+- **✅ Invoice Item Fields**: All numeric fields (quantity, unit price, discount amount, discount percent) now support comma decimals
+- **✅ Complaint Period Default**: Fixed missing "7 vrk" placeholder/default value in invoice form
+- **✅ Validation Error Clearing**: Implemented proper error clearing when fields are corrected after validation failures
+- **✅ Real-time Validation**: Nordic number validation provides immediate feedback while allowing intermediate typing states
+- **✅ Consistent Formatting**: All numeric displays use comma as decimal separator throughout the invoice form
+
 **DOCUMENTATION CREATED:**
 - `docs/netvisor-finvoice-integration.md` - Complete Netvisor integration analysis and implementation plan
 - `docs/invoice-detail-fields-verification.md` - Comprehensive verification report of all invoice detail fields
