@@ -766,6 +766,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                         const value = e.target.value;
                                         if (value === '') {
                                           field.onChange(null);
+                                          form.setValue(`items.${index}.discountAmount`, null);
                                           return;
                                         }
                                         
@@ -773,6 +774,16 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                           const numericValue = parseNordicNumber(value);
                                           if (!isNaN(numericValue)) {
                                             field.onChange(numericValue);
+                                            
+                                            // Auto-calculate discount amount when percent changes
+                                            if (numericValue > 0) {
+                                              const currentItem = form.getValues(`items.${index}`);
+                                              const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+                                              const discountAmount = rowTotal * (numericValue / 100);
+                                              form.setValue(`items.${index}.discountAmount`, discountAmount);
+                                            } else {
+                                              form.setValue(`items.${index}.discountAmount`, null);
+                                            }
                                           }
                                         }
                                       }}

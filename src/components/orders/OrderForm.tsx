@@ -535,7 +535,30 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="sr-only">Discount %</FormLabel>
-                                <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right"/></FormControl>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    {...field} 
+                                    value={field.value ?? ""} 
+                                    onChange={e => {
+                                      const percentValue = e.target.value === '' ? null : parseFloat(e.target.value);
+                                      field.onChange(percentValue);
+                                      
+                                      // Auto-calculate discount amount when percent changes
+                                      if (percentValue && percentValue > 0) {
+                                        const currentItem = updateForm.getValues(`items.${index}`);
+                                        const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+                                        const discountAmount = rowTotal * (percentValue / 100);
+                                        updateForm.setValue(`items.${index}.discountAmount`, discountAmount);
+                                      } else {
+                                        updateForm.setValue(`items.${index}.discountAmount`, null);
+                                      }
+                                    }} 
+                                    disabled={updateOrderMutation.isPending} 
+                                    className="text-right"
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -799,7 +822,20 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                           placeholder="%" 
                                           {...field} 
                                           value={field.value ?? ''}
-                                          onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                          onChange={e => {
+                                            const percentValue = e.target.value === '' ? null : parseFloat(e.target.value);
+                                            field.onChange(percentValue);
+                                            
+                                            // Auto-calculate discount amount when percent changes
+                                            if (percentValue && percentValue > 0) {
+                                              const currentItem = createForm.getValues(`items.${index}`);
+                                              const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+                                              const discountAmount = rowTotal * (percentValue / 100);
+                                              createForm.setValue(`items.${index}.discountAmount`, discountAmount);
+                                            } else {
+                                              createForm.setValue(`items.${index}.discountAmount`, null);
+                                            }
+                                          }} 
                                           className="text-right w-[80px]" 
                                         />
                                       </FormControl>

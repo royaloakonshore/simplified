@@ -3165,6 +3165,11 @@ Resolved critical TypeScript errors in invoice form schema alignment and enhance
 - **✅ User Experience**: Smooth dialog with checkboxes, amount preview, and Nordic decimal support
 - **✅ Table Width Fixes**: Improved invoice/order item table column widths for better UX
 
+**🛠 ADDITIONAL BUG FIXES COMPLETED:**
+- **✅ Penalty Interest Editability**: Fixed Nordic number regex to allow deletion and intermediate editing states
+- **✅ Customer Number Mapping**: Fixed missing customer numbers in orders by fetching from customer record during creation
+- **✅ Discount Autofill**: Implemented % discount to amount auto-calculation in both order and invoice forms with Nordic decimal support
+
 **DOCUMENTATION CREATED:**
 - `docs/netvisor-finvoice-integration.md` - Complete Netvisor integration analysis and implementation plan
 - `docs/invoice-detail-fields-verification.md` - Comprehensive verification report of all invoice detail fields

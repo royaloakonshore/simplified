@@ -46,8 +46,10 @@ export function isValidNordicNumber(value: string): boolean {
     return true; // Empty is valid (optional field)
   }
   
-  // Allow numbers with comma as decimal separator
-  const nordicNumberRegex = /^-?\d+([,]\d+)?$/;
+  // Allow more flexible Nordic number patterns to support editing:
+  // - Complete numbers: 123, 123,45, -123, -123,45
+  // - Partial numbers during editing: 12, 12,, 12,4, -12, -
+  const nordicNumberRegex = /^-?\d*([,]\d*)?$/;
   return nordicNumberRegex.test(value.trim());
 }
 

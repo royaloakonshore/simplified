@@ -485,10 +485,18 @@ export const orderRouter = createTRPCRouter({
         const { items, ...orderData } = input;
         const orderTotal = calculateOrderTotal(items);
         const orderNumber = await generateOrderNumber(tx, orderData.orderType);
+        
+        // Fetch customer number from customer record
+        const customer = await tx.customer.findUnique({
+          where: { id: orderData.customerId },
+          select: { customerNumber: true }
+        });
+        
         const createdOrder = await tx.order.create({
           data: {
             ...orderData,
             orderNumber,
+            customerNumber: customer?.customerNumber || null,
             userId: ctx.userId,
             companyId: ctx.companyId,
             totalAmount: orderTotal,
