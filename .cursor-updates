@@ -3151,6 +3151,20 @@ Resolved critical TypeScript errors in invoice form schema alignment and enhance
 - **✅ Real-time Validation**: Nordic number validation provides immediate feedback while allowing intermediate typing states
 - **✅ Consistent Formatting**: All numeric displays use comma as decimal separator throughout the invoice form
 
+**🔔 REMINDER BILL FEATURE FULLY IMPLEMENTED:**
+- **✅ Database Schema**: Added `isReminder` and `reminderSequence` fields to Invoice model with migration
+- **✅ Backend API**: Created `createReminder` tRPC mutation with complete business logic
+- **✅ UI Components**: Built `ReminderInvoiceDialog` with penalty interest and reminder fee options
+- **✅ Integration**: Added reminder option to invoice table three dots menu (Bell icon)
+- **✅ Business Logic**: Auto-calculates penalty interest based on days overdue and original rate
+- **✅ Numbering**: Automatic sequencing (e.g., INV-24-00001-02, INV-24-00001-03)
+- **✅ Due Date**: Set to "heti" (same day) as requested
+- **✅ Validation**: Only shows for sent invoices that aren't reminders themselves
+- **✅ Amounts**: 10€ default reminder fee (editable), penalty interest calculated from original invoice
+- **✅ Total Calculation**: Includes original amount + penalty interest + reminder fee with proper VAT handling
+- **✅ User Experience**: Smooth dialog with checkboxes, amount preview, and Nordic decimal support
+- **✅ Table Width Fixes**: Improved invoice/order item table column widths for better UX
+
 **DOCUMENTATION CREATED:**
 - `docs/netvisor-finvoice-integration.md` - Complete Netvisor integration analysis and implementation plan
 - `docs/invoice-detail-fields-verification.md` - Comprehensive verification report of all invoice detail fields

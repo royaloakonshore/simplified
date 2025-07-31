@@ -247,6 +247,8 @@ model Invoice {
   vatReverseCharge  Boolean       @default(false)
   creditNoteId      String?       @unique
   isCreditNote      Boolean       @default(false)
+  isReminder        Boolean       @default(false)
+  reminderSequence  Int?
   originalInvoiceId String?       @unique
   totalAmount       Decimal       @default(0) @db.Decimal(12, 2)
   totalVatAmount    Decimal       @default(0) @db.Decimal(12, 2)

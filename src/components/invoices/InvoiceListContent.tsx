@@ -18,12 +18,13 @@ import {
   type Column,
   type Row,
 } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal, Download, FileText } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Download, FileText, Bell } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from '@/components/ui/input';
+import { ReminderInvoiceDialog } from '@/components/invoices/ReminderInvoiceDialog';
 
 // Import base Prisma types and the runtime enum InvoiceStatus
 import { type Invoice, type Customer, InvoiceStatus as PrismaInvoiceStatus } from '@prisma/client';
@@ -94,6 +95,10 @@ declare global {
     items: { id: string }[];
     totalAmount: Decimal;
     totalVatAmount: Decimal;
+    customerId: string;
+    penaltyInterest: Decimal | null;
+    dueDate: Date;
+    isReminder: boolean;
   }
 }
 
@@ -103,31 +108,65 @@ function DataTableRowActions<TData extends { id: string }>({
   row: Row<TData>;
 }) {
   const invoice = row.original as unknown as InvoiceTableRowData;
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  
+  // Only show reminder option for sent invoices that are not reminders themselves
+  const canCreateReminder = invoice.status === PrismaInvoiceStatus.sent && !invoice.isReminder;
+  
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href={`/invoices/${invoice.id}`}>View Details</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => console.log("Delete invoice", invoice.id)}
-          className="text-red-600"
-        >
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem asChild>
+            <Link href={`/invoices/${invoice.id}`}>View Details</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+          </DropdownMenuItem>
+          {canCreateReminder && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setShowReminderDialog(true)}
+                className="flex items-center gap-2"
+              >
+                <Bell className="h-4 w-4" />
+                Create Reminder
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => console.log("Delete invoice", invoice.id)}
+            className="text-red-600"
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      
+      {canCreateReminder && (
+        <ReminderInvoiceDialog
+          open={showReminderDialog}
+          onOpenChange={setShowReminderDialog}
+          invoice={{
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            totalAmount: Number(invoice.totalAmount),
+            penaltyInterest: invoice.penaltyInterest ? Number(invoice.penaltyInterest) : null,
+            dueDate: invoice.dueDate.toISOString(),
+            customerId: invoice.customerId,
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -205,12 +244,19 @@ function InvoiceBulkActions({ selectedRows, onClearSelection }: InvoiceBulkActio
 
 
 // 1. Define the precise data type for the table rows based on tRPC output
-export type InvoiceTableRowData = Invoice & {
-  customer: Pick<Customer, 'id' | 'name'>;
-  items: { id: string }[]; // Assuming we only need item count or similar from items array for the list view
+type InvoiceTableRowData = {
+  id: string;
+  invoiceNumber: string;
+  status: PrismaInvoiceStatus;
+  invoiceDate: Date;
+  dueDate: Date;
   totalAmount: Decimal;
   totalVatAmount: Decimal;
-  // status: PrismaInvoiceStatus; // Already part of Invoice type
+  customerId: string;
+  isReminder: boolean;
+  penaltyInterest: Decimal | null;
+  customer: Pick<Customer, 'id' | 'name'>;
+  items: { id: string }[];
 };
 
 // 2. Define columns using the correct row data type

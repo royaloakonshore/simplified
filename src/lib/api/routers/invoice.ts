@@ -102,9 +102,19 @@ export const invoiceRouter = createTRPCRouter({
           orderBy,
           skip: (numericPage - 1) * numericPerPage, 
           take: numericPerPage,             
-          include: {
-            customer: { select: { id: true, name: true } }, 
-            items: { select: { id: true } }, 
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            invoiceDate: true,
+            dueDate: true,
+            totalAmount: true,
+            totalVatAmount: true,
+            customerId: true,
+            isReminder: true,
+            penaltyInterest: true,
+            customer: { select: { id: true, name: true } },
+            items: { select: { id: true } },
           },
         }),
         prisma.invoice.count({ where: whereClause }),
@@ -1032,6 +1042,153 @@ export const invoiceRouter = createTRPCRouter({
       });
 
       return updatedInvoice;
+    }),
+
+  createReminder: companyProtectedProcedure
+    .input(z.object({
+      originalInvoiceId: z.string().cuid(),
+      includePenaltyInterest: z.boolean(),
+      includeReminderFee: z.boolean(),
+      reminderFeeAmount: z.number().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { originalInvoiceId, includePenaltyInterest, includeReminderFee, reminderFeeAmount } = input;
+      const userId = ctx.session.user.id;
+
+      // Get the original invoice with all necessary data
+      const originalInvoice = await prisma.invoice.findUnique({
+        where: { 
+          id: originalInvoiceId,
+          companyId: ctx.companyId,
+        },
+        include: {
+          customer: true,
+          items: { include: { inventoryItem: true } },
+          Company: true,
+        },
+      });
+
+      if (!originalInvoice) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Original invoice not found',
+        });
+      }
+
+      // Calculate the next reminder sequence number
+      const existingReminders = await prisma.invoice.count({
+        where: {
+          originalInvoiceId: originalInvoiceId,
+          isReminder: true,
+          companyId: ctx.companyId,
+        },
+      });
+      const reminderSequence = existingReminders + 1;
+
+      // Generate reminder invoice number
+      const reminderInvoiceNumber = `${originalInvoice.invoiceNumber}-${reminderSequence.toString().padStart(2, '0')}`;
+
+      return await prisma.$transaction(async (tx) => {
+        // Calculate penalty interest if requested
+        let penaltyInterestAmount = 0;
+        if (includePenaltyInterest && originalInvoice.penaltyInterest) {
+          const dueDate = new Date(originalInvoice.dueDate);
+          const today = new Date();
+          const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
+          
+          // Calculate penalty interest: (amount * rate * days) / (365 * 100)
+          penaltyInterestAmount = (Number(originalInvoice.totalAmount) * Number(originalInvoice.penaltyInterest) * daysOverdue) / (365 * 100);
+          penaltyInterestAmount = Math.round(penaltyInterestAmount * 100) / 100; // Round to 2 decimals
+        }
+
+        // Prepare reminder invoice items (copy original items)
+        const reminderItems = originalInvoice.items.map(item => ({
+          inventoryItemId: item.inventoryItemId,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          vatRatePercent: item.vatRatePercent,
+          discountAmount: item.discountAmount,
+          discountPercentage: item.discountPercentage,
+        }));
+
+        // For now, we'll skip adding penalty interest and reminder fee as separate line items
+        // and instead calculate them into the total. This avoids the inventoryItemId requirement.
+        // In a future version, we could create special service inventory items for these.
+        
+        let additionalAmount = 0;
+        if (includePenaltyInterest && penaltyInterestAmount > 0) {
+          additionalAmount += penaltyInterestAmount;
+        }
+        if (includeReminderFee && reminderFeeAmount && reminderFeeAmount > 0) {
+          additionalAmount += reminderFeeAmount;
+        }
+
+        // Calculate totals
+        const itemsSubTotal = reminderItems.reduce((sum, item) => {
+          const itemTotal = Number(item.unitPrice) * Number(item.quantity);
+          const discountAmount = Number(item.discountAmount || 0);
+          const discountPercent = Number(item.discountPercentage || 0);
+          const afterDiscount = itemTotal - discountAmount - (itemTotal * discountPercent / 100);
+          return sum + afterDiscount;
+        }, 0);
+        
+        const itemsVatAmount = reminderItems.reduce((sum, item) => {
+          const itemTotal = Number(item.unitPrice) * Number(item.quantity);
+          const discountAmount = Number(item.discountAmount || 0);
+          const discountPercent = Number(item.discountPercentage || 0);
+          const afterDiscount = itemTotal - discountAmount - (itemTotal * discountPercent / 100);
+          const vatAmount = afterDiscount * (Number(item.vatRatePercent) / 100);
+          return sum + vatAmount;
+        }, 0);
+        
+        // Add additional amounts (penalty interest is VAT-free, reminder fee has VAT)
+        const reminderFeeVat = includeReminderFee && reminderFeeAmount ? reminderFeeAmount * 0.24 : 0;
+        const subTotal = itemsSubTotal + additionalAmount + reminderFeeVat;
+        const totalVatAmount = itemsVatAmount + reminderFeeVat;
+
+        // Generate reference number for the reminder
+        const referenceNumber = generateInvoiceReferenceNumber(reminderInvoiceNumber);
+
+        // Create the reminder invoice
+        const reminderInvoice = await tx.invoice.create({
+          data: {
+            invoiceNumber: reminderInvoiceNumber,
+            customerId: originalInvoice.customerId,
+            status: InvoiceStatus.draft,
+            invoiceDate: new Date(),
+            dueDate: new Date(), // "heti" - same day as created
+            notes: `Maksumuistutus laskusta ${originalInvoice.invoiceNumber}`,
+            vatReverseCharge: originalInvoice.vatReverseCharge,
+            isReminder: true,
+            reminderSequence: reminderSequence,
+            originalInvoiceId: originalInvoiceId,
+            totalAmount: new Decimal(subTotal),
+            totalVatAmount: new Decimal(totalVatAmount),
+            userId: userId,
+            companyId: ctx.companyId,
+            referenceNumber: referenceNumber,
+            deliveryMethod: originalInvoice.deliveryMethod,
+            complaintPeriod: originalInvoice.complaintPeriod,
+            penaltyInterest: originalInvoice.penaltyInterest,
+            ourReference: originalInvoice.ourReference,
+            customerNumber: originalInvoice.customerNumber,
+            paymentTermsDays: 0, // "heti" - immediate payment
+            sellerReference: originalInvoice.sellerReference,
+            deliveryDate: new Date(),
+            items: {
+              create: reminderItems,
+            },
+          },
+          include: {
+            customer: true,
+            items: { include: { inventoryItem: true } },
+            Company: true,
+          },
+        });
+
+        return reminderInvoice;
+      });
     }),
 
 }); 

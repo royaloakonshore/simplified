@@ -439,18 +439,19 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
               
               <div className="space-y-2">
                 <FormLabel>Order Items</FormLabel>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[40%]">Item</TableHead>
-                      <TableHead className="w-[100px]">Qty</TableHead>
-                      <TableHead className="w-[120px]">Unit Price</TableHead>
-                      <TableHead className="w-[100px]">VAT %</TableHead>
-                      <TableHead className="w-[120px]">Discount %</TableHead>
-                      <TableHead className="w-[120px]">Discount Amt.</TableHead>
-                      <TableHead className="text-right">Line Total</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[1100px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[200px]">Item</TableHead>
+                        <TableHead className="w-[100px]">Qty</TableHead>
+                        <TableHead className="w-[120px]">Unit Price</TableHead>
+                        <TableHead className="w-[90px]">VAT %</TableHead>
+                        <TableHead className="w-[130px]">Discount %</TableHead>
+                        <TableHead className="w-[130px]">Discount Amt.</TableHead>
+                        <TableHead className="w-[140px] text-right">Line Total</TableHead>
+                        <TableHead className="w-[60px]">Actions</TableHead>
+                      </TableRow>
                   </TableHeader>
                   <TableBody>
                     {updateFields.map((field, index) => (
@@ -559,6 +560,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 <Button type="button" variant="outline" onClick={() => updateAppend({ inventoryItemId: '', quantity: 1, unitPrice: 0, discountAmount: null, discountPercent: null })} >Add Item</Button> 
                  {updateForm.formState.errors.items && typeof updateForm.formState.errors.items === 'object' && 'message' in updateForm.formState.errors.items && (
                     <p className="text-sm font-medium text-destructive">{updateForm.formState.errors.items.message as string}</p>

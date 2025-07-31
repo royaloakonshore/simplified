@@ -585,18 +585,18 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
               <div>
                 <FormLabel>Items *</FormLabel>
                 <div className="border rounded-md overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[1200px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[200px]">Item</TableHead>
-                        <TableHead className="min-w-[150px]">Description</TableHead>
-                        <TableHead className="w-[80px]">Qty</TableHead>
-                        <TableHead className="w-[100px]">Unit Price</TableHead>
-                        <TableHead className="w-[80px]">VAT %</TableHead>
-                        <TableHead className="w-[100px]">Disc %</TableHead>
-                        <TableHead className="w-[100px]">Disc Amt</TableHead>
-                        <TableHead className="w-[120px] text-right">Line Total</TableHead>
-                        <TableHead className="w-[50px]">Actions</TableHead>
+                        <TableHead className="min-w-[220px]">Item</TableHead>
+                        <TableHead className="min-w-[180px]">Description</TableHead>
+                        <TableHead className="w-[100px]">Qty</TableHead>
+                        <TableHead className="w-[120px]">Unit Price</TableHead>
+                        <TableHead className="w-[90px]">VAT %</TableHead>
+                        <TableHead className="w-[130px]">Disc %</TableHead>
+                        <TableHead className="w-[130px]">Disc Amt</TableHead>
+                        <TableHead className="w-[140px] text-right">Line Total</TableHead>
+                        <TableHead className="w-[60px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                   <TableBody>
