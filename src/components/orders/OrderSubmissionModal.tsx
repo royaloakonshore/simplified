@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { CheckCircle, Send, FileText, Factory } from 'lucide-react';
+import { CheckCircle, Send, FileText, Factory, Download } from 'lucide-react';
 
 interface OrderSubmissionModalProps {
   isOpen: boolean;
@@ -54,6 +54,22 @@ export default function OrderSubmissionModal({
     });
   };
 
+  const handleStatusUpdateWithPDF = (newStatus: OrderStatus) => {
+    setIsUpdating(true);
+    updateStatusMutation.mutate({
+      id: orderId,
+      status: newStatus,
+    });
+    // Trigger PDF download
+    const pdfUrl = `/api/pdf/order/${orderId}`;
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = `${orderNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleKeepDraft = () => {
     onOpenChange(false);
     router.push(`/orders/${orderId}`);
@@ -81,6 +97,15 @@ export default function OrderSubmissionModal({
           {isQuotation && (
             <>
               <Button
+                onClick={() => handleStatusUpdateWithPDF(OrderStatus.confirmed)}
+                disabled={isUpdating}
+                className="w-full"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Mark as Sent and Download PDF
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => handleStatusUpdate(OrderStatus.confirmed)}
                 disabled={isUpdating}
                 className="w-full"
@@ -95,7 +120,7 @@ export default function OrderSubmissionModal({
                 className="w-full"
               >
                 <FileText className="mr-2 h-4 w-4" />
-                Keep as Draft
+                Save as Draft
               </Button>
             </>
           )}
@@ -103,6 +128,15 @@ export default function OrderSubmissionModal({
           {isWorkOrder && (
             <>
               <Button
+                onClick={() => handleStatusUpdateWithPDF(OrderStatus.confirmed)}
+                disabled={isUpdating}
+                className="w-full"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Confirm, Send to Production and Download PDF
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => handleStatusUpdate(OrderStatus.confirmed)}
                 disabled={isUpdating}
                 className="w-full"
@@ -117,7 +151,7 @@ export default function OrderSubmissionModal({
                 className="w-full"
               >
                 <FileText className="mr-2 h-4 w-4" />
-                Keep as Draft
+                Save as Draft
               </Button>
             </>
           )}

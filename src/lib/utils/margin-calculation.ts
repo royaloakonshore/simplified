@@ -81,7 +81,13 @@ export function calculateItemCost(item: MarginCalculationItem): number {
   if (itemType === 'MANUFACTURED_GOOD' && item.inventoryItem.bom) {
     let totalCost = 0;
     
-    // Add manual labor cost
+    // Start with the product's own cost price (if any)
+    const productCostPrice = toSafeNumber(item.inventoryItem.costPrice);
+    if (productCostPrice > 0) {
+      totalCost += productCostPrice;
+    }
+    
+    // Add manual labor cost from BOM
     if (item.inventoryItem.bom.manualLaborCost) {
       totalCost += toSafeNumber(item.inventoryItem.bom.manualLaborCost);
     }

@@ -3169,6 +3169,8 @@ Resolved critical TypeScript errors in invoice form schema alignment and enhance
 - **✅ Penalty Interest Editability**: Fixed Nordic number regex to allow deletion and intermediate editing states
 - **✅ Customer Number Mapping**: Fixed missing customer numbers in orders by fetching from customer record during creation
 - **✅ Discount Autofill**: Implemented % discount to amount auto-calculation in both order and invoice forms with Nordic decimal support
+- Fixed penalty interest field editability with Nordic decimal support, customer number mapping in order creation, and implemented discount percent to amount autofill in both order and invoice forms.
+- Fixed quotation creation bug from customer table (event propagation issue), implemented dual search/select customer dropdown in order/invoice forms using ComboboxResponsive, enhanced order submission modal with three alternatives (mark as sent + download PDF, mark as sent, save as draft), fixed margin calculation for products with both cost price and BOM costs, and optimized session management to reduce excessive session checks.
 
 **DOCUMENTATION CREATED:**
 - `docs/netvisor-finvoice-integration.md` - Complete Netvisor integration analysis and implementation plan

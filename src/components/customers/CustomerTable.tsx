@@ -86,20 +86,40 @@ const CustomerTableRowActions = ({ customer, onEditSuccess }: { customer: Custom
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => handleViewProfile(customer.id)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewProfile(customer.id);
+            }}
+          >
             <User className="mr-2 h-4 w-4" />
             <span>View Profile</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'invoice')}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCreateDocument(customer.id, 'invoice');
+            }}
+          >
             <FileText className="mr-2 h-4 w-4" />
             <span>Create Invoice</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'quotation')}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCreateDocument(customer.id, 'quotation');
+            }}
+          >
             <FilePlus className="mr-2 h-4 w-4" />
             <span>Create Quotation</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreateDocument(customer.id, 'work_order')}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCreateDocument(customer.id, 'work_order');
+            }}
+          >
             <FileBox className="mr-2 h-4 w-4" />
             <span>Create Work Order</span>
           </DropdownMenuItem>

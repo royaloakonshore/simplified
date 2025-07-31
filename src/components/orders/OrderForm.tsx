@@ -25,11 +25,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Trash2, PlusCircle, UserPlus } from 'lucide-react';
+import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 import { formatCurrency } from '@/lib/utils';
 import { z } from 'zod';
 import { PlusCircle as PlusCircleIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 
 // Dialog and CustomerForm imports
 import {
@@ -376,20 +376,31 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
           <Card>
             <CardHeader><CardTitle>Edit Order</CardTitle></CardHeader>
             <CardContent className="space-y-6">
-              <FormField
-                control={updateForm.control}
-                name={"customerId"}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={true}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
-                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               <FormField
+                 control={updateForm.control}
+                 name={"customerId"}
+                 render={({ field }) => {
+                   const customerOptions = customers.map(customer => ({
+                     value: customer.id,
+                     label: customer.name
+                   }));
+                   
+                   return (
+                     <FormItem>
+                       <FormLabel>Customer</FormLabel>
+                       <ComboboxResponsive
+                         options={customerOptions}
+                         selectedValue={field.value || ''}
+                         onSelectedValueChange={field.onChange}
+                         placeholder="Select a customer..."
+                         searchPlaceholder="Search customers..."
+                         disabled={true}
+                       />
+                       <FormMessage />
+                     </FormItem>
+                   );
+                 }}
+               />
               
               <FormField
                 control={updateForm.control}
@@ -642,31 +653,43 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             <Card>
               <CardHeader><CardTitle>Create New Order</CardTitle></CardHeader>
               <CardContent className="space-y-6">
-                <FormField
-                  control={createForm.control}
-                  name={"customerId"}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Customer</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
-                          <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setIsAddCustomerDialogOpen(true)}
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          <span className="sr-only">Add New Customer</span>
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 <FormField
+                   control={createForm.control}
+                   name={"customerId"}
+                   render={({ field }) => {
+                     const customerOptions = customers.map(customer => ({
+                       value: customer.id,
+                       label: customer.name
+                     }));
+                     
+                     return (
+                       <FormItem>
+                         <FormLabel>Customer</FormLabel>
+                         <div className="flex items-center gap-2">
+                           <div className="flex-1">
+                             <ComboboxResponsive
+                               options={customerOptions}
+                               selectedValue={field.value || ''}
+                               onSelectedValueChange={field.onChange}
+                               placeholder="Select a customer..."
+                               searchPlaceholder="Search customers..."
+                             />
+                           </div>
+                           <Button 
+                             type="button" 
+                             variant="outline"
+                             size="icon"
+                             onClick={() => setIsAddCustomerDialogOpen(true)}
+                           >
+                             <UserPlus className="h-4 w-4" />
+                             <span className="sr-only">Add New Customer</span>
+                           </Button>
+                         </div>
+                         <FormMessage />
+                       </FormItem>
+                     );
+                   }}
+                 />
                 
                 <FormField
                   control={createForm.control}

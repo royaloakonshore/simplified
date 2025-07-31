@@ -426,38 +426,41 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                 <FormField
                   control={form.control}
                   name="customerId"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2 md:col-span-2">
-                      <FormLabel>Customer *</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={isEditMode || createInvoiceMutation.isPending}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {initialCustomers.map(c => (
-                              <SelectItem value={c.id} key={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button 
-                          type="button" 
-                          onClick={() => setIsAddCustomerDialogOpen(true)} 
-                          variant="outline" 
-                          size="sm" 
-                          className="ml-2"
-                          disabled={createInvoiceMutation.isPending}
-                        >
-                          <PlusCircle className="mr-2 h-4 w-4" /> Add New
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const customerOptions = initialCustomers.map(customer => ({
+                      value: customer.id,
+                      label: customer.name
+                    }));
+                    
+                    return (
+                      <FormItem className="col-span-2 md:col-span-2">
+                        <FormLabel>Customer *</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <ComboboxResponsive
+                              options={customerOptions}
+                              selectedValue={field.value || ''}
+                              onSelectedValueChange={field.onChange}
+                              placeholder="Select a customer..."
+                              searchPlaceholder="Search customers..."
+                              disabled={isEditMode || createInvoiceMutation.isPending}
+                            />
+                          </div>
+                          <Button 
+                            type="button" 
+                            onClick={() => setIsAddCustomerDialogOpen(true)} 
+                            variant="outline" 
+                            size="sm" 
+                            className="ml-2"
+                            disabled={createInvoiceMutation.isPending}
+                          >
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add New
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 <FormField
                   control={form.control}
