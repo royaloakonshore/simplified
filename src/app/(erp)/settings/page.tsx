@@ -139,7 +139,19 @@ function SettingsPageContent() {
         sellerIntermediatorAddress: currentSettings.sellerIntermediatorAddress ?? "",
         bankName: currentSettings.bankName ?? "",
         defaultInvoicePaymentTermsDays: currentSettings.defaultInvoicePaymentTermsDays ?? null,
-        defaultVatRatePercent: currentSettings.defaultVatRatePercent ? currentSettings.defaultVatRatePercent.toNumber() : null,
+        defaultVatRatePercent: (() => {
+          try {
+            if (currentSettings.defaultVatRatePercent && typeof currentSettings.defaultVatRatePercent === 'object' && 'toNumber' in currentSettings.defaultVatRatePercent) {
+              return currentSettings.defaultVatRatePercent.toNumber();
+            } else if (typeof currentSettings.defaultVatRatePercent === 'number') {
+              return currentSettings.defaultVatRatePercent;
+            }
+            return null;
+          } catch (error) {
+            console.warn('Error converting defaultVatRatePercent:', error);
+            return null;
+          }
+        })(),
       };
       settingsForm.reset(defaultValuesFromData);
     } else if (!isLoadingSettings && status === 'authenticated' && !currentSettings && !settingsError) {

@@ -40,8 +40,8 @@ export const settingsRouter = createTRPCRouter({
       // });
       const globalSettings = await prisma.settings.findFirst();
       
-      // @ts-expect-error Decimal types from Prisma need conversion for CompanySettings type.
-      return globalSettings as CompanySettings | null;
+      // Return the settings directly - Prisma handles Decimal serialization properly
+      return globalSettings;
     }),
 
   // Update company's settings - now acts as an upsert
@@ -62,7 +62,7 @@ export const settingsRouter = createTRPCRouter({
           where: { id: existingSettings.id }, // In multi-tenant: where: { companyId }
           data: input, // Zod schema ensures `input` is valid SettingsUpdateInput
         });
-        return updatedSettings as Settings;
+        return updatedSettings;
       } else {
         // Create new settings if none exist
         // For multi-tenancy, ensure companyId is part of the create data
@@ -70,7 +70,7 @@ export const settingsRouter = createTRPCRouter({
         const newSettings = await prisma.settings.create({
           data: input, // Zod schema ensures `input` is valid SettingsCreateInput
         });
-        return newSettings as Settings;
+        return newSettings;
       }
     }),
 }); 
