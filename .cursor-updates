@@ -3679,3 +3679,67 @@ Enhanced invoice form to auto-populate more customer fields for better Finvoice 
 
 *Status: Production Ready - Performance Optimized*
 *Next Phase: PDF Template Enhancement & Advanced Features*
+
+## 2025-02-01: Settings Page Destructuring Error Fix
+
+**Fixed critical "Right side of assignment cannot be destructured" error in Settings page**
+
+### 🐛 **ROOT CAUSE ANALYSIS:**
+
+**Primary Issue: Unsafe Decimal Conversion**
+- `defaultVatRatePercent` field from Prisma returns Decimal object
+- Destructuring attempted `.toNumber()` on potentially null/undefined values
+- Missing type safety for Prisma Decimal serialization
+
+**Secondary Issue: Undefined Type Reference**
+- `CompanySettings` type referenced but never defined in settings router
+- Type assertion causing runtime type mismatches
+
+### ✅ **FIXES IMPLEMENTED:**
+
+**1. Safe Decimal Conversion:**
+- Added try-catch wrapper for Decimal conversion operations
+- Implemented type checking for Decimal objects before calling `.toNumber()`
+- Added fallback handling for number and null values
+- Prevents runtime errors during settings form initialization
+
+**2. Removed Problematic Type Assertions:**
+- Removed undefined `CompanySettings` type references
+- Return Prisma Settings objects directly from tRPC router
+- Allow Prisma to handle Decimal serialization automatically
+
+**3. Enhanced Error Handling:**
+- Added console warnings for failed Decimal conversions
+- Graceful degradation to null values when conversion fails
+- Maintained form functionality even with malformed data
+
+### 🔧 **TECHNICAL DETAILS:**
+
+**Before:** `defaultVatRatePercent: currentSettings.defaultVatRatePercent ? currentSettings.defaultVatRatePercent.toNumber() : null`
+
+**After:** Safe conversion with type checking and error handling:
+```typescript
+defaultVatRatePercent: (() => {
+  try {
+    if (currentSettings.defaultVatRatePercent && typeof currentSettings.defaultVatRatePercent === 'object' && 'toNumber' in currentSettings.defaultVatRatePercent) {
+      return currentSettings.defaultVatRatePercent.toNumber();
+    } else if (typeof currentSettings.defaultVatRatePercent === 'number') {
+      return currentSettings.defaultVatRatePercent;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Error converting defaultVatRatePercent:', error);
+    return null;
+  }
+})()
+```
+
+### 📊 **VERIFICATION:**
+- ✅ TypeScript compilation clean (`npx tsc --noEmit`)
+- ✅ Settings page loads without destructuring errors
+- ✅ Form initialization handles null/undefined settings gracefully
+- ✅ Decimal field conversion works with existing data
+
+---
+
+</rewritten_file>
