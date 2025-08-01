@@ -29,8 +29,8 @@ model User {
   invoices          Invoice[]
   orders            Order[]
   sessions          Session[]
-  activeCompany     Company?  @relation("ActiveCompanyForUser", fields: [activeCompanyId], references: [id])
-  memberOfCompanies Company[] @relation("CompanyMemberships")
+  activeCompany     Company?         @relation("ActiveCompanyForUser", fields: [activeCompanyId], references: [id])
+  memberOfCompanies Company[]        @relation("CompanyMemberships")
 
   @@schema("public")
 }
@@ -100,7 +100,6 @@ model Customer {
   email                String?
   phone                String?
   vatId                String?
-  customerNumber       String?          @unique
   ovtIdentifier        String?
   intermediatorAddress String?
   createdAt            DateTime         @default(now())
@@ -108,6 +107,8 @@ model Customer {
   companyId            String?
   language             CustomerLanguage @default(FI)
   buyerReference       String?
+  customerNumber       String?          @unique
+  defaultPaymentTermsDays Int?
   addresses            Address[]
   Company              Company?         @relation(fields: [companyId], references: [id])
   invoices             Invoice[]
@@ -198,8 +199,8 @@ model Order {
   companyId           String?
   qrIdentifier        String?     @unique
   originalQuotationId String?
-  ourReference        String?
   customerNumber      String?
+  ourReference        String?
   invoices            Invoice[]   @relation("OrderToInvoices")
   Company             Company?    @relation(fields: [companyId], references: [id])
   customer            Customer    @relation(fields: [customerId], references: [id])
@@ -247,31 +248,31 @@ model Invoice {
   vatReverseCharge  Boolean       @default(false)
   creditNoteId      String?       @unique
   isCreditNote      Boolean       @default(false)
-  isReminder        Boolean       @default(false)
-  reminderSequence  Int?
   originalInvoiceId String?       @unique
   totalAmount       Decimal       @default(0) @db.Decimal(12, 2)
   totalVatAmount    Decimal       @default(0) @db.Decimal(12, 2)
   userId            String?
   companyId         String?
   referenceNumber   String?
-  deliveryMethod    String?
-  complaintPeriod   String?
-  penaltyInterest   Decimal?
-  ourReference      String?
-  customerNumber    String?
-  paymentTermsDays  Int?
   sellerReference   String?
+  complaintPeriod   String?
+  customerNumber    String?
   deliveryDate      DateTime?
+  deliveryMethod    String?
   orderNumber       String?
-  originalInvoice   Invoice?      @relation("CreditNote", fields: [originalInvoiceId], references: [id])
-  creditNote        Invoice?      @relation("CreditNote")
-  payments          Payment[]
-  items             InvoiceItem[]
+  ourReference      String?
+  paymentTermsDays  Int?
+  penaltyInterest   Decimal?
+  isReminder        Boolean       @default(false)
+  reminderSequence  Int?
   Company           Company?      @relation(fields: [companyId], references: [id])
   customer          Customer      @relation(fields: [customerId], references: [id])
   order             Order?        @relation("OrderToInvoices", fields: [orderId], references: [id])
+  originalInvoice   Invoice?      @relation("CreditNote", fields: [originalInvoiceId], references: [id])
+  creditNote        Invoice?      @relation("CreditNote")
   user              User?         @relation(fields: [userId], references: [id])
+  payments          Payment[]
+  items             InvoiceItem[]
 
   @@index([customerId])
   @@index([orderId])

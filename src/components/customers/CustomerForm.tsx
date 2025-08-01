@@ -340,6 +340,26 @@ export function CustomerForm({ initialData, onSuccessCallback }: CustomerFormPro
                 />
                 <FormField
                   control={form.control}
+                  name="defaultPaymentTermsDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Payment Terms (Days)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="e.g. 14" 
+                          {...field} 
+                          value={field.value ?? ""} 
+                          onChange={(e) => field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10))}
+                        />
+                      </FormControl>
+                      <FormDescription>Default payment terms for invoices to this customer.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="customerNumber"
                   render={({ field }) => (
                     <FormItem>

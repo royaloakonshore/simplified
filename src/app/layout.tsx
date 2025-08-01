@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner"; // Import Sonner Toaster
 import { cookies } from 'next/headers';
 
 export const metadata: Metadata = {
-  title: "Simplified ERP - Base Test",
+      title: "Gerby - Base Test",
   description: "Minimal root layout test",
   // Optionally, keep icons if not suspect, or remove for extreme minimality
   // icons: {

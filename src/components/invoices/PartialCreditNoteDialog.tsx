@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 import { CreatePartialCreditNoteSchema, type CreatePartialCreditNoteInput } from "@/lib/schemas/credit-note.schema";
 import { api } from "@/lib/trpc/react";
@@ -77,6 +78,13 @@ export function PartialCreditNoteDialog({
   // Calculate VAT amount for a line
   const calculateVatAmount = (lineTotal: number, vatRate: number) => {
     return (lineTotal * vatRate) / 100;
+  };
+
+  // Calculate credit amount from negative quantity
+  const calculateCreditFromQuantity = (negativeQuantity: number, originalQuantity: number, originalLineTotal: number) => {
+    if (negativeQuantity >= 0) return 0;
+    const quantityRatio = Math.abs(negativeQuantity) / originalQuantity;
+    return originalLineTotal * quantityRatio;
   };
 
   // Initialize form with invoice items
@@ -137,7 +145,7 @@ export function PartialCreditNoteDialog({
           <DialogTitle>Create Partial Credit Note</DialogTitle>
           <DialogDescription>
             Create a partial credit note for invoice {invoice.invoiceNumber}. 
-            Edit the euro amounts you want to credit for each line item.
+            Enter negative quantities (e.g., -5) to credit specific amounts, or edit the euro amounts directly.
           </DialogDescription>
         </DialogHeader>
 
@@ -174,10 +182,19 @@ export function PartialCreditNoteDialog({
                 );
                 const originalVatAmount = calculateVatAmount(originalLineTotal, item.originalVatRatePercent);
 
+                // Calculate what quantity would produce the current credit amount
+                const currentCreditRatio = item.creditAmount / originalLineTotal;
+                const equivalentQuantity = -(item.originalQuantity * currentCreditRatio);
+
                 return (
                   <Card key={field.id}>
                     <CardHeader>
-                      <CardTitle className="text-base">{item.description}</CardTitle>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {item.description}
+                        <Badge variant="secondary">
+                          Original: {item.originalQuantity} × €{item.originalUnitPrice.toFixed(2)}
+                        </Badge>
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {/* Original amounts (read-only) */}
@@ -192,58 +209,108 @@ export function PartialCreditNoteDialog({
                         </div>
                       </div>
 
-                      {/* Editable credit amounts */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.creditAmount`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Credit Amount (€)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max={originalLineTotal}
-                                  placeholder="0.00"
-                                  {...field}
-                                  onChange={(e) => {
-                                    const value = parseFloat(e.target.value) || 0;
-                                    field.onChange(value);
-                                    // Auto-calculate VAT amount
-                                    const vatAmount = calculateVatAmount(value, item.originalVatRatePercent);
+                      {/* Credit method selection */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.creditAmount`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Credit Amount (€)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max={originalLineTotal}
+                                    placeholder="0.00"
+                                    {...field}
+                                    onChange={(e) => {
+                                      const value = parseFloat(e.target.value) || 0;
+                                      field.onChange(value);
+                                      // Auto-calculate VAT amount
+                                      const vatAmount = calculateVatAmount(value, item.originalVatRatePercent);
+                                      form.setValue(`items.${index}.creditVatAmount`, vatAmount);
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        
+                        <div className="text-center text-muted-foreground">or</div>
+                        
+                        <div className="flex-1">
+                          <FormItem>
+                            <FormLabel>Credit Quantity (negative)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="1"
+                                min={-item.originalQuantity}
+                                max="0"
+                                placeholder="0"
+                                value={equivalentQuantity}
+                                onChange={(e) => {
+                                  const negativeQuantity = parseFloat(e.target.value) || 0;
+                                  if (negativeQuantity <= 0) {
+                                    const creditAmount = calculateCreditFromQuantity(
+                                      negativeQuantity, 
+                                      item.originalQuantity, 
+                                      originalLineTotal
+                                    );
+                                    const vatAmount = calculateVatAmount(creditAmount, item.originalVatRatePercent);
+                                    
+                                    form.setValue(`items.${index}.creditAmount`, creditAmount);
                                     form.setValue(`items.${index}.creditVatAmount`, vatAmount);
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.creditVatAmount`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Credit VAT Amount (€)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max={originalVatAmount}
-                                  placeholder="0.00"
-                                  {...field}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground">
+                              Enter negative quantity (e.g., -3 for 3 items)
+                            </p>
+                          </FormItem>
+                        </div>
                       </div>
+
+                      {/* Credit VAT Amount (auto-calculated) */}
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.creditVatAmount`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Credit VAT Amount (€) - Auto-calculated</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={originalVatAmount}
+                                placeholder="0.00"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Credit summary */}
+                      {item.creditAmount > 0 && (
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            Credit Summary:
+                          </p>
+                          <p className="text-sm text-blue-600 dark:text-blue-400">
+                            {item.creditAmount.toFixed(2)}€ + {item.creditVatAmount.toFixed(2)}€ VAT = {(item.creditAmount + item.creditVatAmount).toFixed(2)}€ total
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );

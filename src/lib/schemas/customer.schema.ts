@@ -31,6 +31,7 @@ export const customerBaseSchema = z.object({
   intermediatorAddress: z.string().nullable().optional(),
   buyerReference: z.string().nullable().optional(),
   customerNumber: z.string().nullable().optional(),
+  defaultPaymentTermsDays: z.coerce.number().int().min(1).max(365).nullable().optional(),
   addresses: z.array(addressSchema),
 });
 

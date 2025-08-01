@@ -266,11 +266,6 @@ export const invoiceRouter = createTRPCRouter({
       // Fetch customer data to prefill invoice fields
       const customer = await prisma.customer.findUnique({
         where: { id: customerId, companyId: ctx.companyId },
-        select: {
-          id: true,
-          customerNumber: true,
-          buyerReference: true,
-        },
       });
 
       if (!customer) {
@@ -395,7 +390,7 @@ export const invoiceRouter = createTRPCRouter({
         customerNumber: customer.customerNumber,
         ourReference: customer.buyerReference, // Map buyerReference to ourReference
         // Prefill reasonable defaults (editable in invoice form)
-        paymentTermsDays: 14, // Default 14 days payment terms
+        paymentTermsDays: customer.defaultPaymentTermsDays ?? 14, // Use customer's default or fallback to 14 days
         deliveryMethod: null, // To be filled by user
         complaintPeriod: null, // To be filled by user
         penaltyInterest: null, // To be filled by user
@@ -656,7 +651,7 @@ export const invoiceRouter = createTRPCRouter({
         totalVatAmount: invoice.totalVatAmount as unknown as import('@/lib/types/branded').Decimal,
         vatReverseCharge: invoice.vatReverseCharge,
         notes: invoice.notes ?? undefined,
-        paymentDate: invoice.payments?.[0]?.paymentDate ?? undefined, 
+        // Payment information available through payments relation 
         createdAt: invoice.createdAt,
         updatedAt: invoice.updatedAt,
         customerId: invoice.customerId as import('@/lib/types/branded').UUID,
@@ -966,12 +961,9 @@ export const invoiceRouter = createTRPCRouter({
         }
 
         if (invoiceData.status && invoiceData.status !== existingInvoice.status) {
-            if (invoiceData.status === InvoiceStatus.sent) {
-                (updates as any).sentAt = new Date();
-            } else if (invoiceData.status === InvoiceStatus.paid) {
-                (updates as any).paymentDate = new Date();
-                (updates as any).paidAmount = existingInvoice.totalAmount;
-            }
+            // Status changes are handled by just updating the status field
+            // For 'paid' status, payments should be recorded via the Payment model
+            // No additional fields needed on Invoice model for status tracking
         }
 
         await tx.invoice.update({
@@ -1025,12 +1017,29 @@ export const invoiceRouter = createTRPCRouter({
 
       const updateData: any = { status };
       
-      // Add status-specific fields
-      if (status === InvoiceStatus.sent) {
-        updateData.sentAt = new Date();
-      } else if (status === InvoiceStatus.paid) {
-        updateData.paymentDate = new Date();
-        updateData.paidAmount = invoice.totalAmount;
+      // For 'paid' status, create a payment record automatically
+      if (status === InvoiceStatus.paid) {
+        // Check if a payment already exists for the full amount
+        const existingPayments = await prisma.payment.findMany({
+          where: { invoiceId: id },
+        });
+        
+        const totalPaid = existingPayments.reduce((sum, payment) => 
+          sum.plus(payment.amount), new Decimal(0)
+        );
+        
+        // Only create payment if not already fully paid
+        if (totalPaid.lt(invoice.totalAmount)) {
+          const remainingAmount = new Decimal(invoice.totalAmount).minus(totalPaid);
+          await prisma.payment.create({
+            data: {
+              invoiceId: id,
+              amount: remainingAmount,
+              paymentDate: new Date(),
+              notes: 'Automatically recorded when status changed to paid',
+            },
+          });
+        }
       }
 
       const updatedInvoice = await prisma.invoice.update({

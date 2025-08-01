@@ -50,11 +50,9 @@ export interface Invoice {
   totalVatAmount: Decimal; // Total VAT amount
   vatReverseCharge: boolean;
   notes?: string;
-  paymentDate?: Date | null; // Date when payment was recorded
-  paidAmount?: Decimal | null; // Total amount paid
   creditedAmount?: Decimal | null; // Total amount credited
   isCreditNote?: boolean; // True if this invoice is a credit note
-  sentAt?: Date | null; // Timestamp when the invoice was marked as sent
+  // Note: Payment tracking is handled via separate Payment records, not on Invoice model
   pdfUrl?: string | null; // Link to a generated PDF
   referenceNumber?: string | null; // Finnish reference number (automatically generated)
   sellerReference?: string | null; // Free text seller reference

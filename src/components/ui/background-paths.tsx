@@ -50,7 +50,7 @@ function FloatingPaths({ position }: { position: number }) {
 }
 
 export function BackgroundPaths({
-    title = "Simplified ERP",
+    title = "Gerby",
     children,
 }: {
     title?: string;

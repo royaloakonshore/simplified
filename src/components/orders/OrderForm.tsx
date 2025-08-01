@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Trash2, PlusCircle, UserPlus } from 'lucide-react';
 import { ComboboxResponsive } from '@/components/ui/combobox-responsive';
 import { formatCurrency } from '@/lib/utils';
+import { parseNordicNumber, formatNordicNumber, isValidNordicNumber } from '@/lib/utils/nordic-numbers';
 import { z } from 'zod';
 import { PlusCircle as PlusCircleIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -496,7 +497,36 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             name={`items.${index}.quantity`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormControl>
+                                  <Input 
+                                    type="text"
+                                    value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '') {
+                                        field.onChange(0);
+                                        return;
+                                      }
+                                      
+                                      if (isValidNordicNumber(value)) {
+                                        const numericValue = parseNordicNumber(value);
+                                        if (!isNaN(numericValue)) {
+                                          field.onChange(numericValue);
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const value = e.target.value;
+                                      if (value !== '' && !isValidNordicNumber(value)) {
+                                        field.onChange(0);
+                                      }
+                                      field.onBlur();
+                                    }}
+                                    placeholder="e.g. 2,5"
+                                    disabled={updateOrderMutation.isPending} 
+                                    className="text-right" 
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -509,7 +539,36 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="sr-only">Unit Price</FormLabel>
-                                <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right" /></FormControl>
+                                <FormControl>
+                                  <Input 
+                                    type="text"
+                                    value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '') {
+                                        field.onChange(0);
+                                        return;
+                                      }
+                                      
+                                      if (isValidNordicNumber(value)) {
+                                        const numericValue = parseNordicNumber(value);
+                                        if (!isNaN(numericValue)) {
+                                          field.onChange(numericValue);
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const value = e.target.value;
+                                      if (value !== '' && !isValidNordicNumber(value)) {
+                                        field.onChange(0);
+                                      }
+                                      field.onBlur();
+                                    }}
+                                    placeholder="e.g. 15,50"
+                                    disabled={updateOrderMutation.isPending} 
+                                    className="text-right" 
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -548,24 +607,41 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                 <FormLabel className="sr-only">Discount %</FormLabel>
                                 <FormControl>
                                   <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    {...field} 
-                                    value={field.value ?? ""} 
-                                    onChange={e => {
-                                      const percentValue = e.target.value === '' ? null : parseFloat(e.target.value);
-                                      field.onChange(percentValue);
-                                      
-                                      // Auto-calculate discount amount when percent changes
-                                      if (percentValue && percentValue > 0) {
-                                        const currentItem = updateForm.getValues(`items.${index}`);
-                                        const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
-                                        const discountAmount = rowTotal * (percentValue / 100);
-                                        updateForm.setValue(`items.${index}.discountAmount`, discountAmount);
-                                      } else {
+                                    type="text"
+                                    value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 1) : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '') {
+                                        field.onChange(null);
                                         updateForm.setValue(`items.${index}.discountAmount`, null);
+                                        return;
                                       }
-                                    }} 
+                                      
+                                      if (isValidNordicNumber(value)) {
+                                        const numericValue = parseNordicNumber(value);
+                                        if (!isNaN(numericValue)) {
+                                          field.onChange(numericValue);
+                                          
+                                          // Auto-calculate discount amount when percent changes
+                                          if (numericValue > 0) {
+                                            const currentItem = updateForm.getValues(`items.${index}`);
+                                            const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+                                            const discountAmount = rowTotal * (numericValue / 100);
+                                            updateForm.setValue(`items.${index}.discountAmount`, discountAmount);
+                                          } else {
+                                            updateForm.setValue(`items.${index}.discountAmount`, null);
+                                          }
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const value = e.target.value;
+                                      if (value !== '' && !isValidNordicNumber(value)) {
+                                        field.onChange(null);
+                                      }
+                                      field.onBlur();
+                                    }}
+                                    placeholder="e.g. 10,0"
                                     disabled={updateOrderMutation.isPending} 
                                     className="text-right"
                                   />
@@ -582,7 +658,36 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="sr-only">Discount Amount</FormLabel>
-                                <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} disabled={updateOrderMutation.isPending} className="text-right"/></FormControl>
+                                <FormControl>
+                                  <Input 
+                                    type="text"
+                                    value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '') {
+                                        field.onChange(null);
+                                        return;
+                                      }
+                                      
+                                      if (isValidNordicNumber(value)) {
+                                        const numericValue = parseNordicNumber(value);
+                                        if (!isNaN(numericValue)) {
+                                          field.onChange(numericValue);
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const value = e.target.value;
+                                      if (value !== '' && !isValidNordicNumber(value)) {
+                                        field.onChange(null);
+                                      }
+                                      field.onBlur();
+                                    }}
+                                    placeholder="e.g. 5,00"
+                                    disabled={updateOrderMutation.isPending} 
+                                    className="text-right" 
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -789,7 +894,36 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                   name={`items.${index}.quantity`}
                                   render={({ field }) => (
                                     <FormItem>
-                                      <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right w-[80px]" /></FormControl>
+                                      <FormControl>
+                                        <Input 
+                                          type="text"
+                                          value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === '') {
+                                              field.onChange(0);
+                                              return;
+                                            }
+                                            
+                                            if (isValidNordicNumber(value)) {
+                                              const numericValue = parseNordicNumber(value);
+                                              if (!isNaN(numericValue)) {
+                                                field.onChange(numericValue);
+                                              }
+                                            }
+                                          }}
+                                          onBlur={(e) => {
+                                            const value = e.target.value;
+                                            if (value !== '' && !isValidNordicNumber(value)) {
+                                              field.onChange(0);
+                                            }
+                                            field.onBlur();
+                                          }}
+                                          placeholder="e.g. 2,5"
+                                          disabled={createOrderMutation.isPending} 
+                                          className="text-right w-[80px]" 
+                                        />
+                                      </FormControl>
                                       <FormMessage />
                                     </FormItem>
                                   )}
@@ -802,7 +936,36 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                   render={({ field }) => (
                                     <FormItem>
                                       <FormLabel className="sr-only">Unit Price</FormLabel>
-                                      <FormControl><Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} disabled={createOrderMutation.isPending} className="text-right w-[100px]" /></FormControl>
+                                      <FormControl>
+                                        <Input 
+                                          type="text"
+                                          value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === '') {
+                                              field.onChange(0);
+                                              return;
+                                            }
+                                            
+                                            if (isValidNordicNumber(value)) {
+                                              const numericValue = parseNordicNumber(value);
+                                              if (!isNaN(numericValue)) {
+                                                field.onChange(numericValue);
+                                              }
+                                            }
+                                          }}
+                                          onBlur={(e) => {
+                                            const value = e.target.value;
+                                            if (value !== '' && !isValidNordicNumber(value)) {
+                                              field.onChange(0);
+                                            }
+                                            field.onBlur();
+                                          }}
+                                          placeholder="e.g. 15,50"
+                                          disabled={createOrderMutation.isPending} 
+                                          className="text-right w-[100px]" 
+                                        />
+                                      </FormControl>
                                       <FormMessage />
                                     </FormItem>
                                   )}
@@ -840,25 +1003,41 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                     <FormItem>
                                       <FormControl>
                                         <Input 
-                                          type="number" 
-                                          step="0.01" 
-                                          placeholder="%" 
-                                          {...field} 
-                                          value={field.value ?? ''}
-                                          onChange={e => {
-                                            const percentValue = e.target.value === '' ? null : parseFloat(e.target.value);
-                                            field.onChange(percentValue);
-                                            
-                                            // Auto-calculate discount amount when percent changes
-                                            if (percentValue && percentValue > 0) {
-                                              const currentItem = createForm.getValues(`items.${index}`);
-                                              const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
-                                              const discountAmount = rowTotal * (percentValue / 100);
-                                              createForm.setValue(`items.${index}.discountAmount`, discountAmount);
-                                            } else {
+                                          type="text"
+                                          value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 1) : ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === '') {
+                                              field.onChange(null);
                                               createForm.setValue(`items.${index}.discountAmount`, null);
+                                              return;
                                             }
-                                          }} 
+                                            
+                                            if (isValidNordicNumber(value)) {
+                                              const numericValue = parseNordicNumber(value);
+                                              if (!isNaN(numericValue)) {
+                                                field.onChange(numericValue);
+                                                
+                                                // Auto-calculate discount amount when percent changes
+                                                if (numericValue > 0) {
+                                                  const currentItem = createForm.getValues(`items.${index}`);
+                                                  const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+                                                  const discountAmount = rowTotal * (numericValue / 100);
+                                                  createForm.setValue(`items.${index}.discountAmount`, discountAmount);
+                                                } else {
+                                                  createForm.setValue(`items.${index}.discountAmount`, null);
+                                                }
+                                              }
+                                            }
+                                          }}
+                                          onBlur={(e) => {
+                                            const value = e.target.value;
+                                            if (value !== '' && !isValidNordicNumber(value)) {
+                                              field.onChange(null);
+                                            }
+                                            field.onBlur();
+                                          }}
+                                          placeholder="e.g. 10,0"
                                           className="text-right w-[80px]" 
                                         />
                                       </FormControl>
@@ -875,12 +1054,30 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                     <FormItem>
                                       <FormControl>
                                         <Input 
-                                          type="number" 
-                                          step="0.01" 
-                                          placeholder="Amt" 
-                                          {...field} 
-                                          value={field.value ?? ''}
-                                          onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} 
+                                          type="text"
+                                          value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === '') {
+                                              field.onChange(null);
+                                              return;
+                                            }
+                                            
+                                            if (isValidNordicNumber(value)) {
+                                              const numericValue = parseNordicNumber(value);
+                                              if (!isNaN(numericValue)) {
+                                                field.onChange(numericValue);
+                                              }
+                                            }
+                                          }}
+                                          onBlur={(e) => {
+                                            const value = e.target.value;
+                                            if (value !== '' && !isValidNordicNumber(value)) {
+                                              field.onChange(null);
+                                            }
+                                            field.onBlur();
+                                          }}
+                                          placeholder="e.g. 5,00"
                                           className="text-right w-[80px]" 
                                         />
                                       </FormControl>

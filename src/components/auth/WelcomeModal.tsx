@@ -94,7 +94,7 @@ export function WelcomeModal({ isVisible, userName, companyName, onPreloadComple
                     }}
                   >
                     <Avatar className="h-16 w-16 rounded-xl ring-4 ring-primary/20">
-                      <AvatarImage src="/logo.png" alt="Simplified ERP Logo" className="object-contain" />
+                      <AvatarImage src="/logo.png" alt="Gerby Logo" className="object-contain" />
                       <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold text-lg">
                         ERP
                       </AvatarFallback>

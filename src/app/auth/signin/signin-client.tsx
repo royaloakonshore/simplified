@@ -124,7 +124,7 @@ function SignInPageClientContent() {
       >
         <ModeToggle />
       </div>
-      <BackgroundPaths title="Simplified ERP">
+      <BackgroundPaths title="Gerby">
         <div className="flex flex-col gap-6">
           <LoginForm 
             email={email}
@@ -136,7 +136,7 @@ function SignInPageClientContent() {
             handleCredentialsSignIn={handleCredentialsSignIn}
             handleEmailSignIn={handleEmailSignIn}
             error={displayError} // Pass the error to be displayed by LoginForm
-            appName="Simplified ERP" // Customize app name
+            appName="Gerby" // Customize app name
           />
           
           {showBootstrapHint && (
@@ -160,7 +160,7 @@ function SignInPageClientContent() {
       <WelcomeModal
         isVisible={showWelcomeModal}
         userName={welcomeUserName}
-        companyName="Simplified ERP"
+        companyName="Gerby"
         onPreloadComplete={() => {
           setShowWelcomeModal(false);
           router.push(callbackUrl);
@@ -186,7 +186,7 @@ function SignInPageSkeleton() {
         <ModeToggle />
       </div>
 
-      <BackgroundPaths title="Simplified ERP">
+      <BackgroundPaths title="Gerby">
         <div className="flex flex-col gap-6">
           <div className="overflow-hidden shadow-lg rounded-lg"> {/* Mimic Card */}
             <div className="grid p-0 md:grid-cols-2">

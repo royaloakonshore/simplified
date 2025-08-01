@@ -175,7 +175,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                             "rounded-lg ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300",
                             isIconMode ? "h-8 w-8" : "h-10 w-10"
                         )}>
-                            <AvatarImage src="/logo.png" alt="Simplified ERP Logo" className="object-contain" />
+                            <AvatarImage src="/logo.png" alt="Gerby Logo" className="object-contain" />
                             <AvatarFallback className={cn(
                                 "rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-bold",
                                 isIconMode ? "text-xs" : "text-sm"
@@ -197,7 +197,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                         )}
                     >
                         <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent whitespace-nowrap">
-                            Simplified
+                            Gerby
                         </span>
                         <span className="text-xs text-muted-foreground font-medium tracking-wider uppercase whitespace-nowrap">
                             Manufacturing ERP

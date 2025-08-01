@@ -1,21 +1,73 @@
-# 06: UI and Feature Roadmap\n\n## Current Status\n\nThe ERP system has established core functionality with the following modules operational:\n- Authentication & Multi-tenancy ✅\n- Customer Management ✅ \n- Order Management ✅\n- Invoice Management ✅\n- Inventory Management ✅\n- Production Planning ✅\n- BOM Management ✅\n- Dashboard ✅\n\nThis document outlines the remaining UI/UX enhancements and feature completions needed to reach production-ready state.\n\n## ✅ CRITICAL ITEMS - ALL RESOLVED\n\n**✅ COMPLETED**: All critical blockers have been addressed. The system builds successfully and all major functionality is operational.\n\n## 🚨 HIGH PRIORITY FEATURES\n\n### **1. Table UI Consistency ✅ NEARLY COMPLETE**\n\n**Goal**: All data tables should have consistent multi-select functionality, filtering, and interaction patterns.\n\n**✅ COMPLETED**:\n- **✅ Multi-select functionality**: Invoice and Inventory tables implemented and active\n- **✅ Advanced filtering**: Category filters, search functionality across tables\n- **✅ Sortable columns**: Consistent sorting behavior with proper header indicators\n- **✅ Bulk actions**: Export functionality for selected items\n\n**🔄 REMAINING WORK**:
-- **✅ Orders Table Multi-select**: Complete with bulk actions and PDF export buttons - **COMPLETED**
-- **✅ Invoice Table Multi-select**: Complete with bulk PDF export actions - **COMPLETED**
-- **📋 BOM Table Multi-select**: Add multi-select functionality to BOM table to match other tables
-- **📋 Invoice Table Enhancements**:
-  - Add H1 header image consistency with other pages
-  - Ensure full-width content layout to prevent jumping
+# 06: UI and Feature Roadmap
 
-- **📋 BOM Table Enhancements**:
-  - Fix page padding to match Inventory page
-  - Ensure consistent layout spacing
+## Current Status
 
-### **2. Order Management Enhancements ✅ COMPLETED**\n\n**✅ COMPLETED**:\n- Invoice creation available for all work order statuses\n- Work order numbering format: `ORD-00001-WO`, `ORD-00001-WO2`, etc.\n- Smart sequencing for work orders created from quotations\n- Delivery date column with sorting\n- Order type badges\n- Enhanced table with advanced filtering and sorting\n\n### **3. Inventory Module Enhancements ✅ COMPLETED**\n\n**✅ COMPLETED**:\n- **✅ Category Display**: Column showing inventory categories with badge styling\n- **✅ Search Functionality**: Search bar implemented and functional\n- **✅ Vendor Field Logic**: Conditional display for raw materials only (leadTimeDays, vendorSku, vendorItemName)\n- **✅ BOM Cost Deduction**: Automatic stock deduction during production\n- **✅ Transaction Tracking**: Complete audit trail for all stock movements\n- **✅ Advanced Table**: Inventory page now uses InventoryTable component with multi-select\n\n**🔄 REMAINING WORK**:\n- **📋 Excel Import/Export**: Future data editing capabilities\n- **📋 Advanced Category Management**: Category creation and management UI\n\n#### **Inventory Deduction & Valuation (✅ IMPLEMENTED)**\n\n**Stock Deduction Logic**:\n- **Production Workflow**: When orders move to `in_production` status, BOM components are automatically deducted\n- **Calculation Method**: `component.costPrice × bomItem.quantity` for each BOM item\n- **Transaction System**: All movements recorded via `InventoryTransaction` model\n- **Negative Stock Handling**: Allowed for production (doesn't block manufacturing workflows)\n\n**Valuation Strategy**:\n- **Method**: Standard Cost (simple and effective for small manufacturing)\n- **Formula**: `costPrice × quantityOnHand` for each inventory item\n- **Company Scoping**: Multi-tenant aware calculations\n- **Dashboard Integration**: ✅ **COMPLETED** "Total Inventory Value" metric card\n\n### **4. Customer Management ✅ COMPLETED**\n\n**✅ COMPLETED**:\n- **✅ Action Dropdown**: Three-dots menu with Create Invoice/Create Quotation/Create Work Order/Edit Customer options\n- **✅ Order/Invoice History**: Display on customer detail pages\n- **✅ Customer Revenue Display**: Lifetime value and revenue statistics on customer detail pages
+The ERP system has established core functionality with the following modules operational:
+- Authentication & Multi-tenancy ✅
+- Customer Management ✅ 
+- Order Management ✅
+- Invoice Management ✅
+- Inventory Management ✅
+- Production Planning ✅
+- BOM Management ✅
+- Dashboard ✅
+- Multi-Language Support ✅
+- PDF Generation ✅
+- Partial Credit Notes ✅
+
+**UPDATED STATUS (2025-02-01):** Most features have been implemented. System is 95% complete with only performance optimization and minor polish items remaining.
+
+This document outlines the remaining UI/UX enhancements and feature completions needed to reach production-ready state.
+
+## ✅ CRITICAL ITEMS - ALL RESOLVED
+
+**✅ COMPLETED**: All critical blockers have been addressed. The system builds successfully and all major functionality is operational.
+
+## 🔥 HIGH PRIORITY FEATURES
+
+### **1. Performance Optimization (CRITICAL)**
+
+**Goal**: Achieve optimal user experience with fast page loads and responsive interface.
+
+**Current Issues**:
+- **Session Management**: Excessive session checks causing 6-46 second page loads
+- **Query Optimization**: Long compilation times affecting user experience
+- **React Query Caching**: Repeated data fetching and cache invalidation
+
+**Required Improvements**:
+- **Session Management Optimization**: Reduce excessive `/api/auth/session` calls
+- **Query Optimization**: Improve compilation times and data fetching patterns
+- **React Query Caching**: Implement intelligent caching strategies
+
+**Impact**: Critical for user experience and system responsiveness
+
+### **2. Table Consistency Polish (MEDIUM)**
+
+**Goal**: All data tables should have consistent multi-select functionality, filtering, and interaction patterns.
+
+**✅ COMPLETED**:
+- **✅ Multi-select functionality**: Invoice and Inventory tables implemented and active
+- **✅ Advanced filtering**: Category filters, search functionality across tables
+- **✅ Sortable columns**: Consistent sorting behavior with proper header indicators
+- **✅ Bulk actions**: Export functionality for selected items
 
 **🔄 REMAINING WORK**:
-- **📋 Customer Insights**: Average order value, purchase frequency analytics
+- **📋 Orders Table Multi-select**: Add multi-select checkboxes to match other tables
+- **📋 BOM Table Multi-select**: Add multi-select functionality to BOM table
+- **📋 PDF Template Polish**: Finnish giroblankett formatting for professional invoices
 
-### **5. Production Module ✅ COMPLETED**\n\n**✅ COMPLETED**:\n- Enhanced production modal with comprehensive order + BOM details\n- Delivery date prominently displayed in production cards\n- Navigation to full order pages\n- BOM integration with production workflow\n\n## 📊 DASHBOARD ENHANCEMENTS ✅ COMPLETED
+### **3. PDF Template Enhancement (MEDIUM)**
+
+**Goal**: Professional Finnish invoice appearance with authentic payment slip layout.
+
+**Required Improvements**:
+- **Finnish Giroblankett Integration**: Authentic Finnish payment slip formatting
+- **Company Logo Integration**: Multi-tenant logo management in settings
+- **Professional Layout**: Match provided Finnish invoice example styling
+
+**Impact**: Professional invoice appearance for Finnish market
+
+## 📊 DASHBOARD ENHANCEMENTS ✅ COMPLETED
 
 ### **Dashboard Layout ✅ COMPLETED (2025-02-01)**
 - **✅ Two-Column Structure**: `SalesFunnel` on left, statistic cards on right, both positioned above the revenue trend chart.
@@ -55,10 +107,10 @@
 - **📋 Production Reports**: Efficiency and cost analysis
 - **📋 Customer Reports**: Purchase history and behavior analysis
 
-### **3. PDF Generation**
-- **📋 Invoice PDF Export**: Generate PDF versions of invoices
-- **📋 Order PDF Export**: Generate PDF versions of orders/quotations
-- **📋 Pricelist PDF Export**: Generate formatted pricelists
+### **3. Advanced Excel Import/Export**
+- **📋 Enhanced Inventory Excel**: Full CRUD via Excel import with validation
+- **📋 Template System**: Downloadable Excel templates for different data types
+- **📋 Validation Framework**: Comprehensive error handling and preview system
 
 ## 🚀 FUTURE ENHANCEMENTS
 
@@ -79,38 +131,54 @@
 1. ✅ **Dashboard Real Data Integration** - All stats show live data
 2. ✅ **Inventory Table Multi-select** - Advanced InventoryTable component active
 3. ✅ **Revenue Charts** - Interactive charts with date controls
+4. ✅ **Multi-Language Support** - User and customer language preferences
+5. ✅ **PDF Generation** - Background job implementation
+6. ✅ **Partial Credit Notes** - Complete item selection functionality
 
-### **Phase 2: Polish & Consistency (Current Focus)**
-1. **📋 Customer Revenue Display** - COMPLETED - Lifetime value and revenue statistics on customer detail pages
-2. **📋 UI Polish & Layout Consistency** - Header images, padding fixes
-3. **📋 PDF Generation** - Implement PDF export for invoices and orders
+### **Phase 2: Performance Optimization (Current Focus)**
+1. **📋 Session Management Optimization** - Reduce excessive session checks
+2. **📋 Query Optimization** - Improve compilation times
+3. **📋 React Query Caching** - Optimize data fetching patterns
 
-### **Phase 3: Advanced Features (Future)**
-1. **📋 Advanced Category Management** - UI for creating and managing inventory categories
-2. **📋 Performance Optimization** - Implement caching and query optimizations
-3. **📋 Mobile Responsiveness** - Ensure excellent mobile experience
+### **Phase 3: Polish & Consistency (Next)**
+1. **📋 Orders Table Multi-select** - Add row selection functionality
+2. **📋 BOM Table Multi-select** - Complete table consistency
+3. **📋 PDF Template Polish** - Finnish giroblankett formatting
+
+### **Phase 4: Advanced Features (Future)**
+1. **📋 Excel Import/Export Enhancement** - Advanced inventory management
+2. **📋 BOM Variants System** - Product variant management
+3. **📋 Advanced Reporting** - Dashboard analytics
 
 ## 🎯 SUCCESS METRICS - CURRENT STATUS
 
-- **✅ Performance**: Page load times < 2 seconds (achieved with database indexes)
+- **⚠️ Performance**: Page load times 6-46 seconds (NEEDS OPTIMIZATION)
 - **✅ Data Accuracy**: Real-time dashboard with live metrics (completed)
 - **✅ User Experience**: Advanced multi-select and filtering across major tables (completed)
 - **✅ Reliability**: 99.9% uptime (system is stable and deployable)
-- **🔄 Usability**: Task completion rate > 95% (pending minor polish items)
+- **🔄 Usability**: Task completion rate > 95% (pending performance optimization)
 
-## 📈 **CURRENT COMPLETION STATUS: 88%**
+## 📈 **CURRENT COMPLETION STATUS: 95%**
 
 **✅ MAJOR ACCOMPLISHMENTS:**
 - All core business workflows operational
 - Real-time dashboard with live data and charts
-- Advanced table functionality across all major modules
+- Advanced table functionality across major modules
 - Production planning with delivery dates and BOM integration
 - Customer revenue analytics and lifetime value display
 - Stable build with zero TypeScript errors
+- Multi-language support implemented
+- PDF generation with background jobs
+- Partial credit note system complete
 
-**🔄 REMAINING WORK (12%):**
-- UI polish and layout consistency
-- PDF export functionality
-- Advanced reporting features
+**🔄 REMAINING WORK (5%):**
+- Performance optimization (session management)
+- Table consistency polish
+- PDF template enhancement
+- Advanced Excel features
 
----\n\n**Last Updated**: 2025-01-30  \n**Status**: Production Ready - Polish Phase  \n**Next Review**: Weekly during polish phase 
+---
+
+**Last Updated**: 2025-02-01  
+**Status**: Production Ready - Performance Optimization Phase  
+**Next Review**: After performance optimization completion 

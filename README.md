@@ -1,4 +1,4 @@
-# Simplified ERP System
+# Gerby ERP System
 
 This project is a web application designed to streamline core business processes including inventory management, order processing, invoicing, and customer relationship management for small to medium-sized businesses.
 
@@ -52,7 +52,7 @@ The application is planned to support multiple companies operating independently
 1.  **Clone the repository:**
     ```bash
     git clone <repository-url>
-    cd simplified-erp
+    cd gerby
     ```
 2.  **Install dependencies:**
     ```bash

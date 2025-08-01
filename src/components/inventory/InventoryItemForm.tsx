@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { parseNordicNumber, formatNordicNumber, isValidNordicNumber } from '@/lib/utils/nordic-numbers';
 import { inventoryItemBaseSchema, type InventoryItemFormValues } from "@/lib/schemas/inventory.schema";
 import { CreateCategoryDialog } from "./CreateCategoryDialog";
 import { Plus } from "lucide-react";
@@ -228,7 +229,34 @@ export function InventoryItemForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Weight (kg)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 0.5" {...field} value={field.value ?? ''} /></FormControl>
+                    <FormControl>
+                      <Input 
+                        type="text"
+                        value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 2) : ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            field.onChange(null);
+                            return;
+                          }
+                          
+                          if (isValidNordicNumber(value)) {
+                            const numericValue = parseNordicNumber(value);
+                            if (!isNaN(numericValue)) {
+                              field.onChange(numericValue);
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const value = e.target.value;
+                          if (value !== '' && !isValidNordicNumber(value)) {
+                            field.onChange(null);
+                          }
+                          field.onBlur();
+                        }}
+                        placeholder="e.g. 0,5"
+                      />
+                    </FormControl>
                     <FormDescription>Weight in kilograms</FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -401,7 +429,34 @@ export function InventoryItemForm({
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Default VAT Rate (%)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" placeholder="e.g., 24" {...field} value={field.value ?? undefined} /></FormControl>
+                        <FormControl>
+                          <Input 
+                            type="text"
+                            value={field.value !== null && field.value !== undefined ? formatNordicNumber(field.value, 1) : ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '') {
+                                field.onChange(null);
+                                return;
+                              }
+                              
+                              if (isValidNordicNumber(value)) {
+                                const numericValue = parseNordicNumber(value);
+                                if (!isNaN(numericValue)) {
+                                  field.onChange(numericValue);
+                                }
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const value = e.target.value;
+                              if (value !== '' && !isValidNordicNumber(value)) {
+                                field.onChange(null);
+                              }
+                              field.onBlur();
+                            }}
+                            placeholder="e.g. 24,0"
+                          />
+                        </FormControl>
                         <FormDescription>Default VAT rate for this item.</FormDescription>
                         <FormMessage />
                     </FormItem>

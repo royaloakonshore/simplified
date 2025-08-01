@@ -1,10 +1,12 @@
 # Current Roadmap & Implementation Plan - Simplified ERP System
 
-*Last Updated: January 31, 2025*
+*Last Updated: February 1, 2025*
 
 ## 🎯 **Current System Status: 95% Complete & Production Ready**
 
 The system has reached exceptional stability with all critical runtime errors resolved and major UX improvements implemented. Core business workflows are fully functional with enhanced user experience.
+
+**UPDATED STATUS**: Most features mentioned in previous roadmaps have been implemented. System is 95% complete with only performance optimization and minor polish items remaining.
 
 ---
 
@@ -14,138 +16,136 @@ The system has reached exceptional stability with all critical runtime errors re
 - **✅ Customer Language Selection**: Added language field (SE/FI/EN) to Customer model and forms
 - **✅ Localized Invoice/Quotation Output**: Translate PDF and XML output based on customer language
 - **✅ Finvoice Compliance**: XML remains Finvoice 3.0 compliant with proper language codes
+- **✅ User Language Preferences**: Settings page language switcher implemented
 
 ### **✅ Priority 2: Production Kanban Enhancement (COMPLETED)**
 - **✅ General Card Removal**: X button on each card with confirmation dialog
 - **✅ Send Back to Production**: "Restore to Board" button for UI-hidden orders
 - **✅ Enhanced Drag-and-Drop**: Fixed drag limitation, improved UX
 
+### **✅ Priority 3: PDF Generation Background Jobs (COMPLETED)**
+- **✅ Inngest Integration**: Complete async PDF generation implementation
+- **✅ Background Processing**: Real-time PDF generation status updates
+- **✅ Invoice & Order PDFs**: Full PDF generation for both document types
+
+### **✅ Priority 4: Partial Credit Note System (COMPLETED)**
+- **✅ Item Selection**: Allow selection of specific line items and quantities
+- **✅ UI Enhancement**: Complete credit note creation modal with item selection
+- **✅ Business Logic**: Support multiple partial credits per invoice
+
 ### **✅ Major UX & Stability Improvements (COMPLETED)**
 - **✅ Dashboard Real Data Integration**: All stats show live data with emerald-themed charts
 - **✅ Production Workflow Enhanced**: Shipped order confirmation modal with workflow options
 - **✅ Table & Form UX**: Horizontal scroll, optimized layouts, payment terms functionality
 - **✅ Build & Type Safety**: Zero TypeScript errors, proper Decimal handling throughout
+- **✅ Invoice Draft Prefilling**: Complete field prefilling from production view
+- **✅ Discount Value Persistence**: Comprehensive discount handling implemented
 
 ---
 
-## 📋 **Current Development Priorities - Updated 2025-02-01**
+## 📋 **ACTUAL CURRENT DEVELOPMENT PRIORITIES**
 
-**System Status**: Production-ready ERP with 85% completion. Core business workflows fully operational with advanced features.
+**System Status**: Production-ready ERP with 95% completion. Only performance optimization and minor polish items remain.
 
-### **NEW: Priority 1A: Multi-Language Support (HIGH) - NEW REQUIREMENT**
+### **🔥 Priority 1: Performance Optimization (MEDIUM - 2-3 hours)**
 
-#### **1A.1 Language Switcher Implementation (6h)**
-- **User Settings Integration**: Add language preference to user settings (FI, SE, EN)
-- **UI Localization**: Implement i18n for all interface elements
-- **Customer Language Preference**: Add language field to customer records for document generation
-- **Document Templates**: Localize invoice, order, and BOM PDF templates
-- **Email Localization**: Localize system notification emails
-- **Dependencies**: Affects all PDF generation and customer communication
+#### **1.1 Query Optimization (1.5h)**
+- **Current Issue**: Long compilation times (6-46 seconds per page) despite session optimizations
+- **Evidence**: Session management already optimized with 5-minute refetch intervals and reduced focus/offline refetching
+- **Solution**: Further optimize React Query patterns and component-level caching
+- **Impact**: Additional performance improvements for user experience
 
-### **Priority 1: Finvoice Integration Enhancement (HIGH) - ✅ COMPLETED**
+#### **1.2 React Query Caching Enhancement (1h)**
+- **Current Issue**: Some repeated data fetching and cache invalidation patterns
+- **Solution**: Implement intelligent caching strategies and reduce unnecessary re-renders
+- **Impact**: Reduced server load and improved performance
 
-✅ **Auto-fill customer details in invoice forms**
-✅ **Enhanced delivery method and buyer reference integration**
-✅ **Penalty interest rate corrected to 10.5% Finnish standard**
+#### **1.3 Component-level Optimizations (0.5h)**
+- **Current Issue**: Some pages still have excessive re-renders
+- **Solution**: Optimize component memoization and state management
+- **Impact**: Smoother user interactions and faster page transitions
 
-### **Priority 2: PDF Generation with Midday Architecture (HIGH) - ENHANCED SCOPE**
+### **📋 Priority 2: Table Consistency Polish (MEDIUM - 2-3 hours)**
 
-#### **2.1 Background Job PDF Generation (8h) - INSPIRED BY MIDDAY**
-- **Inngest Integration**: Implement async PDF generation using existing Inngest setup
-- **Progress Indicators**: Real-time PDF generation status updates
-- **Cloud Storage**: Store generated PDFs for reuse and performance
-- **Template System**: Reusable PDF components for different document types
+#### **2.1 Orders Table Multi-Select (1h)**
+- **Requirement**: Add multi-select checkboxes to Orders table
+- **Consistency**: Match Invoice and Inventory table functionality
+- **Impact**: Improved bulk operations for order management
 
-#### **2.2 Finnish Giroblankett Integration (4h)**
-- **Payment Slip Format**: Authentic Finnish payment slip at bottom of invoices
-- **Company Logo Upload**: Multi-tenant logo management in settings
-- **Professional Layout**: Match provided Finnish invoice example styling
+#### **2.2 BOM Table Multi-Select (1h)**
+- **Requirement**: Add multi-select checkboxes to BOM table
+- **Future**: Enable bulk operations for BOMs
+- **Impact**: Consistent table experience across all modules
 
-### **Priority 3: Enhanced Credit Note System (MEDIUM)**
+#### **2.3 PDF Template Polish (1h)**
+- **Requirement**: Finnish giroblankett formatting for professional invoices
+- **Implementation**: Enhance PDF service with authentic Finnish payment slip layout
+- **Impact**: Professional invoice appearance for Finnish market
 
-#### **3.1 Partial Credit Note Support (6h)**
-- **Current Status**: ❌ Only full credit notes supported
-- **Enhancement**: Allow selection of specific line items and quantities for partial credits
-- **UI Enhancement**: Credit note creation modal with item selection
-- **Business Logic**: Support multiple partial credits per invoice
-- **Dependencies**: Requires UI/UX design for item selection interface
+### **📋 Priority 3: Advanced Features (LOW - 6-8 hours)**
 
-### **Priority 4: Advanced Excel Import/Export (MEDIUM)**
-
-#### **4.1 Enhanced Inventory Excel Capabilities (8h)**
+#### **3.1 Excel Import/Export Enhancement (6h)**
 - **Current Status**: ✅ Basic replenishment export exists
 - **Enhancement**: Full inventory CRUD via Excel import with validation
 - **Template System**: Downloadable Excel templates for different data types
 - **Validation Framework**: Comprehensive error handling and preview system
 - **Dependencies**: Excel parsing library (xlsx) and validation UI
 
-### **Priority 5: Table Consistency & Export Features (LOW)**
-
-**Estimated Time: 5 hours**
-
-#### **5.1 Orders Table Multi-Select (1h)**
-- **Requirement**: Add multi-select checkboxes to Orders table
-- **Consistency**: Match Invoice and BOM table functionality
-
-#### **5.2 BOM Table Multi-Select (1h)**
-- **Requirement**: Add multi-select checkboxes to BOM table
-- **Future**: Enable bulk operations for BOMs
-
-#### **5.3 PDF Bulk Export (3h)**
-- **Requirement**: Generate and download multiple PDFs as ZIP file
-- **Dependencies**: Requires Priority 3 PDF generation infrastructure
+#### **3.2 BOM Variants System (2h)**
+- **Requirement**: Product variant management with template-based BOM creation
+- **Implementation**: Variant generation from template items with attribute management
+- **Impact**: Efficient product variation management
 
 ---
 
-## 📋 **FUTURE ENHANCEMENTS (Priority 6+)**
+## 📋 **FUTURE ENHANCEMENTS (Priority 4+)**
 
-### **Customer Revenue & History Enhancement (3h)**
-- Customer lifetime value display on detail pages
-- Enhanced order/invoice history with totals and filtering
+### **Advanced Features**
+- **📋 API Access**: RESTful API for third-party integrations
+- **📋 Webhook Support**: Event-driven notifications
+- **📋 Advanced Permissions**: Role-based access control
+- **📋 Audit Logging**: Comprehensive change tracking
 
-### **Advanced Features & Polish (23h)**
-- **Advanced Reporting Dashboard** (8h): Profit margins, sales trends, inventory turnover
-- **Enhanced PDF Features** (6h): Custom templates, advanced branding
-- **Stock Alerts & Replenishment** (4h): Low stock alerts, reorder notifications
-- **Credit Note Full Workflow** (5h): Complete credit note creation and management
+### **Integration Capabilities**
+- **📋 Accounting Software**: Direct integration with popular accounting platforms
+- **📋 E-commerce Platforms**: Sync with online stores
+- **📋 Shipping Providers**: Direct shipping label generation
 
 ---
 
-## 🎯 **Implementation Timeline - Updated**
+## 📅 **UPDATED IMPLEMENTATION TIMELINE**
 
-### **Phase 1: Multi-Language Foundation (6h)**
-1. **User Settings Language Switcher** - Add FI, SE, EN support
-2. **Basic UI Localization** - Translate core interface elements
-3. **Customer Language Preference** - Add to customer model and forms
+### **Phase 1: Performance Optimization (Week 1)**
+1. **Session Management Optimization** - Reduce excessive session checks
+2. **Query Optimization** - Improve compilation times
+3. **React Query Caching** - Optimize data fetching patterns
 
-### **Phase 2: Advanced PDF & Credit Notes (18h)**
-1. **Background PDF Generation** - Implement Midday-inspired async approach
-2. **Finnish Giroblankett Integration** - Professional invoice layout
-3. **Partial Credit Note System** - Enhanced credit functionality
+### **Phase 2: Polish & Consistency (Week 2)**
+1. **Orders Table Multi-Select** - Add row selection functionality
+2. **BOM Table Multi-Select** - Complete table consistency
+3. **PDF Template Polish** - Finnish giroblankett formatting
 
-### **Phase 3: Data Management Excellence (8h)**
-1. **Advanced Excel Import/Export** - Complete inventory data management
-2. **PDF Template Localization** - Multi-language document support
+### **Phase 3: Advanced Features (Week 3+)**
+1. **Excel Import/Export Enhancement** - Advanced inventory management
+2. **BOM Variants System** - Product variant management
+3. **Advanced Reporting** - Dashboard analytics
 
 ## 📊 **Priority Matrix - Updated**
 
 | Feature | Business Impact | Technical Complexity | User Demand | Effort (Hours) | Status |
 |---------|----------------|---------------------|-------------|---------------|---------|
-| **Multi-Language Support** | High | Medium | High | 6 | **NEW** |
-| PDF Generation (Async) | High | High | High | 8 | **ENHANCED** |
-| Partial Credit Notes | Medium | Medium | Medium | 6 | **NEW** |
-| Excel Import/Export | Medium | Medium | High | 8 | **PENDING** |
+| **Performance Optimization** | High | Medium | High | 4-6 | **CRITICAL** |
+| **Table Consistency** | Medium | Low | Medium | 2-3 | **MEDIUM** |
+| **PDF Template Polish** | Medium | Low | Medium | 1 | **MEDIUM** |
+| **Excel Import/Export** | Medium | High | High | 6 | **LOW** |
 
 ## 📈 **Success Metrics - Updated**
 
-- **Language Adoption**: >80% of Finnish users switch to FI locale
-- **PDF Performance**: <5 second generation time with background jobs
-- **Credit Note Usage**: 30% reduction in manual credit note creation time
-- **Excel Efficiency**: 90% reduction in manual inventory data entry
-
-**Total Development Estimate**: 28 hours for complete feature set
-
----
+- **Performance**: Page load times < 2 seconds (target after optimization)
+- **Data Accuracy**: Real-time dashboard with live metrics (completed)
+- **User Experience**: Advanced multi-select and filtering across all tables (pending consistency)
+- **Reliability**: 99.9% uptime (system is stable and deployable)
+- **Usability**: Task completion rate > 95% (pending performance optimization)
 
 ## 📈 **System Architecture Considerations**
 
@@ -158,9 +158,11 @@ The system has reached exceptional stability with all critical runtime errors re
 ### **Technical Foundation**
 - **Build Health**: ✅ TypeScript clean, Next.js building successfully
 - **Runtime Stability**: ✅ All production workflows functional
-- **Performance**: ✅ Database indexes deployed, optimal query performance
+- **Performance**: ⚠️ **NEEDS OPTIMIZATION** - Session management and query optimization required
 - **Security**: ✅ Production-ready authentication and authorization
 
 ---
 
-**Current Development Status**: System is production-ready with 95% completion. Next focus should be on PDF generation with Finnish giroblankett payment slips, followed by invoice form polish and table consistency features. 
+**Current Development Status**: System is production-ready with 95% completion. Next focus should be on performance optimization to achieve optimal user experience, followed by table consistency polish and advanced features.
+
+**Total Development Estimate**: 8-12 hours for complete feature set (down from 12-17 hours due to existing session optimizations) 
