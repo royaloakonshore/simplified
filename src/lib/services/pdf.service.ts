@@ -202,59 +202,89 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
 }
 
 /**
- * Generate Finnish Giroblankett payment slip HTML
+ * Generate Finnish Giroblankett payment slip HTML with proper formatting
  */
 function generateGiroblankettHtml(invoice: InvoiceWithDetails, total: any): string {
   const referenceNumber = generateReferenceNumber(invoice.invoiceNumber);
+  const formattedAmount = formatCurrency(total).replace(' €', ''); // Remove currency symbol for amount field
+  const dueDate = formatDate(invoice.dueDate);
   
   return `
-    <div class="giroblankett">
-      <div class="giroblankett-header">
-        <h3>TILISIIRTO / GIRERING</h3>
-      </div>
+    <div class="giroblankett-container">
+      <!-- Page break before giroblankett -->
+      <div class="page-break"></div>
       
-      <div class="giroblankett-content">
-        <div class="giroblankett-left">
-          <div class="field">
-            <label>Saaja / Mottagare:</label>
-            <div class="value">Yritys Oy</div>
+      <!-- Finnish Giroblankett Payment Slip -->
+      <div class="giroblankett">
+        <!-- Header with perforated line indicator -->
+        <div class="giroblankett-perforation">
+          <div class="perforation-line"></div>
+          <div class="perforation-text">LEIKKAA TÄSTÄ / KLIPP HÄR</div>
+          <div class="perforation-line"></div>
+        </div>
+        
+        <div class="giroblankett-header">
+          <h2>TILISIIRTO</h2>
+          <h3>GIRERING</h3>
+        </div>
+        
+        <div class="giroblankett-content">
+          <!-- Left section -->
+          <div class="giroblankett-left">
+            <div class="giroblankett-field">
+              <div class="field-label">Saaja<br/>Mottagare</div>
+              <div class="field-value recipient-name">Yritys Oy</div>
+              <div class="field-value recipient-address">Yrityskatu 1</div>
+              <div class="field-value recipient-city">00100 Helsinki</div>
+            </div>
+            
+            <div class="giroblankett-field account-field">
+              <div class="field-label">Saajan tilinumero<br/>Mottagarens kontonummer</div>
+              <div class="field-value account-number">FI21 1234 5600 0007 85</div>
+            </div>
+            
+            <div class="giroblankett-field">
+              <div class="field-label">Maksaja<br/>Betalare</div>
+              <div class="field-value payer-name">${invoice.customer.name}</div>
+              <div class="field-value payer-address">${(invoice.customer as any).address || ''}</div>
+              <div class="field-value payer-city">${(invoice.customer as any).postalCode || ''} ${(invoice.customer as any).city || ''}</div>
+            </div>
+            
+            <div class="giroblankett-field signature-field">
+              <div class="field-label">Maksajan allekirjoitus<br/>Betalarens underskrift</div>
+              <div class="signature-line"></div>
+            </div>
           </div>
           
-          <div class="field">
-            <label>Saajan tilinumero / Mottagarens kontonummer:</label>
-            <div class="value bank-account">FI21 1234 5600 0007 85</div>
-          </div>
-          
-          <div class="field">
-            <label>Maksaja / Betalare:</label>
-            <div class="value">${invoice.customer.name}</div>
-          </div>
-          
-          <div class="field">
-            <label>Maksajan allekirjoitus / Betalarens underskrift:</label>
-            <div class="signature-line"></div>
+          <!-- Right section -->
+          <div class="giroblankett-right">
+            <div class="giroblankett-field amount-field">
+              <div class="field-label">Euro</div>
+              <div class="field-value amount-value">${formattedAmount}</div>
+              <div class="cents-separator"></div>
+            </div>
+            
+            <div class="giroblankett-field reference-field">
+              <div class="field-label">Viitenumero<br/>Referensnummer</div>
+              <div class="field-value reference-value">${referenceNumber}</div>
+            </div>
+            
+            <div class="giroblankett-field due-date-field">
+              <div class="field-label">Eräpäivä<br/>Förfallodag</div>
+              <div class="field-value due-date-value">${dueDate}</div>
+            </div>
+            
+            <div class="giroblankett-field signature-field">
+              <div class="field-label">Allekirjoitus<br/>Underskrift</div>
+              <div class="signature-line"></div>
+            </div>
           </div>
         </div>
         
-        <div class="giroblankett-right">
-          <div class="field">
-            <label>Euro:</label>
-            <div class="value amount">${formatCurrency(total)}</div>
-          </div>
-          
-          <div class="field">
-            <label>Viitenumero / Referensnummer:</label>
-            <div class="value reference">${referenceNumber}</div>
-          </div>
-          
-          <div class="field">
-            <label>Eräpäivä / Förfallodag:</label>
-            <div class="value">${formatDate(invoice.dueDate)}</div>
-          </div>
-          
-          <div class="field">
-            <label>Allekirjoitus / Underskrift:</label>
-            <div class="signature-line"></div>
+        <!-- Machine readable section at bottom -->
+        <div class="giroblankett-machine-readable">
+          <div class="machine-code">
+            &gt;FI21 1234 5600 0007 85&lt; ${formattedAmount.replace(',', '')}${String(referenceNumber).padStart(20, '0')}&gt;
           </div>
         </div>
       </div>
@@ -430,27 +460,71 @@ function getInvoiceStyles(): string {
       padding: 10px 0;
     }
     
+    /* Enhanced Finnish Giroblankett Styles */
+    .giroblankett-container {
+      margin-top: 50px;
+    }
+    
+    .page-break {
+      page-break-before: always;
+    }
+    
+    .giroblankett-perforation {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      font-size: 8px;
+      color: #666;
+    }
+    
+    .perforation-line {
+      flex: 1;
+      height: 1px;
+      background: repeating-linear-gradient(
+        to right,
+        #666 0px,
+        #666 2px,
+        transparent 2px,
+        transparent 4px
+      );
+    }
+    
+    .perforation-text {
+      padding: 0 15px;
+      white-space: nowrap;
+    }
+    
     .giroblankett {
       border: 2px solid #000;
-      margin-top: 40px;
       page-break-inside: avoid;
+      background: white;
+      font-family: 'Arial', sans-serif;
     }
     
     .giroblankett-header {
-      background-color: #f0f0f0;
-      padding: 10px;
       text-align: center;
-      border-bottom: 1px solid #000;
+      padding: 12px;
+      border-bottom: 2px solid #000;
+      background-color: #f8f8f8;
+    }
+    
+    .giroblankett-header h2 {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 2px;
+      letter-spacing: 1px;
     }
     
     .giroblankett-header h3 {
-      font-size: 14px;
-      font-weight: bold;
+      font-size: 12px;
+      font-weight: normal;
+      color: #666;
+      letter-spacing: 0.5px;
     }
     
     .giroblankett-content {
       display: flex;
-      min-height: 120px;
+      min-height: 140px;
     }
     
     .giroblankett-left,
@@ -460,45 +534,118 @@ function getInvoiceStyles(): string {
     }
     
     .giroblankett-left {
-      border-right: 1px solid #000;
+      border-right: 2px solid #000;
     }
     
-    .field {
-      margin-bottom: 15px;
+    .giroblankett-field {
+      margin-bottom: 18px;
+      position: relative;
     }
     
-    .field label {
-      display: block;
-      font-size: 9px;
-      color: #666;
-      margin-bottom: 3px;
+    .field-label {
+      font-size: 8px;
+      color: #333;
+      line-height: 1.1;
+      margin-bottom: 4px;
+      font-weight: bold;
+      text-transform: uppercase;
     }
     
-    .field .value {
+    .field-value {
       font-size: 11px;
       font-weight: bold;
-      min-height: 16px;
+      color: #000;
+      min-height: 14px;
+      line-height: 1.2;
+      padding-top: 1px;
     }
     
-    .bank-account {
+    .recipient-name,
+    .payer-name {
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    
+    .recipient-address,
+    .recipient-city,
+    .payer-address,
+    .payer-city {
+      font-size: 10px;
+      font-weight: normal;
+      color: #333;
+      margin-bottom: 1px;
+    }
+    
+    .account-number {
       font-family: 'Courier New', monospace;
+      font-size: 12px;
       letter-spacing: 1px;
+      font-weight: bold;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 2px;
     }
     
-    .amount {
+    .amount-field {
+      border: 1px solid #000;
+      padding: 8px;
+      margin-bottom: 20px;
+      background-color: #fafafa;
+    }
+    
+    .amount-value {
+      font-family: 'Courier New', monospace;
       font-size: 14px;
+      font-weight: bold;
       text-align: right;
+      border-bottom: 1px solid #000;
+      padding: 4px 2px;
+      margin-top: 4px;
     }
     
-    .reference {
+    .cents-separator {
+      width: 100%;
+      height: 1px;
+      background: #000;
+      margin: 2px 0;
+    }
+    
+    .reference-field .field-value {
       font-family: 'Courier New', monospace;
+      font-size: 11px;
       letter-spacing: 1px;
+      border-bottom: 1px solid #000;
+      padding: 3px 2px;
+    }
+    
+    .due-date-field .field-value {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      border-bottom: 1px solid #000;
+      padding: 3px 2px;
+    }
+    
+    .signature-field {
+      margin-top: 25px;
     }
     
     .signature-line {
       border-bottom: 1px solid #000;
-      height: 20px;
-      margin-top: 5px;
+      height: 25px;
+      margin-top: 8px;
+    }
+    
+    .giroblankett-machine-readable {
+      border-top: 1px solid #000;
+      padding: 8px;
+      background-color: #f0f0f0;
+      text-align: center;
+    }
+    
+    .machine-code {
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      color: #333;
     }
     
     .footer {
