@@ -3742,4 +3742,59 @@ defaultVatRatePercent: (() => {
 
 ---
 
+## 2025-02-01: Production Table View Shipped Order Fix
+
+**Fixed inconsistent behavior between Kanban and table views for shipped orders**
+
+### 🐛 **ISSUE IDENTIFIED:**
+
+**Problem**: When marking orders as shipped in Production table view, orders would disappear without showing the shipped confirmation modal that exists in Kanban view.
+
+**Root Cause**: Table view dropdown actions directly called `updateOrderStatusMutation.mutate()` for all status changes, including "shipped", while Kanban view showed confirmation modal first.
+
+### ✅ **FIXES IMPLEMENTED:**
+
+**1. Individual Row Actions (Table View):**
+- Modified dropdown menu items to check if status is "shipped"
+- Added conditional logic to show shipped confirmation modal for individual orders
+- Maintains consistency with Kanban drag-and-drop behavior
+
+**2. Bulk Status Changes:**
+- Disabled "Shipped" option in bulk status change dropdown
+- Added explanatory text: "Shipped (Use individual actions)"
+- Prevents bulk operations from bypassing confirmation workflow
+
+**3. Consistent User Experience:**
+- Both Kanban and table views now show shipped confirmation modal
+- Users can choose: Keep in Board, Create Invoice & Archive, or Archive
+- Orders no longer disappear unexpectedly
+
+### 🔧 **TECHNICAL DETAILS:**
+
+**Before:** Table view directly updated status:
+```typescript
+onClick={() => updateOrderStatusMutation.mutate({ id: order.id, status: status.value })}
+```
+
+**After:** Conditional modal display:
+```typescript
+onClick={() => {
+  if (status.value === OrderStatus.shipped) {
+    setPendingShippedOrder(order);
+    setShippedModalOpen(true);
+  } else {
+    updateOrderStatusMutation.mutate({ id: order.id, status: status.value });
+  }
+}}
+```
+
+### 📊 **VERIFICATION:**
+- ✅ TypeScript compilation clean
+- ✅ Individual "Mark as Shipped" actions show confirmation modal
+- ✅ Bulk operations disable shipped status to prevent bypass
+- ✅ Consistent behavior between Kanban and table views
+- ✅ Orders properly appear in archive after confirmation
+
+---
+
 </rewritten_file>
