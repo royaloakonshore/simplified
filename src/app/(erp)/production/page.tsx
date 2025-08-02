@@ -601,14 +601,23 @@ function ProductionPageContent() {
                     {availableStatuses.map((status) => (
                       <DropdownMenuItem 
                         key={status.value}
-                        onClick={() => updateOrderStatusMutation.mutate({ 
-                          id: order.id, 
-                          status: status.value 
-                        }, {
-                          onSuccess: () => {
-                            utils.order.listProductionView.invalidate();
+                        onClick={() => {
+                          // If moving to shipped, show confirmation modal like in Kanban
+                          if (status.value === OrderStatus.shipped) {
+                            setPendingShippedOrder(order);
+                            setShippedModalOpen(true);
+                          } else {
+                            // For other status changes, update directly
+                            updateOrderStatusMutation.mutate({ 
+                              id: order.id, 
+                              status: status.value 
+                            }, {
+                              onSuccess: () => {
+                                utils.order.listProductionView.invalidate();
+                              }
+                            });
                           }
-                        })}
+                        }}
                       >
                         {status.label}
                       </DropdownMenuItem>
@@ -746,9 +755,11 @@ function ProductionPageContent() {
                   <SelectContent>
                     <SelectItem value={OrderStatus.confirmed}>Confirmed</SelectItem>
                     <SelectItem value={OrderStatus.in_production}>In Production</SelectItem>
-                    <SelectItem value={OrderStatus.shipped}>Shipped</SelectItem>
                     <SelectItem value={OrderStatus.delivered}>Ready to Invoice</SelectItem>
                     <SelectItem value={OrderStatus.cancelled}>Cancelled</SelectItem>
+                    <SelectItem value={OrderStatus.shipped} disabled>
+                      Shipped (Use individual actions)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
