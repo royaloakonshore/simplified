@@ -760,17 +760,31 @@ export const orderRouter = createTRPCRouter({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' });
       }
 
-      // TODO: Implement actual PDF generation
-      // For work orders: exclude prices, focus on BOMs and manufacturing details
-      // For quotations: include all customer-oriented info including pricing
-      
-      // Placeholder implementation - return success for now
-      return {
-        success: true,
-        message: `PDF export for ${order.orderType === OrderType.quotation ? 'quotation' : 'work order'} ${order.orderNumber} - Implementation pending`,
-        orderType: order.orderType,
-        orderNumber: order.orderNumber,
-      };
+      try {
+        // Import the PDF generation service
+        const { generateOrderPdf } = await import('@/lib/services/pdf.service');
+        
+        // Generate PDF buffer
+        const pdfBuffer = await generateOrderPdf(order as any);
+        
+        // Convert buffer to base64 for client download
+        const pdfBase64 = pdfBuffer.toString('base64');
+        
+        return {
+          success: true,
+          pdfBase64,
+          filename: `${order.orderType === 'quotation' ? 'tarjous' : 'tyojarjestys'}_${order.orderNumber}.pdf`,
+          message: `PDF generated successfully for ${order.orderType === 'quotation' ? 'quotation' : 'work order'} ${order.orderNumber}`,
+          orderType: order.orderType,
+          orderNumber: order.orderNumber,
+        };
+      } catch (error) {
+        console.error('PDF generation failed:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to generate PDF. Please try again.'
+        });
+      }
     }),
 
   getFunnelStats: companyProtectedProcedure

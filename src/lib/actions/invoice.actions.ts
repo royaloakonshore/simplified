@@ -397,33 +397,45 @@ export async function generateAndDownloadFinvoice(invoiceId: string) {
     }
 
     // 2. --- FETCH SELLER SETTINGS --- 
-    // IMPORTANT TODO: Replace placeholder settings below with actual data retrieval.
-    // This should ideally query a dedicated 'Settings' table or user profile 
-    // containing the seller's official company information required for Finvoice.
-    // Using environment variables is generally NOT recommended for sensitive 
-    // or frequently changing data like IBAN/BIC. 
-    const sellerSettings = {
-      // Example using env vars (less ideal) or defaults:
-      companyName: process.env.SELLER_COMPANY_NAME || 'My Company Oy', 
-      vatId: process.env.SELLER_VAT_ID || 'FI12345678',
-      domicile: process.env.SELLER_DOMICILE || 'Helsinki',
-      sellerIdentifier: process.env.SELLER_OVT_ID, // Optional OVT
-      sellerIntermediatorAddress: process.env.SELLER_INTERMEDIATOR, // Optional
-      bankAccountIBAN: process.env.SELLER_IBAN || 'FI0012345678901234', 
-      bankAccountBIC: process.env.SELLER_BIC || 'NDEAFIHH',
-      bankName: process.env.SELLER_BANK_NAME || 'Nordea',
-      streetAddress: process.env.SELLER_STREET || 'Seller Street 1',
-      postalCode: process.env.SELLER_POSTAL_CODE || '00100',
-      city: process.env.SELLER_CITY || 'Helsinki',
-      countryCode: process.env.SELLER_COUNTRY_CODE || 'FI',
-      countryName: process.env.SELLER_COUNTRY_NAME || 'Finland',
-    };
-    // --- END FETCH SELLER SETTINGS --- 
-
-    // Basic validation for required settings
-    if (!sellerSettings.vatId || !sellerSettings.bankAccountIBAN || !sellerSettings.bankAccountBIC) {
-        throw new Error('Missing required seller settings (VAT ID, IBAN, BIC) for Finvoice generation.');
+    // Fetch settings from the database instead of environment variables
+    const settings = await prisma.settings.findFirst();
+    
+    if (!settings) {
+      throw new Error('Company settings not found. Please configure company settings in the Settings page before generating Finvoice.');
     }
+
+    // Validate required Finvoice fields
+    const requiredFields = {
+      vatId: settings.vatId,
+      bankAccountIBAN: settings.bankAccountIBAN,
+      bankAccountBIC: settings.bankAccountBIC,
+      companyName: settings.companyName,
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value || value.trim() === '')
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required settings for Finvoice generation: ${missingFields.join(', ')}. Please update your company settings.`);
+    }
+
+    const sellerSettings = {
+      companyName: settings.companyName,
+      vatId: settings.vatId,
+      domicile: settings.domicile,
+      sellerIdentifier: settings.sellerIdentifier || undefined,
+      sellerIntermediatorAddress: settings.sellerIntermediatorAddress || undefined,
+      bankAccountIBAN: settings.bankAccountIBAN,
+      bankAccountBIC: settings.bankAccountBIC,
+      bankName: settings.bankName || undefined,
+      streetAddress: settings.streetAddress,
+      postalCode: settings.postalCode,
+      city: settings.city,
+      countryCode: settings.countryCode,
+      countryName: settings.countryName,
+    };
+    // --- END FETCH SELLER SETTINGS ---
 
     // 3. Generate XML using the service
     // We need to map the Prisma Invoice type to the expected Invoice type for the service

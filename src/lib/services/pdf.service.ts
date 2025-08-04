@@ -1,6 +1,7 @@
-import type { Invoice, Order, InvoiceItem, Customer, InventoryItem } from "@prisma/client";
+import type { Invoice, Order, InvoiceItem, OrderItem, Customer, InventoryItem } from "@prisma/client";
 import puppeteer from "puppeteer";
 import Decimal from "decimal.js";
+import QRCode from "qrcode";
 
 type InvoiceWithDetails = Invoice & {
   customer: Customer;
@@ -11,6 +12,9 @@ type InvoiceWithDetails = Invoice & {
 
 type OrderWithDetails = Order & {
   customer: Customer;
+  items: (OrderItem & {
+    inventoryItem: InventoryItem;
+  })[];
 };
 
 /**
@@ -56,7 +60,7 @@ export async function generateOrderPdf(order: OrderWithDetails): Promise<Buffer>
   
   try {
     const page = await browser.newPage();
-    await page.setContent(generateOrderHtml(order), {
+    await page.setContent(await generateOrderHtml(order), {
       waitUntil: 'networkidle0'
     });
     
@@ -293,46 +297,287 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, total: any): stri
 }
 
 /**
- * Generate HTML template for order
+ * Generate HTML template for order PDF with different layouts for quotations vs work orders
  */
-function generateOrderHtml(order: OrderWithDetails): string {
+async function generateOrderHtml(order: OrderWithDetails): Promise<string> {
+  const isQuotation = order.orderType === 'quotation';
+  const isWorkOrder = order.orderType === 'work_order';
+  
+  const qrCodeSection = isWorkOrder ? await generateWorkOrderQRCode(order) : '';
+  
   return `
     <!DOCTYPE html>
     <html lang="fi">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Tilaus ${order.orderNumber}</title>
+      <title>${isQuotation ? 'Tarjous' : 'Työjärjestys'} ${order.orderNumber}</title>
       <style>
-        ${getInvoiceStyles()}
+        ${getOrderStyles()}
       </style>
     </head>
     <body>
-      <div class="invoice-container">
+      <div class="order-container">
+        <!-- Header Section -->
         <div class="header">
           <div class="company-info">
             <h1 class="company-name">Yritys Oy</h1>
+            <p class="company-address">Yrityskatu 1<br/>00100 Helsinki<br/>Y-tunnus: 1234567-8</p>
           </div>
           <div class="document-info">
-            <h2 class="document-type">TILAUS</h2>
-            <p class="document-type-en">ORDER</p>
+            <h2 class="document-type">${isQuotation ? 'TARJOUS' : 'TYÖJÄRJESTYS'}</h2>
+            <p class="document-type-en">${isQuotation ? 'QUOTATION' : 'WORK ORDER'}</p>
             <div class="document-details">
               <p><strong>Numero:</strong> ${order.orderNumber}</p>
               <p><strong>Päivämäärä:</strong> ${formatDate(order.orderDate)}</p>
+              ${order.deliveryDate ? `<p><strong>Toimituspäivä:</strong> ${formatDate(order.deliveryDate)}</p>` : ''}
+              <p><strong>Tila:</strong> ${getOrderStatusText(order.status)}</p>
             </div>
           </div>
         </div>
-        
+
+        <!-- Customer Section -->
         <div class="customer-section">
           <h3>Asiakastiedot</h3>
           <div class="customer-info">
             <p><strong>${order.customer.name}</strong></p>
+            ${order.customer.vatId ? `<p>Y-tunnus: ${order.customer.vatId}</p>` : ''}
+            ${order.customer.email ? `<p>Sähköposti: ${order.customer.email}</p>` : ''}
+            ${order.customer.phone ? `<p>Puhelin: ${order.customer.phone}</p>` : ''}
           </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="items-section">
+          <h3>Tilausrivit</h3>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Tuote</th>
+                <th>Määrä</th>
+                <th>Yksikkö</th>
+                ${isQuotation ? '<th>À-hinta</th>' : ''}
+                ${isQuotation ? '<th>Alennus</th>' : ''}
+                ${isQuotation ? '<th>Yhteensä</th>' : ''}
+                ${isWorkOrder ? '<th>Valmistustiedot</th>' : ''}
+              </tr>
+            </thead>
+            <tbody>
+              ${order.items.map(item => generateOrderItemRow(item, isQuotation)).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        ${isQuotation ? generateQuotationSummary(order) : ''}
+        ${isWorkOrder ? generateWorkOrderInstructions(order) : ''}
+        ${qrCodeSection}
+
+        <!-- Footer -->
+        <div class="footer">
+          <p>Kiitos tilauksestanne!</p>
+          <p>Yritys Oy | www.yritys.fi | info@yritys.fi | +358 40 123 4567</p>
         </div>
       </div>
     </body>
     </html>
   `;
+}
+
+/**
+ * Generate individual order item row
+ */
+function generateOrderItemRow(item: any, showPrices: boolean): string {
+  const quantity = formatDecimal(item.quantity || 0, 2);
+  const unitPrice = formatDecimal(item.unitPrice || 0, 2);
+  const unit = item.inventoryItem?.unitOfMeasure || 'kpl';
+  
+  // Calculate line total with discounts for quotations
+  let lineTotal = '';
+  if (showPrices) {
+    const subtotal = (item.quantity || 0) * (item.unitPrice || 0);
+    let total = subtotal;
+    
+    if (item.discountPercent && item.discountPercent > 0) {
+      total = subtotal * (1 - item.discountPercent / 100);
+    } else if (item.discountAmount && item.discountAmount > 0) {
+      total = subtotal - item.discountAmount;
+    }
+    
+    lineTotal = formatCurrency(Math.max(0, total));
+  }
+
+  const discount = showPrices && (item.discountPercent > 0 || item.discountAmount > 0) 
+    ? (item.discountPercent > 0 ? `${item.discountPercent}%` : formatCurrency(item.discountAmount))
+    : '';
+
+  return `
+    <tr>
+      <td>
+        <strong>${item.description || item.inventoryItem?.name || 'N/A'}</strong>
+        ${item.inventoryItem?.sku ? `<br/><small>SKU: ${item.inventoryItem.sku}</small>` : ''}
+      </td>
+      <td>${quantity}</td>
+      <td>${unit}</td>
+      ${showPrices ? `<td>${formatCurrency(unitPrice)}</td>` : ''}
+      ${showPrices ? `<td>${discount}</td>` : ''}
+      ${showPrices ? `<td><strong>${lineTotal}</strong></td>` : ''}
+      ${!showPrices ? `<td><small>Tuotantotieto: ${item.inventoryItem?.itemType || 'N/A'}</small></td>` : ''}
+    </tr>
+  `;
+}
+
+/**
+ * Generate quotation summary with pricing
+ */
+function generateQuotationSummary(order: any): string {
+  const subtotal = order.items.reduce((sum: number, item: any) => {
+    return sum + ((item.quantity || 0) * (item.unitPrice || 0));
+  }, 0);
+  
+  const discountTotal = order.items.reduce((sum: number, item: any) => {
+    let discount = 0;
+    if (item.discountPercent && item.discountPercent > 0) {
+      discount = ((item.quantity || 0) * (item.unitPrice || 0)) * (item.discountPercent / 100);
+    } else if (item.discountAmount && item.discountAmount > 0) {
+      discount = item.discountAmount;
+    }
+    return sum + discount;
+  }, 0);
+
+  const netTotal = subtotal - discountTotal;
+  const vatTotal = netTotal * 0.255; // 25.5% Finnish VAT
+  const grandTotal = netTotal + vatTotal;
+
+  return `
+    <div class="quotation-summary">
+      <h3>Tarjouksen yhteenveto</h3>
+      <table class="summary-table">
+        <tr>
+          <td>Välisumma:</td>
+          <td>${formatCurrency(subtotal)}</td>
+        </tr>
+        ${discountTotal > 0 ? `
+        <tr>
+          <td>Alennus yhteensä:</td>
+          <td>-${formatCurrency(discountTotal)}</td>
+        </tr>` : ''}
+        <tr>
+          <td>Netto yhteensä:</td>
+          <td>${formatCurrency(netTotal)}</td>
+        </tr>
+        <tr>
+          <td>ALV (25,5%):</td>
+          <td>${formatCurrency(vatTotal)}</td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>Loppusumma:</strong></td>
+          <td><strong>${formatCurrency(grandTotal)}</strong></td>
+        </tr>
+      </table>
+      
+      <div class="quotation-terms">
+        <h4>Tarjouksen ehdot</h4>
+        <ul>
+          <li>Tarjous voimassa 30 päivää</li>
+          <li>Hinnat sisältävät alv 25,5%</li>
+          <li>Maksuehto: 14 päivää netto</li>
+          <li>Toimitus: ${order.deliveryDate ? formatDate(order.deliveryDate) : 'Sovittaessa'}</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate work order specific instructions
+ */
+function generateWorkOrderInstructions(order: any): string {
+  return `
+    <div class="work-order-instructions">
+      <h3>Tuotanto-ohjeet</h3>
+      <div class="instructions-content">
+        <p><strong>Työn prioriteetti:</strong> ${getPriorityText(order.deliveryDate)}</p>
+        <p><strong>Toimituspäivä:</strong> ${order.deliveryDate ? formatDate(order.deliveryDate) : 'Ei määritelty'}</p>
+        
+        <div class="production-notes">
+          <h4>Valmistushuomiot</h4>
+          <ul>
+            <li>Tarkista materiaalien saatavuus ennen aloitusta</li>
+            <li>Noudata laatustandardeja</li>
+            <li>Raportoi edistyminen tuotantojärjestelmään</li>
+            <li>Ilmoita ongelmista välittömästi työnjohdolle</li>
+          </ul>
+        </div>
+        
+        <div class="safety-notice">
+          <h4>Turvallisuusohjeet</h4>
+          <p>Käytä asianmukaisia suojavarusteita. Noudata työturvallisuusohjeita.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate QR code section for work order status updates
+ */
+async function generateWorkOrderQRCode(order: any): Promise<string> {
+  // Generate QR code data URL for the work order
+  const qrData = `ORDER:${order.id}`;
+  
+  try {
+    const qrCodeDataURL = await QRCode.toDataURL(qrData, { 
+      errorCorrectionLevel: 'H',
+      width: 150,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    
+    return `
+      <div class="qr-section">
+        <h3>Tilauksen seuranta</h3>
+        <div class="qr-container">
+          <div class="qr-code-visual">
+            <img src="${qrCodeDataURL}" alt="QR Code for ${order.orderNumber}" style="width: 100px; height: 100px;" />
+            <p><small>QR-koodi: ${qrData}</small></p>
+            <p><small>Skannaa päivittääksesi tilauksen tila</small></p>
+          </div>
+          <div class="qr-instructions">
+            <h4>Ohjeet:</h4>
+            <ol>
+              <li>Skannaa QR-koodi mobiililaitteella</li>
+              <li>Päivitä työn tila sovelluksessa</li>
+              <li>Lisää kommentteja tarvittaessa</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Failed to generate QR code:', error);
+    // Fallback to text-based QR code reference
+    return `
+      <div class="qr-section">
+        <h3>Tilauksen seuranta</h3>
+        <div class="qr-container">
+          <div class="qr-code-placeholder">
+            <p>QR-koodi: ${qrData}</p>
+            <p><small>Skannaa päivittääksesi tilauksen tila</small></p>
+          </div>
+          <div class="qr-instructions">
+            <h4>Ohjeet:</h4>
+            <ol>
+              <li>Skannaa QR-koodi mobiililaitteella</li>
+              <li>Päivitä työn tila sovelluksessa</li>
+              <li>Lisää kommentteja tarvittaessa</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 /**
@@ -669,6 +914,179 @@ function getInvoiceStyles(): string {
 }
 
 /**
+ * CSS styles for order PDF
+ */
+function getOrderStyles(): string {
+  return `
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #333;
+    }
+    
+    .order-container {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 0;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 20px;
+    }
+    
+    .company-info {
+      text-align: left;
+    }
+    
+    .company-name {
+      font-size: 24px;
+      color: #0066cc;
+      margin-bottom: 10px;
+    }
+    
+    .company-address {
+      font-size: 11px;
+      color: #333;
+      line-height: 1.2;
+    }
+    
+    .document-info {
+      text-align: right;
+    }
+    
+    .document-type {
+      font-size: 20px;
+      color: #0066cc;
+      margin-bottom: 5px;
+    }
+    
+    .document-type-en {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+    
+    .document-details p {
+      text-align: right;
+      margin-bottom: 3px;
+    }
+    
+    .customer-section {
+      margin-bottom: 30px;
+    }
+    
+    .customer-section h3 {
+      color: #0066cc;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .customer-info p {
+      margin-bottom: 2px;
+    }
+    
+    .items-section {
+      margin-bottom: 30px;
+    }
+    
+    .items-section h3 {
+      color: #0066cc;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .items-table th,
+    .items-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    
+    .items-table th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      color: #0066cc;
+    }
+    
+    .items-table td:nth-child(2),
+    .items-table td:nth-child(3),
+    .items-table td:nth-child(4),
+    .items-table td:nth-child(5),
+    .items-table td:nth-child(6) {
+      text-align: right;
+    }
+    
+    .quotation-summary,
+    .work-order-instructions,
+    .qr-section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #0066cc;
+    }
+    
+    .quotation-summary h3,
+    .work-order-instructions h3,
+    .qr-section h3 {
+      color: #0066cc;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .summary-table,
+    .instructions-content,
+    .qr-container {
+      margin-top: 15px;
+    }
+    
+    .summary-table tr,
+    .instructions-content p,
+    .qr-container p {
+      margin-bottom: 5px;
+    }
+    
+    .summary-table td,
+    .instructions-content strong,
+    .qr-container strong {
+      font-weight: bold;
+    }
+    
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .footer p {
+      margin-bottom: 5px;
+    }
+    
+    @media print {
+      .order-container {
+        margin: 0;
+        padding: 0;
+      }
+    }
+  `;
+}
+
+/**
  * Generate Finnish reference number (viitenumero)
  */
 function generateReferenceNumber(invoiceNumber: string): string {
@@ -709,7 +1127,44 @@ function formatCurrency(amount: any): string {
 /**
  * Format decimal number for Finnish locale
  */
-function formatDecimal(amount: any): string {
+function formatDecimal(amount: any, precision: number = 2): string {
   const decimal = new Decimal(amount);
-  return decimal.toString().replace('.', ',');
+  return decimal.toFixed(precision).replace('.', ',');
+}
+
+/**
+ * Get text for order status
+ */
+function getOrderStatusText(status: string): string {
+  switch (status) {
+    case 'pending':
+      return 'Odottaa käsittelyä';
+    case 'processing':
+      return 'Käsittelyssä';
+    case 'completed':
+      return 'Valmis';
+    case 'cancelled':
+      return 'Peruttu';
+    default:
+      return status;
+  }
+}
+
+/**
+ * Get text for work order priority
+ */
+function getPriorityText(deliveryDate: Date | string | null): string {
+  if (!deliveryDate) {
+    return 'Ei määritelty';
+  }
+  const daysUntilDelivery = Math.ceil((new Date(deliveryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  if (daysUntilDelivery < 0) {
+    return 'Eräpäivässä';
+  } else if (daysUntilDelivery === 0) {
+    return 'Tänään';
+  } else if (daysUntilDelivery === 1) {
+    return 'Huomenna';
+  } else {
+    return `${daysUntilDelivery} päivää`;
+  }
 } 
