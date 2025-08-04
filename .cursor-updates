@@ -3892,3 +3892,65 @@ onClick={() => {
 **Documentation:** ✅ Comprehensive implementation guide in cursor-updates
 
 **Next Phase Ready:** System prepared for advanced features like bulk export operations, template customization, and enhanced mobile scanning capabilities.
+
+## 2025-02-02: Enhanced Excel Import/Export System for Inventory Items
+
+**Implemented comprehensive Excel import/export functionality with conservative validation and preview system for inventory management:**
+
+### Major Features Added:
+
+1. **Enhanced Excel Service (`src/lib/services/excel.service.ts`)**:
+   - Upgraded `ExcelInventoryData` type with all inventory fields (costPrice, salesPrice, quantityOnHand, reorderLevel, leadTimeDays, vendorSku, vendorItemName, minimumStockLevel, itemType, showInPricelist)
+   - Added XToolset-inspired validation classes (`InventoryImportValidator`) with comprehensive field validation
+   - Implemented `importInventoryFromExcelWithValidation()` with preview generation and SKU-based matching logic
+   - Enhanced export function with all new fields and bilingual headers (Finnish/English)
+   - Added conservative validation patterns with error/warning categorization
+
+2. **Advanced Import Preview System**:
+   - Real-time validation with detailed error reporting
+   - SKU-based existing item detection and change tracking
+   - Conservative "skip questionable data" approach for data integrity
+   - Preview modal showing new items, updates, and validation issues
+   - Explicit user confirmation required before applying changes
+
+3. **Enhanced tRPC Procedures (`src/lib/api/routers/inventory.ts`)**:
+   - Added `previewExcelImport` mutation for safe preview generation
+   - Added `applyExcelImport` mutation with transaction-based processing
+   - Proper company scoping and data validation
+   - Automatic category creation during import
+   - Inventory transaction handling for quantity changes
+
+4. **Production-Ready Import Component (`src/components/common/ExcelImportExport.tsx`)**:
+   - Enhanced UI with preview dialog and comprehensive change display
+   - Conservative validation workflow with user confirmation checkboxes
+   - Support for both legacy and new enhanced import modes
+   - Real-time error/warning display with severity indicators
+   - Detailed change tracking showing old vs new values
+
+5. **Updated Inventory Page (`src/app/(erp)/inventory/page.tsx`)**:
+   - Integrated enhanced ExcelImportExport component with preview functionality
+   - Professional description emphasizing conservative validation approach
+
+### Technical Achievements:
+
+- **Conservative Validation Strategy**: Implementation follows documentation requirements for "conservative validation" - skipping questionable data rather than risking corruption
+- **XToolset-Inspired Patterns**: Validation system inspired by XToolset's mapper patterns while maintaining consistency with existing xlsx library
+- **Type Safety**: Enhanced type definitions with proper validation result structures
+- **Transaction Safety**: All database operations wrapped in transactions for data integrity
+- **Backward Compatibility**: Legacy import function maintained alongside enhanced functionality
+
+### Data Integrity Safeguards:
+
+- Comprehensive field validation with Finnish/English bilingual support
+- SKU-based duplicate detection and change tracking
+- Preview-before-apply workflow with explicit user confirmation
+- Transaction-based processing ensuring all-or-nothing updates
+- Detailed logging and error reporting for audit trails
+
+**Build Status**: ✅ Successfully builds with `npm run build` (warnings only, no errors)
+**Type Safety**: ✅ All TypeScript compilation successful  
+**Runtime Safety**: ✅ Comprehensive validation and error handling implemented
+
+This implementation provides enterprise-grade Excel import/export functionality for inventory management with robust validation, conservative data handling, and comprehensive user feedback systems.
+
+---

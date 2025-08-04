@@ -16,95 +16,257 @@ import { TRPCError } from '@trpc/server';
 import puppeteer from 'puppeteer';
 import QRCode from 'qrcode';
 import { Buffer } from 'buffer'; // Import Buffer
+import { 
+  importInventoryFromExcelWithValidation, 
+  type ImportPreview, 
+  type ExcelInventoryData 
+} from '@/lib/services/excel.service';
+
+// Schema for Excel import preview
+const ExcelImportPreviewSchema = z.object({
+  fileData: z.string(), // Base64 encoded file data
+});
+
+// Schema for Excel import apply
+const ExcelImportApplySchema = z.object({
+  fileData: z.string(), // Base64 encoded file data
+  preview: z.object({
+    newItems: z.array(z.any()),
+    updateItems: z.array(z.any()),
+    errors: z.array(z.any()),
+    summary: z.object({
+      totalRows: z.number(),
+      newItemCount: z.number(),
+      updateItemCount: z.number(),
+      errorCount: z.number(),
+      warningCount: z.number(),
+    }),
+  }),
+  confirmed: z.boolean(),
+});
 
 export const inventoryRouter = createTRPCRouter({
-  list: companyProtectedProcedure
-    .input(listInventoryItemsSchema)
-    .query(async ({ ctx, input }) => {
-      const companyId = ctx.companyId;
-      const { page, perPage, search, itemType, inventoryCategoryId, showInPricelist, sortBy, sortDirection } = input;
+  // Enhanced Excel import preview
+  previewExcelImport: companyProtectedProcedure
+    .input(ExcelImportPreviewSchema)
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Decode base64 file data
+        const fileBuffer = Buffer.from(input.fileData, 'base64');
+        
+                 // Get existing inventory items for comparison
+         const existingItems = await prisma.inventoryItem.findMany({
+           where: { companyId: ctx.companyId },
+         });
 
-      const whereClause: Prisma.InventoryItemWhereInput = {
-        companyId: companyId,
-      };
+        // Generate import preview with validation
+        const preview = importInventoryFromExcelWithValidation(fileBuffer, existingItems);
+        
+        return {
+          success: true,
+          preview,
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: error instanceof Error ? error.message : 'Failed to process Excel file',
+        });
+      }
+    }),
 
-      if (search) {
-        whereClause.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { sku: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-      if (itemType) {
-        whereClause.itemType = itemType;
-      }
-      if (inventoryCategoryId) {
-        whereClause.inventoryCategoryId = inventoryCategoryId;
-      }
-      if (showInPricelist !== undefined) {
-        whereClause.showInPricelist = showInPricelist;
+  // Apply Excel import with transaction safety
+  applyExcelImport: companyProtectedProcedure
+    .input(ExcelImportApplySchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!input.confirmed) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Import must be confirmed before applying changes',
+        });
       }
 
-      const orderBy: Prisma.InventoryItemOrderByWithRelationInput = { [sortBy]: sortDirection };
-      
-      const skip = (page - 1) * perPage;
-      const take = perPage;
+      if (input.preview.summary.errorCount > 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Cannot apply import with validation errors',
+        });
+      }
 
-      const [itemsFromDb, totalCount] = await prisma.$transaction([
-        prisma.inventoryItem.findMany({
-          take,
-          skip,
-          orderBy,
-          where: whereClause,
-          include: { 
-            inventoryCategory: { select: { name: true, id: true} },
-            bom: {
-              select: {
-                manualLaborCost: true,
-                items: {
-                  select: {
-                    quantity: true,
-                    componentItem: {
-                      select: {
-                        costPrice: true,
-                      },
-                    },
-                  },
-                },
+      try {
+        // Perform all operations in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+          const createdItems: any[] = [];
+          const updatedItems: any[] = [];
+          let inventoryTransactions: any[] = [];
+
+          // Create new items
+          for (const newItem of input.preview.newItems) {
+            const data = newItem as ExcelInventoryData;
+            
+                         // Find or create category if specified
+             let categoryId: string | null = null;
+             if (data.category) {
+               const category = await tx.inventoryCategory.upsert({
+                 where: { 
+                   companyId_name: { 
+                     companyId: ctx.companyId, 
+                     name: data.category 
+                   } 
+                 },
+                 update: {},
+                 create: { 
+                   name: data.category,
+                   companyId: ctx.companyId,
+                 },
+               });
+               categoryId = category.id;
+             }
+
+            const createdItem = await tx.inventoryItem.create({
+              data: {
+                companyId: ctx.companyId,
+                name: data.name,
+                description: data.description || null,
+                sku: data.sku || null,
+                costPrice: data.costPrice ? new Prisma.Decimal(data.costPrice) : new Prisma.Decimal(0),
+                salesPrice: new Prisma.Decimal(data.salesPrice),
+                quantityOnHand: new Prisma.Decimal(data.quantityOnHand || 0),
+                reorderLevel: data.reorderLevel ? new Prisma.Decimal(data.reorderLevel) : null,
+                leadTimeDays: data.leadTimeDays || null,
+                vendorSku: data.vendorSku || null,
+                vendorItemName: data.vendorItemName || null,
+                minimumStockLevel: new Prisma.Decimal(data.minimumStockLevel || 0),
+                itemType: data.itemType || 'MANUFACTURED_GOOD',
+                showInPricelist: data.showInPricelist !== false,
+                inventoryCategoryId: categoryId,
+                defaultVatRatePercent: new Prisma.Decimal(25.5), // Default Finnish VAT
               },
-            },
-          }
-        }),
-        prisma.inventoryItem.count({ where: whereClause })
-      ]);
-      
-      const itemsWithQuantity = await Promise.all(
-        itemsFromDb.map(async (item) => {
-          const transactions = await prisma.inventoryTransaction.aggregate({
-            _sum: { quantity: true },
-            where: { itemId: item.id },
-          });
-          const quantityOnHandDecimal = transactions._sum.quantity ?? new Prisma.Decimal(0);
-          return {
-            ...item,
-            costPrice: item.costPrice.toString(),
-            salesPrice: item.salesPrice.toString(),
-            minimumStockLevel: item.minimumStockLevel.toString(),
-            reorderLevel: item.reorderLevel?.toString() ?? null,
-            quantityOnHand: quantityOnHandDecimal.toString(),
-          };
-        })
-      );
+            });
 
-      return {
-        data: itemsWithQuantity,
-        meta: {
-            totalCount,
-            page,
-            perPage,
-            totalPages: Math.ceil(totalCount / perPage),
-        }
-      };
+            createdItems.push(createdItem);
+
+                         // Create initial inventory transaction if quantity > 0
+             if (data.quantityOnHand && data.quantityOnHand > 0) {
+               const transaction = await tx.inventoryTransaction.create({
+                 data: {
+                   itemId: createdItem.id,
+                   type: 'adjustment',
+                   quantity: new Prisma.Decimal(data.quantityOnHand),
+                   note: 'Initial stock from Excel import',
+                 },
+               });
+               inventoryTransactions.push(transaction);
+             }
+          }
+
+          // Update existing items
+          for (const updateItem of input.preview.updateItems) {
+            const { sku, newData, changes } = updateItem;
+            const data = newData as ExcelInventoryData;
+            
+            // Find the existing item
+            const existingItem = await tx.inventoryItem.findFirst({
+              where: { 
+                sku: sku,
+                companyId: ctx.companyId,
+              },
+            });
+
+            if (!existingItem) {
+              throw new Error(`Item with SKU ${sku} not found during update`);
+            }
+
+                         // Handle category update if specified
+             let categoryId: string | null = existingItem.inventoryCategoryId;
+             if (data.category && 'category' in changes) {
+               const category = await tx.inventoryCategory.upsert({
+                 where: { 
+                   companyId_name: { 
+                     companyId: ctx.companyId, 
+                     name: data.category 
+                   } 
+                 },
+                 update: {},
+                 create: { 
+                   name: data.category,
+                   companyId: ctx.companyId,
+                 },
+               });
+               categoryId = category.id;
+             }
+
+            // Prepare update data
+            const updateData: any = {};
+            
+            if ('name' in changes) updateData.name = data.name;
+            if ('description' in changes) updateData.description = data.description || null;
+            if ('costPrice' in changes) updateData.costPrice = data.costPrice ? new Prisma.Decimal(data.costPrice) : new Prisma.Decimal(0);
+            if ('salesPrice' in changes) updateData.salesPrice = new Prisma.Decimal(data.salesPrice);
+            if ('reorderLevel' in changes) updateData.reorderLevel = data.reorderLevel ? new Prisma.Decimal(data.reorderLevel) : null;
+            if ('leadTimeDays' in changes) updateData.leadTimeDays = data.leadTimeDays || null;
+            if ('vendorSku' in changes) updateData.vendorSku = data.vendorSku || null;
+            if ('vendorItemName' in changes) updateData.vendorItemName = data.vendorItemName || null;
+            if ('minimumStockLevel' in changes) updateData.minimumStockLevel = new Prisma.Decimal(data.minimumStockLevel || 0);
+            if ('itemType' in changes) updateData.itemType = data.itemType || 'MANUFACTURED_GOOD';
+            if ('showInPricelist' in changes) updateData.showInPricelist = data.showInPricelist !== false;
+            if ('category' in changes) updateData.inventoryCategoryId = categoryId;
+
+            // Handle quantity changes with inventory transactions
+            if ('quantityOnHand' in changes && data.quantityOnHand !== undefined) {
+              const currentQuantity = existingItem.quantityOnHand?.toNumber() || 0;
+              const newQuantity = data.quantityOnHand;
+              const difference = newQuantity - currentQuantity;
+
+              if (Math.abs(difference) > 0.001) { // Handle floating point precision
+                                 // Create adjustment transaction
+                 const transaction = await tx.inventoryTransaction.create({
+                   data: {
+                     itemId: existingItem.id,
+                     type: 'adjustment',
+                     quantity: new Prisma.Decimal(difference),
+                     note: `Stock adjustment from Excel import: ${currentQuantity} → ${newQuantity}`,
+                   },
+                 });
+                inventoryTransactions.push(transaction);
+                
+                updateData.quantityOnHand = new Prisma.Decimal(newQuantity);
+              }
+            }
+
+            // Apply updates if there are any
+            if (Object.keys(updateData).length > 0) {
+              const updatedItem = await tx.inventoryItem.update({
+                where: { id: existingItem.id },
+                data: updateData,
+              });
+              updatedItems.push(updatedItem);
+            }
+          }
+
+          return {
+            createdItems,
+            updatedItems,
+            inventoryTransactions,
+            summary: {
+              itemsCreated: createdItems.length,
+              itemsUpdated: updatedItems.length,
+              transactionsCreated: inventoryTransactions.length,
+            },
+          };
+        });
+
+        return {
+          success: true,
+          message: `Import completed successfully: ${result.summary.itemsCreated} items created, ${result.summary.itemsUpdated} items updated`,
+          summary: result.summary,
+        };
+
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to apply Excel import',
+        });
+      }
     }),
 
   getById: companyProtectedProcedure
