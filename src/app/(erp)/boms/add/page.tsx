@@ -110,14 +110,14 @@ export default function AddBillOfMaterialPage() {
   }
 
   // Map fetched data to the types expected by child components
-  const fetchedMfgItems: FetchedInventoryItem[] = manufacturedGoodsData?.data as FetchedInventoryItem[] || [];
+  const fetchedMfgItems: FetchedInventoryItem[] = manufacturedGoodsData?.items as FetchedInventoryItem[] || [];
   const selectableManufacturedItems: SelectableInventoryItem[] = fetchedMfgItems.map(item => ({
     id: item.id,
     name: item.name,
     sku: item.sku,
   }));
 
-  const fetchedRawMaterials: FetchedInventoryItem[] = rawMaterialsInventoryData?.data as FetchedInventoryItem[] || [];
+  const fetchedRawMaterials: FetchedInventoryItem[] = rawMaterialsInventoryData?.items as FetchedInventoryItem[] || [];
   const rawMaterialsForTable: RawMaterialRow[] = fetchedRawMaterials.map(item => ({
     id: item.id,
     name: item.name,

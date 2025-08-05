@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, AlertTriangle, Eye, Save } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, AlertCircle, CheckCircle, AlertTriangle, Eye, Save, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { 
   Dialog, 
@@ -68,6 +68,7 @@ export function ExcelImportExport({
   const [isImporting, setIsImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [confirmImport, setConfirmImport] = useState(false);
@@ -266,13 +267,28 @@ export function ExcelImportExport({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
-          {title}
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5" />
+            {title}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="h-8 w-8 p-0"
+          >
+            {isCollapsed ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronUp className="h-4 w-4" />
+            )}
+          </Button>
         </CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        {description && !isCollapsed && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="space-y-4">
+      {!isCollapsed && (
+        <CardContent className="space-y-4">
         {/* Export Section */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Export Data</Label>
@@ -343,6 +359,7 @@ export function ExcelImportExport({
           </>
         )}
       </CardContent>
+      )}
 
       {/* Enhanced Import Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>

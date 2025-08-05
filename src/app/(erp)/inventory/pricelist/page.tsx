@@ -32,7 +32,7 @@ export default function PriceListPage() {
   }
 
   // Map inventory items to price list format (excluding quantity and UOM columns)
-  const priceListItems: PriceListItemRowData[] = inventoryData?.data?.map(item => ({
+  const priceListItems: PriceListItemRowData[] = inventoryData?.items?.map(item => ({
     id: item.id,
     sku: item.sku,
     name: item.name,

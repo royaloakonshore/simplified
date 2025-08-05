@@ -11,7 +11,6 @@ import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 import { InventoryTable, columns, type InventoryItemRowData } from '@/components/inventory/InventoryTable';
 import { CreateCategoryDialog } from '@/components/inventory/CreateCategoryDialog';
 import { ExcelImportExport } from '@/components/common/ExcelImportExport';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useReactTable,
   getCoreRowModel,
@@ -69,8 +68,8 @@ function InventoryListContent() {
 
   // Transform data for table
   const inventoryItems: InventoryItemRowData[] = React.useMemo(() => {
-    if (!inventoryData?.data) return [];
-    return inventoryData.data.map((item: any) => ({
+    if (!inventoryData?.items) return [];
+    return inventoryData.items.map((item: any) => ({
       ...item,
       costPrice: item.costPrice,
       salesPrice: item.salesPrice,
@@ -81,7 +80,7 @@ function InventoryListContent() {
       dimensions: item.dimensions?.toString() || null,
       weight: item.weight?.toString() || null,
     }));
-  }, [inventoryData?.data]);
+  }, [inventoryData?.items]);
 
   // Category options for filtering
   const categoryOptions = React.useMemo(() => {
@@ -139,7 +138,7 @@ function InventoryListContent() {
   }
 
   const selectedItems = table.getFilteredSelectedRowModel().rows;
-  const totalItems = inventoryData?.meta?.totalCount || 0;
+  const totalItems = inventoryData?.pagination?.totalCount || 0;
   const productCount = inventoryItems.filter(item => item.itemType === 'MANUFACTURED_GOOD').length;
   const rawMaterialCount = inventoryItems.filter(item => item.itemType === 'RAW_MATERIAL').length;
 

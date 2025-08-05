@@ -2,6 +2,26 @@
 
 All changes made by the AI assistant are documented here.
 
+## 2025-02-02: Fixed Excel Import/Export and tRPC Errors
+
+**Fixed critical tRPC routing errors and improved Excel import/export UI for inventory management:**
+
+### Fixes Applied:
+
+1. **✅ tRPC Inventory Router**: Added missing `inventory.list` procedure that was causing "No procedure found" errors
+2. **✅ Data Structure Updates**: Fixed all references from `.data` to `.items` and `.meta` to `.pagination` across BOM pages
+3. **✅ Collapsible Excel Component**: Made ExcelImportExport component collapsible to reduce visual clutter
+4. **✅ Build Stability**: Resolved all TypeScript compilation errors and routing issues
+
+### Technical Details:
+
+- Added `inventory.list` procedure with proper company scoping, pagination, and filtering
+- Updated inventory page and BOM pages to use correct data structure from tRPC responses
+- Enhanced ExcelImportExport component with collapsible interface using chevron icons
+- Fixed linter errors and maintained build stability
+
+The Excel import/export system is now fully functional with a clean, non-intrusive UI.
+
 ## 2025-02-01: Critical Business Logic Fixes - Order Status, Discount Transfer & Invoice Defaults
 
 **Goal:** Fix critical business logic issues including order status confusion, missing discount transfers, invoice defaults, and discount display consistency.

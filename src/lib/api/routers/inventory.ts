@@ -46,6 +46,67 @@ const ExcelImportApplySchema = z.object({
 });
 
 export const inventoryRouter = createTRPCRouter({
+  // List inventory items with filtering and pagination
+  list: companyProtectedProcedure
+    .input(listInventoryItemsSchema)
+    .query(async ({ ctx, input }) => {
+      const { page, perPage, search, itemType, inventoryCategoryId, showInPricelist, sortBy, sortDirection } = input;
+
+      const whereClause: Prisma.InventoryItemWhereInput = {
+        companyId: ctx.companyId, // Ensure company scoping
+      };
+
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (itemType) {
+        whereClause.itemType = itemType;
+      }
+
+      if (inventoryCategoryId) {
+        whereClause.inventoryCategoryId = inventoryCategoryId;
+      }
+
+      if (showInPricelist !== undefined) {
+        whereClause.showInPricelist = showInPricelist;
+      }
+
+      const skip = (page - 1) * perPage;
+
+      const items = await ctx.db.inventoryItem.findMany({
+        skip: skip,
+        take: perPage,
+        where: whereClause,
+        include: {
+          inventoryCategory: true,
+        },
+        orderBy: {
+          [sortBy]: sortDirection,
+        },
+      });
+
+      const totalCount = await ctx.db.inventoryItem.count({
+        where: whereClause,
+      });
+
+      const totalPages = Math.ceil(totalCount / perPage);
+
+      return {
+        items,
+        pagination: {
+          page,
+          perPage,
+          totalCount,
+          totalPages,
+        },
+      };
+    }),
+
   // Enhanced Excel import preview
   previewExcelImport: companyProtectedProcedure
     .input(ExcelImportPreviewSchema)
@@ -97,7 +158,7 @@ export const inventoryRouter = createTRPCRouter({
         const result = await prisma.$transaction(async (tx) => {
           const createdItems: any[] = [];
           const updatedItems: any[] = [];
-          let inventoryTransactions: any[] = [];
+          const inventoryTransactions: any[] = [];
 
           // Create new items
           for (const newItem of input.preview.newItems) {
