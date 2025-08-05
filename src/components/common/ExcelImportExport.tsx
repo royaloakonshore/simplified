@@ -363,7 +363,7 @@ export function ExcelImportExport({
 
       {/* Enhanced Import Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogContent className="max-w-6xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Import Preview - Conservative Validation</DialogTitle>
             <DialogDescription>
@@ -372,10 +372,10 @@ export function ExcelImportExport({
           </DialogHeader>
 
           {importPreview && (
-            <ScrollArea className="max-h-[60vh]">
+            <ScrollArea className="max-h-[70vh]">
               <div className="space-y-6">
                 {/* Summary */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
                   <Card>
                     <CardContent className="p-4">
                       <div className="text-2xl font-bold text-green-600">
@@ -441,8 +441,8 @@ export function ExcelImportExport({
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       New Items ({importPreview.newItems.length})
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {importPreview.newItems.slice(0, 10).map((item, index) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {importPreview.newItems.slice(0, 15).map((item, index) => (
                         <Card key={index} className="p-3">
                           <div className="text-sm">
                             <p className="font-medium">{item.name}</p>
@@ -453,9 +453,9 @@ export function ExcelImportExport({
                           </div>
                         </Card>
                       ))}
-                      {importPreview.newItems.length > 10 && (
+                      {importPreview.newItems.length > 15 && (
                         <p className="text-sm text-muted-foreground col-span-full">
-                          ... and {importPreview.newItems.length - 10} more items
+                          ... and {importPreview.newItems.length - 15} more items
                         </p>
                       )}
                     </div>
@@ -470,13 +470,13 @@ export function ExcelImportExport({
                       Updates ({importPreview.updateItems.length})
                     </h4>
                     <div className="space-y-3">
-                      {importPreview.updateItems.slice(0, 5).map((item, index) => (
+                      {importPreview.updateItems.slice(0, 8).map((item, index) => (
                         <Card key={index} className="p-3">
                           <div className="space-y-2">
                             <p className="font-medium">
                               {item.newData.name} {item.sku && `(${item.sku})`}
                             </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
                               {Object.entries(item.changes).map(([field, change]) => (
                                 <div key={field} className="flex justify-between">
                                   <span className="text-muted-foreground">
@@ -497,9 +497,9 @@ export function ExcelImportExport({
                           </div>
                         </Card>
                       ))}
-                      {importPreview.updateItems.length > 5 && (
+                      {importPreview.updateItems.length > 8 && (
                         <p className="text-sm text-muted-foreground">
-                          ... and {importPreview.updateItems.length - 5} more updates
+                          ... and {importPreview.updateItems.length - 8} more updates
                         </p>
                       )}
                     </div>
