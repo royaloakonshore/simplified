@@ -143,7 +143,12 @@ export default function ReplenishmentPage() {
     search: searchTerm,
   });
 
-  const filteredItems = inventoryData?.data || [];
+  const filteredItems = inventoryData?.items?.map(item => ({
+    ...item,
+    quantityOnHand: item.quantityOnHand.toString(),
+    reorderLevel: item.reorderLevel?.toString() || null,
+    costPrice: item.costPrice.toString(),
+  })) || [];
 
   if (isLoading) {
     return (

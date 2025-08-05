@@ -38,7 +38,7 @@ export default function PriceListPage() {
     name: item.name,
     description: item.description,
     itemType: item.itemType,
-    salesPrice: item.salesPrice,
+    salesPrice: item.salesPrice.toString(),
     inventoryCategory: item.inventoryCategory,
     variant: item.variant,
     showInPricelist: item.showInPricelist,
@@ -66,10 +66,10 @@ export default function PriceListPage() {
         </Button>
       </div>
 
-      {inventoryData?.meta?.totalCount && inventoryData.meta.totalCount > 100 && (
+      {inventoryData?.pagination?.totalCount && inventoryData.pagination.totalCount > 100 && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
           <p className="text-sm text-yellow-800">
-            Showing first 100 items of {inventoryData.meta.totalCount} total. 
+            Showing first 100 items of {inventoryData.pagination.totalCount} total. 
             Consider implementing pagination for complete price list.
           </p>
         </div>

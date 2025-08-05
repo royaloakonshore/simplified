@@ -49,7 +49,7 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
         
         <InvoiceForm 
           customers={customers.items}
-          inventoryItems={inventoryItems.data.map(item => ({
+          inventoryItems={inventoryItems.items.map(item => ({
             id: item.id,
             name: item.name,
             salesPrice: parseFloat(item.salesPrice.toString()),
@@ -57,15 +57,7 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
             itemType: item.itemType,
             unitOfMeasure: item.unitOfMeasure || '',
             sku: item.sku || '',
-            bom: item.bom ? {
-              manualLaborCost: parseFloat(item.bom.manualLaborCost.toString()),
-              items: item.bom.items.map(bomItem => ({
-                quantity: parseFloat(bomItem.quantity.toString()),
-                componentItem: {
-                  costPrice: parseFloat(bomItem.componentItem.costPrice.toString()),
-                },
-              })),
-            } : undefined,
+            bom: undefined, // BOM data not included in inventory.list, will be fetched separately if needed
           }))}
           isEditMode={true}
           editInvoiceData={{

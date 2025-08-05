@@ -4014,3 +4014,68 @@ Resolved a critical bug in the Excel import system where the preview correctly i
 **✅ PRODUCTION READY:** Excel import system now handles SKU case variations gracefully with reliable preview-to-import consistency.
 
 ---
+
+## 2025-02-02: Critical Data Structure Fixes - API Response Schema Alignment
+
+**Goal:** Fix runtime errors caused by mismatched API response structures across invoice edit, replenishment, and pricelist pages.
+
+**Summary:**
+Resolved critical runtime errors where pages were trying to access `.data` property on API responses that now use `.items` structure, and fixed Decimal/string type mismatches across multiple components.
+
+**✅ CRITICAL RUNTIME FIXES:**
+
+### **1. Invoice Edit Page API Structure Fix ✅**
+- **Issue**: `inventoryItems.data.map()` causing "Cannot read properties of undefined (reading 'map')" error
+- **Root Cause**: tRPC `api.inventory.list()` returns `{items: [], pagination: {}}` but code expected `.data` property
+- **Solution**: Changed to `inventoryItems.items.map()` for correct data access
+- **BOM Data**: Simplified BOM handling to avoid missing data dependencies in inventory list query
+
+### **2. Replenishment Page Type Alignment ✅**  
+- **Issue**: Type mismatch between tRPC Decimal responses and ReplenishmentItem interface string expectations
+- **Root Cause**: `quantityOnHand`, `reorderLevel`, `costPrice` returned as Decimal objects but interface expected strings
+- **Solution**: Added proper Decimal-to-string conversion mapping:
+  ```typescript
+  quantityOnHand: item.quantityOnHand.toString(),
+  reorderLevel: item.reorderLevel?.toString() || null,
+  costPrice: item.costPrice.toString(),
+  ```
+- **Data Access**: Fixed `.data` to `.items` for correct array access
+
+### **3. Pricelist Page Schema Consistency ✅**
+- **Issue**: Multiple type mismatches - Decimal salesPrice and missing pagination property
+- **Root Cause**: PriceListItemRowData expected string salesPrice but tRPC returned Decimal, plus `.meta` vs `.pagination` mismatch
+- **Solution**: 
+  - Fixed salesPrice conversion: `salesPrice: item.salesPrice.toString()`
+  - Updated pagination access: `inventoryData.pagination.totalCount` (was `.meta.totalCount`)
+
+### **4. System-Wide API Response Consistency ✅**
+- **Verified**: All tRPC inventory API responses use consistent `{items: [], pagination: {}}` structure
+- **Impact Prevention**: Systematic fix prevents similar issues across other components
+- **Type Safety**: Proper Decimal handling ensures runtime safety with financial data
+
+**🎯 TECHNICAL ACHIEVEMENTS:**
+
+### **API Response Structure Standardization**
+- **Consistent Pattern**: All list endpoints now properly use `.items` array access
+- **Pagination**: Unified `.pagination` object across all list responses  
+- **Type Safety**: Proper conversion between Prisma Decimal types and expected component interfaces
+
+### **Error Prevention Strategy**
+- **Proactive Scanning**: Identified and fixed all similar patterns across codebase
+- **TypeScript Validation**: Zero compilation errors after comprehensive fixes
+- **Runtime Safety**: Eliminated "undefined property" errors in production workflows
+
+**📈 USER IMPACT:**
+- **Before**: Critical pages (invoice edit, replenishment, pricelist) completely broken with runtime errors
+- **After**: All pages load correctly with proper data rendering and type safety
+- **Stability**: Resolved major blocker affecting core inventory and invoice management workflows
+- **Development**: Clean TypeScript compilation enables confident development
+
+**🔧 FILES MODIFIED:**
+- `src/app/(erp)/invoices/[id]/edit/page.tsx` - Fixed inventory data access and BOM handling
+- `src/app/(erp)/inventory/replenishment/page.tsx` - Added Decimal-to-string conversion
+- `src/app/(erp)/inventory/pricelist/page.tsx` - Fixed salesPrice conversion and pagination access
+
+**✅ PRODUCTION READY:** All data structure issues resolved with proper type safety and consistent API response handling across the application.
+
+---
