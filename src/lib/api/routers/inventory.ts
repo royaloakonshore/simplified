@@ -228,7 +228,10 @@ export const inventoryRouter = createTRPCRouter({
             // Find the existing item
             const existingItem = await tx.inventoryItem.findFirst({
               where: { 
-                sku: sku,
+                sku: {
+                  equals: sku,
+                  mode: 'insensitive'
+                },
                 companyId: ctx.companyId,
               },
             });

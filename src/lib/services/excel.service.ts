@@ -617,8 +617,8 @@ export function importInventoryFromExcelWithValidation(
       };
 
       // Determine if this is a new item or update
-      if (itemData.sku && existingItemsBySku.has(itemData.sku)) {
-        const existingItem = existingItemsBySku.get(itemData.sku)!;
+      if (itemData.sku && existingItemsBySku.has(itemData.sku.toUpperCase())) {
+        const existingItem = existingItemsBySku.get(itemData.sku.toUpperCase())!;
         const changes: Record<string, { old: any; new: any }> = {};
 
         // Compare fields and track changes
@@ -662,7 +662,7 @@ export function importInventoryFromExcelWithValidation(
         // Only add to update list if there are actual changes
         if (Object.keys(changes).length > 0) {
           updateItems.push({
-            sku: itemData.sku,
+            sku: existingItem.sku || itemData.sku!, // Use existing SKU or fallback to itemData SKU
             existingData: existingItem,
             newData: itemData,
             changes

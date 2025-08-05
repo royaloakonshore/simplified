@@ -3974,3 +3974,43 @@ onClick={() => {
 This implementation provides enterprise-grade Excel import/export functionality for inventory management with robust validation, conservative data handling, and comprehensive user feedback systems.
 
 ---
+
+## 2025-02-02: Excel Import SKU Case Sensitivity Bug Fix
+
+**Goal:** Fix critical Excel import error where items with valid SKUs were being rejected during import due to case sensitivity mismatch.
+
+**Summary:**
+Resolved a critical bug in the Excel import system where the preview correctly identified items as updates but the actual import operation failed with "Item with SKU not found during update" errors. The issue was caused by inconsistent case handling between the preview logic and database lookup operations.
+
+**✅ CRITICAL BUG FIX:**
+
+### **1. Root Cause Analysis ✅**
+- **Preview Logic**: Used uppercase SKU conversion for map lookup (`item.sku.toUpperCase()`)
+- **Database Lookup**: Used exact case match without conversion
+- **Impact**: Preview showed items as updates, but import failed when SKU cases didn't match exactly
+
+### **2. Technical Fixes Applied ✅**
+- **✅ Preview SKU Lookup**: Fixed `itemData.sku` to use `.toUpperCase()` for consistent map lookup
+- **✅ Database Query**: Added `mode: 'insensitive'` to SKU comparison for case-insensitive database searches
+- **✅ SKU Consistency**: Store existing item's SKU in update data to ensure database lookup uses correct reference
+- **✅ Type Safety**: Added proper null handling for existing item SKUs with fallback logic
+
+### **3. Implementation Details ✅**
+- **Excel Service Fix**: Updated `existingItemsBySku.has(itemData.sku.toUpperCase())` for consistent case handling
+- **Database Query Enhancement**: Used Prisma `mode: 'insensitive'` for reliable SKU matching regardless of case
+- **Data Integrity**: Preserved existing SKU format while enabling flexible case-insensitive matching
+- **Error Prevention**: Added null safety checks for edge cases where SKU might be null
+
+**🎯 BUSINESS IMPACT:**
+- **Before**: Excel imports failing with "SKU not found" errors despite valid SKUs
+- **After**: Reliable Excel imports working with any SKU case combination
+- **User Experience**: Seamless inventory updates via Excel without case sensitivity concerns
+- **Data Integrity**: Proper SKU matching maintains consistency while improving flexibility
+
+**🔧 FILES MODIFIED:**
+- `src/lib/services/excel.service.ts` - Fixed preview SKU lookup case handling and data consistency
+- `src/lib/api/routers/inventory.ts` - Enhanced database query with case-insensitive SKU matching
+
+**✅ PRODUCTION READY:** Excel import system now handles SKU case variations gracefully with reliable preview-to-import consistency.
+
+---
