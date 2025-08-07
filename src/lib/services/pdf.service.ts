@@ -731,6 +731,341 @@ async function generateWorkOrderQRCode(order: any): Promise<string> {
 }
 
 /**
+ * Generate QR code for work order status updates
+ */
+async function generateWorkOrderQR(orderId: string): Promise<string> {
+  try {
+    const qrData = `ORDER:${orderId}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    return qrCodeDataUrl;
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return '';
+  }
+}
+
+/**
+ * Generate HTML template for work order (no pricing, includes QR code)
+ */
+async function generateWorkOrderHtml(order: OrderWithDetails): Promise<string> {
+  const documentType = 'TYÖTILAUS';
+  const documentTypeEn = 'WORK ORDER';
+  
+  // Get customer language for localization
+  const customerLanguage = order.customer?.language || CustomerLanguage.FI;
+  const isEnglish = customerLanguage === CustomerLanguage.EN;
+  
+  // Get billing address from customer addresses
+  const billingAddress = order.customer?.addresses?.find(addr => addr.type === AddressType.billing) 
+    || order.customer?.addresses?.[0];
+  
+  // Generate QR code for mobile status updates
+  const qrCodeDataUrl = await generateWorkOrderQR(order.id);
+  
+  return `
+    <!DOCTYPE html>
+    <html lang="${customerLanguage.toLowerCase()}">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${documentType} ${order.orderNumber}</title>
+      <style>
+        ${getWorkOrderStyles()}
+      </style>
+    </head>
+    <body>
+      <div class="work-order-container">
+        <!-- Header Section -->
+        <div class="header-section">
+          <div class="header-content">
+            <div class="company-info">
+              <h1>${order.company?.name || 'Yritys Oy'}</h1>
+              <p>Yrityskatu 1</p>
+              <p>00100 Helsinki, Finland</p>
+              <p>${isEnglish ? 'Phone' : 'Puhelin'}: +358 9 123 4567</p>
+            </div>
+            <div class="document-type">
+              <h2>${documentType}</h2>
+              <p class="document-type-en">${documentTypeEn}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Details Section -->
+        <div class="details-section">
+          <div class="details-content">
+            <!-- Customer Information -->
+            <div class="customer-info">
+              <h3>${isEnglish ? 'Customer Information' : 'Asiakastiedot'}</h3>
+              <div>
+                <p><strong>${order.customer.name}</strong></p>
+                ${billingAddress ? `
+                  <p>${billingAddress.streetAddress}</p>
+                  <p>${billingAddress.postalCode} ${billingAddress.city}</p>
+                ` : ''}
+                ${order.customer.email ? `<p>${isEnglish ? 'Email' : 'Sähköposti'}: ${order.customer.email}</p>` : ''}
+                ${order.customer.phone ? `<p>${isEnglish ? 'Phone' : 'Puhelin'}: ${order.customer.phone}</p>` : ''}
+                ${order.customer.vatId ? 
+                  `<p>${isEnglish ? 'VAT' : 'ALV'}: ${order.customer.vatId}</p>` : ''}
+              </div>
+            </div>
+
+            <!-- Work Order Information -->
+            <div class="order-info">
+              <h3>${isEnglish ? 'Work Order Details' : 'Työtilauksen tiedot'}</h3>
+              <table class="info-table">
+                <tr>
+                  <td>${isEnglish ? 'Order Number' : 'Tilausnumero'}:</td>
+                  <td>${order.orderNumber}</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'Order Date' : 'Tilauspäivä'}:</td>
+                  <td>${new Date(order.createdAt).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : 'fi-FI')}</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'Delivery Date' : 'Toimituspäivä'}:</td>
+                  <td>${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : 'fi-FI') : '-'}</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'Status' : 'Tila'}:</td>
+                  <td>${order.status.replace('_', ' ').toUpperCase()}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="items-section">
+          <h3>${isEnglish ? 'Items' : 'Tuotteet'}</h3>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>${isEnglish ? 'Item' : 'Tuote'}</th>
+                <th>${isEnglish ? 'Description' : 'Kuvaus'}</th>
+                <th>${isEnglish ? 'Quantity' : 'Määrä'}</th>
+                <th>${isEnglish ? 'Unit' : 'Yksikkö'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${order.items.map(item => `
+                <tr>
+                  <td>${item.inventoryItem.sku}</td>
+                  <td>${item.inventoryItem.name}</td>
+                  <td>${item.quantity}</td>
+                  <td>${item.inventoryItem.unitOfMeasure || 'kpl'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- QR Code Section for Mobile Status Updates -->
+        <div class="qr-section">
+          <h3>${isEnglish ? 'Mobile Status Update' : 'Mobiili tilapäivitys'}</h3>
+          <p>${isEnglish ? 'Scan this QR code with your phone to update order status:' : 'Skannaa tämä QR-koodi puhelimellasi päivittääksesi tilauksen tilan:'}</p>
+          ${qrCodeDataUrl ? `
+            <div class="qr-code-container">
+              <img src="${qrCodeDataUrl}" alt="QR Code for order status update" class="qr-code" />
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Footer -->
+        <div class="footer-section">
+          <div class="footer-content">
+            <div style="width: 50%;">
+              <div><strong>${order.company?.name || 'Yritys Oy'}</strong></div>
+              <div>Yrityskatu 1</div>
+              <div>00100 Helsinki</div>
+            </div>
+            <div style="width: 50%;">
+              <div>${isEnglish ? 'Phone' : 'Puhelin'}: +358 9 123 4567</div>
+              <div>${isEnglish ? 'Email' : 'Sähköposti'}: info@yritys.fi</div>
+              <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: 1234567-8</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+/**
+ * Generate HTML template for quotation (includes pricing)
+ */
+function generateQuotationHtml(order: OrderWithDetails): string {
+  const documentType = 'TARJOUS';
+  const documentTypeEn = 'QUOTATION';
+  
+  // Get customer language for localization
+  const customerLanguage = order.customer?.language || CustomerLanguage.FI;
+  const isEnglish = customerLanguage === CustomerLanguage.EN;
+  
+  // Get billing address from customer addresses
+  const billingAddress = order.customer?.addresses?.find(addr => addr.type === AddressType.billing) 
+    || order.customer?.addresses?.[0];
+  
+  // Calculate totals
+  const subtotal = order.items.reduce((sum, item) => {
+    const itemTotal = new Decimal(item.quantity.toString()).times(new Decimal(item.unitPrice.toString()));
+    return sum.plus(itemTotal);
+  }, new Decimal(0));
+  
+  const vatAmount = new Decimal(order.totalVatAmount?.toString() || '0');
+  const total = new Decimal(order.totalAmount?.toString() || '0');
+  
+  return `
+    <!DOCTYPE html>
+    <html lang="${customerLanguage.toLowerCase()}">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${documentType} ${order.orderNumber}</title>
+      <style>
+        ${getQuotationStyles()}
+      </style>
+    </head>
+    <body>
+      <div class="quotation-container">
+        <!-- Header Section -->
+        <div class="header-section">
+          <div class="header-content">
+            <div class="company-info">
+              <h1>${order.company?.name || 'Yritys Oy'}</h1>
+              <p>Yrityskatu 1</p>
+              <p>00100 Helsinki, Finland</p>
+              <p>${isEnglish ? 'Phone' : 'Puhelin'}: +358 9 123 4567</p>
+            </div>
+            <div class="document-type">
+              <h2>${documentType}</h2>
+              <p class="document-type-en">${documentTypeEn}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Details Section -->
+        <div class="details-section">
+          <div class="details-content">
+            <!-- Customer Information -->
+            <div class="customer-info">
+              <h3>${isEnglish ? 'Customer Information' : 'Asiakastiedot'}</h3>
+              <div>
+                <p><strong>${order.customer.name}</strong></p>
+                ${billingAddress ? `
+                  <p>${billingAddress.streetAddress}</p>
+                  <p>${billingAddress.postalCode} ${billingAddress.city}</p>
+                ` : ''}
+                ${order.customer.email ? `<p>${isEnglish ? 'Email' : 'Sähköposti'}: ${order.customer.email}</p>` : ''}
+                ${order.customer.phone ? `<p>${isEnglish ? 'Phone' : 'Puhelin'}: ${order.customer.phone}</p>` : ''}
+                ${order.customer.vatId ? 
+                  `<p>${isEnglish ? 'VAT' : 'ALV'}: ${order.customer.vatId}</p>` : ''}
+              </div>
+            </div>
+
+            <!-- Quotation Information -->
+            <div class="order-info">
+              <h3>${isEnglish ? 'Quotation Details' : 'Tarjouksen tiedot'}</h3>
+              <table class="info-table">
+                <tr>
+                  <td>${isEnglish ? 'Order Number' : 'Tilausnumero'}:</td>
+                  <td>${order.orderNumber}</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'Order Date' : 'Tilauspäivä'}:</td>
+                  <td>${new Date(order.createdAt).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : 'fi-FI')}</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'Delivery Date' : 'Toimituspäivä'}:</td>
+                  <td>${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : 'fi-FI') : '-'}</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'Payment Terms' : 'Maksuehdot'}:</td>
+                  <td>${order.paymentTerms || '14 days'}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="items-section">
+          <h3>${isEnglish ? 'Items' : 'Tuotteet'}</h3>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>${isEnglish ? 'Item' : 'Tuote'}</th>
+                <th>${isEnglish ? 'Description' : 'Kuvaus'}</th>
+                <th>${isEnglish ? 'Quantity' : 'Määrä'}</th>
+                <th>${isEnglish ? 'Unit Price' : 'Yksikköhinta'}</th>
+                <th>${isEnglish ? 'Total' : 'Yhteensä'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${order.items.map(item => {
+                const itemTotal = new Decimal(item.quantity.toString()).times(new Decimal(item.unitPrice.toString()));
+                return `
+                  <tr>
+                    <td>${item.inventoryItem.sku}</td>
+                    <td>${item.inventoryItem.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${new Decimal(item.unitPrice.toString()).toFixed(2)} €</td>
+                    <td>${itemTotal.toFixed(2)} €</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Totals Section -->
+        <div class="totals-section">
+          <table class="totals-table">
+            <tr>
+              <td>${isEnglish ? 'Subtotal' : 'Välisumma'}:</td>
+              <td>${subtotal.toFixed(2)} €</td>
+            </tr>
+            <tr>
+              <td>${isEnglish ? 'VAT' : 'ALV'} ${order.items[0]?.vatRatePercent?.toString() || '24'} %:</td>
+              <td>${vatAmount.toFixed(2)} €</td>
+            </tr>
+            <tr class="total-row">
+              <td><strong>${isEnglish ? 'Total' : 'Yhteensä'}:</strong></td>
+              <td><strong>${total.toFixed(2)} €</strong></td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer-section">
+          <div class="footer-content">
+            <div style="width: 50%;">
+              <div><strong>${order.company?.name || 'Yritys Oy'}</strong></div>
+              <div>${order.company?.streetAddress || 'Yrityskatu 1'}</div>
+              <div>${order.company?.postalCode || '00100'} ${order.company?.city || 'Helsinki'}</div>
+            </div>
+            <div style="width: 50%;">
+              <div>${order.company?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${order.company.phone}` : ''}</div>
+              <div>${order.company?.email ? `${isEnglish ? 'Email' : 'Sähköposti'}: ${order.company.email}` : ''}</div>
+              <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: ${order.company?.businessId || '1234567-8'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+/**
  * CSS styles for invoice PDF
  */
 function getEnhancedInvoiceStyles(): string {
@@ -1281,6 +1616,503 @@ function getOrderStyles(): string {
     
     @media print {
       .order-container {
+        margin: 0;
+        padding: 0;
+      }
+    }
+  `;
+}
+
+/**
+ * CSS styles for work order PDF
+ */
+function getWorkOrderStyles(): string {
+  return `
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #333;
+    }
+    
+    .work-order-container {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 0;
+    }
+    
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 20px;
+    }
+    
+    .header-content {
+      display: flex;
+      align-items: flex-end;
+    }
+    
+    .company-info {
+      text-align: left;
+      margin-right: 20px;
+    }
+    
+    .company-name {
+      font-size: 24px;
+      color: #0066cc;
+      margin-bottom: 10px;
+    }
+    
+    .company-address {
+      font-size: 11px;
+      color: #333;
+      line-height: 1.2;
+    }
+    
+    .document-type {
+      text-align: left;
+      font-weight: bold;
+      font-size: large;
+      padding-left: 14px;
+    }
+    
+    .document-type h2 {
+      font-size: 1.5em;
+      margin: 0;
+    }
+    
+    .document-type p {
+      font-size: 0.8em;
+      color: #666;
+      margin: 0;
+    }
+    
+    .details-section {
+      min-height: 6.68cm;
+      display: flex;
+      margin-top: 3em;
+      margin-bottom: 4em;
+    }
+    
+    .details-content {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+    
+    .customer-info {
+      width: 50%;
+      font-size: 1.1em;
+    }
+    
+    .customer-info h3 {
+      color: #0066cc;
+      margin-bottom: 0.5em;
+      font-size: 14px;
+    }
+    
+    .customer-info p {
+      margin: 0.2em 0;
+    }
+    
+    .order-info {
+      width: 50%;
+    }
+    
+    .info-table {
+      line-height: 1.5em;
+      width: 100%;
+    }
+    
+    .info-table td {
+      padding: 0.2em 0;
+    }
+    
+    .info-table td:first-child {
+      width: 60%;
+      padding-left: 2em;
+    }
+    
+    .info-table td:last-child {
+      padding-left: 2em;
+      font-weight: bold;
+    }
+    
+    .items-section {
+      min-height: 13.70cm;
+    }
+    
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1em;
+    }
+    
+    .items-table th,
+    .items-table td {
+      border: 1px solid #ddd;
+      padding: 0.5em 0;
+      text-align: left;
+    }
+    
+    .items-table th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      color: #0066cc;
+    }
+    
+    .items-table td:nth-child(2),
+    .items-table td:nth-child(3),
+    .items-table td:nth-child(4),
+    .items-table td:nth-child(5),
+    .items-table td:nth-child(6) {
+      text-align: right;
+    }
+    
+    .quotation-summary,
+    .work-order-instructions,
+    .qr-section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #0066cc;
+    }
+    
+    .quotation-summary h3,
+    .work-order-instructions h3,
+    .qr-section h3 {
+      color: #0066cc;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .summary-table,
+    .instructions-content,
+    .qr-container {
+      margin-top: 15px;
+    }
+    
+    .summary-table tr,
+    .instructions-content p,
+    .qr-container p {
+      margin-bottom: 5px;
+    }
+    
+    .summary-table td,
+    .instructions-content strong,
+    .qr-container strong {
+      font-weight: bold;
+    }
+    
+    .footer-section {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+    
+    .footer-content div {
+      width: 50%;
+      text-align: left;
+    }
+    
+    .footer-content div strong {
+      font-size: 1.1em;
+      color: #0066cc;
+    }
+    
+    .footer-content div p {
+      margin-bottom: 2px;
+    }
+    
+    .qr-section {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #0066cc;
+    }
+    
+    .qr-section h3 {
+      color: #0066cc;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .qr-container {
+      margin-top: 15px;
+    }
+    
+    .qr-code-visual {
+      text-align: center;
+    }
+    
+    .qr-code-visual img {
+      max-width: 100px;
+      max-height: 100px;
+      margin: 0 auto 10px;
+    }
+    
+    .qr-code-visual p {
+      font-size: 0.7em;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .qr-code-placeholder {
+      text-align: center;
+      color: #666;
+    }
+    
+    .qr-code-placeholder p {
+      margin-bottom: 5px;
+    }
+    
+    .qr-instructions {
+      margin-top: 10px;
+    }
+    
+    .qr-instructions h4 {
+      color: #0066cc;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+    
+    .qr-instructions ol {
+      padding-left: 20px;
+    }
+    
+    .qr-instructions li {
+      margin-bottom: 3px;
+    }
+    
+    @media print {
+      .work-order-container {
+        margin: 0;
+        padding: 0;
+      }
+    }
+  `;
+}
+
+/**
+ * CSS styles for quotation PDF
+ */
+function getQuotationStyles(): string {
+  return `
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #333;
+    }
+    
+    .quotation-container {
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 0;
+    }
+    
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 20px;
+    }
+    
+    .header-content {
+      display: flex;
+      align-items: flex-end;
+    }
+    
+    .company-info {
+      text-align: left;
+      margin-right: 20px;
+    }
+    
+    .company-name {
+      font-size: 24px;
+      color: #0066cc;
+      margin-bottom: 10px;
+    }
+    
+    .company-address {
+      font-size: 11px;
+      color: #333;
+      line-height: 1.2;
+    }
+    
+    .document-type {
+      text-align: left;
+      font-weight: bold;
+      font-size: large;
+      padding-left: 14px;
+    }
+    
+    .document-type h2 {
+      font-size: 1.5em;
+      margin: 0;
+    }
+    
+    .document-type p {
+      font-size: 0.8em;
+      color: #666;
+      margin: 0;
+    }
+    
+    .details-section {
+      min-height: 6.68cm;
+      display: flex;
+      margin-top: 3em;
+      margin-bottom: 4em;
+    }
+    
+    .details-content {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+    
+    .customer-info {
+      width: 50%;
+      font-size: 1.1em;
+    }
+    
+    .customer-info h3 {
+      color: #0066cc;
+      margin-bottom: 0.5em;
+      font-size: 14px;
+    }
+    
+    .customer-info p {
+      margin: 0.2em 0;
+    }
+    
+    .order-info {
+      width: 50%;
+    }
+    
+    .info-table {
+      line-height: 1.5em;
+      width: 100%;
+    }
+    
+    .info-table td {
+      padding: 0.2em 0;
+    }
+    
+    .info-table td:first-child {
+      width: 60%;
+      padding-left: 2em;
+    }
+    
+    .info-table td:last-child {
+      padding-left: 2em;
+      font-weight: bold;
+    }
+    
+    .items-section {
+      min-height: 13.70cm;
+    }
+    
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1em;
+    }
+    
+    .items-table th,
+    .items-table td {
+      border: 1px solid #ddd;
+      padding: 0.5em 0;
+      text-align: left;
+    }
+    
+    .items-table th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+      color: #0066cc;
+    }
+    
+    .items-table td:nth-child(2),
+    .items-table td:nth-child(3),
+    .items-table td:nth-child(4),
+    .items-table td:nth-child(5),
+    .items-table td:nth-child(6) {
+      text-align: right;
+    }
+    
+    .totals-section {
+      margin-top: 2em;
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    .totals-table {
+      width: 300px;
+    }
+    
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3em 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .total-final {
+      border-bottom: 2px solid #0066cc;
+      border-top: 2px solid #0066cc;
+      font-size: 1.2em;
+      padding: 10px 0;
+    }
+    
+    .footer-section {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+    
+    .footer-content div {
+      width: 50%;
+      text-align: left;
+    }
+    
+    .footer-content div strong {
+      font-size: 1.1em;
+      color: #0066cc;
+    }
+    
+    .footer-content div p {
+      margin-bottom: 2px;
+    }
+    
+    @media print {
+      .quotation-container {
         margin: 0;
         padding: 0;
       }
