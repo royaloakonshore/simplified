@@ -773,7 +773,28 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                           return;
                                         }
                                         
-                                        if (isValidNordicNumber(value)) {
+                                        // Allow any input, just convert comma to dot for parsing
+                                        const numericValue = parseNordicNumber(value);
+                                        if (!isNaN(numericValue)) {
+                                          field.onChange(numericValue);
+                                          
+                                          // Auto-calculate discount amount when percent changes
+                                          if (numericValue > 0) {
+                                            const currentItem = form.getValues(`items.${index}`);
+                                            const rowTotal = (currentItem.quantity || 0) * (currentItem.unitPrice || 0);
+                                            const discountAmount = rowTotal * (numericValue / 100);
+                                            form.setValue(`items.${index}.discountAmount`, discountAmount);
+                                          } else {
+                                            form.setValue(`items.${index}.discountAmount`, null);
+                                          }
+                                        } else {
+                                          // Allow typing intermediate values
+                                          field.onChange(value);
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value !== '') {
                                           const numericValue = parseNordicNumber(value);
                                           if (!isNaN(numericValue)) {
                                             field.onChange(numericValue);
@@ -787,13 +808,9 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                             } else {
                                               form.setValue(`items.${index}.discountAmount`, null);
                                             }
+                                          } else {
+                                            field.onChange(null);
                                           }
-                                        }
-                                      }}
-                                      onBlur={(e) => {
-                                        const value = e.target.value;
-                                        if (value !== '' && !isValidNordicNumber(value)) {
-                                          field.onChange(null);
                                         }
                                         field.onBlur();
                                       }}
@@ -824,17 +841,24 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                           return;
                                         }
                                         
-                                        if (isValidNordicNumber(value)) {
-                                          const numericValue = parseNordicNumber(value);
-                                          if (!isNaN(numericValue)) {
-                                            field.onChange(numericValue);
-                                          }
+                                        // Allow any input, just convert comma to dot for parsing
+                                        const numericValue = parseNordicNumber(value);
+                                        if (!isNaN(numericValue)) {
+                                          field.onChange(numericValue);
+                                        } else {
+                                          // Allow typing intermediate values
+                                          field.onChange(value);
                                         }
                                       }}
                                       onBlur={(e) => {
                                         const value = e.target.value;
-                                        if (value !== '' && !isValidNordicNumber(value)) {
-                                          field.onChange(null);
+                                        if (value !== '') {
+                                          const numericValue = parseNordicNumber(value);
+                                          if (!isNaN(numericValue)) {
+                                            field.onChange(numericValue);
+                                          } else {
+                                            field.onChange(null);
+                                          }
                                         }
                                         field.onBlur();
                                       }}
@@ -1080,6 +1104,49 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
               />
               <FormField
                 control={form.control}
+                name="deliveryDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Delivery Date</FormLabel>
+                    <FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value || undefined}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="complaintPeriod"
                 render={({ field }) => (
                   <FormItem>
@@ -1109,21 +1176,24 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                             return;
                           }
                           
-                          if (isValidNordicNumber(value)) {
-                            const numericValue = parseNordicNumber(value);
-                            if (!isNaN(numericValue)) {
-                              field.onChange(numericValue);
-                            }
+                          // Allow any input, just convert comma to dot for parsing
+                          const numericValue = parseNordicNumber(value);
+                          if (!isNaN(numericValue)) {
+                            field.onChange(numericValue);
                           } else {
-                            // Allow typing but don't update the form value with invalid input
-                            // This allows the user to type intermediate states like "10," before "10,5"
+                            // Allow typing intermediate values
+                            field.onChange(value);
                           }
                         }}
                         onBlur={(e) => {
                           const value = e.target.value;
-                          if (value !== '' && !isValidNordicNumber(value)) {
-                            // Clear invalid value on blur
-                            field.onChange(null);
+                          if (value !== '') {
+                            const numericValue = parseNordicNumber(value);
+                            if (!isNaN(numericValue)) {
+                              field.onChange(numericValue);
+                            } else {
+                              field.onChange(null);
+                            }
                           }
                           field.onBlur();
                         }}

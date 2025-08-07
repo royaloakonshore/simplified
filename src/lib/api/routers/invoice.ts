@@ -260,7 +260,7 @@ export const invoiceRouter = createTRPCRouter({
   create: companyProtectedProcedure
     .input(CreateInvoiceSchema)
     .mutation(async ({ ctx, input }) => {
-      const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge, referenceNumber, sellerReference } = input;
+      const { customerId, invoiceDate, dueDate, notes, items, orderId, vatReverseCharge, referenceNumber, sellerReference, complaintPeriod, penaltyInterest, deliveryMethod, ourReference, customerNumber, deliveryDate } = input;
       const userId = ctx.userId;
 
       // Fetch customer data to prefill invoice fields
@@ -386,14 +386,15 @@ export const invoiceRouter = createTRPCRouter({
         vatReverseCharge,
         totalAmount: subTotal, 
             totalVatAmount: totalVatAmountValue,
-        // Prefill customer data fields (editable in invoice form)
-        customerNumber: customer.customerNumber,
-        ourReference: customer.buyerReference, // Map buyerReference to ourReference
-        // Prefill reasonable defaults (editable in invoice form)
+        // Use form values or fallback to customer defaults
+        customerNumber: customerNumber ?? customer.customerNumber,
+        ourReference: ourReference ?? customer.buyerReference, // Map buyerReference to ourReference
+        // Use form values or reasonable defaults
         paymentTermsDays: customer.defaultPaymentTermsDays ?? 14, // Use customer's default or fallback to 14 days
-        deliveryMethod: null, // To be filled by user
-        complaintPeriod: null, // To be filled by user
-        penaltyInterest: null, // To be filled by user
+        deliveryMethod: deliveryMethod ?? null,
+        deliveryDate: deliveryDate ?? null,
+        complaintPeriod: complaintPeriod ?? null,
+        penaltyInterest: penaltyInterest ?? null,
         user: { connect: { id: userId } },
         Company: { connect: { id: ctx.companyId } },
         ...(orderId && { order: { connect: { id: orderId } } }),

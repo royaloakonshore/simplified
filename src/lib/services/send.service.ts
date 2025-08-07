@@ -15,7 +15,11 @@ export async function sendInvoiceEmail(options: {
   const invoice = await prisma.invoice.findUnique({
     where: { id: options.invoiceId },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          addresses: true,
+        },
+      },
       items: {
         include: { inventoryItem: true },
       },
@@ -60,7 +64,11 @@ export async function sendOrderEmail(options: {
   const order = await prisma.order.findUnique({
     where: { id: options.orderId },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          addresses: true,
+        },
+      },
       items: {
         include: { inventoryItem: true },
       },

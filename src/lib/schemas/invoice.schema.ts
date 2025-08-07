@@ -44,6 +44,7 @@ export const CreateInvoiceSchema = z.object({
   ourReference: z.string().nullable().optional(),
   customerNumber: z.string().nullable().optional(),
   deliveryMethod: z.string().nullable().optional(),
+  deliveryDate: z.coerce.date().nullable().optional(),
   complaintPeriod: z.string().nullable().optional().default("7 vrk"),
   penaltyInterest: z.coerce.number().nullable().optional().default(11.5),
   items: z
@@ -68,6 +69,7 @@ export const createInvoiceFromOrderSchema = z.object({
   ourReference: z.string().optional(),
   customerNumber: z.string().optional(),
   deliveryMethod: z.string().optional(),
+  deliveryDate: z.coerce.date().optional(),
   complaintPeriod: z.string().optional().default("7 vrk"),
   penaltyInterest: z.coerce.number().optional().default(11.5),
   vatReverseCharge: z.boolean().default(false),

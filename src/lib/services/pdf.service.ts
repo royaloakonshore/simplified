@@ -288,6 +288,10 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
 function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolean): string {
   const total = new Decimal(invoice.totalAmount?.toString() || '0');
   
+  // Get billing address from customer addresses
+  const billingAddress = invoice.customer?.addresses?.find(addr => addr.type === AddressType.billing) 
+    || invoice.customer?.addresses?.[0];
+  
   return `
     <!-- Company Details Footer -->
     <div style="display: flex; margin-bottom: 1em; font-size: 0.8em;">
