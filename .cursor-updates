@@ -4216,7 +4216,35 @@ The PDF generation system is functionally complete with professional templates, 
 3. **Email Integration**: Create multilingual email templates with PDF attachments
 4. **Company Settings UI**: Add UI for managing company contact and address information
 
+## 2025-02-02: Invoice Form Field Fixes and Comma Input Improvements
+
+**Major Accomplishments:**
+- **✅ Fixed Invoice Field Saving**: Resolved issue where complaint period, penalty interest, delivery method, customer number, and our reference fields were not being saved to database
+- **✅ Added Delivery Date Field**: Implemented delivery date field with date picker in invoice form
+- **✅ Simplified Comma Input**: Improved numeric field handling to allow unrestricted typing while tolerating comma decimal separators
+- **✅ Enhanced Form Schema**: Added deliveryDate to CreateInvoiceSchema and createInvoiceFromOrderSchema
+- **✅ Fixed API Destructuring**: Updated invoice create procedure to properly destructure all form fields from input
+
+**Technical Implementation:**
+- **API Fix**: Updated `src/lib/api/routers/invoice.ts` to destructure missing fields (complaintPeriod, penaltyInterest, deliveryMethod, ourReference, customerNumber, deliveryDate) from input
+- **Form Enhancement**: Added delivery date field with Calendar component to `src/components/invoices/InvoiceForm.tsx`
+- **Schema Updates**: Added deliveryDate field to both CreateInvoiceSchema and createInvoiceFromOrderSchema in `src/lib/schemas/invoice.schema.ts`
+- **Input Simplification**: Replaced restrictive `isValidNordicNumber` validation with more flexible comma-to-dot conversion for penalty interest and discount fields
+- **Type Safety**: Fixed Calendar component type issue for delivery date field
+
+**User Experience Improvements:**
+- **Unrestricted Typing**: Users can now type any characters in numeric fields during input
+- **Comma Tolerance**: Fields automatically convert comma decimal separators to dots for processing
+- **Complete Field Saving**: All invoice form fields now save correctly to database
+- **Date Picker**: Added proper date picker for delivery date with validation
+
+**Remaining Work:**
+- **Three-Dots Menu Integration**: Add PDF export actions to invoice and order table dropdowns
+- **Background Processing**: Implement async PDF generation using Inngest for better UX
+- **Email Integration**: Create multilingual email templates with PDF attachments
+- **Company Settings UI**: Add UI for managing company contact and address information
+
 **Last Updated:** 2025-02-02
-**Status:** Production Ready - Integration Phase
+**Status:** Production Ready - Form Functionality Complete
 
 ---

@@ -140,8 +140,27 @@ const OrderTableRowActions: React.FC<OrderTableRowActionsProps> = ({ order, onAc
     toast.info("Work order conversion functionality will be implemented soon");
   };
 
-  const handleExportPDF = () => {
-    toast.info("PDF export functionality will be implemented soon");
+  const handleExportPDF = async () => {
+    try {
+      const response = await fetch(`/api/pdf/order/${order.id}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${order.orderNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF');
+        toast.error('Failed to generate PDF');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Error generating PDF');
+    }
   };
 
   const canSendToWorkOrder = order.orderType === OrderType.quotation;

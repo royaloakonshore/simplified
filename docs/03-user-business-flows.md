@@ -2,10 +2,14 @@
 
 This document details key user and business process flows within the ERP system.
 
-**Current Context & Progress (Updated 2025-01-31):**
-The application has achieved exceptional production-ready status with comprehensive user flows established for all core operations. The system demonstrates remarkable stability with zero TypeScript compilation errors and robust runtime performance. All major business processes are fully operational including login/authentication, multi-tenancy with company switching, inventory management with advanced features, sales order lifecycle (quotation → work order → production → invoice), comprehensive customer management, and production planning with BOM integration.
+**Current Context & Progress (Updated 2025-02-02):**
+The application has achieved exceptional production-ready status with comprehensive user flows established for all core operations. The system demonstrates remarkable stability with zero TypeScript compilation errors and robust runtime performance. All major business processes are fully operational including login/authentication, multi-tenancy with company switching, inventory management with advanced features, sales order lifecycle (quotation → work order → production → invoice), comprehensive customer management, production planning with BOM integration, and professional PDF generation with Finnish compliance.
 
-**CRITICAL BUSINESS PROCESS ACHIEVEMENTS (2025-01-31):**
+**CRITICAL BUSINESS PROCESS ACHIEVEMENTS (2025-02-02):**
+- **✅ Production-Ready PDF Generation**: Comprehensive PDF system with Finnish Giroblankett payment slips, separate work order and quotation templates, QR code integration for mobile status updates, and customer language-aware content
+- **✅ Invoice Form Field Fixes**: Resolved critical issue where complaint period, penalty interest, delivery method, customer number, and our reference fields were not being saved to database
+- **✅ Enhanced Form Usability**: Added delivery date field with date picker and simplified comma input handling for numeric fields to allow unrestricted typing while tolerating comma decimal separators
+- **✅ Company Schema Enhancement**: Added missing company fields (streetAddress, postalCode, city, phone, email, website, businessId, bankAccount) with proper database migration
 - **✅ Order Lifecycle Excellence**: Complete quotation-to-work-order conversion with proper history preservation, separate record creation, and enhanced delivery date transfer reliability
 - **✅ Production Workflow Mastery**: Enhanced Kanban with shipped order confirmation modal offering three workflow paths, fixed drag sensitivity issues, and improved button functionality
 - **✅ Customer-Centric Processes**: Fixed quotation creation from customer dropdown with proper prefilling and type selection

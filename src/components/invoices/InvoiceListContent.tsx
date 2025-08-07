@@ -18,7 +18,7 @@ import {
   type Column,
   type Row,
 } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal, Download, FileText, Bell } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Download, FileText, Bell, FileDown } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,6 +113,27 @@ function DataTableRowActions<TData extends { id: string }>({
   // Only show reminder option for sent invoices that are not reminders themselves
   const canCreateReminder = invoice.status === PrismaInvoiceStatus.sent && !invoice.isReminder;
   
+  const handlePdfExport = async () => {
+    try {
+      const response = await fetch(`/api/pdf/invoice/${invoice.id}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${invoice.invoiceNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to generate PDF');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
+  
   return (
     <>
       <DropdownMenu>
@@ -129,6 +150,13 @@ function DataTableRowActions<TData extends { id: string }>({
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/invoices/${invoice.id}/edit`}>Edit Invoice</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={handlePdfExport}
+            className="flex items-center gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Export PDF
           </DropdownMenuItem>
           {canCreateReminder && (
             <>
