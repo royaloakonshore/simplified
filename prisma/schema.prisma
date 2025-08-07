@@ -196,6 +196,8 @@ model Order {
   deliveryDate        DateTime?
   productionStep      String?
   totalAmount         Decimal?    @db.Decimal(10, 2)
+  totalVatAmount      Decimal?    @db.Decimal(10, 2)
+  paymentTerms        String?
   companyId           String?
   qrIdentifier        String?     @unique
   originalQuotationId String?
@@ -265,6 +267,8 @@ model Invoice {
   penaltyInterest   Decimal?
   isReminder        Boolean       @default(false)
   reminderSequence  Int?
+  paymentReference  String?
+  bankBarcode       String?
   Company           Company?      @relation(fields: [companyId], references: [id])
   customer          Customer      @relation(fields: [customerId], references: [id])
   order             Order?        @relation("OrderToInvoices", fields: [orderId], references: [id])
@@ -383,6 +387,14 @@ model Company {
   createdAt                    DateTime             @default(now())
   updatedAt                    DateTime             @updatedAt
   name                         String               @unique
+  streetAddress                String?
+  postalCode                   String?
+  city                         String?
+  phone                        String?
+  email                        String?
+  website                      String?
+  businessId                   String?
+  bankAccount                  String?
   billOfMaterials              BillOfMaterial[]
   billOfMaterialItems          BillOfMaterialItem[]
   customers                    Customer[]

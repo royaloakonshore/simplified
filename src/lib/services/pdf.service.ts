@@ -343,9 +343,10 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
             </div>
             <div style="width: 80%; padding: 0.5em; border-left: 2px solid black; font-size: 0.8em;">
               <div><strong>${invoice.customer?.name || ''}</strong></div>
-              ${invoice.customer?.streetAddress ? `<div>${invoice.customer.streetAddress}</div>` : ''}
-              ${invoice.customer?.postalCode && invoice.customer?.city ? 
-                `<div>${invoice.customer.postalCode} ${invoice.customer.city}</div>` : ''}
+              ${billingAddress ? `
+                <div>${billingAddress.streetAddress}</div>
+                <div>${billingAddress.postalCode} ${billingAddress.city}</div>
+              ` : ''}
             </div>
           </div>
 
