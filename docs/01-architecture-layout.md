@@ -541,3 +541,8 @@ ENABLE_FINVOICE_EXPORT=true
 ```
 
 This architecture provides a rock-solid foundation for a production-ready ERP system with exceptional stability, performance, and user experience. All major components are implemented with enterprise-grade quality and comprehensive business logic integration.
+
+---
+
+### Consolidation Note (February 2025)
+- The prior `performance-optimization-strategy.md` has been merged into this document. See sections 7.1 and 7.2 for the authoritative performance guidance (indexes, React Query caching, memoization patterns). Future updates should be made here.

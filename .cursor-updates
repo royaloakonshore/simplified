@@ -1,4 +1,4 @@
-\- fix(pdf): include `Company` relation for invoice/order PDF queries and email attachments; add BOM PDF export via tRPC and UI button; docs cleaned to mark BOM PDF done.
+\- fix(pdf/docs): include Company in PDF queries/emails; finalize BOM PDF export UI; consolidated docs (perf guidance merged into 01-architecture-layout; README marks deprecated files; roadmap clarified).
 \- perf: tightened multi-tenant scoping in production endpoints, narrowed Prisma selects, added query caching options, and parallelized dashboard revenue aggregates; type-check and build green.
 # Cursor Updates - Simplified ERP System
 

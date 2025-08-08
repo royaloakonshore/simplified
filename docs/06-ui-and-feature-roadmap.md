@@ -1,6 +1,6 @@
 # 06: UI and Feature Roadmap
 
-## Current Status
+## Current Status (Consolidated)
 
 The ERP system has established core functionality with the following modules operational:
 - Authentication & Multi-tenancy ✅
@@ -15,7 +15,7 @@ The ERP system has established core functionality with the following modules ope
 - PDF Generation ✅
 - Partial Credit Notes ✅
 
-**UPDATED STATUS (2025-02-01):** Most features have been implemented. System is 95% complete with only performance optimization and minor polish items remaining.
+Note: This roadmap is the canonical UI/features plan. Older overlaps (e.g., `next-steps-guide.md`, `bug-fixes-and-improvements-jan-2025.md`) are kept for history only.
 
 This document outlines the remaining UI/UX enhancements and feature completions needed to reach production-ready state.
 

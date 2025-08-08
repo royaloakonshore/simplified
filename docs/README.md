@@ -68,14 +68,15 @@ Enterprise-grade security implementation covering:
 ### **🔄 [Type Flow & Integration](./02-type-flow-and-finvoice.md)**
 TypeScript patterns, Zod validation, and Finvoice 3.0 XML export implementation for Finnish e-invoicing compliance.
 
-### **📈 [Performance Strategy](./performance-optimization-strategy.md)**
-Database indexes (60-80% improvement), query optimization, and React performance patterns.
+### **📈 Performance Strategy**
+Authoritative content consolidated into [Architecture & System Layout](./01-architecture-layout.md) §7.1–7.2 (DB indexes, React Query caching, memoization). The legacy `performance-optimization-strategy.md` has been merged and is now deprecated.
 
 ### **🔍 [Security Analysis Framework](./10-security-analysis-guide.md)**
 Systematic security assessment procedures and ongoing monitoring requirements.
 
-### **⚡ [Next Steps Guide](./next-steps-guide.md)**
-Remaining development tasks and feature enhancement opportunities.
+### Deprecated / History
+- `next-steps-guide.md`
+- `bug-fixes-and-improvements-jan-2025.md`
 
 ---
 

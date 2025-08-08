@@ -1,4 +1,5 @@
-# Performance Optimization & UX Enhancement Strategy
+# (Deprecated) Performance Optimization & UX Enhancement Strategy
+# Consolidated into `01-architecture-layout.md` §7.1–7.2. Do not update this file; keep for historical reference only.
 *Last Updated: January 27, 2025*
 
 ## 🚀 **Current Performance Status**
