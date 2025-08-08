@@ -1046,6 +1046,26 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                       method: method,
                     });
                     toast.success('Invoice sent successfully!');
+                  } else if (method === 'download-pdf' && editInvoiceData) {
+                    const res = await fetch(`/api/pdf/invoice/${editInvoiceData.id}`);
+                    if (!res.ok) {
+                      toast.error('Failed to generate PDF');
+                    } else {
+                      const blob = await res.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${editInvoiceData.invoiceNumber || 'invoice'}.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      window.URL.revokeObjectURL(url);
+                      toast.success('PDF downloaded');
+                    }
+                  } else if (method === 'download-xml' && editInvoiceData) {
+                    // Delegate to Finvoice export behavior
+                    const { generateAndDownloadFinvoice } = await import('@/lib/actions/invoice.actions');
+                    await generateAndDownloadFinvoice(editInvoiceData.id);
                   } else {
                     toast.info(`Sending via ${method} - functionality coming soon`);
                   }

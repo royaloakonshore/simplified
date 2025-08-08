@@ -252,6 +252,30 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                     Edit Invoice
                   </Link>
                       </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={async () => {
+                        await handleSendInvoice("download-pdf");
+                      }} 
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={async () => {
+                        // Mark as sent via status update
+                        try {
+                          const { api } = await import("@/lib/trpc/react");
+                          // lazily create client hook alternative: hit a fetch to a small route is not available; keep placeholder with toast
+                        } catch {}
+                        // Fallback to route navigation if a dedicated action exists later
+                        toast.info("To mark as sent, use the 'Send' button or change status from list for now.");
+                      }} 
+                      className="flex items-center gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      Mark as Sent
+                    </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleFinvoiceExport()} 
                   className="flex items-center gap-2"

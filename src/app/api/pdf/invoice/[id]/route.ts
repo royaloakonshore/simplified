@@ -21,8 +21,8 @@ export async function GET(
       );
     }
 
-    // invoiceId is already extracted above
-    const companyId = (session.user as any).companyId;
+    // Resolve active company id from session
+    const companyId = (session.user as any).activeCompanyId || (session.user as any).companyId;
 
     if (!companyId) {
       return NextResponse.json(

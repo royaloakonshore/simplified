@@ -577,13 +577,16 @@ export default function InvoiceListContent({
             {/* Totals Row reacting to current page/filter */}
             <tfoot>
               <tr>
-                <td colSpan={columns.length - 2} />
+                <td colSpan={3} /> {/* Invoice Number, Customer, Date */}
+                <td /> {/* Due Date */}
                 <td className="text-right font-medium pr-4">Page Net:</td>
                 <td className="text-right font-mono pr-4">
                   {formatCurrency(
                     (table.getRowModel().rows || []).reduce((sum, row) => sum + Number((row.original as any).totalAmount || 0), 0)
                   )}
                 </td>
+                <td /> {/* Status */}
+                <td /> {/* Actions */}
               </tr>
             </tfoot>
             </Table>

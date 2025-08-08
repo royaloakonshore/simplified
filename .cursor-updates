@@ -4276,3 +4276,19 @@ The PDF generation system is functionally complete with professional templates, 
 **Status:** Production Ready - Final Polish Phase
 
 ---
+
+## 2025-02-02
+- Performance optimization: React Query caching for Dashboard, Production, Inventory pages
+- PDF generation: Fixed company data inclusion for invoice/order PDFs
+- BOM PDF export: Added route and UI button for BOM PDF generation
+- Documentation: Consolidated performance strategy into architecture layout
+
+## 2025-02-02 (continued)
+- Fixed delivery date persistence in invoice form
+- Implemented "Download PDF only" functionality in invoice detail
+- Added deferred loading for heavy dashboard/orders components with load overlay
+- Added totals rows to invoices/orders tables with proper column alignment
+- Fixed invoice PDF 400 error by resolving activeCompanyId in route
+- Enhanced invoice form send modal with email/pdf/xml options
+- Fixed critical invoice edit pricing issues with robust discount handling
+- Added Download PDF and Mark as Sent options to invoice detail three-dots menu

@@ -904,12 +904,16 @@ export const invoiceRouter = createTRPCRouter({
             const quantity = new Decimal(item.quantity);
             let lineNetUnitPrice = unitPrice;
 
-            if (item.discountPercent != null && item.discountPercent > 0) {
-                const discountMultiplier = new Decimal(1).minus(new Decimal(item.discountPercent).div(100));
+            // Accept either discountPercent or discountPercentage from client
+            const percent = (item as any).discountPercent ?? (item as any).discountPercentage ?? null;
+            const amount = (item as any).discountAmount ?? null;
+
+            if (percent != null && Number(percent) > 0) {
+                const discountMultiplier = new Decimal(1).minus(new Decimal(percent).div(100));
                 lineNetUnitPrice = unitPrice.times(discountMultiplier);
-            } else if (item.discountAmount != null && item.discountAmount > 0) {
+            } else if (amount != null && Number(amount) > 0) {
                 if (quantity.greaterThan(0)) {
-                    const perUnitDiscount = new Decimal(item.discountAmount).div(quantity);
+                    const perUnitDiscount = new Decimal(amount).div(quantity);
                     lineNetUnitPrice = unitPrice.sub(perUnitDiscount).greaterThanOrEqualTo(0) ? unitPrice.sub(perUnitDiscount) : new Decimal(0);
                 }
             }
@@ -935,8 +939,8 @@ export const invoiceRouter = createTRPCRouter({
                 quantity,
                 unitPrice,
                 vatRatePercent: new Decimal(item.vatRatePercent),
-                discountAmount: item.discountAmount != null ? new Decimal(item.discountAmount) : null,
-                discountPercentage: item.discountPercent != null ? new Decimal(item.discountPercent) : null,
+                discountAmount: amount != null ? new Decimal(amount) : null,
+                discountPercentage: percent != null ? new Decimal(percent) : null,
                 calculatedUnitCost,
                 calculatedUnitProfit,
                 calculatedLineProfit,
