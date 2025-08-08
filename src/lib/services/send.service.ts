@@ -20,17 +20,18 @@ export async function sendInvoiceEmail(options: {
           addresses: true,
         },
       },
+      Company: true,
       items: {
         include: { inventoryItem: true },
       },
     },
   });
   if (!invoice) throw new Error("Invoice not found");
-  const customer = invoice.customer;
+  const customer = invoice.customer as any;
   const language = getLanguageWithFallback((customer as any).language);
 
   // PDF/XML placeholder generation
-  const pdfBuffer = await generateInvoicePdf(invoice);
+  const pdfBuffer = await generateInvoicePdf(invoice as any);
   // TODO: XML generation
 
   const subjectMap = {
@@ -69,16 +70,17 @@ export async function sendOrderEmail(options: {
           addresses: true,
         },
       },
+      Company: true,
       items: {
         include: { inventoryItem: true },
       },
     },
   });
   if (!order) throw new Error("Order not found");
-  const customer = order.customer;
+  const customer = order.customer as any;
   const language = getLanguageWithFallback((customer as any).language);
 
-  const pdfBuffer = await generateOrderPdf(order);
+  const pdfBuffer = await generateOrderPdf(order as any);
 
   // Ensure we only send emails for quotations
   if ((order as any).orderType !== "QUOTATION") {

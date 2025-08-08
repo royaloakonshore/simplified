@@ -90,6 +90,10 @@ The system has reached exceptional stability with all critical runtime errors re
 - **Future**: Enable bulk operations for BOMs
 - **Impact**: Consistent table experience across all modules
 
+#### **2.3 BOM PDF Export (COMPLETED ✅)**
+- Implemented server-side export via `bom.exportPDF` tRPC mutation
+- Added Export PDF button to `boms/[id]` page which downloads the file
+
 #### **2.3 Three-Dots Menu Integration (COMPLETED ✅)**
 - **Requirement**: Add PDF export actions to invoice and order table dropdowns
 - **Implementation**: Integrated PDF generation into existing three-dots menus with proper error handling

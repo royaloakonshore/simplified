@@ -38,7 +38,8 @@ export async function GET(
         companyId: companyId // Ensure company scoping
       },
       include: {
-        customer: true,
+        customer: { include: { addresses: true } },
+        Company: true,
         items: {
           include: {
             inventoryItem: true

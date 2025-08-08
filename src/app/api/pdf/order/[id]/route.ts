@@ -41,6 +41,7 @@ export async function GET(
             addresses: true,
           },
         },
+        Company: true,
         items: {
           include: {
             inventoryItem: true,
