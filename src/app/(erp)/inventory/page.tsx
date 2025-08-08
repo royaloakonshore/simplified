@@ -60,6 +60,9 @@ function InventoryListContent() {
     page: 1,
     perPage: 100,
     search: debouncedSearchTerm || undefined,
+  }, {
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Fetch inventory categories for filtering  

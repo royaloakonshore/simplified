@@ -299,54 +299,46 @@ export const dashboardRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { companyId } = ctx;
       const now = new Date();
-      const data: { period: string; revenue: number }[] = [];
 
-      for (let i = input.periods - 1; i >= 0; i--) {
-        let periodStart: Date;
-        let periodEnd: Date;
-        let periodLabel: string;
-
+      // Prepare all periods first
+      const periods = Array.from({ length: input.periods }, (_, idx) => input.periods - 1 - idx).map((i) => {
         if (input.type === "monthly") {
-          periodStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          periodEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
-          periodLabel = periodStart.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+          const periodStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const periodEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+          const periodLabel = periodStart.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+          return { periodStart, periodEnd, periodLabel };
         } else {
-          // Weekly
           const weekStart = new Date(now);
           weekStart.setDate(now.getDate() - (i * 7) - now.getDay());
           weekStart.setHours(0, 0, 0, 0);
-          
-          periodStart = weekStart;
-          periodEnd = new Date(weekStart);
+          const periodStart = weekStart;
+          const periodEnd = new Date(weekStart);
           periodEnd.setDate(weekStart.getDate() + 6);
           periodEnd.setHours(23, 59, 59, 999);
-          
-          // Get week number from start date
           const weekNumber = Math.ceil((periodStart.getTime() - new Date(periodStart.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-          periodLabel = `w. ${weekNumber}`;
+          const periodLabel = `w. ${weekNumber}`;
+          return { periodStart, periodEnd, periodLabel };
         }
+      });
 
-        const revenueAggregate = await prisma.invoice.aggregate({
-          where: {
-            companyId,
-            status: "paid",
-            createdAt: {
-              gte: periodStart,
-              lte: periodEnd,
+      // Run all aggregates in parallel
+      const aggregates = await Promise.all(
+        periods.map(({ periodStart, periodEnd }) =>
+          prisma.invoice.aggregate({
+            where: {
+              companyId,
+              status: "paid",
+              createdAt: { gte: periodStart, lte: periodEnd },
             },
-          },
-          _sum: {
-            totalAmount: true,
-          },
-        });
+            _sum: { totalAmount: true },
+          })
+        )
+      );
 
-        data.push({
-          period: periodLabel,
-          revenue: revenueAggregate._sum?.totalAmount?.toNumber() || 0,
-        });
-      }
-
-      return data;
+      return periods.map((p, idx) => ({
+        period: p.periodLabel,
+        revenue: aggregates[idx]._sum?.totalAmount?.toNumber() || 0,
+      }));
     }),
 
   getTopCustomers: companyProtectedProcedure
@@ -376,22 +368,24 @@ export const dashboardRouter = createTRPCRouter({
       // Get invoices with customer data and items for margin calculation
       const invoices = await prisma.invoice.findMany({
         where: whereClause,
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+        select: {
+          id: true,
+          totalAmount: true,
+          customer: { select: { id: true, name: true } },
           items: {
-            include: {
+            select: {
+              quantity: true,
               inventoryItem: {
-                include: {
+                select: {
+                  itemType: true,
+                  costPrice: true,
                   bom: {
-                    include: {
+                    select: {
+                      manualLaborCost: true,
                       items: {
-                        include: {
-                          componentItem: true,
+                        select: {
+                          quantity: true,
+                          componentItem: { select: { costPrice: true } },
                         },
                       },
                     },

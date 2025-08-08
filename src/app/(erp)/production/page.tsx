@@ -207,12 +207,19 @@ function ProductionPageContent() {
   );
 
   // Fetch production orders
-  const { data: productionOrders, isLoading } = api.order.listProductionView.useQuery({});
+  const { data: productionOrders, isLoading } = api.order.listProductionView.useQuery({}, {
+    staleTime: 3 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
   
   // Fetch archived orders for the archived tab
   const archivedOrdersQuery = api.order.list.useQuery({
     orderType: 'work_order',
     status: OrderStatus.delivered,
+  }, {
+    staleTime: 3 * 60 * 1000,
   });
 
   // Transform orders when data changes

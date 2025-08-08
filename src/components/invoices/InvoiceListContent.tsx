@@ -469,6 +469,10 @@ export default function InvoiceListContent({
     sortDirection: sorting[0]?.desc ? 'desc' : 'asc',
     searchTerm: debouncedSearchTerm,
     status: statusFilter,
+  }, {
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    select: (resp) => resp,
   });
 
   const table = useReactTable({

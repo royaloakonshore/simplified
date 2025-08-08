@@ -462,11 +462,12 @@ export const orderRouter = createTRPCRouter({
       return order;
     }),
 
-  listProductionView: protectedProcedure
+  listProductionView: companyProtectedProcedure
     .input(listProductionViewInputSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const orders = await prisma.order.findMany({
         where: {
+          companyId: ctx.companyId,
           status: {
             in: [OrderStatus.in_production, OrderStatus.confirmed],
           },
@@ -672,37 +673,43 @@ export const orderRouter = createTRPCRouter({
       });
     }),
 
-  updateProductionStep: protectedProcedure
+  updateProductionStep: companyProtectedProcedure
     .input(
       z.object({
         orderId: z.string(),
         newStep: z.string(), // e.g., 'cutting', 'assembly', 'painting'
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { orderId, newStep } = input;
       const order = await prisma.order.findUnique({
         where: { id: orderId },
+        select: { id: true, companyId: true },
       });
 
       if (!order) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
       }
 
+      if (order.companyId !== ctx.companyId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+      }
+
       return await prisma.order.update({
-        where: { id: orderId },
+        where: { id: orderId, companyId: ctx.companyId },
         data: { productionStep: newStep },
       });
     }),
 
-  deleteMany: protectedProcedure
+  deleteMany: companyProtectedProcedure
     .input(deleteManyOrdersSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
         const { ids } = input;
         
         const deletableOrders = await prisma.order.findMany({
             where: {
                 id: { in: ids },
+                companyId: ctx.companyId,
                 status: OrderStatus.draft, // Only allow deleting drafts
             },
             select: { id: true }
@@ -712,21 +719,23 @@ export const orderRouter = createTRPCRouter({
         
         const result = await prisma.order.deleteMany({
             where: {
-                id: { in: deletableIds }
+                id: { in: deletableIds },
+                companyId: ctx.companyId,
             }
         });
         
         return { count: result.count, deletedIds: deletableIds };
     }),
 
-    sendManyToProduction: protectedProcedure
+    sendManyToProduction: companyProtectedProcedure
         .input(sendManyOrdersToProductionSchema)
-        .mutation(async ({ input }) => {
+        .mutation(async ({ ctx, input }) => {
             const { ids } = input;
 
             const ordersToUpdate = await prisma.order.findMany({
                 where: {
                     id: { in: ids },
+                    companyId: ctx.companyId,
                     status: OrderStatus.confirmed, // Can only send confirmed orders
                 },
                 select: { id: true }
@@ -735,7 +744,7 @@ export const orderRouter = createTRPCRouter({
             const validOrderIds = ordersToUpdate.map(o => o.id);
 
             const result = await prisma.order.updateMany({
-                where: { id: { in: validOrderIds } },
+                where: { id: { in: validOrderIds }, companyId: ctx.companyId },
                 data: { status: OrderStatus.in_production }
             });
             
