@@ -1,185 +1,94 @@
-# Current Roadmap & Implementation Plan - Simplified ERP System
+# Current Roadmap
 
-*Last Updated: February 1, 2025*
+## Completed ✅
 
-## 🎯 **Current System Status: 99% Complete & Production Ready**
+### PDF Generation Background Jobs
+- **Status**: COMPLETED
+- **Description**: Background job system for PDF generation to handle large documents
+- **Implementation**: Inngest jobs for invoice/order PDF generation
 
-The system has reached exceptional stability with all critical runtime errors resolved and major UX improvements implemented. Core business workflows are fully functional with enhanced user experience, comprehensive PDF generation, complete form functionality, and seamless PDF export integration.
+### Production-Ready PDF Generation
+- **Status**: COMPLETED
+- **Description**: Robust PDF generation with error handling and retry logic
+- **Implementation**: Puppeteer-based PDF generation with proper error handling
 
-**UPDATED STATUS**: All major features have been implemented including production-ready PDF generation, enhanced form usability, complete schema foundation, and three-dots menu PDF export integration. System is 99% complete with only performance optimization remaining for final polish.
+### BOM PDF Export
+- **Status**: COMPLETED ✅
+- **Description**: PDF export for Bill of Materials with proper formatting
+- **Implementation**: `/api/pdf/bom/[id]` route with UI button
 
----
+## Current Priorities
 
-## ✅ **RECENTLY COMPLETED PRIORITIES**
+### Performance Optimization (HIGHEST PRIORITY)
+- **Status**: IN PROGRESS
+- **Description**: Cache and memoization passes on heavy pages (Dashboard, Production, Inventory)
+- **Tasks**:
+  - [x] React Query smart caching for Dashboard, Production, Inventory pages
+  - [x] Reduce re-renders with proper staleTime and gcTime configuration
+  - [x] Verify query indexes are leveraged
+  - [x] Review slow tRPC endpoints and N+1s
+  - [x] Add deferred loading for heavy components
+  - [x] Add total rows to invoice and order tables
+- **Acceptance Criteria**: Measurable cold → warm load improvements, reduced re-renders
 
-### **✅ Priority 1: Localization & International Support (COMPLETED)**
-- **✅ Customer Language Selection**: Added language field (SE/FI/EN) to Customer model and forms
-- **✅ Localized Invoice/Quotation Output**: Translate PDF and XML output based on customer language
-- **✅ Finvoice Compliance**: XML remains Finvoice 3.0 compliant with proper language codes
-- **✅ User Language Preferences**: Settings page language switcher implemented
+### Email PDF Attachments
+- **Status**: IN PROGRESS
+- **Description**: Implement attachments in send service with language-aware subjects
+- **Tasks**:
+  - [x] PDF attached to emails
+  - [x] Language-aware subjects (FI/EN)
+  - [x] Customer email integration
+  - [x] Return buffers for download
+- **Acceptance Criteria**: PDFs attached to emails, proper language handling
 
-### **✅ Priority 2: Production Kanban Enhancement (COMPLETED)**
-- **✅ General Card Removal**: X button on each card with confirmation dialog
-- **✅ Send Back to Production**: "Restore to Board" button for UI-hidden orders
-- **✅ Enhanced Drag-and-Drop**: Fixed drag limitation, improved UX
+### Table Consistency Polish
+- **Status**: IN PROGRESS
+- **Description**: Ensure consistent sorting headers, filters, selection, pagination across tables
+- **Tasks**:
+  - [x] Invoice table consistency
+  - [x] Order table consistency
+  - [ ] Inventory table consistency
+  - [ ] BOM table consistency
+- **Acceptance Criteria**: All tables follow same pattern as Invoice table
 
-### **✅ Priority 3: PDF Generation Background Jobs (COMPLETED)**
-- **✅ Inngest Integration**: Complete async PDF generation implementation
-- **✅ Background Processing**: Real-time PDF generation status updates
-- **✅ Invoice & Order PDFs**: Full PDF generation for both document types
+### PDF Design Improvements
+- **Status**: IN PROGRESS
+- **Description**: Improve PDF design to match Finnish invoice standards
+- **Tasks**:
+  - [x] Move document type to top right
+  - [x] Improve items table structure to match invoice details page
+  - [x] Add support for "HUOMAUTUS" (reminder) title
+  - [x] Enhanced styling for better readability
+  - [ ] Reminder setup and logic
+- **Acceptance Criteria**: Professional Finnish invoice appearance
 
-### **✅ Priority 4: Production-Ready PDF Generation (COMPLETED)**
-- **✅ Finnish Giroblankett**: Professional payment slip layout with proper Finnish compliance
-- **✅ Separate Templates**: Work order (no pricing, QR codes) and quotation (with pricing) templates
-- **✅ QR Code Integration**: Mobile status updates with `ORDER:{orderId}` format
-- **✅ Customer Language Support**: Finnish/English content based on customer preference
-- **✅ Company Schema Enhancement**: Added all missing company fields with proper migration
+## Backlog
 
-### **✅ Priority 5: Invoice Form Field Fixes (COMPLETED)**
-- **✅ Field Saving**: Fixed complaint period, penalty interest, delivery method, customer number, and our reference fields
-- **✅ Delivery Date**: Added delivery date field with date picker
-- **✅ Comma Input**: Simplified numeric field handling for unrestricted typing with comma tolerance
-- **✅ Type Safety**: Resolved all TypeScript errors related to schema changes
+### Reminder Setup
+- **Status**: PENDING
+- **Description**: Implement proper reminder logic and status handling
+- **Tasks**:
+  - [ ] Add reminder status to invoice model
+  - [ ] Implement reminder generation logic
+  - [ ] Add reminder templates
+  - [ ] Update PDF generation for reminders
+- **Acceptance Criteria**: Proper reminder workflow with "HUOMAUTUS" title
 
-### **✅ Priority 6: Partial Credit Note System (COMPLETED)**
-- **✅ Item Selection**: Allow selection of specific line items and quantities
-- **✅ UI Enhancement**: Complete credit note creation modal with item selection
-- **✅ Business Logic**: Support multiple partial credits per invoice
+### Proper Giroblankett
+- **Status**: PENDING
+- **Description**: Ensure Invoice PDF has overflow-aware layout
+- **Acceptance Criteria**: Giroblankett fits properly on page
 
-### **✅ Major UX & Stability Improvements (COMPLETED)**
-- **✅ Dashboard Real Data Integration**: All stats show live data with emerald-themed charts
-- **✅ Production Workflow Enhanced**: Shipped order confirmation modal with workflow options
-- **✅ Table & Form UX**: Horizontal scroll, optimized layouts, payment terms functionality
-- **✅ Build & Type Safety**: Zero TypeScript errors, proper Decimal handling throughout
-- **✅ Invoice Draft Prefilling**: Complete field prefilling from production view
-- **✅ Discount Value Persistence**: Comprehensive discount handling implemented
+### QR Codes on Work Orders
+- **Status**: PENDING
+- **Description**: Include QR codes for status updates on Order PDFs
+- **Acceptance Criteria**: QR codes generated and displayed on work orders
 
----
-
-## 📋 **ACTUAL CURRENT DEVELOPMENT PRIORITIES** (Authoritative)
-
-**System Status**: Production-ready ERP with 99% completion. Only performance optimization remains for final polish.
-
-### **🔥 Priority 1: Performance Optimization (MEDIUM - 2-3 hours)**
-
-#### **1.1 Query Optimization (1.5h)**
-- **Current Issue**: Long compilation times (6-46 seconds per page) despite session optimizations
-- **Evidence**: Session management already optimized with 5-minute refetch intervals and reduced focus/offline refetching
-- **Solution**: Further optimize React Query patterns and component-level caching
-- **Impact**: Additional performance improvements for user experience
-
-#### **1.2 React Query Caching Enhancement (1h)**
-- **Current Issue**: Some repeated data fetching and cache invalidation patterns
-- **Solution**: Implement intelligent caching strategies and reduce unnecessary re-renders
-- **Impact**: Reduced server load and improved performance
-
-#### **1.3 Component-level Optimizations (0.5h)**
-- **Current Issue**: Some pages still have excessive re-renders
-- **Solution**: Optimize component memoization and state management
-- **Impact**: Smoother user interactions and faster page transitions
-
-### **📋 Priority 2: Table Consistency Polish (MEDIUM - 2-3 hours)**
-
-#### **2.1 Orders Table Multi-Select (1h)**
-- **Requirement**: Add multi-select checkboxes to Orders table
-- **Consistency**: Match Invoice and Inventory table functionality
-- **Impact**: Improved bulk operations for order management
-
-#### **2.2 BOM Table Multi-Select (1h)**
-- **Requirement**: Add multi-select checkboxes to BOM table
-- **Future**: Enable bulk operations for BOMs
-- **Impact**: Consistent table experience across all modules
-
-#### **2.3 BOM PDF Export (COMPLETED ✅)**
-- Implemented server-side export via `bom.exportPDF` tRPC mutation
-- Added Export PDF button to `boms/[id]` page which downloads the file
-
-#### **2.3 Three-Dots Menu Integration (COMPLETED ✅)**
-- **Requirement**: Add PDF export actions to invoice and order table dropdowns
-- **Implementation**: Integrated PDF generation into existing three-dots menus with proper error handling
-- **Impact**: Seamless PDF export workflow for users with direct table access
-
-### **📋 Priority 3: Advanced Features (LOW - 6-8 hours)**
-
-#### **3.1 Excel Import/Export Enhancement (6h)**
-- **Current Status**: ✅ Basic replenishment export exists
-- **Enhancement**: Full inventory CRUD via Excel import with validation
-- **Template System**: Downloadable Excel templates for different data types
-- **Validation Framework**: Comprehensive error handling and preview system
-- **Dependencies**: Excel parsing library (xlsx) and validation UI
-
-#### **3.2 BOM Variants System (2h)**
-- **Requirement**: Product variant management with template-based BOM creation
-- **Implementation**: Variant generation from template items with attribute management
-- **Impact**: Efficient product variation management
+### Multilingual Email Templates
+- **Status**: PENDING
+- **Description**: Support FI/EN in send service
+- **Acceptance Criteria**: Language-aware email templates
 
 ---
 
-## 📋 **FUTURE ENHANCEMENTS (Priority 4+)**
-
-### **Advanced Features**
-- **📋 API Access**: RESTful API for third-party integrations
-- **📋 Webhook Support**: Event-driven notifications
-- **📋 Advanced Permissions**: Role-based access control
-- **📋 Audit Logging**: Comprehensive change tracking
-
-### **Integration Capabilities**
-- **📋 Accounting Software**: Direct integration with popular accounting platforms
-- **📋 E-commerce Platforms**: Sync with online stores
-- **📋 Shipping Providers**: Direct shipping label generation
-
----
-
-## 📅 **UPDATED IMPLEMENTATION TIMELINE**
-
-### **Phase 1: Performance Optimization (Week 1)**
-1. **Session Management Optimization** - Reduce excessive session checks
-2. **Query Optimization** - Improve compilation times
-3. **React Query Caching** - Optimize data fetching patterns
-
-### **Phase 2: Polish & Consistency (Week 2)**
-1. **Orders Table Multi-Select** - Add row selection functionality
-2. **BOM Table Multi-Select** - Complete table consistency
-3. **PDF Template Polish** - Finnish giroblankett formatting
-
-### **Phase 3: Advanced Features (Week 3+)**
-1. **Excel Import/Export Enhancement** - Advanced inventory management
-2. **BOM Variants System** - Product variant management
-3. **Advanced Reporting** - Dashboard analytics
-
-## 📊 **Priority Matrix - Updated**
-
-| Feature | Business Impact | Technical Complexity | User Demand | Effort (Hours) | Status |
-|---------|----------------|---------------------|-------------|---------------|---------|
-| **Performance Optimization** | High | Medium | High | 4-6 | **CRITICAL** |
-| **Table Consistency** | Medium | Low | Medium | 2-3 | **MEDIUM** |
-| **PDF Template Polish** | Medium | Low | Medium | 1 | **MEDIUM** |
-| **Excel Import/Export** | Medium | High | High | 6 | **LOW** |
-
-## 📈 **Success Metrics - Updated**
-
-- **Performance**: Page load times < 2 seconds (target after optimization)
-- **Data Accuracy**: Real-time dashboard with live metrics (completed)
-- **User Experience**: Advanced multi-select and filtering across all tables (pending consistency)
-- **Reliability**: 99.9% uptime (system is stable and deployable)
-- **Usability**: Task completion rate > 95% (pending performance optimization)
-
-## 📈 **System Architecture Considerations**
-
-### **Multi-Tenancy Excellence (FULLY IMPLEMENTED)**
-- ✅ Company Memberships: Users can belong to multiple companies
-- ✅ Active Company Switching: Seamless company context switching
-- ✅ Data Isolation: Complete tenant separation with `companyProtectedProcedure`
-- ✅ Performance Optimization: Database indexes providing 60-80% improvements
-
-### **Technical Foundation**
-- **Build Health**: ✅ TypeScript clean, Next.js building successfully
-- **Runtime Stability**: ✅ All production workflows functional
-- **Performance**: ⚠️ **NEEDS OPTIMIZATION** - Session management and query optimization required
-- **Security**: ✅ Production-ready authentication and authorization
-
----
-
-**Current Development Status**: System is production-ready with 95% completion. Next focus should be on performance optimization to achieve optimal user experience, followed by table consistency polish and advanced features.
-
-**Total Development Estimate**: 8-12 hours for complete feature set (down from 12-17 hours due to existing session optimizations) 
+**Note**: This document is authoritative for current priorities. Other roadmap documents are kept for historical reference. 

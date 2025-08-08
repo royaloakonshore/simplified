@@ -4292,3 +4292,10 @@ The PDF generation system is functionally complete with professional templates, 
 - Enhanced invoice form send modal with email/pdf/xml options
 - Fixed critical invoice edit pricing issues with robust discount handling
 - Added Download PDF and Mark as Sent options to invoice detail three-dots menu
+
+## 2025-02-02 (continued)
+- Enhanced PDF design with improved Finnish invoice structure
+- Moved document type to top right with support for "HUOMAUTUS" reminder title
+- Improved items table structure to match invoice details page with discount columns
+- Enhanced PDF styling with better readability and professional appearance
+- Added reminder setup task to backlog for proper reminder workflow

@@ -92,11 +92,6 @@ export async function generateOrderPdf(order: OrderWithDetails): Promise<Buffer>
  * Generate HTML template for invoice with Finnish Giroblankett
  */
 function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
-  const isCredit = invoice.isCreditNote;
-  const documentType = isCredit ? 'HYVITYSLASKU' : 'LASKU';
-  const documentTypeEn = isCredit ? 'CREDIT NOTE' : 'INVOICE';
-  
-  // Calculate totals with proper Decimal handling
   const subtotal = invoice.items.reduce((sum, item) => {
     const itemTotal = new Decimal(item.quantity.toString()).times(new Decimal(item.unitPrice.toString()));
     return sum.plus(itemTotal);
@@ -112,6 +107,11 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
   // Get billing address from customer addresses
   const billingAddress = invoice.customer?.addresses?.find(addr => addr.type === AddressType.billing) 
     || invoice.customer?.addresses?.[0];
+  
+  // Determine document type - check if it's a reminder
+  const isReminder = invoice.status === 'overdue' || invoice.status === 'sent';
+  const documentType = isReminder ? 'HUOMAUTUS' : 'LASKU';
+  const documentTypeEn = isReminder ? 'REMINDER' : 'INVOICE';
   
   return `
     <!DOCTYPE html>
@@ -131,10 +131,10 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
           <div class="header-content">
             <div class="company-info">
               <h1>${invoice.company?.name || 'Yritys Oy'}</h1>
-              <p>Yrityskatu 1</p>
-              <p>00100 Helsinki</p>
-              <p>Y-tunnus: 1234567-8</p>
-              <p>ALV-nro: FI12345678</p>
+              <p>${(invoice.company as any)?.streetAddress || 'Yrityskatu 1'}</p>
+              <p>${(invoice.company as any)?.postalCode || '00100'} ${(invoice.company as any)?.city || 'Helsinki'}</p>
+              <p>Y-tunnus: ${(invoice.company as any)?.businessId || '1234567-8'}</p>
+              <p>ALV-nro: ${(invoice.company as any)?.vatId || 'FI12345678'}</p>
             </div>
             <div class="document-type">
               <h2>${documentType}</h2>
@@ -184,61 +184,144 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
                   <td>${invoice.referenceNumber}</td>
                 </tr>
                 ` : ''}
-                                 ${invoice.customer.buyerReference ? `
-                 <tr>
-                   <td>${isEnglish ? 'Customer Reference' : 'Asiakasviite'}:</td>
-                   <td>${invoice.customer.buyerReference}</td>
-                 </tr>
-                 ` : ''}
+                ${invoice.customer.buyerReference ? `
+                <tr>
+                  <td>${isEnglish ? 'Customer Reference' : 'Asiakasviite'}:</td>
+                  <td>${invoice.customer.buyerReference}</td>
+                </tr>
+                ` : ''}
+                ${invoice.ourReference ? `
+                <tr>
+                  <td>${isEnglish ? 'Our Reference' : 'Viitteemme'}:</td>
+                  <td>${invoice.ourReference}</td>
+                </tr>
+                ` : ''}
+                ${invoice.deliveryDate ? `
+                <tr>
+                  <td>${isEnglish ? 'Delivery Date' : 'Toimituspäivä'}:</td>
+                  <td>${invoice.deliveryDate.toLocaleDateString(isEnglish ? 'en-US' : 'fi-FI')}</td>
+                </tr>
+                ` : ''}
+                ${invoice.deliveryMethod ? `
+                <tr>
+                  <td>${isEnglish ? 'Delivery Method' : 'Toimitustapa'}:</td>
+                  <td>${invoice.deliveryMethod}</td>
+                </tr>
+                ` : ''}
+                ${invoice.complaintPeriod ? `
+                <tr>
+                  <td>${isEnglish ? 'Complaint Period' : 'Huomautusaika'}:</td>
+                  <td>${invoice.complaintPeriod}</td>
+                </tr>
+                ` : ''}
+                ${invoice.penaltyInterest ? `
+                <tr>
+                  <td>${isEnglish ? 'Penalty Interest' : 'Viivästyskorko'}:</td>
+                  <td>${invoice.penaltyInterest}%</td>
+                </tr>
+                ` : ''}
               </table>
             </div>
           </div>
         </div>
 
-        <!-- Items Table -->
+        <!-- Items Table - Enhanced to match invoice details page -->
         <div class="items-section">
+          <h3 class="items-title">${isEnglish ? 'Invoice Items' : 'Laskurivit'}</h3>
           <table class="items-table">
             <thead>
               <tr>
-                <th style="text-align: left; width: 40%;">${isEnglish ? 'Description' : 'Kuvaus'}</th>
-                <th style="text-align: right; width: 15%;">${isEnglish ? 'Quantity' : 'Määrä'}</th>
-                <th style="text-align: right; width: 15%;">${isEnglish ? 'Unit Price' : 'Yksikköhinta'}</th>
-                <th style="text-align: right; width: 10%;">${isEnglish ? 'VAT %' : 'ALV %'}</th>
-                <th style="text-align: right; width: 20%;">${isEnglish ? 'Total' : 'Yhteensä'}</th>
+                <th style="text-align: left; width: 35%;">${isEnglish ? 'Description' : 'Kuvaus'}</th>
+                <th style="text-align: right; width: 10%;">${isEnglish ? 'Qty' : 'Määrä'}</th>
+                <th style="text-align: right; width: 12%;">${isEnglish ? 'Unit Price' : 'Yksikköhinta'}</th>
+                <th style="text-align: right; width: 12%;">${isEnglish ? 'Discount' : 'Alennus'}</th>
+                <th style="text-align: right; width: 8%;">${isEnglish ? 'VAT %' : 'ALV %'}</th>
+                <th style="text-align: right; width: 12%;">${isEnglish ? 'Net Amount' : 'Netto'}</th>
+                <th style="text-align: right; width: 11%;">${isEnglish ? 'VAT Amount' : 'ALV'}</th>
+                <th style="text-align: right; width: 12%;">${isEnglish ? 'Total' : 'Yhteensä'}</th>
               </tr>
             </thead>
             <tbody>
               ${invoice.items.map(item => {
-                const itemTotal = new Decimal(item.quantity.toString()).times(new Decimal(item.unitPrice.toString()));
+                const quantity = new Decimal(item.quantity.toString());
+                const unitPrice = new Decimal(item.unitPrice.toString());
+                const discountAmount = new Decimal(item.discountAmount?.toString() || '0');
+                const discountPercentage = new Decimal(item.discountPercentage?.toString() || '0');
+                const vatRate = new Decimal(item.vatRatePercent?.toString() || '24');
+                
+                // Calculate amounts like in invoice details page
+                const grossAmount = quantity.times(unitPrice);
+                const totalDiscount = discountAmount.plus(grossAmount.times(discountPercentage).div(100));
+                const netAmount = grossAmount.minus(totalDiscount);
+                const vatAmount = netAmount.times(vatRate).div(100);
+                const totalAmount = netAmount.plus(vatAmount);
+                
                 return `
                   <tr>
                     <td>
-                      <strong>${item.inventoryItem?.name || item.description || ''}</strong>
-                      ${item.description && item.inventoryItem?.name !== item.description ? 
-                        `<br><small style="color: #666;">${item.description}</small>` : ''}
-                      ${item.rowFreeText ? `<br><small style="color: #666;">${item.rowFreeText}</small>` : ''}
+                      <div class="item-description">
+                        <strong>${item.inventoryItem?.name || item.description || ''}</strong>
+                        ${item.description && item.inventoryItem?.name !== item.description ? 
+                          `<br><small class="item-detail">${item.description}</small>` : ''}
+                        ${item.rowFreeText ? `<br><small class="item-detail">${item.rowFreeText}</small>` : ''}
+                      </div>
                     </td>
-                    <td style="text-align: right;">${item.quantity.toString()}</td>
-                    <td style="text-align: right;">${item.unitPrice.toString()} €</td>
-                                         <td style="text-align: right;">${item.vatRatePercent?.toString() || '24'} %</td>
-                    <td style="text-align: right;"><strong>${itemTotal.toFixed(2)} €</strong></td>
+                    <td style="text-align: right;">${quantity.toFixed(2)}</td>
+                    <td style="text-align: right;">${unitPrice.toFixed(2)} €</td>
+                    <td style="text-align: right;">
+                      ${totalDiscount.greaterThan(0) ? `
+                        <div class="discount-info">
+                          ${discountAmount.greaterThan(0) ? `-${discountAmount.toFixed(2)} €` : ''}
+                          ${discountAmount.greaterThan(0) && discountPercentage.greaterThan(0) ? '<br>' : ''}
+                          ${discountPercentage.greaterThan(0) ? `-${discountPercentage.toFixed(1)}%` : ''}
+                        </div>
+                      ` : '-'}
+                    </td>
+                    <td style="text-align: right;">${vatRate.toFixed(1)} %</td>
+                    <td style="text-align: right;">${netAmount.toFixed(2)} €</td>
+                    <td style="text-align: right;">${vatAmount.toFixed(2)} €</td>
+                    <td style="text-align: right;"><strong>${totalAmount.toFixed(2)} €</strong></td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
 
-          <!-- Totals -->
+          <!-- Enhanced Totals Section -->
           <div class="totals-section">
+            <div class="vat-summary">
+              ${(() => {
+                const vatSummary: Record<string, { netAmount: number; vatAmount: number }> = {};
+                
+                invoice.items.forEach((item: any) => {
+                  const vatRate = item.vatRatePercent?.toString() || '24';
+                  const quantity = Number(item.quantity);
+                  const unitPrice = Number(item.unitPrice);
+                  const discountAmount = Number(item.discountAmount || 0);
+                  const discountPercentage = Number(item.discountPercentage || 0);
+                  
+                  const grossAmount = quantity * unitPrice;
+                  const totalDiscount = discountAmount + (grossAmount * discountPercentage / 100);
+                  const netAmount = grossAmount - totalDiscount;
+                  const vatAmount = netAmount * (Number(vatRate) / 100);
+                  
+                  if (!vatSummary[vatRate]) {
+                    vatSummary[vatRate] = { netAmount: 0, vatAmount: 0 };
+                  }
+                  vatSummary[vatRate].netAmount += netAmount;
+                  vatSummary[vatRate].vatAmount += vatAmount;
+                });
+
+                return Object.entries(vatSummary).map(([rate, amounts]) => `
+                  <div class="vat-summary-row">
+                    <span>${isEnglish ? 'VAT' : 'ALV'} ${Number(rate).toFixed(1)}% ${isEnglish ? 'on' : 'summasta'} €${amounts.netAmount.toFixed(2)}:</span>
+                    <span class="vat-amount">€${amounts.vatAmount.toFixed(2)}</span>
+                  </div>
+                `).join('');
+              })()}
+            </div>
+            
             <table class="totals-table">
-              <tr>
-                <td>${isEnglish ? 'Subtotal (excl. VAT)' : 'Välisumma (ilman ALV)'}:</td>
-                <td>${subtotal.toFixed(2)} €</td>
-              </tr>
-              <tr>
-                                 <td>${isEnglish ? 'VAT' : 'ALV'} ${invoice.items[0]?.vatRatePercent?.toString() || '24'} %:</td>
-                <td>${vatAmount.toFixed(2)} €</td>
-              </tr>
               <tr class="total-row">
                 <td><strong>${isEnglish ? 'Total Amount' : 'Loppusumma'}:</strong></td>
                 <td><strong>${total.toFixed(2)} €</strong></td>
@@ -297,8 +380,8 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
     <div style="display: flex; margin-bottom: 1em; font-size: 0.8em;">
       <div style="width: 33%;">
         <div><strong>${invoice.company?.name || 'Yritys Oy'}</strong></div>
-        <div>${invoice.company?.streetAddress || 'Yrityskatu 1'}</div>
-        <div>${invoice.company?.postalCode || '00100'} ${invoice.company?.city || 'Helsinki'}</div>
+        <div>${(invoice.company as any)?.streetAddress || 'Yrityskatu 1'}</div>
+        <div>${(invoice.company as any)?.postalCode || '00100'} ${(invoice.company as any)?.city || 'Helsinki'}</div>
       </div>
       <div style="width: 33%;">
         <div>${invoice.company?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${invoice.company.phone}` : ''}</div>
@@ -1196,48 +1279,99 @@ function getEnhancedInvoiceStyles(): string {
       min-height: 13.70cm;
     }
     
+    .items-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #0066cc;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 5px;
+    }
+    
     .items-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 1em;
+      border: 1px solid #ddd;
     }
     
     .items-table th,
     .items-table td {
       border: 1px solid #ddd;
-      padding: 0.5em 0;
+      padding: 8px 12px;
       text-align: left;
+      font-size: 11px;
     }
     
     .items-table th {
-      background-color: #f5f5f5;
+      background-color: #f8f9fa;
       font-weight: bold;
       color: #0066cc;
+      font-size: 12px;
     }
     
     .items-table td:nth-child(2),
     .items-table td:nth-child(3),
     .items-table td:nth-child(4),
     .items-table td:nth-child(5),
-    .items-table td:nth-child(6) {
+    .items-table td:nth-child(6),
+    .items-table td:nth-child(7),
+    .items-table td:nth-child(8) {
       text-align: right;
+    }
+    
+    .item-description {
+      line-height: 1.3;
+    }
+    
+    .item-detail {
+      color: #666;
+      font-size: 10px;
+    }
+    
+    .discount-info {
+      color: #dc3545;
+      font-size: 10px;
+      line-height: 1.2;
     }
     
     .totals-section {
       margin-top: 2em;
       display: flex;
-      justify-content: flex-end;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    
+    .vat-summary {
+      margin-bottom: 15px;
+      width: 300px;
+    }
+    
+    .vat-summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .vat-amount {
+      font-weight: bold;
+      color: #333;
     }
     
     .totals-table {
       width: 300px;
+      border-top: 2px solid #0066cc;
+      padding-top: 10px;
     }
     
     .total-row {
       display: flex;
       justify-content: space-between;
-      padding: 0.3em 0;
-      border-bottom: 1px solid #eee;
+      padding: 8px 0;
+      font-size: 14px;
+      font-weight: bold;
     }
     
     .total-final {
