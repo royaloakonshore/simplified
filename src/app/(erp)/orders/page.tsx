@@ -16,6 +16,7 @@ import { Terminal } from 'lucide-react'; // Icon for alert
 import React from 'react';
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 import SalesFunnel from "@/components/orders/SalesFunnel";
+import DeferredLoader from "@/components/common/DeferredLoader";
 
 // Type definition for order data
 type OrderInTable = Order & {
@@ -124,9 +125,11 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* Sales Funnel Visualization */}
+      {/* Sales Funnel Visualization (deferred) */}
       <div className="mb-6">
-        <SalesFunnel />
+        <DeferredLoader label="Load Sales Funnel">
+          <SalesFunnel />
+        </DeferredLoader>
       </div>
 
       <Suspense fallback={<div>Loading orders...</div>}>

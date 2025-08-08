@@ -64,6 +64,7 @@ async function EditInvoiceContent({ invoiceId }: { invoiceId: string }) {
             ...invoice,
             totalAmount: parseFloat(invoice.totalAmount.toString()),
             totalVatAmount: parseFloat(invoice.totalVatAmount.toString()),
+             penaltyInterest: invoice.penaltyInterest != null ? parseFloat(invoice.penaltyInterest.toString()) : null,
             items: invoice.items.map((item: any) => ({
               ...item,
               quantity: item.quantity ? parseFloat(item.quantity.toString()) : 0,

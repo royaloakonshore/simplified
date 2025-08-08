@@ -290,6 +290,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
       ourReference: values.ourReference ?? null,
       customerNumber: values.customerNumber ?? null,
       deliveryMethod: values.deliveryMethod ?? null,
+      deliveryDate: values.deliveryDate ?? null,
       complaintPeriod: values.complaintPeriod ?? null,
       penaltyInterest: values.penaltyInterest ?? null,
       items: values.items.map(item => ({
@@ -1129,13 +1130,11 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
+                            <Calendar
                             mode="single"
                             selected={field.value || undefined}
                             onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
+                              disabled={(date) => date < new Date("1900-01-01")}
                             initialFocus
                           />
                         </PopoverContent>

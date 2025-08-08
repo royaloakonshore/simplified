@@ -574,6 +574,18 @@ export default function InvoiceListContent({
                 </TableRow>
                 )}
             </TableBody>
+            {/* Totals Row reacting to current page/filter */}
+            <tfoot>
+              <tr>
+                <td colSpan={columns.length - 2} />
+                <td className="text-right font-medium pr-4">Page Net:</td>
+                <td className="text-right font-mono pr-4">
+                  {formatCurrency(
+                    (table.getRowModel().rows || []).reduce((sum, row) => sum + Number((row.original as any).totalAmount || 0), 0)
+                  )}
+                </td>
+              </tr>
+            </tfoot>
             </Table>
         </div>
         <DataTablePagination table={table} />

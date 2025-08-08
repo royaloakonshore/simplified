@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 import { RevenueChart } from "@/components/dashboard/PlaceholderAreaChart";
+import DeferredLoader from "@/components/common/DeferredLoader";
 import { PageBanner, BannerTitle } from "@/components/ui/page-banner";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -640,12 +641,14 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <RevenueChart 
-              type={chartType} 
-              periods={chartType === "monthly" ? 6 : 8} 
-              startDate={dateRange.from}
-              endDate={dateRange.to}
-            />
+            <DeferredLoader label={chartType === "customers" ? "Load Top Customers" : "Load Revenue Chart"}>
+              <RevenueChart 
+                type={chartType} 
+                periods={chartType === "monthly" ? 6 : 8} 
+                startDate={dateRange.from}
+                endDate={dateRange.to}
+              />
+            </DeferredLoader>
           </CardContent>
         </Card>
 
@@ -666,7 +669,9 @@ export default function DashboardPage() {
               <CardDescription>Items needing reorder.</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-0">
-              <ReplenishmentAlertsTable />
+              <DeferredLoader label="Load Alerts">
+                <ReplenishmentAlertsTable />
+              </DeferredLoader>
             </CardContent>
           </Card>
         </div>

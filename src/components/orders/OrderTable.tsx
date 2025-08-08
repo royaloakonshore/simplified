@@ -492,6 +492,17 @@ export default function OrderTable({ data, isLoading, onDataChange }: OrderTable
               </TableRow>
             )}
           </TableBody>
+          <tfoot>
+            <TableRow>
+              <TableCell colSpan={columns.length - 2} />
+              <TableCell className="text-right font-medium">Page Total:</TableCell>
+              <TableCell className="text-right font-mono">
+                {formatCurrency(
+                  table.getRowModel().rows.reduce((sum, row) => sum + Number(row.original.totalAmount || 0), 0)
+                )}
+              </TableCell>
+            </TableRow>
+          </tfoot>
         </Table>
       </div>
       <DataTablePagination table={table} />

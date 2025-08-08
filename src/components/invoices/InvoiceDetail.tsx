@@ -168,8 +168,21 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         });
         toast.success("Invoice sent successfully!");
       } else if (method === "download-pdf") {
-        // Placeholder for PDF download
-        toast.info("PDF download functionality will be implemented soon");
+        const res = await fetch(`/api/pdf/invoice/${invoice.id}`);
+        if (!res.ok) {
+          toast.error("Failed to generate PDF");
+          return;
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${invoice.invoiceNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        toast.success("PDF downloaded");
       } else if (method === "download-xml") {
         // Use existing Finvoice export
         await handleFinvoiceExport();

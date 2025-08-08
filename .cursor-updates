@@ -1,3 +1,4 @@
+\- fix(invoices): persist deliveryDate on edit; implement Download PDF-only; add DeferredLoader and wrap heavy dashboard/orders sections; add totals row for invoices and orders tables; build green.
 \- fix(pdf/docs): include Company in PDF queries/emails; finalize BOM PDF export UI; consolidated docs (perf guidance merged into 01-architecture-layout; README marks deprecated files; roadmap clarified).
 \- perf: tightened multi-tenant scoping in production endpoints, narrowed Prisma selects, added query caching options, and parallelized dashboard revenue aggregates; type-check and build green.
 # Cursor Updates - Simplified ERP System
