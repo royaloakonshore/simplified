@@ -455,19 +455,40 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   <Table className="min-w-[1100px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[200px]">Item</TableHead>
-                        <TableHead className="w-[100px]">Qty</TableHead>
-                        <TableHead className="w-[120px]">Unit Price</TableHead>
-                        <TableHead className="w-[90px]">VAT %</TableHead>
-                        <TableHead className="w-[130px]">Discount %</TableHead>
-                        <TableHead className="w-[130px]">Discount Amt.</TableHead>
-                        <TableHead className="w-[140px] text-right">Line Total</TableHead>
+                        <TableHead className="w-[120px]">SKU</TableHead>
+                        <TableHead className="min-w-[180px]">Item</TableHead>
+                        <TableHead className="w-[80px]">Qty</TableHead>
+                        <TableHead className="w-[110px]">Unit Price</TableHead>
+                        <TableHead className="w-[80px]">VAT %</TableHead>
+                        <TableHead className="w-[110px]">Discount %</TableHead>
+                        <TableHead className="w-[110px]">Discount Amt.</TableHead>
+                        <TableHead className="w-[130px] text-right">Line Total</TableHead>
                         <TableHead className="w-[60px]">Actions</TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody>
                     {updateFields.map((field, index) => (
                       <TableRow key={field.key}>
+                        {/* SKU Column */}
+                        <TableCell>
+                          <ComboboxResponsive
+                            onSelectedValueChange={(value) => {
+                              const selectedItem = inventoryItems.find(item => item.sku === value);
+                              if (selectedItem) {
+                                updateForm.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                handleItemChange(index, selectedItem.id, updateForm);
+                              }
+                            }}
+                            selectedValue={updateForm.watch(`items.${index}.inventoryItemId`) ? inventoryItems.find(i => i.id === updateForm.watch(`items.${index}.inventoryItemId`))?.sku || '' : ''}
+                            options={inventoryItems.map(i => ({
+                              value: i.sku,
+                              label: i.sku
+                            }))}
+                            placeholder="SKU..."
+                            searchPlaceholder="Search SKU..."
+                            disabled={updateOrderMutation.isPending}
+                          />
+                        </TableCell>
                         <TableCell>
                            <FormField
                               control={updateForm.control}
@@ -480,7 +501,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                      selectedValue={field.value}
                                      options={inventoryItems.map(i => ({
                                        value: i.id,
-                                       label: `${i.name} (${i.sku})`
+                                       label: i.name
                                      }))}
                                      placeholder="Select item..."
                                      searchPlaceholder="Search items..."
@@ -848,13 +869,14 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="min-w-[240px]">Item</TableHead>
-                          <TableHead className="w-[100px]">Quantity</TableHead>
-                          <TableHead className="w-[120px]">Unit Price</TableHead>
-                          <TableHead className="w-[100px]">VAT %</TableHead>
-                          <TableHead className="w-[100px]">Disc %</TableHead>
-                          <TableHead className="w-[100px]">Disc Amt</TableHead>
-                          <TableHead className="w-[120px] text-right">Total</TableHead>
+                          <TableHead className="w-[120px]">SKU</TableHead>
+                          <TableHead className="min-w-[200px]">Item</TableHead>
+                          <TableHead className="w-[80px]">Quantity</TableHead>
+                          <TableHead className="w-[110px]">Unit Price</TableHead>
+                          <TableHead className="w-[80px]">VAT %</TableHead>
+                          <TableHead className="w-[90px]">Disc %</TableHead>
+                          <TableHead className="w-[90px]">Disc Amt</TableHead>
+                          <TableHead className="w-[110px] text-right">Total</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -864,7 +886,27 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                           const itemTotal = calculateLineTotal(currentItemValues, createForm);
                           return (
                             <TableRow key={item.key}>
-                              <TableCell className="min-w-[240px]">
+                              {/* SKU Column */}
+                              <TableCell>
+                                <ComboboxResponsive
+                                  onSelectedValueChange={(value) => {
+                                    const selectedItem = inventoryItems.find(item => item.sku === value);
+                                    if (selectedItem) {
+                                      createForm.setValue(`items.${index}.inventoryItemId`, selectedItem.id);
+                                      handleItemChange(index, selectedItem.id, createForm);
+                                    }
+                                  }}
+                                  selectedValue={currentItemValues?.inventoryItemId ? inventoryItems.find(i => i.id === currentItemValues.inventoryItemId)?.sku || '' : ''}
+                                  options={inventoryItems.map(i => ({
+                                    value: i.sku,
+                                    label: i.sku
+                                  }))}
+                                  placeholder="SKU..."
+                                  searchPlaceholder="Search SKU..."
+                                  disabled={createOrderMutation.isPending}
+                                />
+                              </TableCell>
+                              <TableCell className="min-w-[200px]">
                                 <FormField
                                   control={createForm.control}
                                   name={`items.${index}.inventoryItemId`}
@@ -876,12 +918,12 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                                          selectedValue={field.value}
                                          options={inventoryItems.map(i => ({
                                            value: i.id,
-                                           label: `${i.name} (${i.sku})`
+                                           label: i.name
                                          }))}
                                          placeholder="Select item..."
                                          searchPlaceholder="Search items..."
                                          disabled={createOrderMutation.isPending}
-                                         className="min-w-[200px]"
+                                         className="min-w-[180px]"
                                        />
                                       <FormMessage />
                                     </FormItem>

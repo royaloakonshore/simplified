@@ -592,14 +592,15 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                   <Table className="min-w-[1200px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[220px]">Item</TableHead>
-                        <TableHead className="min-w-[180px]">Description</TableHead>
-                        <TableHead className="w-[100px]">Qty</TableHead>
-                        <TableHead className="w-[120px]">Unit Price</TableHead>
-                        <TableHead className="w-[90px]">VAT %</TableHead>
-                        <TableHead className="w-[130px]">Disc %</TableHead>
-                        <TableHead className="w-[130px]">Disc Amt</TableHead>
-                        <TableHead className="w-[140px] text-right">Line Total</TableHead>
+                        <TableHead className="w-[120px]">SKU</TableHead>
+                        <TableHead className="min-w-[200px]">Item</TableHead>
+                        <TableHead className="min-w-[160px]">Description</TableHead>
+                        <TableHead className="w-[80px]">Qty</TableHead>
+                        <TableHead className="w-[110px]">Unit Price</TableHead>
+                        <TableHead className="w-[80px]">VAT %</TableHead>
+                        <TableHead className="w-[110px]">Disc %</TableHead>
+                        <TableHead className="w-[110px]">Disc Amt</TableHead>
+                        <TableHead className="w-[130px] text-right">Line Total</TableHead>
                         <TableHead className="w-[60px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -608,6 +609,26 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                       const itemValue = watchItems[index];
                       return (
                         <TableRow key={field.id}>
+                          {/* SKU Column */}
+                          <TableCell>
+                            <ComboboxResponsive
+                              onSelectedValueChange={(value) => {
+                                const selectedItem = inventoryItems.find(item => item.sku === value);
+                                if (selectedItem) {
+                                  form.setValue(`items.${index}.itemId`, selectedItem.id);
+                                  handleItemChange(index, selectedItem.id);
+                                }
+                              }}
+                              selectedValue={itemValue?.itemId ? inventoryItems.find(i => i.id === itemValue.itemId)?.sku || '' : ''}
+                              disabled={createInvoiceMutation.isPending}
+                              options={inventoryItems.map(i => ({
+                                value: i.sku,
+                                label: i.sku,
+                              }))}
+                              placeholder="SKU..."
+                              searchPlaceholder="Search SKU..."
+                            />
+                          </TableCell>
                           <TableCell>
                             <FormField
                               control={form.control}
@@ -623,7 +644,7 @@ export default function InvoiceForm({ customers: initialCustomers, inventoryItem
                                      disabled={createInvoiceMutation.isPending}
                                      options={inventoryItems.map(i => ({
                                        value: i.id,
-                                       label: `${i.name} (${i.sku})`,
+                                       label: i.name,
                                      }))}
                                      placeholder="Select item..."
                                      searchPlaceholder="Search items..."

@@ -287,6 +287,14 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
             </tbody>
           </table>
 
+          <!-- Invoice Description/Notes -->
+          ${invoice.notes ? `
+            <div class="invoice-description">
+              <h4>${isEnglish ? 'Notes' : 'Huomautukset'}</h4>
+              <p>${invoice.notes}</p>
+            </div>
+          ` : ''}
+
           <!-- Enhanced Totals Section -->
           <div class="totals-section">
             <div class="vat-summary">
@@ -330,7 +338,7 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
           </div>
         </div>
 
-        ${generateGiroblankettHtml(invoice, isEnglish)}
+        ${generateGiroblankettHtml(invoice, isEnglish, invoice.items.length)}
       </div>
     </body>
     </html>
@@ -340,12 +348,17 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
 /**
  * Generate Finnish Giroblankett payment slip
  */
-function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolean): string {
+function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolean, itemCount: number = 0): string {
   const total = new Decimal(invoice.totalAmount?.toString() || '0');
   
   // Get billing address from customer addresses
   const billingAddress = invoice.customer?.addresses?.find(addr => addr.type === AddressType.billing) 
     || invoice.customer?.addresses?.[0];
+  
+  // Determine if we need a page break based on content length
+  // If there are many items (>6) or if there are notes, break to next page
+  const needsPageBreak = itemCount > 6 || invoice.notes;
+  const pageBreakClass = needsPageBreak ? ' page-break' : '';
   
   return `
     <!-- Company Details Footer -->
@@ -367,7 +380,7 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
     </div>
 
     <!-- Giroblankett Payment Slip -->
-    <div style="border-top: 1px dashed gray; padding-top: 0.5em;">
+    <div class="giroblankett-container${pageBreakClass}" style="border-top: 1px dashed gray; padding-top: 0.5em;">
       <div style="display: flex; border: 2px solid black;">
         <!-- Left side - Recipient and Payer info -->
         <div style="width: 58%; border-right: 2px solid black;">
@@ -1196,10 +1209,10 @@ function getEnhancedInvoiceStyles(): string {
     }
     
     .details-section {
-      min-height: 6.68cm;
+      min-height: 4cm;
       display: flex;
-      margin-top: 3em;
-      margin-bottom: 4em;
+      margin-top: 1.5em;
+      margin-bottom: 1.5em;
     }
     
     .details-content {
@@ -1248,17 +1261,17 @@ function getEnhancedInvoiceStyles(): string {
     }
     
     .items-section {
-      min-height: 8cm;
-      max-height: 12cm;
+      min-height: 6cm;
+      max-height: 14cm;
     }
     
     .items-title {
       font-size: 16px;
       font-weight: bold;
       color: #0066cc;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       border-bottom: 2px solid #0066cc;
-      padding-bottom: 5px;
+      padding-bottom: 3px;
     }
     
     .items-table {
@@ -1306,6 +1319,25 @@ function getEnhancedInvoiceStyles(): string {
       color: #dc3545;
       font-size: 10px;
       line-height: 1.2;
+    }
+    
+    .invoice-description {
+      margin: 1.5em 0;
+      padding: 1em;
+      background-color: #f8f9fa;
+      border-left: 4px solid #0066cc;
+    }
+    
+    .invoice-description h4 {
+      margin: 0 0 0.5em 0;
+      color: #0066cc;
+      font-size: 14px;
+    }
+    
+    .invoice-description p {
+      margin: 0;
+      line-height: 1.4;
+      font-size: 12px;
     }
     
     .totals-section {

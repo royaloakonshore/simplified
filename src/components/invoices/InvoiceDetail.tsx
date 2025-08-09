@@ -363,6 +363,7 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr className="text-left">
+                  <th className="px-4 py-3 text-sm font-medium">SKU</th>
                   <th className="px-4 py-3 text-sm font-medium">Description</th>
                   <th className="px-4 py-3 text-sm font-medium text-right">Qty</th>
                   <th className="px-4 py-3 text-sm font-medium text-right">Unit Price</th>
@@ -390,6 +391,11 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 
                   return (
                     <tr key={index} className="hover:bg-muted/25">
+                      <td className="px-4 py-3">
+                        <div className="font-mono text-sm">
+                          {item.inventoryItem?.sku || '-'}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <div>
                           <div className="font-medium">{item.description}</div>
