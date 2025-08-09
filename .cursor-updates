@@ -4278,6 +4278,24 @@ The PDF generation system is functionally complete with professional templates, 
 ---
 
 ## 2025-02-02
+
+### Enhanced PDF Design with Finnish Standards and SKU Integration
+
+**Major PDF improvements:**
+- **✅ Fixed LASKU positioning**: Moved invoice heading to top-right corner as per Finnish standards
+- **✅ Added thousand separators**: All currency amounts now display with Finnish space separators (1 000,00 €)
+- **✅ Resolved line breaking**: Fixed Euro symbol line breaks with proper `white-space: nowrap` styling
+- **✅ Compact payment details**: Reduced row heights in info tables for cleaner layout
+- **✅ SKU as first column**: Added SKU prominently as first column in all invoice and order PDFs
+- **✅ Enhanced Giroblankett**: Improved Finnish payment slip layout and positioning for proper page fitting
+- **✅ Finvoice XML integration**: Added SKU as `ArticleIdentifier` with `IdentificationSchemeName="SELLER"` in XML export
+
+**Technical improvements:**
+- Enhanced currency formatting functions with Finnish locale support
+- Fixed TypeScript errors with proper type casting for company properties
+- Improved PDF table structure and column widths for better readability
+- Updated all numeric displays to use consistent thousand-separator formatting
+
 - Performance optimization: React Query caching for Dashboard, Production, Inventory pages
 - PDF generation: Fixed company data inclusion for invoice/order PDFs
 - BOM PDF export: Added route and UI button for BOM PDF generation

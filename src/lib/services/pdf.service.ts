@@ -128,18 +128,16 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
       <div class="invoice-container">
         <!-- Header Section - Company Info and Document Type -->
         <div class="header-section">
-          <div class="header-content">
-            <div class="company-info">
-              <h1>${invoice.company?.name || 'Yritys Oy'}</h1>
-              <p>${(invoice.company as any)?.streetAddress || 'Yrityskatu 1'}</p>
-              <p>${(invoice.company as any)?.postalCode || '00100'} ${(invoice.company as any)?.city || 'Helsinki'}</p>
-              <p>Y-tunnus: ${(invoice.company as any)?.businessId || '1234567-8'}</p>
-              <p>ALV-nro: ${(invoice.company as any)?.vatId || 'FI12345678'}</p>
-            </div>
-            <div class="document-type">
-              <h2>${documentType}</h2>
-              <p class="document-type-en">${documentTypeEn}</p>
-            </div>
+          <div class="company-info">
+            <h1>${invoice.company?.name || 'Yritys Oy'}</h1>
+            <p>${(invoice.company as any)?.streetAddress || 'Yrityskatu 1'}</p>
+            <p>${(invoice.company as any)?.postalCode || '00100'} ${(invoice.company as any)?.city || 'Helsinki'}</p>
+            <p>Y-tunnus: ${(invoice.company as any)?.businessId || '1234567-8'}</p>
+            <p>ALV-nro: ${(invoice.company as any)?.vatId || 'FI12345678'}</p>
+          </div>
+          <div class="document-type">
+            <h2>${documentType}</h2>
+            <p class="document-type-en">${documentTypeEn}</p>
           </div>
         </div>
 
@@ -231,14 +229,15 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
           <table class="items-table">
             <thead>
               <tr>
-                <th style="text-align: left; width: 35%;">${isEnglish ? 'Description' : 'Kuvaus'}</th>
-                <th style="text-align: right; width: 10%;">${isEnglish ? 'Qty' : 'Määrä'}</th>
-                <th style="text-align: right; width: 12%;">${isEnglish ? 'Unit Price' : 'Yksikköhinta'}</th>
-                <th style="text-align: right; width: 12%;">${isEnglish ? 'Discount' : 'Alennus'}</th>
-                <th style="text-align: right; width: 8%;">${isEnglish ? 'VAT %' : 'ALV %'}</th>
-                <th style="text-align: right; width: 12%;">${isEnglish ? 'Net Amount' : 'Netto'}</th>
-                <th style="text-align: right; width: 11%;">${isEnglish ? 'VAT Amount' : 'ALV'}</th>
-                <th style="text-align: right; width: 12%;">${isEnglish ? 'Total' : 'Yhteensä'}</th>
+                <th style="text-align: left; width: 12%;">SKU</th>
+                <th style="text-align: left; width: 28%;">${isEnglish ? 'Description' : 'Kuvaus'}</th>
+                <th style="text-align: right; width: 8%;">${isEnglish ? 'Qty' : 'Määrä'}</th>
+                <th style="text-align: right; width: 10%;">${isEnglish ? 'Unit Price' : 'Yksikköhinta'}</th>
+                <th style="text-align: right; width: 10%;">${isEnglish ? 'Discount' : 'Alennus'}</th>
+                <th style="text-align: right; width: 6%;">${isEnglish ? 'VAT %' : 'ALV %'}</th>
+                <th style="text-align: right; width: 10%;">${isEnglish ? 'Net Amount' : 'Netto'}</th>
+                <th style="text-align: right; width: 8%;">${isEnglish ? 'VAT Amount' : 'ALV'}</th>
+                <th style="text-align: right; width: 10%;">${isEnglish ? 'Total' : 'Yhteensä'}</th>
               </tr>
             </thead>
             <tbody>
@@ -258,6 +257,7 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
                 
                 return `
                   <tr>
+                    <td style="text-align: left; white-space: nowrap;">${item.inventoryItem?.sku || '-'}</td>
                     <td>
                       <div class="item-description">
                         <strong>${item.inventoryItem?.name || item.description || ''}</strong>
@@ -266,21 +266,21 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
                         ${item.rowFreeText ? `<br><small class="item-detail">${item.rowFreeText}</small>` : ''}
                       </div>
                     </td>
-                    <td style="text-align: right;">${quantity.toFixed(2)}</td>
-                    <td style="text-align: right;">${unitPrice.toFixed(2)} €</td>
+                    <td style="text-align: right;">${formatDecimal(quantity, 2)}</td>
+                    <td style="text-align: right; white-space: nowrap;">${formatCurrency(unitPrice)}</td>
                     <td style="text-align: right;">
                       ${totalDiscount.greaterThan(0) ? `
                         <div class="discount-info">
-                          ${discountAmount.greaterThan(0) ? `-${discountAmount.toFixed(2)} €` : ''}
+                          ${discountAmount.greaterThan(0) ? `-${formatCurrency(discountAmount)}` : ''}
                           ${discountAmount.greaterThan(0) && discountPercentage.greaterThan(0) ? '<br>' : ''}
-                          ${discountPercentage.greaterThan(0) ? `-${discountPercentage.toFixed(1)}%` : ''}
+                          ${discountPercentage.greaterThan(0) ? `-${formatDecimal(discountPercentage, 1)}%` : ''}
                         </div>
                       ` : '-'}
                     </td>
-                    <td style="text-align: right;">${vatRate.toFixed(1)} %</td>
-                    <td style="text-align: right;">${netAmount.toFixed(2)} €</td>
-                    <td style="text-align: right;">${vatAmount.toFixed(2)} €</td>
-                    <td style="text-align: right;"><strong>${totalAmount.toFixed(2)} €</strong></td>
+                    <td style="text-align: right;">${formatDecimal(vatRate, 1)} %</td>
+                    <td style="text-align: right; white-space: nowrap;">${formatCurrency(netAmount)}</td>
+                    <td style="text-align: right; white-space: nowrap;">${formatCurrency(vatAmount)}</td>
+                    <td style="text-align: right; white-space: nowrap;"><strong>${formatCurrency(totalAmount)}</strong></td>
                   </tr>
                 `;
               }).join('')}
@@ -314,8 +314,8 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
 
                 return Object.entries(vatSummary).map(([rate, amounts]) => `
                   <div class="vat-summary-row">
-                    <span>${isEnglish ? 'VAT' : 'ALV'} ${Number(rate).toFixed(1)}% ${isEnglish ? 'on' : 'summasta'} €${amounts.netAmount.toFixed(2)}:</span>
-                    <span class="vat-amount">€${amounts.vatAmount.toFixed(2)}</span>
+                    <span>${isEnglish ? 'VAT' : 'ALV'} ${formatDecimal(Number(rate), 1)}% ${isEnglish ? 'on' : 'summasta'} ${formatCurrency(amounts.netAmount)}:</span>
+                    <span class="vat-amount">${formatCurrency(amounts.vatAmount)}</span>
                   </div>
                 `).join('');
               })()}
@@ -324,41 +324,13 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
             <table class="totals-table">
               <tr class="total-row">
                 <td><strong>${isEnglish ? 'Total Amount' : 'Loppusumma'}:</strong></td>
-                <td><strong>${total.toFixed(2)} €</strong></td>
+                <td><strong>${formatCurrency(total)}</strong></td>
               </tr>
             </table>
           </div>
         </div>
 
-        <!-- Finnish Giroblankett Payment Slip -->
-        <div class="giroblankett">
-          <div class="payment-slip">
-            <h3>${isEnglish ? 'Payment Information' : 'Maksutiedot'}</h3>
-            <table class="payment-table">
-              <tr>
-                <td>${isEnglish ? 'Amount' : 'Summa'}:</td>
-                <td><strong>${total.toFixed(2)} €</strong></td>
-              </tr>
-              <tr>
-                <td>${isEnglish ? 'Reference Number' : 'Viitenumero'}:</td>
-                <td><strong>${invoice.referenceNumber || 'Generating...'}</strong></td>
-              </tr>
-              <tr>
-                <td>${isEnglish ? 'Due Date' : 'Eräpäivä'}:</td>
-                <td><strong>${invoice.dueDate.toLocaleDateString(isEnglish ? 'en-US' : 'fi-FI')}</strong></td>
-              </tr>
-              <tr>
-                <td>${isEnglish ? 'Account Number' : 'Tilinumero'}:</td>
-                <td><strong>FI21 1234 5600 0007 85</strong></td>
-              </tr>
-            </table>
-            <p class="payment-note">
-              ${isEnglish 
-                ? 'Please use the reference number when making the payment.' 
-                : 'Käytä viitenumeroa maksaessasi.'}
-            </p>
-          </div>
-        </div>
+        ${generateGiroblankettHtml(invoice, isEnglish)}
       </div>
     </body>
     </html>
@@ -384,13 +356,13 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
         <div>${(invoice.company as any)?.postalCode || '00100'} ${(invoice.company as any)?.city || 'Helsinki'}</div>
       </div>
       <div style="width: 33%;">
-        <div>${invoice.company?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${invoice.company.phone}` : ''}</div>
-        <div>${invoice.company?.email ? `${isEnglish ? 'Email' : 'Sähköposti'}: ${invoice.company.email}` : ''}</div>
-        <div>${invoice.company?.website ? `${isEnglish ? 'Website' : 'Verkkosivu'}: ${invoice.company.website}` : ''}</div>
+        <div>${(invoice.company as any)?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${(invoice.company as any).phone}` : ''}</div>
+        <div>${(invoice.company as any)?.email ? `${isEnglish ? 'Email' : 'Sähköposti'}: ${(invoice.company as any).email}` : ''}</div>
+        <div>${(invoice.company as any)?.website ? `${isEnglish ? 'Website' : 'Verkkosivu'}: ${(invoice.company as any).website}` : ''}</div>
       </div>
       <div style="width: 34%;">
-        <div>${invoice.company?.city ? `${isEnglish ? 'Domicile' : 'Kotipaikka'}: ${invoice.company.city}` : ''}</div>
-        <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: ${invoice.company?.businessId || '1234567-8'}</div>
+        <div>${(invoice.company as any)?.city ? `${isEnglish ? 'Domicile' : 'Kotipaikka'}: ${(invoice.company as any).city}` : ''}</div>
+        <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: ${(invoice.company as any)?.businessId || '1234567-8'}</div>
       </div>
     </div>
 
@@ -406,7 +378,7 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
             </div>
             <div style="width: 80%; padding: 0.5em; border-left: 2px solid black;">
               <div style="font-weight: bold;">
-                ${invoice.company?.bankAccount ? `IBAN ${invoice.company.bankAccount}` : 'IBAN FI12 3456 7890 1234 56'}
+                ${(invoice.company as any)?.bankAccount ? `IBAN ${(invoice.company as any).bankAccount}` : 'IBAN FI12 3456 7890 1234 56'}
               </div>
             </div>
           </div>
@@ -418,8 +390,8 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
             </div>
             <div style="width: 80%; padding: 0.5em; border-left: 2px solid black; font-size: 0.8em;">
               <div><strong>${invoice.company?.name || 'Yritys Oy'}</strong></div>
-              <div>${invoice.company?.streetAddress || 'Yrityskatu 1'}</div>
-              <div>${invoice.company?.postalCode || '00100'} ${invoice.company?.city || 'Helsinki'}</div>
+              <div>${(invoice.company as any)?.streetAddress || 'Yrityskatu 1'}</div>
+              <div>${(invoice.company as any)?.postalCode || '00100'} ${(invoice.company as any)?.city || 'Helsinki'}</div>
             </div>
           </div>
 
@@ -481,7 +453,7 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
                   ${isEnglish ? 'Reference No.' : 'Viitenro'}
                 </div>
                 <div style="width: 70%; border-left: 2px solid black; padding: 3px;">
-                  <strong>${invoice.paymentReference || ''}</strong>
+                  <strong>${(invoice as any).paymentReference || ''}</strong>
                 </div>
               </div>
             </div>
@@ -512,11 +484,11 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
       <!-- Bank barcode and payment terms -->
       <div style="display: flex; margin-top: 0.2cm;">
         <div style="width: 75%; text-align: center;">
-          ${invoice.bankBarcode ? `
+          ${(invoice as any).bankBarcode ? `
             <div style="margin: 0 2cm;">
               <!-- Bank barcode would go here -->
               <div style="font-family: monospace; font-size: 0.8em; margin-top: 0.2cm;">
-                ${invoice.bankBarcode}
+                ${(invoice as any).bankBarcode}
               </div>
             </div>
           ` : ''}
@@ -1008,7 +980,7 @@ function generateQuotationHtml(order: OrderWithDetails): string {
     return sum.plus(itemTotal);
   }, new Decimal(0));
   
-  const vatAmount = new Decimal(order.totalVatAmount?.toString() || '0');
+  const vatAmount = new Decimal((order as any).totalVatAmount?.toString() || '0');
   const total = new Decimal(order.totalAmount?.toString() || '0');
   
   return `
@@ -1077,7 +1049,7 @@ function generateQuotationHtml(order: OrderWithDetails): string {
                 </tr>
                 <tr>
                   <td>${isEnglish ? 'Payment Terms' : 'Maksuehdot'}:</td>
-                  <td>${order.paymentTerms || '14 days'}</td>
+                  <td>${(order as any).paymentTerms || '14 days'}</td>
                 </tr>
               </table>
             </div>
@@ -1137,13 +1109,13 @@ function generateQuotationHtml(order: OrderWithDetails): string {
           <div class="footer-content">
             <div style="width: 50%;">
               <div><strong>${order.company?.name || 'Yritys Oy'}</strong></div>
-              <div>${order.company?.streetAddress || 'Yrityskatu 1'}</div>
-              <div>${order.company?.postalCode || '00100'} ${order.company?.city || 'Helsinki'}</div>
+              <div>${(order.company as any)?.streetAddress || 'Yrityskatu 1'}</div>
+              <div>${(order.company as any)?.postalCode || '00100'} ${(order.company as any)?.city || 'Helsinki'}</div>
             </div>
             <div style="width: 50%;">
-              <div>${order.company?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${order.company.phone}` : ''}</div>
-              <div>${order.company?.email ? `${isEnglish ? 'Email' : 'Sähköposti'}: ${order.company.email}` : ''}</div>
-              <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: ${order.company?.businessId || '1234567-8'}</div>
+              <div>${(order.company as any)?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${(order.company as any).phone}` : ''}</div>
+              <div>${(order.company as any)?.email ? `${isEnglish ? 'Email' : 'Sähköposti'}: ${(order.company as any).email}` : ''}</div>
+              <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: ${(order.company as any)?.businessId || '1234567-8'}</div>
             </div>
           </div>
         </div>
@@ -1180,19 +1152,15 @@ function getEnhancedInvoiceStyles(): string {
     .header-section {
       display: flex;
       justify-content: space-between;
+      align-items: flex-start;
       margin-bottom: 30px;
       border-bottom: 2px solid #0066cc;
       padding-bottom: 20px;
     }
     
-    .header-content {
-      display: flex;
-      align-items: flex-end;
-    }
-    
     .company-info {
       text-align: left;
-      margin-right: 20px;
+      flex: 1;
     }
     
     .company-info h1 {
@@ -1207,21 +1175,24 @@ function getEnhancedInvoiceStyles(): string {
     }
     
     .document-type {
-      text-align: left;
+      text-align: right;
       font-weight: bold;
-      font-size: large;
-      padding-left: 14px;
+      flex-shrink: 0;
+      margin-left: 20px;
     }
     
     .document-type h2 {
-      font-size: 1.5em;
+      font-size: 28px;
       margin: 0;
+      color: #0066cc;
+      font-weight: bold;
     }
     
     .document-type p {
-      font-size: 0.8em;
+      font-size: 14px;
       color: #666;
       margin: 0;
+      margin-top: 2px;
     }
     
     .details-section {
@@ -1257,12 +1228,13 @@ function getEnhancedInvoiceStyles(): string {
     }
     
     .info-table {
-      line-height: 1.5em;
+      line-height: 1.2;
       width: 100%;
     }
     
     .info-table td {
-      padding: 0.2em 0;
+      padding: 1px 0;
+      font-size: 11px;
     }
     
     .info-table td:first-child {
@@ -1276,7 +1248,8 @@ function getEnhancedInvoiceStyles(): string {
     }
     
     .items-section {
-      min-height: 13.70cm;
+      min-height: 8cm;
+      max-height: 12cm;
     }
     
     .items-title {
@@ -1420,6 +1393,8 @@ function getEnhancedInvoiceStyles(): string {
       page-break-inside: avoid;
       background: white;
       font-family: 'Arial', sans-serif;
+      margin-top: 1cm;
+      max-height: 8cm;
     }
     
     .giroblankett-header {
@@ -2290,19 +2265,23 @@ function formatDate(date: Date | string): string {
 }
 
 /**
- * Format currency for Finnish locale
+ * Format currency for Finnish locale with thousand separators
  */
 function formatCurrency(amount: any): string {
   const decimal = new Decimal(amount);
-  return decimal.toFixed(2).replace('.', ',') + ' €';
+  const formatted = decimal.toFixed(2);
+  // Add thousand separators (space) and use comma for decimal separator
+  return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ' ').replace('.', ',') + ' €';
 }
 
 /**
- * Format decimal number for Finnish locale
+ * Format decimal number for Finnish locale with thousand separators
  */
 function formatDecimal(amount: any, precision: number = 2): string {
   const decimal = new Decimal(amount);
-  return decimal.toFixed(precision).replace('.', ',');
+  const formatted = decimal.toFixed(precision);
+  // Add thousand separators (space) and use comma for decimal separator
+  return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ' ').replace('.', ',');
 }
 
 /**

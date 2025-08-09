@@ -179,7 +179,13 @@ export function generateFinvoiceXml(invoice: Invoice, settings: SellerSettings):
     const currentVatRate = new Decimal(item.vatRatePercent || 0);
 
     row.ele('RowPositionIdentifier').txt(rowNumber.toString()).up();
-    // ArticleIdentifier can be added if available (e.g., item.sku)
+    
+    // Add ArticleIdentifier (SKU) if available
+    if ((item as any).inventoryItem?.sku) {
+      row.ele('ArticleIdentifier', { IdentificationSchemeName: 'SELLER' })
+         .txt((item as any).inventoryItem.sku).up();
+    }
+    
     row.ele('ArticleName').txt(item.description || 'N/A').up();
     
     // Get unit code from inventory item, with Finnish mapping for common units
