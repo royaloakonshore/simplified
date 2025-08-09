@@ -2300,7 +2300,14 @@ function formatDate(date: Date | string): string {
  * Format currency for Finnish locale with thousand separators
  */
 function formatCurrency(amount: any): string {
-  const decimal = new Decimal(amount);
+  // Handle Nordic comma format and convert to number
+  let numericAmount = amount;
+  if (typeof amount === 'string') {
+    // Convert Nordic format (1 000,50) to standard format (1000.50)
+    numericAmount = amount.replace(/\s/g, '').replace(',', '.');
+  }
+  
+  const decimal = new Decimal(numericAmount);
   const formatted = decimal.toFixed(2);
   // Add thousand separators (space) and use comma for decimal separator
   return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ' ').replace('.', ',') + ' €';
@@ -2310,7 +2317,14 @@ function formatCurrency(amount: any): string {
  * Format decimal number for Finnish locale with thousand separators
  */
 function formatDecimal(amount: any, precision: number = 2): string {
-  const decimal = new Decimal(amount);
+  // Handle Nordic comma format and convert to number
+  let numericAmount = amount;
+  if (typeof amount === 'string') {
+    // Convert Nordic format (1 000,50) to standard format (1000.50)
+    numericAmount = amount.replace(/\s/g, '').replace(',', '.');
+  }
+  
+  const decimal = new Decimal(numericAmount);
   const formatted = decimal.toFixed(precision);
   // Add thousand separators (space) and use comma for decimal separator
   return formatted.replace(/\B(?=(\d{3})+(?!\d))/g, ' ').replace('.', ',');
