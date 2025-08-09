@@ -130,6 +130,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                    OrderType.work_order, // Default to work_order
         orderDate: new Date(), // Added orderDate
         deliveryDate: undefined, // Added deliveryDate
+        ourReference: '', // Added ourReference
         items: [{ inventoryItemId: '', quantity: 1, unitPrice: 0, vatRatePercent: 25.5, discountAmount: null, discountPercent: null }],
     },
   });
@@ -158,7 +159,8 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
             notes: order.notes ?? '',
             status: order.status, 
             orderType: order.orderType ?? OrderType.work_order, 
-            deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined, 
+            deliveryDate: order.deliveryDate ? new Date(order.deliveryDate) : undefined,
+            ourReference: order.ourReference ?? '', 
             items: order.items.map((orderItem: ProcessedOrderItem) => ({
                 id: orderItem.id,
                 inventoryItemId: orderItem.inventoryItemId, 
@@ -225,6 +227,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
     const processedData: CreateOrderInput = {
       ...data,
       deliveryDate: data.deliveryDate || null,
+      ourReference: data.ourReference || null,
       items: (data.items || []).map(item => ({
         inventoryItemId: item.inventoryItemId,
         quantity: Number(item.quantity),
@@ -246,6 +249,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
       ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate || null }),
       ...(data.orderType && { orderType: data.orderType }),
       ...(data.notes !== undefined && { notes: data.notes }),
+      ...(data.ourReference !== undefined && { ourReference: data.ourReference || null }),
     };
 
     if (data.items) {
@@ -426,7 +430,7 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                 )}
               />
 
-              <FormField
+                            <FormField
                 control={updateForm.control}
                 name={"deliveryDate"}
                 render={({ field }) => (
@@ -448,7 +452,30 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                   </FormItem>
                 )}
               />
-              
+
+              <FormField
+                control={updateForm.control}
+                name={"ourReference"}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Our Reference</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                        disabled={updateOrderMutation.isPending}
+                        placeholder="Internal reference"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Internal reference for this order (optional).
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="space-y-2">
                 <FormLabel>Order Items</FormLabel>
                 <div className="overflow-x-auto">
@@ -857,6 +884,29 @@ export default function OrderForm({ customers: initialCustomers, inventoryItems,
                       </FormControl>
                       <FormDescription>
                         When this order should be delivered to the customer.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={createForm.control}
+                  name={"ourReference"}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Our Reference</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value || null)}
+                          disabled={createOrderMutation.isPending}
+                          placeholder="Internal reference"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Internal reference for this order (optional).
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
