@@ -4317,3 +4317,8 @@ The PDF generation system is functionally complete with professional templates, 
 - Improved items table structure to match invoice details page with discount columns
 - Enhanced PDF styling with better readability and professional appearance
 - Added reminder setup task to backlog for proper reminder workflow
+- Fixed delivery date saving and added editable ourReference field to order forms
+
+## 2025-02-02 (continued)
+- Fixed order PDF export error by updating number formatting functions to handle Nordic comma format
+- Fixed order PDF download not triggering in browser by implementing proper client-side blob download

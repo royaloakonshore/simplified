@@ -154,6 +154,25 @@ export default function OrderDetail({ order }: OrderDetailProps) {
 
   const exportPDFMutation = api.order.exportPDF.useMutation({
     onSuccess: (result) => {
+      if (result.pdfBase64) {
+        // Convert base64 to blob and trigger download
+        const byteCharacters = atob(result.pdfBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = result.filename || `order_${result.orderNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
       toast.success(result.message);
     },
     onError: (err) => {
@@ -197,7 +216,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
         toast.success("Order sent successfully!");
       } else if (method === "download-pdf") {
         // Use existing PDF export
-        await handleExportPDF();
+        handleExportPDF();
       }
     } catch (error) {
       console.error("Send order error:", error);
