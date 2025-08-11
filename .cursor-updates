@@ -4397,3 +4397,17 @@ All requested features are fully implemented and working correctly. The system i
 - ⚠️ Only minor linting warnings (unused imports, any types)
 
 **Next Steps**: The system is complete and ready for production use. Consider addressing minor linting warnings for code quality improvement.
+
+## 2025-02-02 (Continued)
+
+### Additional PDF Improvements
+
+6. **PDF Styling and Content Updates** ✅
+   - Changed PDF accent color to light gray (#8a9ba8) for better print visibility
+   - Updated quotation template to show discount as percentage in item table (keeping Euro in Yhteenveto)
+   - Moved Maksuehto and Toimitus to right top column in quotation template
+   - Right-justified Tarjouksen yhteenveto section
+   - Added comprehensive Swedish (SE) language support to quotation PDFs
+   - Updated order status translation function to support all three languages (EN, FI, SE)
+   - Enhanced PDF table styling with modern design elements
+   - Fixed reminder invoice detection to use isReminder field

@@ -109,7 +109,7 @@ function generateInvoiceHtml(invoice: InvoiceWithDetails): string {
     || invoice.customer?.addresses?.[0];
   
   // Determine document type - check if it's a reminder
-  const isReminder = invoice.status === 'overdue' || invoice.status === 'sent';
+  const isReminder = invoice.isReminder || invoice.status === 'overdue' || invoice.status === 'sent';
   const documentType = isReminder ? 'HUOMAUTUS' : 'LASKU';
   const documentTypeEn = isReminder ? 'REMINDER' : 'INVOICE';
   
@@ -918,7 +918,7 @@ async function generateWorkOrderHtml(order: OrderWithDetails): Promise<string> {
                 </tr>
                 <tr>
                   <td>${isEnglish ? 'Status' : 'Tila'}:</td>
-                  <td>${order.status.replace('_', ' ').toUpperCase()}</td>
+                  <td>${getOrderStatusText(order.status, customerLanguage)}</td>
                 </tr>
               </table>
             </div>
@@ -986,12 +986,13 @@ async function generateWorkOrderHtml(order: OrderWithDetails): Promise<string> {
  * Generate HTML template for quotation (includes pricing)
  */
 function generateQuotationHtml(order: OrderWithDetails): string {
-  const documentType = 'TARJOUS';
-  const documentTypeEn = 'QUOTATION';
-  
   // Get customer language for localization
   const customerLanguage = order.customer?.language || CustomerLanguage.FI;
   const isEnglish = customerLanguage === CustomerLanguage.EN;
+  const isSwedish = customerLanguage === CustomerLanguage.SE;
+  
+  const documentType = isSwedish ? 'OFFERT' : 'TARJOUS';
+  const documentTypeEn = 'QUOTATION';
   
   // Get billing address from customer addresses
   const billingAddress = order.customer?.addresses?.find(addr => addr.type === AddressType.billing) 
@@ -1026,7 +1027,7 @@ function generateQuotationHtml(order: OrderWithDetails): string {
               <h1>${order.company?.name || 'Yritys Oy'}</h1>
               <p>Yrityskatu 1</p>
               <p>00100 Helsinki, Finland</p>
-              <p>${isEnglish ? 'Phone' : 'Puhelin'}: +358 9 123 4567</p>
+              <p>${isEnglish ? 'Phone' : isSwedish ? 'Telefon' : 'Puhelin'}: +358 9 123 4567</p>
             </div>
             <div class="document-type">
               <h2>${documentType}</h2>
@@ -1040,38 +1041,38 @@ function generateQuotationHtml(order: OrderWithDetails): string {
           <div class="details-content">
             <!-- Customer Information -->
             <div class="customer-info">
-              <h3>${isEnglish ? 'Customer Information' : 'Asiakastiedot'}</h3>
+              <h3>${isEnglish ? 'Customer Information' : isSwedish ? 'Kundinformation' : 'Asiakastiedot'}</h3>
               <div>
                 <p><strong>${order.customer.name}</strong></p>
                 ${billingAddress ? `
                   <p>${billingAddress.streetAddress}</p>
                   <p>${billingAddress.postalCode} ${billingAddress.city}</p>
                 ` : ''}
-                ${order.customer.email ? `<p>${isEnglish ? 'Email' : 'Sähköposti'}: ${order.customer.email}</p>` : ''}
-                ${order.customer.phone ? `<p>${isEnglish ? 'Phone' : 'Puhelin'}: ${order.customer.phone}</p>` : ''}
+                ${order.customer.email ? `<p>${isEnglish ? 'Email' : isSwedish ? 'E-post' : 'Sähköposti'}: ${order.customer.email}</p>` : ''}
+                ${order.customer.phone ? `<p>${isEnglish ? 'Phone' : isSwedish ? 'Telefon' : 'Puhelin'}: ${order.customer.phone}</p>` : ''}
                 ${order.customer.vatId ? 
-                  `<p>${isEnglish ? 'VAT' : 'ALV'}: ${order.customer.vatId}</p>` : ''}
+                  `<p>${isEnglish ? 'VAT' : isSwedish ? 'MOMS' : 'ALV'}: ${order.customer.vatId}</p>` : ''}
               </div>
             </div>
 
             <!-- Quotation Information -->
             <div class="order-info">
-              <h3>${isEnglish ? 'Quotation Details' : 'Tarjouksen tiedot'}</h3>
+              <h3>${isEnglish ? 'Quotation Details' : isSwedish ? 'Offertdetaljer' : 'Tarjouksen tiedot'}</h3>
               <table class="info-table">
                 <tr>
-                  <td>${isEnglish ? 'Order Number' : 'Tilausnumero'}:</td>
+                  <td>${isEnglish ? 'Order Number' : isSwedish ? 'Beställningsnummer' : 'Tilausnumero'}:</td>
                   <td>${order.orderNumber}</td>
                 </tr>
                 <tr>
-                  <td>${isEnglish ? 'Order Date' : 'Tilauspäivä'}:</td>
-                  <td>${new Date(order.createdAt).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : 'fi-FI')}</td>
+                  <td>${isEnglish ? 'Order Date' : isSwedish ? 'Beställningsdatum' : 'Tilauspäivä'}:</td>
+                  <td>${new Date(order.createdAt).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : customerLanguage === CustomerLanguage.SE ? 'sv-SE' : 'fi-FI')}</td>
                 </tr>
                 <tr>
-                  <td>${isEnglish ? 'Delivery Date' : 'Toimituspäivä'}:</td>
-                  <td>${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : 'fi-FI') : '-'}</td>
+                  <td>${isEnglish ? 'Delivery Date' : isSwedish ? 'Leveransdatum' : 'Toimituspäivä'}:</td>
+                  <td>${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString(customerLanguage === CustomerLanguage.EN ? 'en-US' : customerLanguage === CustomerLanguage.SE ? 'sv-SE' : 'fi-FI') : '-'}</td>
                 </tr>
                 <tr>
-                  <td>${isEnglish ? 'Payment Terms' : 'Maksuehdot'}:</td>
+                  <td>${isEnglish ? 'Payment Terms' : isSwedish ? 'Betalningsvillkor' : 'Maksuehdot'}:</td>
                   <td>${(order as any).paymentTerms || '14 days'}</td>
                 </tr>
               </table>
@@ -1081,26 +1082,31 @@ function generateQuotationHtml(order: OrderWithDetails): string {
 
         <!-- Items Section -->
         <div class="items-section">
-          <h3>${isEnglish ? 'Items' : 'Tuotteet'}</h3>
+          <h3>${isEnglish ? 'Items' : isSwedish ? 'Artiklar' : 'Tuotteet'}</h3>
           <table class="items-table">
             <thead>
               <tr>
-                <th>${isEnglish ? 'Item' : 'Tuote'}</th>
-                <th>${isEnglish ? 'Description' : 'Kuvaus'}</th>
-                <th>${isEnglish ? 'Quantity' : 'Määrä'}</th>
-                <th>${isEnglish ? 'Unit Price' : 'Yksikköhinta'}</th>
-                <th>${isEnglish ? 'Total' : 'Yhteensä'}</th>
+                <th>${isEnglish ? 'Item' : isSwedish ? 'Artikel' : 'Tuote'}</th>
+                <th>${isEnglish ? 'Description' : isSwedish ? 'Beskrivning' : 'Kuvaus'}</th>
+                <th>${isEnglish ? 'Quantity' : isSwedish ? 'Antal' : 'Määrä'}</th>
+                <th>${isEnglish ? 'Unit Price' : isSwedish ? 'Enhetspris' : 'Yksikköhinta'}</th>
+                <th>${isEnglish ? 'Discount' : isSwedish ? 'Rabatt' : 'Alennus'}</th>
+                <th>${isEnglish ? 'Total' : isSwedish ? 'Totalt' : 'Yhteensä'}</th>
               </tr>
             </thead>
             <tbody>
               ${order.items.map(item => {
                 const itemTotal = new Decimal(item.quantity.toString()).times(new Decimal(item.unitPrice.toString()));
+                const discountPercent = item.discountPercentage ? new Decimal(item.discountPercentage.toString()).toNumber() : 0;
+                const discountAmount = item.discountAmount ? new Decimal(item.discountAmount.toString()).toNumber() : 0;
+                const discountDisplay = discountPercent > 0 ? `${discountPercent}%` : (discountAmount > 0 ? `${discountAmount.toFixed(2)} €` : '-');
                 return `
                   <tr>
                     <td>${item.inventoryItem.sku}</td>
                     <td>${item.inventoryItem.name}</td>
                     <td>${item.quantity}</td>
                     <td>${new Decimal(item.unitPrice.toString()).toFixed(2)} €</td>
+                    <td>${discountDisplay}</td>
                     <td>${itemTotal.toFixed(2)} €</td>
                   </tr>
                 `;
@@ -1111,20 +1117,30 @@ function generateQuotationHtml(order: OrderWithDetails): string {
 
         <!-- Totals Section -->
         <div class="totals-section">
-          <table class="totals-table">
-            <tr>
-              <td>${isEnglish ? 'Subtotal' : 'Välisumma'}:</td>
-              <td>${subtotal.toFixed(2)} €</td>
-            </tr>
-            <tr>
-              <td>${isEnglish ? 'VAT' : 'ALV'} ${order.items[0]?.vatRatePercent?.toString() || '24'} %:</td>
-              <td>${vatAmount.toFixed(2)} €</td>
-            </tr>
-            <tr class="total-row">
-              <td><strong>${isEnglish ? 'Total' : 'Yhteensä'}:</strong></td>
-              <td><strong>${total.toFixed(2)} €</strong></td>
-            </tr>
-          </table>
+          <div class="totals-content">
+            <div class="totals-left">
+              <table class="totals-table">
+                <tr>
+                  <td>${isEnglish ? 'Subtotal' : isSwedish ? 'Delsumma' : 'Välisumma'}:</td>
+                  <td>${subtotal.toFixed(2)} €</td>
+                </tr>
+                <tr>
+                  <td>${isEnglish ? 'VAT' : isSwedish ? 'MOMS' : 'ALV'} ${order.items[0]?.vatRatePercent?.toString() || '24'} %:</td>
+                  <td>${vatAmount.toFixed(2)} €</td>
+                </tr>
+                <tr class="total-row">
+                  <td><strong>${isEnglish ? 'Total' : isSwedish ? 'Totalt' : 'Yhteensä'}:</strong></td>
+                  <td><strong>${total.toFixed(2)} €</strong></td>
+                </tr>
+              </table>
+            </div>
+            <div class="totals-right">
+              <div class="terms-info">
+                <div><strong>${isEnglish ? 'Payment Terms' : isSwedish ? 'Betalningsvillkor' : 'Maksuehdot'}:</strong> ${(order as any).paymentTerms || '14 days'}</div>
+                <div><strong>${isEnglish ? 'Delivery' : isSwedish ? 'Leverans' : 'Toimitus'}:</strong> ${isEnglish ? 'By agreement' : isSwedish ? 'Efter överenskommelse' : 'Sovittaessa'}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Footer -->
@@ -1136,9 +1152,9 @@ function generateQuotationHtml(order: OrderWithDetails): string {
               <div>${(order.company as any)?.postalCode || '00100'} ${(order.company as any)?.city || 'Helsinki'}</div>
             </div>
             <div style="width: 50%;">
-              <div>${(order.company as any)?.phone ? `${isEnglish ? 'Phone' : 'Puhelin'}: ${(order.company as any).phone}` : ''}</div>
-              <div>${(order.company as any)?.email ? `${isEnglish ? 'Email' : 'Sähköposti'}: ${(order.company as any).email}` : ''}</div>
-              <div>${isEnglish ? 'Business ID' : 'Y-tunnus'}: ${(order.company as any)?.businessId || '1234567-8'}</div>
+              <div>${(order.company as any)?.phone ? `${isEnglish ? 'Phone' : isSwedish ? 'Telefon' : 'Puhelin'}: ${(order.company as any).phone}` : ''}</div>
+              <div>${(order.company as any)?.email ? `${isEnglish ? 'Email' : isSwedish ? 'E-post' : 'Sähköposti'}: ${(order.company as any).email}` : ''}</div>
+              <div>${isEnglish ? 'Business ID' : isSwedish ? 'Organisationsnummer' : 'Y-tunnus'}: ${(order.company as any)?.businessId || '1234567-8'}</div>
             </div>
           </div>
         </div>
@@ -1177,7 +1193,7 @@ function getEnhancedInvoiceStyles(): string {
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 30px;
-      border-bottom: 2px solid #0066cc;
+      border-bottom: 2px solid #8a9ba8;
       padding-bottom: 20px;
     }
     
@@ -1188,7 +1204,7 @@ function getEnhancedInvoiceStyles(): string {
     
     .company-info h1 {
       font-size: 24px;
-      color: #0066cc;
+      color: #8a9ba8;
       margin-bottom: 10px;
     }
     
@@ -1207,7 +1223,7 @@ function getEnhancedInvoiceStyles(): string {
     .document-type h2 {
       font-size: 28px;
       margin: 0;
-      color: #0066cc;
+      color: #8a9ba8;
       font-weight: bold;
     }
     
@@ -1237,7 +1253,7 @@ function getEnhancedInvoiceStyles(): string {
     }
     
     .customer-info h3 {
-      color: #0066cc;
+      color: #8a9ba8;
       margin-bottom: 0.5em;
       font-size: 14px;
     }
@@ -2096,7 +2112,7 @@ function getQuotationStyles(): string {
       display: flex;
       justify-content: space-between;
       margin-bottom: 30px;
-      border-bottom: 2px solid #0066cc;
+      border-bottom: 2px solid #8a9ba8;
       padding-bottom: 20px;
     }
     
@@ -2112,7 +2128,7 @@ function getQuotationStyles(): string {
     
     .company-name {
       font-size: 24px;
-      color: #0066cc;
+      color: #8a9ba8;
       margin-bottom: 10px;
     }
     
@@ -2132,6 +2148,7 @@ function getQuotationStyles(): string {
     .document-type h2 {
       font-size: 1.5em;
       margin: 0;
+      color: #8a9ba8;
     }
     
     .document-type p {
@@ -2159,7 +2176,7 @@ function getQuotationStyles(): string {
     }
     
     .customer-info h3 {
-      color: #0066cc;
+      color: #8a9ba8;
       margin-bottom: 0.5em;
       font-size: 14px;
     }
@@ -2199,27 +2216,54 @@ function getQuotationStyles(): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 1em;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     .items-table th,
     .items-table td {
-      border: 1px solid #ddd;
-      padding: 0.5em 0;
+      border: 1px solid #e0e0e0;
+      padding: 0.8em 1em;
       text-align: left;
+      vertical-align: middle;
     }
     
     .items-table th {
-      background-color: #f5f5f5;
-      font-weight: bold;
-      color: #0066cc;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      font-weight: 600;
+      color: #495057;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #8a9ba8;
     }
     
-    .items-table td:nth-child(2),
+    .items-table tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+    
+    .items-table tr:hover {
+      background-color: #f1f3f4;
+    }
+    
+    .items-table td:nth-child(1) {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .items-table td:nth-child(2) {
+      color: #6c757d;
+    }
+    
     .items-table td:nth-child(3),
     .items-table td:nth-child(4),
     .items-table td:nth-child(5),
     .items-table td:nth-child(6) {
       text-align: right;
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
     }
     
     .totals-section {
@@ -2228,22 +2272,75 @@ function getQuotationStyles(): string {
       justify-content: flex-end;
     }
     
+    .totals-content {
+      display: flex;
+      gap: 3em;
+      align-items: flex-start;
+    }
+    
+    .totals-left {
+      text-align: right;
+    }
+    
+    .totals-right {
+      text-align: left;
+      min-width: 200px;
+    }
+    
     .totals-table {
       width: 300px;
+      border-collapse: collapse;
+    }
+    
+    .totals-table tr {
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .totals-table td {
+      padding: 0.8em 0;
+      text-align: right;
+    }
+    
+    .totals-table td:first-child {
+      text-align: left;
+      padding-right: 2em;
+      color: #6c757d;
+    }
+    
+    .totals-table td:last-child {
+      font-weight: 600;
+      color: #495057;
+      font-family: 'Courier New', monospace;
     }
     
     .total-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.3em 0;
-      border-bottom: 1px solid #eee;
-    }
-    
-    .total-final {
-      border-bottom: 2px solid #0066cc;
-      border-top: 2px solid #0066cc;
+      border-bottom: 2px solid #8a9ba8;
+      border-top: 2px solid #8a9ba8;
       font-size: 1.2em;
       padding: 10px 0;
+    }
+    
+    .total-row td:last-child {
+      font-size: 1.3em;
+      font-weight: 700;
+      color: #8a9ba8;
+    }
+    
+    .terms-info {
+      background-color: #f8f9fa;
+      padding: 1em;
+      border-radius: 4px;
+      border-left: 3px solid #8a9ba8;
+    }
+    
+    .terms-info div {
+      margin-bottom: 0.5em;
+      color: #6c757d;
+      font-size: 11px;
+    }
+    
+    .terms-info div:last-child {
+      margin-bottom: 0;
     }
     
     .footer-section {
@@ -2266,7 +2363,7 @@ function getQuotationStyles(): string {
     
     .footer-content div strong {
       font-size: 1.1em;
-      color: #0066cc;
+      color: #8a9ba8;
     }
     
     .footer-content div p {
@@ -2277,6 +2374,14 @@ function getQuotationStyles(): string {
       .quotation-container {
         margin: 0;
         padding: 0;
+      }
+      
+      .items-table {
+        box-shadow: none;
+      }
+      
+      .terms-info {
+        border-left-color: #8a9ba8;
       }
     }
   `;
@@ -2347,18 +2452,27 @@ function formatDecimal(amount: any, precision: number = 2): string {
 }
 
 /**
- * Get text for order status
+ * Get text for order status based on customer language
  */
-function getOrderStatusText(status: string): string {
+function getOrderStatusText(status: string, customerLanguage?: string): string {
+  const isEnglish = customerLanguage === 'EN';
+  const isSwedish = customerLanguage === 'SE';
+  
   switch (status) {
     case 'pending':
-      return 'Odottaa käsittelyä';
+      return isEnglish ? 'Pending' : isSwedish ? 'Väntar på bearbetning' : 'Odottaa käsittelyä';
     case 'processing':
-      return 'Käsittelyssä';
+      return isEnglish ? 'Processing' : isSwedish ? 'Bearbetas' : 'Käsittelyssä';
     case 'completed':
-      return 'Valmis';
+      return isEnglish ? 'Completed' : isSwedish ? 'Slutförd' : 'Valmis';
     case 'cancelled':
-      return 'Peruttu';
+      return isEnglish ? 'Cancelled' : isSwedish ? 'Avbruten' : 'Peruttu';
+    case 'ready_to_invoice':
+      return isEnglish ? 'Ready to Invoice' : isSwedish ? 'Redo att fakturera' : 'Valmis laskutettavaksi';
+    case 'invoiced':
+      return isEnglish ? 'Invoiced' : isSwedish ? 'Fakturerad' : 'Laskutettu';
+    case 'delivered':
+      return isEnglish ? 'Delivered' : isSwedish ? 'Levererad' : 'Toimitettu';
     default:
       return status;
   }
