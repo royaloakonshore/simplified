@@ -4411,3 +4411,15 @@ All requested features are fully implemented and working correctly. The system i
    - Updated order status translation function to support all three languages (EN, FI, SE)
    - Enhanced PDF table styling with modern design elements
    - Fixed reminder invoice detection to use isReminder field
+
+## 2025-02-02 - Comprehensive PDF Enhancements and Swedish Language Support
+- Implemented full Swedish language support across all PDF templates (invoices, orders, quotations, work orders)
+- Enhanced PDF styling with light gray accent color (#8a9ba8) for better print visibility
+- Updated item table styling with modern borders, shadows, and background gradients
+- Changed discount display from Euro amounts to percentages in item tables while keeping Euro in summary
+- Improved quotation layout by moving payment terms to right column and right-justifying summary section
+- Enhanced order status translation to support Swedish language
+- Updated email templates (WelcomeEmail, InvoiceEmail, OrderEmail) with comprehensive multilingual support
+- Added localized email subjects based on user language preference
+- Improved PDF page break logic and Giroblankett positioning for better layout
+- All changes successfully built and committed to git repository
