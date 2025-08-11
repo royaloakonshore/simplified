@@ -323,6 +323,7 @@ model Payment {
 
 model Settings {
   id                             String   @id @default(cuid())
+  companyId                      String   @unique
   companyName                    String
   vatId                          String
   bankName                       String?
@@ -343,7 +344,9 @@ model Settings {
   website                        String?
   defaultInvoicePaymentTermsDays Int?
   defaultVatRatePercent          Decimal? @db.Decimal(5, 2)
+  company                        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@index([companyId])
   @@schema("public")
 }
 
@@ -405,6 +408,7 @@ model Company {
   suppliers                    Supplier[]
   usersWithThisAsActiveCompany User[]               @relation("ActiveCompanyForUser")
   companyMembers               User[]               @relation("CompanyMemberships")
+  settings                     Settings?
 
   @@schema("public")
 }

@@ -54,6 +54,29 @@ export async function POST(request: Request) {
         },
       });
 
+      // Create initial settings for the company
+      const initialSettings = await tx.settings.create({
+        data: {
+          companyId: company.id,
+          companyName: companyName,
+          vatId: "", // Will be filled by user
+          domicile: "", // Will be filled by user
+          streetAddress: "", // Will be filled by user
+          postalCode: "", // Will be filled by user
+          city: "", // Will be filled by user
+          countryCode: "FI", // Default to Finland
+          countryName: "Finland", // Default to Finland
+          bankAccountIBAN: "", // Will be filled by user
+          bankAccountBIC: "", // Will be filled by user
+          website: "", // Will be filled by user
+          sellerIdentifier: "", // Will be filled by user
+          sellerIntermediatorAddress: "", // Will be filled by user
+          bankName: "", // Will be filled by user
+          defaultInvoicePaymentTermsDays: 30, // Default to 30 days
+          defaultVatRatePercent: null, // Will be filled by user
+        },
+      });
+
       // Create the admin user
       const adminUser = await tx.user.create({
         data: {
@@ -68,7 +91,7 @@ export async function POST(request: Request) {
         },
       });
 
-      return { company, adminUser };
+      return { company, adminUser, settings: initialSettings };
     });
 
     return NextResponse.json({

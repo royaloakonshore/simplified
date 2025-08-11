@@ -4423,3 +4423,13 @@ All requested features are fully implemented and working correctly. The system i
 - Added localized email subjects based on user language preference
 - Improved PDF page break logic and Giroblankett positioning for better layout
 - All changes successfully built and committed to git repository
+
+## 2025-02-02 - Fixed Settings Page Destructuring Error
+
+- **Root Cause**: Settings page was trying to destructure `null` values from tRPC queries because no settings existed for the company
+- **Database Schema**: Added `companyId` field to Settings model with proper company relation and unique constraint
+- **tRPC Router**: Updated settings router to use `companyProtectedProcedure` for proper company scoping
+- **Bootstrap Process**: Enhanced bootstrap API to create initial settings when creating a company
+- **Data Migration**: Created initial settings for existing company "Fleetfox Ab" to resolve the immediate error
+- **Settings Page**: Added proper null handling and default values when no settings exist
+- **Result**: Settings page now loads without destructuring errors and properly handles company-scoped data

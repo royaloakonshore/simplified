@@ -240,8 +240,25 @@ function SettingsPageContent() {
       };
       settingsForm.reset(defaultValuesFromData);
     } else if (!isLoadingSettings && status === 'authenticated' && !currentSettings && !settingsError) {
-      // If no settings exist (currentSettings is null) and no error, the form will retain its default empty values.
-      // console.log("No company settings found, form will use defaults.");
+      // If no settings exist, reset form to empty values
+      settingsForm.reset({
+        companyName: "",
+        vatId: "",
+        domicile: "",
+        streetAddress: "",
+        postalCode: "",
+        city: "",
+        countryCode: "FI", // Default to Finland
+        countryName: "Finland", // Default to Finland
+        bankAccountIBAN: "",
+        bankAccountBIC: "",
+        website: "",
+        sellerIdentifier: "",
+        sellerIntermediatorAddress: "",
+        bankName: "",
+        defaultInvoicePaymentTermsDays: 30, // Default to 30 days
+        defaultVatRatePercent: null,
+      });
     }
   }, [currentSettings, settingsForm, isLoadingSettings, status, settingsError]);
 

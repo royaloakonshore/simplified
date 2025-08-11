@@ -1,14 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/lib/api/trpc";
+import { createTRPCRouter, companyProtectedProcedure } from "@/lib/api/trpc";
 import { prisma } from "@/lib/db";
 import { TRPCError } from "@trpc/server";
 import { Prisma, type Settings } from "@prisma/client";
 import { settingsSchema, type SettingsInput } from "@/lib/schemas/settings.schema";
-
-// Zod schema for settings - must align with Prisma model
-// MOVED to src/lib/schemas/settings.schema.ts
-// export const settingsSchema = z.object({ ... });
-// export type SettingsInput = z.infer<typeof settingsSchema>;
 
 // Helper to transform Zod input to Prisma Update input
 function transformToPrismaUpdateData(input: SettingsInput): Prisma.SettingsUpdateInput {
@@ -30,45 +25,41 @@ function transformToPrismaUpdateData(input: SettingsInput): Prisma.SettingsUpdat
 
 export const settingsRouter = createTRPCRouter({
   // Get current company's settings
-  get: protectedProcedure
-    .query(async () => {
-      // Fetch the first available settings record.
-      // TODO: Adapt for multi-tenancy when companyId is added to the Settings model.
-      // When multi-tenancy is implemented for settings, this should be:
-      // const companySettings = await prisma.settings.findUnique({
-      //   where: { companyId: ctx.companyId },
-      // });
-      const globalSettings = await prisma.settings.findFirst();
+  get: companyProtectedProcedure
+    .query(async ({ ctx }) => {
+      // Fetch settings for the current company
+      const companySettings = await prisma.settings.findFirst({
+        where: { companyId: ctx.companyId },
+      });
       
-      // Return the settings directly - Prisma handles Decimal serialization properly
-      return globalSettings;
+      // Return the settings or null if none exist
+      return companySettings;
     }),
 
   // Update company's settings - now acts as an upsert
-  update: protectedProcedure
-    .input(settingsSchema) // settingsSchema defines all possible fields
-    .mutation(async ({ input }) => {
-      // IMPORTANT: This needs to be adapted for multi-tenancy (ctx.companyId)
-      // const companyId = ctx.session.user.companyId; // Example for future multi-tenancy
-      // if (!companyId) throw new TRPCError({ code: "BAD_REQUEST", message: "No company selected." });
+  update: companyProtectedProcedure
+    .input(settingsSchema)
+    .mutation(async ({ ctx, input }) => {
+      const companyId = ctx.companyId;
 
-      // For a single-settings model (no companyId yet), we find the first record or create one.
-      // If multi-tenancy with companyId on Settings, the upsert would use companyId in `where`.
-      
-      const existingSettings = await prisma.settings.findFirst(); // In multi-tenant: where: { companyId }
+      // Find existing settings for this company or create new ones
+      const existingSettings = await prisma.settings.findFirst({
+        where: { companyId },
+      });
 
       if (existingSettings) {
         const updatedSettings = await prisma.settings.update({
-          where: { id: existingSettings.id }, // In multi-tenant: where: { companyId }
-          data: input, // Zod schema ensures `input` is valid SettingsUpdateInput
+          where: { id: existingSettings.id },
+          data: input,
         });
         return updatedSettings;
       } else {
-        // Create new settings if none exist
-        // For multi-tenancy, ensure companyId is part of the create data
-        // const createData = { ...input, companyId }; 
+        // Create new settings for this company
         const newSettings = await prisma.settings.create({
-          data: input, // Zod schema ensures `input` is valid SettingsCreateInput
+          data: {
+            ...input,
+            companyId, // Include the company ID
+          },
         });
         return newSettings;
       }
