@@ -59,6 +59,15 @@ function SettingsPageContent() {
   const { data: session, status, update: updateSession } = useSession();
   const utils = api.useUtils();
 
+  // Debug logging to help identify session issues
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Settings Debug] Session status:', status);
+      console.log('[Settings Debug] Session data:', session);
+      console.log('[Settings Debug] Session user:', session?.user);
+    }
+  }, [session, status]);
+
   // Settings Form for Company/Finvoice details
   const settingsForm = useForm<SettingsInput>({
     resolver: zodResolver(settingsSchema),
@@ -248,7 +257,8 @@ function SettingsPageContent() {
     createUserMutation.mutate(data);
   };
 
-  if (status === 'loading' || isLoadingSettings) {
+  // Enhanced error handling for session issues
+  if (status === 'loading') {
     return (
       <div className="w-full space-y-6">
         <Skeleton className="h-8 w-1/4" />
@@ -284,7 +294,34 @@ function SettingsPageContent() {
   }
 
   if (status === 'unauthenticated') {
-    return <p>Access Denied. Please sign in.</p>;
+    return (
+      <div className="w-full space-y-6">
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Authentication Error</AlertTitle>
+          <AlertDescription>
+            You are not authenticated. Please sign in to access the settings page.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Show loading state while settings are being fetched
+  if (isLoadingSettings) {
+    return (
+      <div className="w-full space-y-6">
+        <Skeleton className="h-8 w-1/4" />
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+          <CardFooter><Skeleton className="h-10 w-24 ml-auto" /></CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (
