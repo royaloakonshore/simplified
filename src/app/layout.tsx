@@ -8,6 +8,7 @@ import ClientProvider from "@/components/ClientProvider";
 import { Toaster } from "@/components/ui/sonner"; // Import Sonner Toaster
 import { cookies } from 'next/headers';
 import { getServerAuthSession } from "@/lib/auth";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 
 export const metadata: Metadata = {
       title: "Gerby - Base Test",
@@ -35,11 +36,13 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider cookies={cookieString}>
-          <ClientProvider session={session}>
-            {/* <ThemeAwareToast /> */}
-            {children}
-            <Toaster richColors closeButton /> {/* Add Sonner Toaster here */}
-          </ClientProvider>
+          <AuthProvider session={session}>
+            <ClientProvider>
+              {/* <ThemeAwareToast /> */}
+              {children}
+              <Toaster richColors closeButton /> {/* Add Sonner Toaster here */}
+            </ClientProvider>
+          </AuthProvider>
         </TRPCReactProvider>
       </body>
     </html>

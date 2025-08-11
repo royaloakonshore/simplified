@@ -56,7 +56,29 @@ type CreateUserFormValues = z.infer<typeof createUserFormSchema>;
 
 function SettingsPageContent() {
   // All hooks must be called before any conditional returns
-  const { data: session, status, update: updateSession } = useSession();
+  let sessionData: any = null;
+  let sessionStatus: any = 'loading';
+  let sessionUpdate: any = null;
+  
+  try {
+    const sessionResult = useSession();
+    sessionData = sessionResult.data;
+    sessionStatus = sessionResult.status;
+    sessionUpdate = sessionResult.update;
+  } catch (error) {
+    console.error('[Settings Debug] Error in useSession hook:', error);
+    // Fallback to loading state
+    sessionData = null;
+    sessionStatus = 'loading';
+    sessionUpdate = null;
+  }
+
+  const { data: session, status, update: updateSession } = { 
+    data: sessionData, 
+    status: sessionStatus, 
+    update: sessionUpdate 
+  };
+  
   const utils = api.useUtils();
 
   // Settings Form for Company/Finvoice details
@@ -179,8 +201,10 @@ function SettingsPageContent() {
       console.log('[Settings Debug] Session user:', session?.user);
       console.log('[Settings Debug] Session type:', typeof session);
       console.log('[Settings Debug] Session keys:', session ? Object.keys(session) : 'No session');
+      console.log('[Settings Debug] useSession hook result:', { data: session, status, update: !!updateSession });
+      console.log('[Settings Debug] Component render timestamp:', new Date().toISOString());
     }
-  }, [session, status]);
+  }, [session, status, updateSession]);
 
   useEffect(() => {
     if (currentSettings) {
