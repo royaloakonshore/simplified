@@ -2,14 +2,19 @@
 
 import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "next-auth/react";
+import { type Session } from "next-auth";
+
+interface ClientProviderProps {
+  children: React.ReactNode;
+  session?: Session | null;
+}
 
 export default function ClientProvider({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+  session,
+}: ClientProviderProps) {
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <ThemeProvider
         attribute="class"
         defaultTheme="system"

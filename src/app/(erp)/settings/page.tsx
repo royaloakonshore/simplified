@@ -59,15 +59,6 @@ function SettingsPageContent() {
   const { data: session, status, update: updateSession } = useSession();
   const utils = api.useUtils();
 
-  // Debug logging to help identify session issues
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Settings Debug] Session status:', status);
-      console.log('[Settings Debug] Session data:', session);
-      console.log('[Settings Debug] Session user:', session?.user);
-    }
-  }, [session, status]);
-
   // Settings Form for Company/Finvoice details
   const settingsForm = useForm<SettingsInput>({
     resolver: zodResolver(settingsSchema),
@@ -130,6 +121,67 @@ function SettingsPageContent() {
     }
   );
 
+  const updateSettingsMutation = api.settings.update.useMutation({
+    onSuccess: () => {
+      sonnerToast.success('Company settings updated successfully!');
+      utils.settings.get.invalidate();
+    },
+    onError: (error) => {
+      sonnerToast.error(`Company settings update failed: ${error.message}`);
+    },
+  });
+
+  const updateProfileMutation = api.user.updateProfile.useMutation({
+    onSuccess: async (updatedUser) => {
+      sonnerToast.success('Profile updated successfully!');
+      await updateSession({ 
+        name: updatedUser.name, 
+        firstName: updatedUser.firstName,
+        preferredLanguage: updatedUser.preferredLanguage,
+      }); 
+      profileForm.reset({ 
+        name: updatedUser.name ?? '', 
+        firstName: updatedUser.firstName ?? '',
+        preferredLanguage: updatedUser.preferredLanguage ?? CustomerLanguage.FI,
+      }); 
+    },
+    onError: (error) => {
+      sonnerToast.error(`Profile update failed: ${error.message}`);
+    },
+  });
+
+  const changePasswordMutation = api.user.changePassword.useMutation({
+    onSuccess: () => {
+      sonnerToast.success('Password changed successfully!');
+      passwordForm.reset();
+    },
+    onError: (error) => {
+      sonnerToast.error(`Password change failed: ${error.message}`);
+    },
+  });
+
+  const createUserMutation = api.user.createUserInActiveCompany.useMutation({
+    onSuccess: (data) => {
+      sonnerToast.success(`User ${data.email} created successfully!`);
+      createUserForm.reset();
+      // Potentially invalidate a user list query if one exists elsewhere
+    },
+    onError: (error) => {
+      sonnerToast.error(`Failed to create user: ${error.message}`);
+    },
+  });
+
+  // Debug logging to help identify session issues
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Settings Debug] Session status:', status);
+      console.log('[Settings Debug] Session data:', session);
+      console.log('[Settings Debug] Session user:', session?.user);
+      console.log('[Settings Debug] Session type:', typeof session);
+      console.log('[Settings Debug] Session keys:', session ? Object.keys(session) : 'No session');
+    }
+  }, [session, status]);
+
   useEffect(() => {
     if (currentSettings) {
       const defaultValuesFromData = {
@@ -185,56 +237,6 @@ function SettingsPageContent() {
     }
   }, [status, session, profileForm]);
 
-  const updateSettingsMutation = api.settings.update.useMutation({
-    onSuccess: () => {
-      sonnerToast.success('Company settings updated successfully!');
-      utils.settings.get.invalidate();
-    },
-    onError: (error) => {
-      sonnerToast.error(`Company settings update failed: ${error.message}`);
-    },
-  });
-
-  const updateProfileMutation = api.user.updateProfile.useMutation({
-    onSuccess: async (updatedUser) => {
-      sonnerToast.success('Profile updated successfully!');
-      await updateSession({ 
-        name: updatedUser.name, 
-        firstName: updatedUser.firstName,
-        preferredLanguage: updatedUser.preferredLanguage,
-      }); 
-      profileForm.reset({ 
-        name: updatedUser.name ?? '', 
-        firstName: updatedUser.firstName ?? '',
-        preferredLanguage: updatedUser.preferredLanguage ?? CustomerLanguage.FI,
-      }); 
-    },
-    onError: (error) => {
-      sonnerToast.error(`Profile update failed: ${error.message}`);
-    },
-  });
-
-  const changePasswordMutation = api.user.changePassword.useMutation({
-    onSuccess: () => {
-      sonnerToast.success('Password changed successfully!');
-      passwordForm.reset();
-    },
-    onError: (error) => {
-      sonnerToast.error(`Password change failed: ${error.message}`);
-    },
-  });
-
-  const createUserMutation = api.user.createUserInActiveCompany.useMutation({
-    onSuccess: (data) => {
-      sonnerToast.success(`User ${data.email} created successfully!`);
-      createUserForm.reset();
-      // Potentially invalidate a user list query if one exists elsewhere
-    },
-    onError: (error) => {
-      sonnerToast.error(`Failed to create user: ${error.message}`);
-    },
-  });
-
   const onSettingsSubmit: SubmitHandler<SettingsInput> = (data) => {
     updateSettingsMutation.mutate(data);
   };
@@ -259,6 +261,7 @@ function SettingsPageContent() {
 
   // Enhanced error handling for session issues
   if (status === 'loading') {
+    console.log('[Settings Debug] Status is loading, showing skeleton');
     return (
       <div className="w-full space-y-6">
         <Skeleton className="h-8 w-1/4" />
@@ -294,6 +297,7 @@ function SettingsPageContent() {
   }
 
   if (status === 'unauthenticated') {
+    console.log('[Settings Debug] Status is unauthenticated');
     return (
       <div className="w-full space-y-6">
         <Alert variant="destructive">
@@ -301,6 +305,22 @@ function SettingsPageContent() {
           <AlertTitle>Authentication Error</AlertTitle>
           <AlertDescription>
             You are not authenticated. Please sign in to access the settings page.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Additional safety check for session data
+  if (!session || !session.user) {
+    console.log('[Settings Debug] No session or session.user, showing error');
+    return (
+      <div className="w-full space-y-6">
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Session Error</AlertTitle>
+          <AlertDescription>
+            Session data is missing or invalid. Please try refreshing the page or signing in again.
           </AlertDescription>
         </Alert>
       </div>
@@ -525,7 +545,7 @@ function SettingsPageContent() {
                     <Label htmlFor="bankAccountBIC">Bank Account BIC *</Label>
                     <Input id="bankAccountBIC" {...settingsForm.register('bankAccountBIC')} disabled={updateSettingsMutation.isPending} />
                 {settingsForm.formState.errors.bankAccountBIC && <p className="text-sm text-destructive">{settingsForm.formState.errors.bankAccountBIC.message}</p>}
-              </div>
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

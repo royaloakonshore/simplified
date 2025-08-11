@@ -7,6 +7,7 @@ import ClientProvider from "@/components/ClientProvider";
 // import { ThemeAwareToast } from "@/components/theme/ThemeAwareToast"; // Remove old Toaster
 import { Toaster } from "@/components/ui/sonner"; // Import Sonner Toaster
 import { cookies } from 'next/headers';
+import { getServerAuthSession } from "@/lib/auth";
 
 export const metadata: Metadata = {
       title: "Gerby - Base Test",
@@ -27,11 +28,14 @@ export default async function RootLayout({
     .map(([name, value]) => `${name}=${typeof value === 'string' ? value : value.value}`)
     .join('; ');
 
+  // Get the session at the root level
+  const session = await getServerAuthSession();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider cookies={cookieString}>
-          <ClientProvider>
+          <ClientProvider session={session}>
             {/* <ThemeAwareToast /> */}
             {children}
             <Toaster richColors closeButton /> {/* Add Sonner Toaster here */}
