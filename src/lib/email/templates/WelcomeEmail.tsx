@@ -1,14 +1,33 @@
 import React from 'react';
+import { SupportedLanguage } from './OrderEmail';
 
 interface WelcomeEmailProps {
   name: string;
+  language?: SupportedLanguage;
 }
 
-export function WelcomeEmail({ name }: WelcomeEmailProps) {
+const COPY: Record<SupportedLanguage, { greeting: string; thanks: string }> = {
+  EN: {
+    greeting: "Welcome",
+    thanks: "Thanks for joining us!"
+  },
+  FI: {
+    greeting: "Tervetuloa",
+    thanks: "Kiitos liittymisestä!"
+  },
+  SE: {
+    greeting: "Välkommen",
+    thanks: "Tack för att du anslöt dig!"
+  }
+};
+
+export function WelcomeEmail({ name, language = "EN" }: WelcomeEmailProps) {
+  const copy = COPY[language] ?? COPY.EN;
+  
   return (
     <div>
-      <h1>Welcome, {name}!</h1>
-      <p>Thanks for joining us!</p>
+      <h1>{copy.greeting}, {name}!</h1>
+      <p>{copy.thanks}</p>
     </div>
   );
 }

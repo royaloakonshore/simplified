@@ -356,8 +356,18 @@ function generateGiroblankettHtml(invoice: InvoiceWithDetails, isEnglish: boolea
     || invoice.customer?.addresses?.[0];
   
   // Determine if we need a page break based on content length
-  // If there are many items (>6) or if there are notes, break to next page
-  const needsPageBreak = itemCount > 6 || invoice.notes;
+  // More conservative page break logic - only break if absolutely necessary
+  // Check if items + notes would likely exceed available space
+  const estimatedItemsHeight = itemCount * 0.8; // ~0.8cm per item row
+  const notesHeight = invoice.notes ? 2.5 : 0; // ~2.5cm for notes section
+  const headerHeight = 3; // ~3cm for invoice header
+  const totalsHeight = 2; // ~2cm for totals section
+  
+  const totalContentHeight = estimatedItemsHeight + notesHeight + headerHeight + totalsHeight;
+  
+  // Break to next page only if content would likely exceed ~18cm (leaving ~2cm for Giroblankett)
+  // This ensures the Giroblankett stays on the same page when possible
+  const needsPageBreak = totalContentHeight > 18;
   const pageBreakClass = needsPageBreak ? ' page-break' : '';
   
   return `
@@ -1388,11 +1398,17 @@ function getEnhancedInvoiceStyles(): string {
     
     /* Enhanced Finnish Giroblankett Styles */
     .giroblankett-container {
-      margin-top: 50px;
+      margin-top: 20px; /* Reduced from 50px to move Giroblankett up */
     }
     
     .page-break {
       page-break-before: always;
+    }
+    
+    /* Ensure Giroblankett stays together and doesn't break across pages */
+    .giroblankett-container {
+      page-break-inside: avoid;
+      page-break-after: avoid;
     }
     
     .giroblankett-perforation {
@@ -1425,8 +1441,8 @@ function getEnhancedInvoiceStyles(): string {
       page-break-inside: avoid;
       background: white;
       font-family: 'Arial', sans-serif;
-      margin-top: 1cm;
-      max-height: 8cm;
+      margin-top: 0.5cm; /* Reduced from 1cm to move up further */
+      max-height: 7cm; /* Reduced from 8cm to prevent overflow */
     }
     
     .giroblankett-header {
