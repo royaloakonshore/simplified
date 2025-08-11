@@ -55,29 +55,8 @@ const createUserFormSchema = z.object({
 type CreateUserFormValues = z.infer<typeof createUserFormSchema>;
 
 function SettingsPageContent() {
-  // All hooks must be called before any conditional returns
-  let sessionData: any = null;
-  let sessionStatus: any = 'loading';
-  let sessionUpdate: any = null;
-  
-  try {
-    const sessionResult = useSession();
-    sessionData = sessionResult.data;
-    sessionStatus = sessionResult.status;
-    sessionUpdate = sessionResult.update;
-  } catch (error) {
-    console.error('[Settings Debug] Error in useSession hook:', error);
-    // Fallback to loading state
-    sessionData = null;
-    sessionStatus = 'loading';
-    sessionUpdate = null;
-  }
-
-  const { data: session, status, update: updateSession } = { 
-    data: sessionData, 
-    status: sessionStatus, 
-    update: sessionUpdate 
-  };
+  // Use session hook directly
+  const { data: session, status, update: updateSession } = useSession();
   
   const utils = api.useUtils();
 
