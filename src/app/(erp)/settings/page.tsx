@@ -55,8 +55,13 @@ const createUserFormSchema = z.object({
 type CreateUserFormValues = z.infer<typeof createUserFormSchema>;
 
 function SettingsPageContent() {
-  // Use session hook directly
-  const { data: session, status, update: updateSession } = useSession();
+  // Use session hook with robust error handling
+  const sessionResult = useSession();
+  
+  // Safely destructure with fallbacks
+  const session = sessionResult?.data || null;
+  const status = sessionResult?.status || 'loading';
+  const updateSession = sessionResult?.update || null;
   
   const utils = api.useUtils();
 
@@ -175,6 +180,7 @@ function SettingsPageContent() {
   // Debug logging to help identify session issues
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
+      console.log('[Settings Debug] Session result:', sessionResult);
       console.log('[Settings Debug] Session status:', status);
       console.log('[Settings Debug] Session data:', session);
       console.log('[Settings Debug] Session user:', session?.user);
@@ -183,7 +189,7 @@ function SettingsPageContent() {
       console.log('[Settings Debug] useSession hook result:', { data: session, status, update: !!updateSession });
       console.log('[Settings Debug] Component render timestamp:', new Date().toISOString());
     }
-  }, [session, status, updateSession]);
+  }, [sessionResult, session, status, updateSession]);
 
   useEffect(() => {
     if (currentSettings) {
