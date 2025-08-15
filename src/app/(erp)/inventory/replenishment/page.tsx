@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { AlertTriangle, Package, Search, Filter, Download, Upload } from 'lucide-react';
+import { AlertTriangle, Package, Search, Filter, Download, Upload, Edit3, Save, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ItemType } from '@prisma/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -18,6 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ReplenishmentItem {
   id: string;
@@ -36,6 +44,22 @@ interface ReplenishmentItem {
 }
 
 const ReplenishmentAlerts = ({ items }: { items: ReplenishmentItem[] }) => {
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, { quantity: string; reorderLevel: string }>>({});
+  
+  const utils = api.useUtils();
+  const updateInventoryMutation = api.inventory.update.useMutation({
+    onSuccess: () => {
+      toast.success('Inventory item updated successfully');
+      utils.inventory.getReplenishmentAlerts.invalidate();
+      setEditingItem(null);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update item: ${error.message}`);
+    }
+  });
+
   const criticalItems = items.filter(item => {
     const reorderLevel = Number(item.reorderLevel || 0);
     return Number(item.quantityOnHand) <= reorderLevel;
@@ -43,6 +67,74 @@ const ReplenishmentAlerts = ({ items }: { items: ReplenishmentItem[] }) => {
 
   const outOfStockItems = criticalItems.filter(item => Number(item.quantityOnHand) <= 0);
   const lowStockItems = criticalItems.filter(item => Number(item.quantityOnHand) > 0);
+
+  // Bulk action handlers
+  const handleSelectAll = () => {
+    if (selectedItems.size === criticalItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(criticalItems.map(item => item.id)));
+    }
+  };
+
+  const handleSelectItem = (itemId: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleBulkExport = () => {
+    if (selectedItems.size === 0) {
+      toast.error('Please select items to export');
+      return;
+    }
+    // TODO: Implement bulk export
+    toast.success(`Exporting ${selectedItems.size} items...`);
+  };
+
+  const handleBulkReorder = () => {
+    if (selectedItems.size === 0) {
+      toast.error('Please select items to reorder');
+      return;
+    }
+    // TODO: Implement bulk reorder
+    toast.success(`Creating reorder for ${selectedItems.size} items...`);
+  };
+
+  // Editing handlers
+  const handleStartEdit = (item: ReplenishmentItem) => {
+    setEditingItem(item.id);
+    setEditValues({
+      [item.id]: {
+        quantity: item.quantityOnHand,
+        reorderLevel: item.reorderLevel || '0'
+      }
+    });
+  };
+
+  const handleSaveEdit = async (itemId: string) => {
+    const values = editValues[itemId];
+    if (!values) return;
+
+    try {
+      await updateInventoryMutation.mutateAsync({
+        id: itemId,
+        quantityOnHand: parseFloat(values.quantity),
+        reorderLevel: parseFloat(values.reorderLevel)
+      });
+    } catch (error) {
+      console.error('Failed to update item:', error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItem(null);
+    setEditValues({});
+  };
 
   if (criticalItems.length === 0) {
     return (
@@ -69,6 +161,43 @@ const ReplenishmentAlerts = ({ items }: { items: ReplenishmentItem[] }) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Bulk Actions Toolbar */}
+        {criticalItems.length > 0 && (
+          <div className="mb-4 p-3 bg-white rounded border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={selectedItems.size === criticalItems.length}
+                  onCheckedChange={handleSelectAll}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedItems.size} of {criticalItems.length} items selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkExport}
+                  disabled={selectedItems.size === 0}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkReorder}
+                  disabled={selectedItems.size === 0}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Bulk Reorder
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="space-y-4">
           {outOfStockItems.length > 0 && (
             <div>
@@ -78,15 +207,31 @@ const ReplenishmentAlerts = ({ items }: { items: ReplenishmentItem[] }) => {
               <div className="grid gap-2">
                 {outOfStockItems.slice(0, 3).map((item) => (
                   <div key={item.id} className="flex justify-between items-center text-sm bg-white p-2 rounded border">
-                    <div>
-                      <span className="font-medium">{item.name}</span>
-                      <span className="text-muted-foreground ml-2">({item.sku})</span>
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedItems.has(item.id)}
+                        onCheckedChange={() => handleSelectItem(item.id)}
+                      />
+                      <div>
+                        <span className="font-medium">{item.name}</span>
+                        <span className="text-muted-foreground ml-2">({item.sku})</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-red-600 font-semibold">0 {item.unitOfMeasure}</div>
-                      {item.leadTimeDays && (
-                        <div className="text-xs text-muted-foreground">{item.leadTimeDays}d lead time</div>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-red-600 font-semibold">0 {item.unitOfMeasure}</div>
+                        {item.leadTimeDays && (
+                          <div className="text-xs text-muted-foreground">{item.leadTimeDays}d lead time</div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartEdit(item)}
+                        disabled={editingItem === item.id}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -131,6 +276,68 @@ const ReplenishmentAlerts = ({ items }: { items: ReplenishmentItem[] }) => {
           )}
         </div>
       </CardContent>
+      
+      {/* Edit Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Edit Inventory Item</h3>
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Quantity on Hand</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editValues[editingItem]?.quantity || ''}
+                  onChange={(e) => setEditValues({
+                    ...editValues,
+                    [editingItem]: {
+                      ...editValues[editingItem],
+                      quantity: e.target.value
+                    }
+                  })}
+                  placeholder="Enter quantity"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Reorder Level</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editValues[editingItem]?.reorderLevel || ''}
+                  onChange={(e) => setEditValues({
+                    ...editValues,
+                    [editingItem]: {
+                      ...editValues[editingItem],
+                      reorderLevel: e.target.value
+                    }
+                  })}
+                  placeholder="Enter reorder level"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => handleSaveEdit(editingItem)}
+                disabled={updateInventoryMutation.isPending}
+              >
+                {updateInventoryMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

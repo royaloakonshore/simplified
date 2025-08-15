@@ -192,7 +192,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
     const validTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
       [OrderStatus.draft]: [OrderStatus.confirmed, OrderStatus.cancelled],
       [OrderStatus.confirmed]: [OrderStatus.in_production, OrderStatus.cancelled, OrderStatus.shipped],
-      [OrderStatus.in_production]: [OrderStatus.shipped, OrderStatus.cancelled],
+      [OrderStatus.in_production]: [OrderStatus.confirmed, OrderStatus.shipped, OrderStatus.delivered, OrderStatus.cancelled],
       [OrderStatus.shipped]: [OrderStatus.delivered, OrderStatus.invoiced, OrderStatus.cancelled],
       [OrderStatus.delivered]: [OrderStatus.invoiced, OrderStatus.cancelled],
     };

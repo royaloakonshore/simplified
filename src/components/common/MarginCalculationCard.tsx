@@ -40,10 +40,24 @@ export function MarginCalculationCard({
   const [marginResult, setMarginResult] = useState<ReturnType<typeof calculateMargin> | null>(null);
 
   // Get customer margin data for comparison (only if customerId provided)
-  const { data: customerMarginData } = api.customer.getMarginData.useQuery(
+  const { data: customerMarginData, isLoading: isLoadingCustomerData } = api.customer.getMarginData.useQuery(
     { customerId: customerId!, months: 12 },
     { enabled: !!customerId && isCalculated }
   );
+
+  // Enhanced margin calculation with customer comparison
+  const enhancedMarginResult = React.useMemo(() => {
+    if (!marginResult || !customerMarginData) return marginResult;
+    
+    const customerAverageMargin = customerMarginData.marginPercentage || 0;
+    const comparison = compareToCustomerAverage(marginResult.marginPercentage, customerAverageMargin);
+    
+    return {
+      ...marginResult,
+      customerComparison: comparison,
+      customerAverageMargin,
+    };
+  }, [marginResult, customerMarginData]);
 
   // Debounced calculation function (300ms)
   const calculateMarginDebounced = useCallback(
@@ -207,21 +221,21 @@ export function MarginCalculationCard({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold">
-                    {formatMarginPercentage(marginResult.marginPercentage)}
+                    {formatMarginPercentage(enhancedMarginResult?.marginPercentage || 0)}
                   </span>
-                  <Badge variant={getMarginStatusColor(marginResult.marginPercentage)}>
-                    {marginResult.marginPercentage >= 30 ? 'Excellent' :
-                     marginResult.marginPercentage >= 15 ? 'Good' :
-                     marginResult.marginPercentage >= 0 ? 'Low' : 'Negative'}
+                  <Badge variant={getMarginStatusColor(enhancedMarginResult?.marginPercentage || 0)}>
+                    {(enhancedMarginResult?.marginPercentage || 0) >= 30 ? 'Excellent' :
+                     (enhancedMarginResult?.marginPercentage || 0) >= 15 ? 'Good' :
+                     (enhancedMarginResult?.marginPercentage || 0) >= 0 ? 'Low' : 'Negative'}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Profit margin on {marginResult.itemCount} item{marginResult.itemCount > 1 ? 's' : ''}
+                  Profit margin on {enhancedMarginResult?.itemCount || 0} item{(enhancedMarginResult?.itemCount || 0) > 1 ? 's' : ''}
                 </p>
               </div>
-              {marginResult.marginPercentage >= 0 ? (
+              {(enhancedMarginResult?.marginPercentage || 0) >= 0 ? (
                 <TrendingUp className="h-5 w-5 text-green-600" />
-              ) : marginResult.marginPercentage < 0 ? (
+              ) : (enhancedMarginResult?.marginPercentage || 0) < 0 ? (
                 <TrendingDown className="h-5 w-5 text-red-600" />
               ) : (
                 <Minus className="h-5 w-5 text-gray-400" />
@@ -232,40 +246,40 @@ export function MarginCalculationCard({
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div>
                 <p className="text-muted-foreground">Revenue</p>
-                <p className="font-medium">{formatMarginCurrency(marginResult.totalRevenue)}</p>
+                <p className="font-medium">{formatMarginCurrency(enhancedMarginResult?.totalRevenue || 0)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Cost</p>
-                <p className="font-medium">{formatMarginCurrency(marginResult.totalCost)}</p>
+                <p className="font-medium">{formatMarginCurrency(enhancedMarginResult?.totalCost || 0)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Profit</p>
-                <p className={`font-medium ${marginResult.totalMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatMarginCurrency(marginResult.totalMargin)}
+                <p className={`font-medium ${(enhancedMarginResult?.totalMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatMarginCurrency(enhancedMarginResult?.totalMargin || 0)}
                 </p>
               </div>
             </div>
 
             {/* Customer Comparison */}
-            {comparisonData && (
+            {enhancedMarginResult && 'customerComparison' in enhancedMarginResult && customerMarginData && (
               <div className="pt-2 border-t">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium">vs Customer Average</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatMarginPercentage(customerMarginData?.marginPercentage || 0)} 
-                      {customerMarginData?.period && ` (${customerMarginData.period})`}
+                      {formatMarginPercentage(enhancedMarginResult.customerAverageMargin)} 
+                      (12 months)
                     </p>
                   </div>
                   <Badge 
-                    variant={comparisonData.isAboveAverage ? "default" : "secondary"}
+                    variant={enhancedMarginResult.customerComparison.isAboveAverage ? "default" : "secondary"}
                     className="text-xs"
                   >
-                    {comparisonData.isAboveAverage ? '+' : ''}{comparisonData.difference.toFixed(1)}%
+                    {enhancedMarginResult.customerComparison.isAboveAverage ? '+' : ''}{enhancedMarginResult.customerComparison.difference.toFixed(1)}%
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {comparisonData.description}
+                  {enhancedMarginResult.customerComparison.description}
                 </p>
               </div>
             )}
