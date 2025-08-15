@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner"; // Import Sonner Toaster
 import { cookies } from 'next/headers';
 import { getServerAuthSession } from "@/lib/auth";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { GlobalLoadingIndicator } from "@/components/common/GlobalLoadingIndicator";
 
 export const metadata: Metadata = {
       title: "Gerby - Base Test",
@@ -40,6 +41,7 @@ export default async function RootLayout({
             <ClientProvider>
               {/* <ThemeAwareToast /> */}
               {children}
+              <GlobalLoadingIndicator />
               <Toaster richColors closeButton /> {/* Add Sonner Toaster here */}
             </ClientProvider>
           </AuthProvider>

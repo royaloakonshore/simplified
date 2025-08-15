@@ -95,7 +95,10 @@ export default function OrderStatusUpdateModal({
           <DialogTitle>{`Update Status for Order ${order.orderNumber}`}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p>Current status: <Badge variant={getStatusBadgeVariant(order.status)}>{order.status.replace("_", " ").toUpperCase()}</Badge></p>
+          <div className="flex items-center gap-2">
+            <span>Current status:</span>
+            <Badge variant={getStatusBadgeVariant(order.status)}>{order.status.replace("_", " ").toUpperCase()}</Badge>
+          </div>
           
           <div className="space-y-2">
               <Label htmlFor="orderStatus">New Status</Label>

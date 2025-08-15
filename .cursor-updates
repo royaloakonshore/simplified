@@ -4435,3 +4435,12 @@ All requested features are fully implemented and working correctly. The system i
 - **Session Handling**: Simplified session handling by removing complex try-catch wrapper that was causing destructuring issues
 - **Deep Fix**: Implemented robust null checking for useSession hook to prevent destructuring errors when session data is undefined
 - **Result**: Settings page now loads without destructuring errors and properly handles company-scoped data
+
+## 2025-02-02 - Added Global Loading Indicator and Fixed HTML Validation
+
+- **Global Loading Indicator**: Created simple spinner in bottom-right corner for page navigation and form submissions
+- **HTML Validation Fix**: Fixed hydration error in OrderStatusUpdateModal where Badge component (div) was nested inside p tag
+- **Loading Detection**: Automatically detects form submissions, button clicks, and navigation events
+- **Minimal Implementation**: Uses minimal code with event listeners for form submissions and button clicks
+- **Auto-hide**: Includes 5-second auto-hide to prevent stuck loading states
+- **Result**: Users now see loading feedback during system operations, and HTML validation errors are resolved
