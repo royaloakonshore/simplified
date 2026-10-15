@@ -4446,3 +4446,4 @@ All requested features are fully implemented and working correctly. The system i
 - **Result**: Users now see loading feedback during system operations, and HTML validation errors are resolved
 
 - Books now keeps the visit report Scheduling sends when a visit is marked done, and shows the hours, each line, the material note, and the comment on the order and on Visit reports.
+- The deploy check can run the visit-report checks, because the project now has a test command.
