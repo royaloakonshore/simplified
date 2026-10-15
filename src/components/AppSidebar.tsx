@@ -70,6 +70,7 @@ const customerNavItems: NavItemDefinition[] = [
         isCollapsible: true,
         subItems: [
             { title: 'View All Orders', url: '/orders' },
+            { title: 'Visit reports', url: '/visit-reports' },
             { title: 'Create New Order', url: '/orders/add' } // Assuming /add for consistency
         ]
     },

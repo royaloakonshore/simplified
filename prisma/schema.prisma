@@ -204,6 +204,7 @@ model Order {
   customerNumber      String?
   ourReference        String?
   invoices            Invoice[]   @relation("OrderToInvoices")
+  visitReports        VisitReport[]
   Company             Company?    @relation(fields: [companyId], references: [id])
   customer            Customer    @relation(fields: [customerId], references: [id])
   originalQuotation   Order?      @relation("QuotationToWorkOrder", fields: [originalQuotationId], references: [id])
@@ -405,6 +406,7 @@ model Company {
   inventoryItems               InventoryItem[]
   invoices                     Invoice[]
   orders                       Order[]
+  visitReports                 VisitReport[]
   suppliers                    Supplier[]
   usersWithThisAsActiveCompany User[]               @relation("ActiveCompanyForUser")
   companyMembers               User[]               @relation("CompanyMemberships")
@@ -439,6 +441,42 @@ model InventoryCategory {
 
   @@unique([companyId, name])
   @@index([companyId])
+  @@schema("public")
+}
+
+model VisitReport {
+  id               String            @id @default(cuid())
+  externalVisitId  String            @unique
+  companyId        String?
+  orderId          String?
+  orderNumber      String?
+  workHours        Decimal           @db.Decimal(8, 2)
+  materialCostNote String?
+  comment          String?
+  markedDoneAt     DateTime?
+  receivedAt       DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  company          Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  lines            VisitReportLine[]
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([orderNumber])
+  @@schema("public")
+}
+
+model VisitReportLine {
+  id            String      @id @default(cuid())
+  visitReportId String
+  position      Int
+  item          String
+  quantity      Decimal     @db.Decimal(12, 3)
+  unit          String?
+  productNumber String?
+  visitReport   VisitReport @relation(fields: [visitReportId], references: [id], onDelete: Cascade)
+
+  @@index([visitReportId])
   @@schema("public")
 }
 

@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import OrderStatusUpdateModal from "./OrderStatusUpdateModal";
+import { VisitReportSection } from "./VisitReportSection";
 import { SendConfirmationModal, type SendMethod } from "@/components/common/SendConfirmationModal";
 
 // Types
@@ -498,6 +499,9 @@ export default function OrderDetail({ order }: OrderDetailProps) {
             </div>
           </div>
         )}
+      </div>
+      <div className="px-6 pb-6">
+        <VisitReportSection reports={order.visitReports} />
       </div>
       {/* Totals Section - Only for quotations */}
       {order.orderType === OrderType.quotation && (
