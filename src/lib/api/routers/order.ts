@@ -453,6 +453,13 @@ export const orderRouter = createTRPCRouter({
               inventoryItem: true,
             },
           },
+          visitReports: {
+            where: { companyId: ctx.companyId },
+            orderBy: [{ markedDoneAt: "desc" }, { receivedAt: "desc" }],
+            include: {
+              lines: { orderBy: { position: "asc" } },
+            },
+          },
         },
       });
 
