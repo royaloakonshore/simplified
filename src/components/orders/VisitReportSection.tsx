@@ -21,6 +21,11 @@ export interface VisitReportView {
   comment: string | null;
   markedDoneAt: Date | string | null;
   lines: VisitReportLineView[];
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+  } | null;
   order?: {
     id: string;
     orderNumber: string;
@@ -82,10 +87,22 @@ export function VisitReportSection({ reports, showOrderLink = false }: VisitRepo
                 </p>
               )}
             </div>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Hours </span>
-              <span className="font-semibold">{formatNordicNumber(asNumber(report.workHours), 2)}</span>
-            </p>
+            <div className="text-right space-y-1">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Hours </span>
+                <span className="font-semibold">{formatNordicNumber(asNumber(report.workHours), 2)}</span>
+              </p>
+              {report.invoice ? (
+                <p className="text-sm">
+                  <Link
+                    href={`/invoices/${report.invoice.id}`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Draft invoice {report.invoice.invoiceNumber}
+                  </Link>
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

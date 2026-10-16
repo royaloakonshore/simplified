@@ -49,6 +49,16 @@ export async function POST(request: Request) {
         lineCount: stored.lineCount,
         hasMaterialCostNote: stored.hasMaterialCostNote,
         hasComment: stored.hasComment,
+        draftInvoice: stored.draftInvoice
+          ? {
+              created: stored.draftInvoice.created,
+              updated: stored.draftInvoice.updated,
+              skipped: stored.draftInvoice.skipped,
+              reason: stored.draftInvoice.reason ?? null,
+              invoiceId: stored.draftInvoice.invoiceId ?? null,
+              invoiceNumber: stored.draftInvoice.invoiceNumber ?? null,
+            }
+          : null,
       },
       { status: stored.created ? 201 : 200 },
     );

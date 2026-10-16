@@ -1,6 +1,10 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
+import {
+  draftInvoiceFromVisitReport,
+  type DraftInvoiceFromVisitResult,
+} from "./draft-invoice-from-visit";
 import { parseVisitDonePayload, type ParsedVisitReport } from "./parse-visit-done";
 
 type VisitReportDb = PrismaClient | Prisma.TransactionClient;
@@ -15,6 +19,7 @@ export interface StoredVisitReport {
   lineCount: number;
   hasMaterialCostNote: boolean;
   hasComment: boolean;
+  draftInvoice: DraftInvoiceFromVisitResult | null;
 }
 
 async function saveReport(
@@ -30,17 +35,21 @@ async function saveReport(
     comment: string | null;
     markedDoneAt: Date | null;
   },
-  lines: ReturnType<typeof lineRows>,
+  lines: ReturnType<typeof lineRows> | null,
 ): Promise<{ id: string; created: boolean }> {
   if (existingId) {
     const updated = await db.visitReport.update({
       where: { id: existingId },
       data: {
         ...shared,
-        lines: {
-          deleteMany: {},
-          create: lines,
-        },
+        ...(lines
+          ? {
+              lines: {
+                deleteMany: {},
+                create: lines,
+              },
+            }
+          : {}),
       },
       select: { id: true },
     });
@@ -52,7 +61,7 @@ async function saveReport(
       data: {
         externalVisitId,
         ...shared,
-        lines: { create: lines },
+        ...(lines ? { lines: { create: lines } } : {}),
       },
       select: { id: true },
     });
@@ -72,6 +81,9 @@ async function saveReport(
 }
 
 function lineRows(report: ParsedVisitReport) {
+  if (!report.lines) {
+    return null;
+  }
   return report.lines.map((line) => ({
     position: line.position,
     item: line.item,
@@ -79,6 +91,23 @@ function lineRows(report: ParsedVisitReport) {
     unit: line.unit,
     productNumber: line.productNumber,
   }));
+}
+
+async function tryDraftInvoice(visitReportId: string, db: VisitReportDb): Promise<DraftInvoiceFromVisitResult | null> {
+  try {
+    return await draftInvoiceFromVisitReport(visitReportId, db);
+  } catch (error) {
+    console.error(
+      "Draft invoice from visit report failed",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return {
+      created: false,
+      updated: false,
+      skipped: true,
+      reason: "Draft invoice could not be written.",
+    };
+  }
 }
 
 export async function storeVisitDoneReport(
@@ -111,6 +140,12 @@ export async function storeVisitDoneReport(
 
   const saved = await saveReport(db, report.externalVisitId, existing?.id, shared, lines);
 
+  const storedLines = await db.visitReportLine.count({
+    where: { visitReportId: saved.id },
+  });
+
+  const draftInvoice = order ? await tryDraftInvoice(saved.id, db) : null;
+
   return {
     created: saved.created,
     linkedToOrder: Boolean(order),
@@ -118,8 +153,9 @@ export async function storeVisitDoneReport(
     externalVisitId: report.externalVisitId,
     orderNumber: shared.orderNumber,
     workHours: shared.workHours,
-    lineCount: lines.length,
+    lineCount: storedLines,
     hasMaterialCostNote: Boolean(report.materialCostNote),
     hasComment: Boolean(report.comment),
+    draftInvoice,
   };
 }

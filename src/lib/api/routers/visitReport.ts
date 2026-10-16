@@ -8,6 +8,9 @@ export const visitReportRouter = createTRPCRouter({
       take: 100,
       include: {
         lines: { orderBy: { position: "asc" } },
+        invoice: {
+          select: { id: true, invoiceNumber: true, status: true },
+        },
         order: {
           select: {
             id: true,

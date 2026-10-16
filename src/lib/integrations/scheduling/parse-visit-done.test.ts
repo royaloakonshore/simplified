@@ -26,6 +26,7 @@ describe("parseVisitDonePayload", () => {
     assert.equal(parsed.workHours, 4.5);
     assert.match(parsed.materialCostNote ?? "", /18 euros/);
     assert.match(parsed.comment ?? "", /old trim/);
+    assert.ok(parsed.lines);
     assert.equal(parsed.lines.length, 2);
     assert.deepEqual(
       parsed.lines.map((line) => ({
@@ -55,6 +56,7 @@ describe("parseVisitDonePayload", () => {
 
     assert.equal(parsed.externalVisitId, "visit-2026-0143");
     assert.equal(parsed.workHours, 2);
+    assert.ok(parsed.lines);
     assert.equal(parsed.lines[0]?.productNumber, "HINGE-4");
     assert.equal(parsed.lines[0]?.quantity, 4);
   });
@@ -64,6 +66,19 @@ describe("parseVisitDonePayload", () => {
       () => parseVisitDonePayload({ visitId: "visit-1", lines: [] }),
       (error: unknown) => error instanceof VisitReportParseError && /hours/i.test(error.message),
     );
+  });
+
+  it("keeps lines null when Scheduling omits the line list", () => {
+    const parsed = parseVisitDonePayload({
+      visitId: "visit-2026-0144",
+      orderNumber: "WO-2026-0144",
+      workHours: 3,
+      comment: "Only hours changed.",
+    });
+
+    assert.equal(parsed.lines, null);
+    assert.equal(parsed.workHours, 3);
+    assert.equal(parsed.comment, "Only hours changed.");
   });
 });
 
