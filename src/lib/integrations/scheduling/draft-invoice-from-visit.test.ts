@@ -47,6 +47,32 @@ describe("planInvoiceLinesFromVisit", () => {
     assert.equal(planned.unmatchedReportLines.length, 0);
   });
 
+  it("sums quantities when the same visit SKU appears twice", () => {
+    const planned = planInvoiceLinesFromVisit({
+      orderItems: [
+        {
+          inventoryItemId: "inv-seal",
+          sku: "IKK-TIIV-6",
+          name: "Window seal 6 m",
+          quantity: 1,
+          unitPrice: 40,
+          vatRatePercent: 25.5,
+          costPrice: 10,
+          discountAmount: null,
+          discountPercentage: null,
+        },
+      ],
+      reportLines: [
+        { item: "Window seal 6 m", quantity: 2, productNumber: "IKK-TIIV-6" },
+        { item: "Window seal 6 m", quantity: 1.5, productNumber: "ikk-tiiv-6" },
+      ],
+      extraInventoryBySku: new Map(),
+      companyDefaultVatRate: 25.5,
+    });
+
+    assert.equal(planned.lines[0]?.quantity, 3.5);
+  });
+
   it("adds an extra stock line and notes unmatched free text", () => {
     const planned = planInvoiceLinesFromVisit({
       orderItems: [

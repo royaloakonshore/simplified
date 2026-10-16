@@ -39,8 +39,9 @@ export interface PlannedInvoiceLine {
 
 /**
  * Bills from the work order lines. When the visit report includes lines, matching
- * SKUs take the reported quantity. Extra report SKUs that exist in inventory become
- * added lines. Unmatched report text is returned for the invoice notes.
+ * SKUs take the reported quantity (summed when the same SKU appears more than once).
+ * Extra report SKUs that exist in inventory become added lines. Unmatched report
+ * text is returned for the invoice notes.
  */
 export function planInvoiceLinesFromVisit(args: {
   orderItems: OrderLineForInvoice[];
@@ -58,7 +59,8 @@ export function planInvoiceLinesFromVisit(args: {
       unmatchedReportLines.push(`${reportLine.item} (qty ${reportLine.quantity})`);
       continue;
     }
-    qtyBySku.set(sku.toUpperCase(), reportLine.quantity);
+    const key = sku.toUpperCase();
+    qtyBySku.set(key, (qtyBySku.get(key) ?? 0) + reportLine.quantity);
   }
 
   const lines: PlannedInvoiceLine[] = args.orderItems.map((orderItem) => {
@@ -97,7 +99,7 @@ export function planInvoiceLinesFromVisit(args: {
       );
       unmatchedReportLines.push(
         reportLine
-          ? `${reportLine.item} #${reportLine.productNumber} (qty ${reportLine.quantity})`
+          ? `${reportLine.item} #${reportLine.productNumber} (qty ${quantity})`
           : `Unknown SKU ${skuKey}`,
       );
       continue;
@@ -175,10 +177,7 @@ export interface DraftInvoiceFromVisitResult {
   invoiceNumber?: string;
 }
 
-async function loadCompanyVat(db: Db, companyId: string | null): Promise<number> {
-  if (!companyId) {
-    return 0;
-  }
+async function loadCompanyVat(db: Db, companyId: string): Promise<number> {
   const settings = await db.settings.findUnique({
     where: { companyId },
     select: { defaultVatRatePercent: true },
@@ -187,6 +186,74 @@ async function loadCompanyVat(db: Db, companyId: string | null): Promise<number>
     return 0;
   }
   return new Prisma.Decimal(settings.defaultVatRatePercent.toString()).toNumber();
+}
+
+async function runInTransaction<T>(db: Db, work: (tx: Db) => Promise<T>): Promise<T> {
+  if (db === prisma) {
+    return prisma.$transaction(async (tx) => work(tx));
+  }
+  return work(db);
+}
+
+type InvoiceItemCreate = {
+  inventoryItemId: string;
+  description: string;
+  quantity: Prisma.Decimal;
+  unitPrice: Prisma.Decimal;
+  vatRatePercent: Prisma.Decimal;
+  discountAmount: Prisma.Decimal | null;
+  discountPercentage: Prisma.Decimal | null;
+  calculatedUnitCost: Prisma.Decimal;
+  calculatedUnitProfit: Prisma.Decimal;
+  calculatedLineProfit: Prisma.Decimal;
+};
+
+async function refreshDraftInvoice(args: {
+  db: Db;
+  invoiceId: string;
+  orderId: string;
+  notes: string;
+  invoiceDate: Date;
+  dueDate: Date;
+  subTotal: Prisma.Decimal;
+  totalVatAmountValue: Prisma.Decimal;
+  invoiceItemsToCreate: InvoiceItemCreate[];
+}): Promise<"updated" | "no-longer-draft"> {
+  const stillDraft = await args.db.invoice.updateMany({
+    where: { id: args.invoiceId, status: InvoiceStatus.draft },
+    data: {
+      notes: args.notes,
+      invoiceDate: args.invoiceDate,
+      dueDate: args.dueDate,
+      totalAmount: args.subTotal,
+      totalVatAmount: args.totalVatAmountValue,
+    },
+  });
+  if (stillDraft.count === 0) {
+    return "no-longer-draft";
+  }
+
+  await args.db.invoiceItem.deleteMany({ where: { invoiceId: args.invoiceId } });
+  await args.db.invoiceItem.createMany({
+    data: args.invoiceItemsToCreate.map((item) => ({
+      invoiceId: args.invoiceId,
+      ...item,
+    })),
+  });
+
+  const stillDraftAfter = await args.db.invoice.findFirst({
+    where: { id: args.invoiceId, status: InvoiceStatus.draft },
+    select: { id: true },
+  });
+  if (!stillDraftAfter) {
+    throw new Error("Invoice left draft during refresh; rolling back.");
+  }
+
+  await args.db.order.update({
+    where: { id: args.orderId },
+    data: { status: OrderStatus.invoiced },
+  });
+  return "updated";
 }
 
 /**
@@ -243,6 +310,17 @@ export async function draftInvoiceFromVisitReport(
       reason: "Order customer is missing.",
     };
   }
+
+  const companyId = report.companyId ?? report.order.companyId;
+  if (!companyId) {
+    return {
+      created: false,
+      updated: false,
+      skipped: true,
+      reason: "Order is missing a company.",
+    };
+  }
+
   if (report.order.items.length === 0 && report.lines.length === 0) {
     return {
       created: false,
@@ -263,7 +341,7 @@ export async function draftInvoiceFromVisitReport(
     };
   }
 
-  const companyDefaultVatRate = await loadCompanyVat(db, report.companyId ?? report.order.companyId);
+  const companyDefaultVatRate = await loadCompanyVat(db, companyId);
 
   const orderItems: OrderLineForInvoice[] = report.order.items.map((item) => {
     const inventory = item.inventoryItem;
@@ -323,10 +401,10 @@ export async function draftInvoiceFromVisitReport(
   if (extraSkus.length > 0) {
     const inventoryRows = await db.inventoryItem.findMany({
       where: {
+        companyId,
         OR: extraSkus.map((sku) => ({
           sku: { equals: sku, mode: "insensitive" as const },
         })),
-        ...(report.companyId ? { companyId: report.companyId } : {}),
       },
       select: {
         id: true,
@@ -371,7 +449,7 @@ export async function draftInvoiceFromVisitReport(
 
   let subTotal = new Prisma.Decimal(0);
   let totalVatAmountValue = new Prisma.Decimal(0);
-  const invoiceItemsToCreate = planned.lines.map((line) => {
+  const invoiceItemsToCreate: InvoiceItemCreate[] = planned.lines.map((line) => {
     const quantity = new Prisma.Decimal(line.quantity);
     const unitPrice = new Prisma.Decimal(line.unitPrice);
     const lineTotal = unitPrice.times(quantity);
@@ -408,83 +486,139 @@ export async function draftInvoiceFromVisitReport(
   const orderId = report.order.id;
   const customerId = report.order.customer.id;
   const userId = report.order.userId;
-  const companyId = report.companyId ?? report.order.companyId;
+  const ourReference = report.order.ourReference;
+  const customerNumber = report.order.customerNumber;
+  const reportId = report.id;
 
-  if (report.invoiceId && report.invoice) {
-    await db.invoiceItem.deleteMany({ where: { invoiceId: report.invoiceId } });
-    await db.invoice.update({
-      where: { id: report.invoiceId },
-      data: {
+  let targetInvoiceId = report.invoiceId;
+  let targetInvoiceNumber = report.invoice?.invoiceNumber ?? null;
+  let creating = false;
+
+  if (!targetInvoiceId) {
+    const existingDraft = await db.invoice.findFirst({
+      where: {
+        orderId,
+        companyId,
+        status: InvoiceStatus.draft,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, invoiceNumber: true },
+    });
+    if (existingDraft) {
+      targetInvoiceId = existingDraft.id;
+      targetInvoiceNumber = existingDraft.invoiceNumber;
+    } else {
+      const existingNonDraft = await db.invoice.findFirst({
+        where: {
+          orderId,
+          companyId,
+          status: { not: InvoiceStatus.draft },
+        },
+        select: { id: true, invoiceNumber: true, status: true },
+      });
+      if (existingNonDraft) {
+        return {
+          created: false,
+          updated: false,
+          skipped: true,
+          reason: "Order already has a sent invoice.",
+          invoiceId: existingNonDraft.id,
+          invoiceNumber: existingNonDraft.invoiceNumber,
+        };
+      }
+      creating = true;
+    }
+  }
+
+  return runInTransaction(db, async (tx) => {
+    if (!creating && targetInvoiceId) {
+      const refresh = await refreshDraftInvoice({
+        db: tx,
+        invoiceId: targetInvoiceId,
+        orderId,
         notes,
         invoiceDate,
         dueDate,
+        subTotal,
+        totalVatAmountValue,
+        invoiceItemsToCreate,
+      });
+      if (refresh === "no-longer-draft") {
+        const current = await tx.invoice.findUnique({
+          where: { id: targetInvoiceId },
+          select: { id: true, invoiceNumber: true, status: true },
+        });
+        return {
+          created: false,
+          updated: false,
+          skipped: true,
+          reason: "Linked invoice is no longer a draft.",
+          invoiceId: current?.id,
+          invoiceNumber: current?.invoiceNumber,
+        };
+      }
+      await tx.visitReport.update({
+        where: { id: reportId },
+        data: { invoiceId: targetInvoiceId },
+      });
+      return {
+        created: false,
+        updated: true,
+        skipped: false,
+        invoiceId: targetInvoiceId,
+        invoiceNumber: targetInvoiceNumber ?? undefined,
+      };
+    }
+
+    const lastInvoice = await tx.invoice.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { invoiceNumber: true },
+    });
+    const nextInvoiceNumber = nextInvoiceNumberFromLast(lastInvoice?.invoiceNumber);
+    let referenceNumber: string | undefined;
+    try {
+      referenceNumber = generateInvoiceReferenceNumber(nextInvoiceNumber);
+    } catch {
+      referenceNumber = undefined;
+    }
+
+    const created = await tx.invoice.create({
+      data: {
+        customer: { connect: { id: customerId } },
+        invoiceNumber: nextInvoiceNumber,
+        referenceNumber,
+        invoiceDate,
+        dueDate,
+        status: InvoiceStatus.draft,
+        notes,
+        vatReverseCharge: false,
         totalAmount: subTotal,
         totalVatAmount: totalVatAmountValue,
-        status: InvoiceStatus.draft,
+        ourReference,
+        customerNumber,
+        user: { connect: { id: userId } },
+        Company: { connect: { id: companyId } },
+        order: { connect: { id: orderId } },
         items: { create: invoiceItemsToCreate },
       },
+      select: { id: true, invoiceNumber: true },
     });
-    await db.order.update({
+
+    await tx.visitReport.update({
+      where: { id: reportId },
+      data: { invoiceId: created.id },
+    });
+    await tx.order.update({
       where: { id: orderId },
       data: { status: OrderStatus.invoiced },
     });
+
     return {
-      created: false,
-      updated: true,
+      created: true,
+      updated: false,
       skipped: false,
-      invoiceId: report.invoice.id,
-      invoiceNumber: report.invoice.invoiceNumber,
+      invoiceId: created.id,
+      invoiceNumber: created.invoiceNumber,
     };
-  }
-
-  const lastInvoice = await db.invoice.findFirst({
-    orderBy: { createdAt: "desc" },
-    select: { invoiceNumber: true },
   });
-  const nextInvoiceNumber = nextInvoiceNumberFromLast(lastInvoice?.invoiceNumber);
-  let referenceNumber: string | undefined;
-  try {
-    referenceNumber = generateInvoiceReferenceNumber(nextInvoiceNumber);
-  } catch {
-    referenceNumber = undefined;
-  }
-
-  const created = await db.invoice.create({
-    data: {
-      customer: { connect: { id: customerId } },
-      invoiceNumber: nextInvoiceNumber,
-      referenceNumber,
-      invoiceDate,
-      dueDate,
-      status: InvoiceStatus.draft,
-      notes,
-      vatReverseCharge: false,
-      totalAmount: subTotal,
-      totalVatAmount: totalVatAmountValue,
-      ourReference: report.order.ourReference,
-      customerNumber: report.order.customerNumber,
-      user: { connect: { id: userId } },
-      ...(companyId ? { Company: { connect: { id: companyId } } } : {}),
-      order: { connect: { id: orderId } },
-      items: { create: invoiceItemsToCreate },
-    },
-    select: { id: true, invoiceNumber: true },
-  });
-
-  await db.visitReport.update({
-    where: { id: report.id },
-    data: { invoiceId: created.id },
-  });
-  await db.order.update({
-    where: { id: orderId },
-    data: { status: OrderStatus.invoiced },
-  });
-
-  return {
-    created: true,
-    updated: false,
-    skipped: false,
-    invoiceId: created.id,
-    invoiceNumber: created.invoiceNumber,
-  };
 }

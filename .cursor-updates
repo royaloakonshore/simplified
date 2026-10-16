@@ -4450,3 +4450,5 @@ All requested features are fully implemented and working correctly. The system i
 - A pull request no longer fails when the Vercel preview secrets are still empty; the preview step warns and skips.
 
 - After a visit is marked done, books now opens or refreshes a draft invoice from the work order (with visit quantities and notes) and links it on the visit report.
+
+- Draft invoice from visit-done now runs in one database transaction, reuses an existing work-order draft, requires a company, and sums duplicate visit SKUs.
