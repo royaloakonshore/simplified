@@ -13,9 +13,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - api/auth (NextAuth API routes)
      * - api/bootstrap (bootstrap API routes)
-     * - api/integrations/scheduling (visit-done intake from Scheduling)
+     * - api/integrations (bearer intake from Scheduling and Lead Studio)
      */
-    '/((?!auth|bootstrap|_next/static|_next/image|favicon.ico|api/auth|api/bootstrap|api/integrations/scheduling).*)',
+    '/((?!auth|bootstrap|_next/static|_next/image|favicon.ico|api/auth|api/bootstrap|api/integrations).*)',
   ],
 }; 
 
