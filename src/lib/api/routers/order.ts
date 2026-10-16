@@ -458,6 +458,9 @@ export const orderRouter = createTRPCRouter({
             orderBy: [{ markedDoneAt: "desc" }, { receivedAt: "desc" }],
             include: {
               lines: { orderBy: { position: "asc" } },
+              invoice: {
+                select: { id: true, invoiceNumber: true, status: true },
+              },
             },
           },
         },

@@ -278,6 +278,7 @@ model Invoice {
   user              User?         @relation(fields: [userId], references: [id])
   payments          Payment[]
   items             InvoiceItem[]
+  visitReports      VisitReport[]
 
   @@index([customerId])
   @@index([orderId])
@@ -450,6 +451,7 @@ model VisitReport {
   companyId        String?
   orderId          String?
   orderNumber      String?
+  invoiceId        String?
   workHours        Decimal           @db.Decimal(8, 2)
   materialCostNote String?
   comment          String?
@@ -458,11 +460,13 @@ model VisitReport {
   updatedAt        DateTime          @updatedAt
   company          Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   order            Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoice          Invoice?          @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   lines            VisitReportLine[]
 
   @@index([companyId])
   @@index([orderId])
   @@index([orderNumber])
+  @@index([invoiceId])
   @@schema("public")
 }
 

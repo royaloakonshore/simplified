@@ -31,7 +31,8 @@ export interface ParsedVisitReport {
   materialCostNote: string | null;
   comment: string | null;
   markedDoneAt: Date | null;
-  lines: ParsedVisitReportLine[];
+  /** Null when Scheduling omits lines (unchanged from the work order). Empty array clears lines. */
+  lines: ParsedVisitReportLine[] | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -195,15 +196,16 @@ export function parseVisitDonePayload(body: unknown): ParsedVisitReport {
     throw new VisitReportParseError("Visit id is missing. Send visitId.");
   }
 
-  const linesValue = firstPresent(report, ["lines", "orderLines", "order_lines", "items"]);
-  if (linesValue === undefined) {
-    throw new VisitReportParseError("Order lines are missing. Send lines.");
-  }
-  if (!Array.isArray(linesValue)) {
-    throw new VisitReportParseError("Order lines must be a list.");
-  }
-  if (linesValue.length > MAX_LINES) {
-    throw new VisitReportParseError(`A visit report can include at most ${MAX_LINES} lines.`);
+  const linesRaw = firstPresent(report, ["lines", "orderLines", "order_lines", "items"]);
+  let lines: ParsedVisitReportLine[] | null = null;
+  if (linesRaw !== undefined) {
+    if (!Array.isArray(linesRaw)) {
+      throw new VisitReportParseError("Order lines must be a list.");
+    }
+    if (linesRaw.length > MAX_LINES) {
+      throw new VisitReportParseError(`A visit report can include at most ${MAX_LINES} lines.`);
+    }
+    lines = linesRaw.map((line, index) => parseLine(line, index));
   }
 
   return {
@@ -227,6 +229,6 @@ export function parseVisitDonePayload(body: unknown): ParsedVisitReport {
     markedDoneAt: parseWhen(
       firstPresent(report, ["markedDoneAt", "marked_done_at", "completedAt", "completed_at", "doneAt"]),
     ),
-    lines: linesValue.map((line, index) => parseLine(line, index)),
+    lines,
   };
 }
